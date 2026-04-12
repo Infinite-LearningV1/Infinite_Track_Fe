@@ -11,6 +11,12 @@
 
 ---
 
+## Governance Note
+
+Perubahan env, build, deploy, atau runtime assumption harus tetap selaras dengan root `CLAUDE.md` dan `docs/adr/ADR-006-env-build-and-deploy-runtime-truth.md`. Jika ada perubahan yang menggeser source of truth atau verification expectation, lakukan review docs/ADR agar tidak terjadi drift.
+
+---
+
 ## 🔧 Persiapan Sebelum Deploy
 
 ### 1. Persyaratan Sistem

@@ -63,6 +63,12 @@ serve -s build -p 3000
 
 ## 📋 Checklist Lengkap
 
+## Governance Reminder
+
+- [ ] Verifikasi evidence untuk perubahan deploy/runtime sudah jelas, atau tandai `REQUIRES REPO VERIFICATION` bila jalur verifikasinya belum terkunci.
+- [ ] Tinjau kebutuhan update `CLAUDE.md` / ADR bila perubahan menggeser env, build, deploy, atau runtime assumptions.
+
+
 ### Pre-Build
 
 - [ ] File `.env.production` sudah dibuat

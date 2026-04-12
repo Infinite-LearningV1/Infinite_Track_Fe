@@ -2,6 +2,7 @@ node_modules
 package-lock.json
 /build
 memory-bank
+.worktrees/
 
 # Environment variables
 .env

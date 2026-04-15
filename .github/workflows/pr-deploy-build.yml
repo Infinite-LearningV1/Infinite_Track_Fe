@@ -1,0 +1,58 @@
+name: PR Deploy Build
+
+on:
+  pull_request:
+    branches:
+      - deploy
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run build
+        run: npm run build
+
+  build-production-contract:
+    name: build-production-contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run production-contract build
+        env:
+          API_BASE_URL: https://api.infinite-track.tech
+          APP_ENVIRONMENT: production
+          DEBUG_MODE: "false"
+          LOG_LEVEL: error
+          API_AUTH_ENDPOINT: /auth
+          API_VERSION: v1
+          APP_NAME: Infinite Track
+          APP_VERSION: 2.0.1
+          SESSION_TIMEOUT: "3600000"
+          REMEMBER_ME_DAYS: "7"
+          DEFAULT_LANGUAGE: id
+          TIMEZONE: Asia/Jakarta
+        run: npm run build

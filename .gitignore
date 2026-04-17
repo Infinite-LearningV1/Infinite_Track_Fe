@@ -9,3 +9,8 @@ memory-bank
 .env.development
 .env.production
 .env.test
+
+# Claude Code / worktrees
+.claude/
+.worktrees/
+.remember/

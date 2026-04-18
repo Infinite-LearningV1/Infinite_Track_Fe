@@ -12,26 +12,26 @@
 
 ## File Structure Map
 
-- `E:/skrisi/clonefee/Infinite_Track_Fe/package.json` — direct dependency version ranges for `axios`, `jspdf`, and `jspdf-autotable`.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/package-lock.json` — resolved dependency tree after remediation installs.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/authService.js` — representative auth-layer `axios` usage to verify compatibility.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/userService.js` — large service module with multiple `axios` calls; useful compatibility check target.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/bookingService.js` — representative CRUD `axios` usage.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/attendanceService.js` — representative `axios` usage with auth headers and delete flow.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/reportService.js` — representative report-fetch `axios` usage and dev fallback behavior.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/utils/reportGenerator.js` — coupled `jspdf`, `jspdf-autotable`, and `xlsx` usage; the only file that may need minimal source adjustment for PDF export compatibility.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-17-minimal-safe-audit-remediation-design.md` — approved design/spec for this remediation.
+- `package.json` — direct dependency version ranges for `axios`, `jspdf`, and `jspdf-autotable`.
+- `package-lock.json` — resolved dependency tree after remediation installs.
+- `src/js/services/authService.js` — representative auth-layer `axios` usage to verify compatibility.
+- `src/js/services/userService.js` — large service module with multiple `axios` calls; useful compatibility check target.
+- `src/js/services/bookingService.js` — representative CRUD `axios` usage.
+- `src/js/services/attendanceService.js` — representative `axios` usage with auth headers and delete flow.
+- `src/js/services/reportService.js` — representative report-fetch `axios` usage and dev fallback behavior.
+- `src/js/utils/reportGenerator.js` — coupled `jspdf`, `jspdf-autotable`, and `xlsx` usage; the only file that may need minimal source adjustment for PDF export compatibility.
+- `docs/superpowers/specs/2026-04-17-minimal-safe-audit-remediation-design.md` — approved design/spec for this remediation.
 
 ### Task 1: Patch `axios` with the smallest safe direct-dependency update
 
 **Files:**
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/package.json:48-67`
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/package-lock.json`
-- Test: `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/authService.js`
-- Test: `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/userService.js`
-- Test: `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/bookingService.js`
-- Test: `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/attendanceService.js`
-- Test: `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/reportService.js`
+- Modify: `package.json:48-67`
+- Modify: `package-lock.json`
+- Test: `src/js/services/authService.js`
+- Test: `src/js/services/userService.js`
+- Test: `src/js/services/bookingService.js`
+- Test: `src/js/services/attendanceService.js`
+- Test: `src/js/services/reportService.js`
 
 - [ ] **Step 1: Capture the current `axios` range, installed version, and usage surface**
 
@@ -48,11 +48,11 @@ npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" ls axios --depth=0
 python - <<'PY'
 from pathlib import Path
 files = [
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/authService.js"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/userService.js"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/bookingService.js"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/attendanceService.js"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/src/js/services/reportService.js"),
+    Path(r"src/js/services/authService.js"),
+    Path(r"src/js/services/userService.js"),
+    Path(r"src/js/services/bookingService.js"),
+    Path(r"src/js/services/attendanceService.js"),
+    Path(r"src/js/services/reportService.js"),
 ]
 for path in files:
     text = path.read_text()
@@ -119,10 +119,10 @@ Expected:
 ### Task 2: Patch `jspdf` and `jspdf-autotable` together and keep PDF export source-compatible
 
 **Files:**
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/package.json:48-67`
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/package-lock.json`
-- Modify if needed: `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/utils/reportGenerator.js:1-220`
-- Test: `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/utils/reportGenerator.js`
+- Modify: `package.json:48-67`
+- Modify: `package-lock.json`
+- Modify if needed: `src/js/utils/reportGenerator.js:1-220`
+- Test: `src/js/utils/reportGenerator.js`
 
 - [ ] **Step 1: Capture the current jsPDF package ranges, installed versions, and import usage**
 
@@ -139,7 +139,7 @@ PY
 npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" ls jspdf jspdf-autotable --depth=0
 python - <<'PY'
 from pathlib import Path
-path = Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/src/js/utils/reportGenerator.js")
+path = Path(r"src/js/utils/reportGenerator.js")
 for i, line in enumerate(path.read_text().splitlines(), start=1):
     if i <= 10 or "new jsPDF" in line or "autoTable(" in line:
         if i <= 10 or "new jsPDF" in line or "autoTable(" in line:
@@ -174,7 +174,7 @@ Expected:
 
 - [ ] **Step 4: If needed, make the smallest source change only in `reportGenerator.js` and rebuild**
 
-Only if Step 3 fails because of PDF export package API changes, inspect the build error and update `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/utils/reportGenerator.js` minimally so that:
+Only if Step 3 fails because of PDF export package API changes, inspect the build error and update `src/js/utils/reportGenerator.js` minimally so that:
 - the file still imports `jspdf` and `jspdf-autotable`
 - `new jsPDF()` still creates the document instance
 - table generation still uses the package’s supported call form
@@ -208,8 +208,8 @@ Expected:
 ### Task 3: Record `xlsx` as residual risk and produce the final audit delta
 
 **Files:**
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-17-minimal-safe-audit-remediation-design.md`
-- Test: final `npm audit` output and source usage verification in `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/utils/reportGenerator.js`
+- Modify: `docs/superpowers/specs/2026-04-17-minimal-safe-audit-remediation-design.md`
+- Test: final `npm audit` output and source usage verification in `src/js/utils/reportGenerator.js`
 
 - [ ] **Step 1: Reconfirm that `xlsx` is still used directly and still has no upstream fix**
 
@@ -217,7 +217,7 @@ Run:
 ```bash
 python - <<'PY'
 from pathlib import Path
-path = Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/src/js/utils/reportGenerator.js")
+path = Path(r"src/js/utils/reportGenerator.js")
 for i, line in enumerate(path.read_text().splitlines(), start=1):
     if 'xlsx' in line.lower() or 'XLSX.' in line:
         print(f"{i}: {line}")
@@ -230,7 +230,7 @@ Expected:
 
 - [ ] **Step 2: Add a residual-risk note to the approved remediation spec**
 
-Append this section to the end of `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-17-minimal-safe-audit-remediation-design.md`:
+Append this section to the end of `docs/superpowers/specs/2026-04-17-minimal-safe-audit-remediation-design.md`:
 
 ```md
 ## Residual Risk Note

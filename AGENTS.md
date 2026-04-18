@@ -1,6 +1,6 @@
 # Web FE Code Review Guidance
 
-This repository is a Web FE admin/dashboard application built as a multi-page HTML + Alpine.js app with Webpack/PostCSS, Tailwind CSS, Axios, and Leaflet. This file is for **code review only**. Codex should act as a **formal GitHub PR reviewer**, not as the primary builder or implementer.
+This repository is a Web FE admin/dashboard application built as a multi-page HTML + Alpine.js app with Webpack/PostCSS, Tailwind CSS, Axios, and Leaflet. This file is for **code review only**. Codex should act as a **formal GitHub PR reviewer**, not as the primary builder or implementer. If Copilot review comments appear, treat them as supplemental input rather than the authoritative review source for this repository.
 
 ## Branch promotion workflow
 
@@ -109,7 +109,7 @@ Promote to `master` only when:
 ## What reviewers should verify
 
 - Baseline verification for most PRs:
-  - `npm ci`
+  - `npm install`
   - `npm run build`
 - Sensitive-path verification when relevant:
   - `npm run start` for changes affecting page bootstrap, partial rendering, modal flows, auth guards, env-sensitive behavior, or runtime-only interaction

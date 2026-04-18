@@ -66,6 +66,21 @@ git clone https://github.com/InfiniteTrack/infinitetrack-free-tailwind-dashboard
    yarn start
    ```
 
+## Branch Workflow
+
+This repository uses a branch-promotion workflow:
+
+- Start every new case or change from a dedicated `feature/*` branch.
+- Merge feature work into `develop` only through PR review.
+- Treat `develop` as the integration branch where reviewed changes are held before release.
+- Treat `master` as the final clean branch that is updated only when `develop` is ready to deploy.
+
+Other historical or auxiliary branches may still exist in the repository, but the primary workflow is `feature/*` -> `develop` -> `master`.
+
+In short:
+- `feature/*` -> `develop` via PR review
+- `develop` -> `master` via controlled release promotion
+
 ## Components
 
 InfiniteTrack is a pre-designed starting point for building a web-based dashboard using HTML, Alpine.js and Tailwind CSS. The template includes:

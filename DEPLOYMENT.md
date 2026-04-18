@@ -21,8 +21,8 @@ Perubahan env, build, deploy, atau runtime assumption harus tetap selaras dengan
 
 ### 1. Persyaratan Sistem
 
-- Node.js >= 18.x
-- npm >= 8.x atau yarn >= 1.22.x
+- Node.js 20.x atau lebih baru
+- npm yang bundled dengan runtime aktif atau yarn >= 1.22.x
 - Git
 
 ### 2. Perbaiki Git Status
@@ -317,7 +317,7 @@ firebase deploy
 
 ```dockerfile
 # Dockerfile
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./

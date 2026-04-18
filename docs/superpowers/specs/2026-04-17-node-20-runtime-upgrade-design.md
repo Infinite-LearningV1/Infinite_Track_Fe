@@ -23,13 +23,13 @@ Repo ini adalah Web FE dashboard berbasis webpack, Alpine.js, Tailwind, dan stat
 - `package.json` belum memiliki field `engines`.
 - Repo belum memiliki `.nvmrc` atau `.node-version` di root proyek.
 
-Dependency stack utama (`webpack@5`, `webpack-dev-server@5`, `tailwindcss@4`, `postcss@8`, `babel-loader@9`) secara umum sudah modern dan seharusnya cocok dengan Node 20, tetapi compatiblity tetap harus dibuktikan lewat install/build nyata.
+Dependency stack utama (`webpack@5`, `webpack-dev-server@5`, `tailwindcss@4`, `postcss@8`, `babel-loader@9`) secara umum sudah modern dan seharusnya cocok dengan Node 20, tetapi compatibility tetap harus dibuktikan lewat install/build nyata.
 
 ## Evidence Snapshot
 ### FAKTA
 - `package.json` kini mendeklarasikan runtime minimum `>=20`.
 - `README.md`, `DEPLOYMENT.md`, dan contoh Docker utama sudah diarahkan ke baseline Node 20+.
-- Baseline verifikasi yang relevan menurut `AGENTS.md` adalah `npm install` dan `npm run build`, dengan `npm run start` bila perubahan menyentuh runtime-sensitive path.
+- Baseline verifikasi yang relevan adalah `npm install` dan `npm run build`, dengan `npm run start` bila perubahan menyentuh runtime-sensitive path.
 - Repo meng-ignore `package-lock.json`, jadi lockfile bukan artifact kontrak repo yang committed walaupun hasil install lokal tetap dapat memengaruhi file itu sementara.
 
 ### ASUMSI
@@ -138,16 +138,17 @@ Dependency hanya boleh diubah jika salah satu kondisi berikut terjadi di Node 20
 3. Jika perubahan menyentuh runtime-sensitive startup path, jalankan `npm run start` untuk memastikan dev server tetap bootstrap dengan benar.
 
 ### Success criteria
-- Repo menyatakan target runtime Node 20 secara eksplisit.
-- Semua surface runtime utama yang ada di repo selaras ke Node 20.
-- Install selesai tanpa incompatibility blocker di Node 20.
-- Build selesai sukses di Node 20.
+- Repo menyatakan target runtime Node 20+ secara eksplisit.
+- Semua surface runtime utama yang ada di repo selaras ke Node 20+.
+- Install selesai tanpa incompatibility blocker pada runtime aktif `>=20`.
+- Build selesai sukses pada runtime aktif `>=20`.
 - Dependency changes, jika ada, terbatas pada yang diperlukan untuk compatibility.
 
 ### Run log (2026-04-18)
 - Lingkungan: Node.js 20.x (local CLI).
 - Perintah: `npm install` lalu `npm run build`.
 - Hasil: keduanya sukses tanpa error build. Smoke test PDF (`reportGenerator`) belum dijalankan di browser/runtime UI pada sesi ini; lakukan verifikasi UI cepat saat staging untuk memastikan ekspor PDF tetap kompatibel dengan `jspdf`/`jspdf-autotable` terbaru.
+
 ## Implementation Boundaries
 ### In scope
 - Penambahan/penyesuaian runtime metadata Node 20.

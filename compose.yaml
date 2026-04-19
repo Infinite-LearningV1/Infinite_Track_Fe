@@ -21,7 +21,7 @@ services:
 
   backend:
     build:
-      context: ${BACKEND_REPO_PATH:-E:/test/Infinit_Track_BE}
+      context: ${BACKEND_REPO_PATH?set BACKEND_REPO_PATH to your backend repo path}
       dockerfile: Dockerfile
     profiles: ["dev", "staging"]
     environment:

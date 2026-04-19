@@ -1,20 +1,20 @@
 # Web FE Code Review Guidance
 
-This repository is a Web FE admin/dashboard application built as a multi-page HTML + Alpine.js app with Webpack/PostCSS, Tailwind CSS, Axios, and Leaflet. This file is for **code review only**. Codex should act as a **formal GitHub PR reviewer**, not as the primary builder or implementer. If Copilot review comments appear, treat them as supplemental input rather than the authoritative review source for this repository.
+This repository is a Web FE admin/dashboard application built as a multi-page HTML + Alpine.js app with Webpack/PostCSS, Tailwind CSS, Axios, and Leaflet. This file is for **code review only**. Codex should act as a **formal GitHub PR reviewer**, not as the primary builder or implementer.
 
 ## Branch promotion workflow
 
 This repo uses a branch-promotion model:
 
-- All new work starts from a dedicated `feature/*` branch.
-- Feature work must not be done directly on `develop`.
-- Feature work must not be done directly on `master`.
-- `develop` is the integration branch. Feature branches merge into `develop` only through PR review.
-- `master` is the final deployable branch. It must not receive feature work directly.
+- All new work starts from a dedicated `feature/*` branch or an explicitly named `fix/*` branch for bugfix and urgent work.
+- Change work must not be done directly on `develop`.
+- Change work must not be done directly on `master`.
+- `develop` is the integration branch. Feature and fix branches merge into `develop` only through PR review.
+- `master` is the final deployable branch. It must not receive change work directly.
 - `master` is updated only by promoting a release-ready state from `develop`.
 
 ### Required merge path
-- `feature/*` -> PR review -> `develop`
+- `feature/*` / `fix/*` -> PR review -> `develop`
 - `develop` -> controlled promotion -> `master`
 
 ### Release gate for `develop` -> `master`

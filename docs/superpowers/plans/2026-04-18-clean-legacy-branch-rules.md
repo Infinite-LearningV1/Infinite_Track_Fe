@@ -12,16 +12,16 @@
 
 ## File Structure Map
 
-- `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md` — historical design doc that explicitly declares `feature/fix -> deploy -> master`; must be normalized.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md` — historical implementation plan that operationalizes `deploy` as the PR base; must be normalized.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md` — historical design doc that allows `hotfix/* -> master`; must be aligned to the newer rule if that path is no longer allowed.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-18-branch-promotion-workflow-design.md` — current approved source of truth for the new workflow; use this to keep wording aligned.
+- `docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md` — historical design doc that explicitly declares `feature/fix -> deploy -> master`; must be normalized.
+- `docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md` — historical implementation plan that operationalizes `deploy` as the PR base; must be normalized.
+- `docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md` — historical design doc that allows `hotfix/* -> master`; must be aligned to the newer rule if that path is no longer allowed.
+- `docs/superpowers/specs/2026-04-18-branch-promotion-workflow-design.md` — current approved source of truth for the new workflow; use this to keep wording aligned.
 
 ### Task 1: Normalize deploy-bridge docs to the new promotion flow
 
 **Files:**
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md`
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md`
+- Modify: `docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md`
+- Modify: `docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md`
 - Test: search for removed `deploy`-bridge branch guidance
 
 - [ ] **Step 1: Locate all explicit `deploy`-bridge branch rules in the two historical docs**
@@ -31,8 +31,8 @@ Run:
 python - <<'PY'
 from pathlib import Path
 files = [
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md"),
+    Path(r"docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md"),
+    Path(r"docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md"),
 ]
 needles = ["deploy -> master", "--base deploy", "feature/", "fix/*", "deploy branch"]
 for path in files:
@@ -67,8 +67,8 @@ Run:
 python - <<'PY'
 from pathlib import Path
 files = [
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md"),
+    Path(r"docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md"),
+    Path(r"docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md"),
 ]
 forbidden = [
     "feature/* / fix/* -> deploy -> master",
@@ -108,7 +108,7 @@ Expected:
 ### Task 2: Remove the legacy hotfix-direct-to-master rule from the lightweight git flow doc
 
 **Files:**
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md`
+- Modify: `docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md`
 - Test: search for `hotfix/* -> master` and equivalent phrasing
 
 - [ ] **Step 1: Locate the exact hotfix-to-master declarations in the lightweight git flow spec**
@@ -117,7 +117,7 @@ Run:
 ```bash
 python - <<'PY'
 from pathlib import Path
-path = Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md")
+path = Path(r"docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md")
 needles = ["hotfix", "master", "direct", "feature/*", "develop"]
 for i, line in enumerate(path.read_text().splitlines(), start=1):
     if any(needle in line for needle in needles):
@@ -143,7 +143,7 @@ Run:
 ```bash
 python - <<'PY'
 from pathlib import Path
-path = Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md")
+path = Path(r"docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md")
 text = path.read_text()
 forbidden = [
     "hotfix/* -> master",
@@ -191,10 +191,10 @@ Run:
 python - <<'PY'
 from pathlib import Path
 files = [
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-18-branch-promotion-workflow-design.md"),
+    Path(r"docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md"),
+    Path(r"docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md"),
+    Path(r"docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md"),
+    Path(r"docs/superpowers/specs/2026-04-18-branch-promotion-workflow-design.md"),
 ]
 for path in files:
     print(f"\n== {path.name} ==")
@@ -224,9 +224,9 @@ Run:
 python - <<'PY'
 from pathlib import Path
 files = [
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md"),
+    Path(r"docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md"),
+    Path(r"docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md"),
+    Path(r"docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md"),
 ]
 forbidden = ["--base deploy", "deploy -> master", "hotfix/* -> master"]
 for path in files:

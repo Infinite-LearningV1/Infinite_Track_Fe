@@ -39,7 +39,7 @@ InfiniteTrack provides essential UI components and layouts for building feature-
 
 To get started with InfiniteTrack, ensure you have the following prerequisites installed and set up:
 
-- Node.js 20.x or later
+- Node.js 18.x or later
 
 ### Cloning the Repository
 
@@ -65,6 +65,21 @@ git clone https://github.com/InfiniteTrack/infinitetrack-free-tailwind-dashboard
    # or
    yarn start
    ```
+
+## Branch Workflow
+
+This repository uses a branch-promotion workflow:
+
+- Start every new feature from a dedicated `feature/*` branch, and use `fix/*` branches for bugfix or urgent work.
+- Merge feature and fix work into `develop` only through PR review.
+- Treat `develop` as the integration branch where reviewed changes are held before release.
+- Treat `master` as the final clean branch that is updated only when `develop` is ready to deploy.
+
+Other historical or auxiliary branches may still exist in the repository, but the primary workflow is `feature/*` / `fix/*` -> `develop` -> `master`.
+
+In short:
+- `feature/*` / `fix/*` -> `develop` via PR review
+- `develop` -> `master` via controlled release promotion
 
 ## Components
 

@@ -1,7 +1,7 @@
 # Branch Promotion Workflow Design
 
 ## Summary
-Ganti aturan git workflow repo menjadi model branch promotion yang jelas: semua pekerjaan dimulai dari `feature/*`, semua feature masuk ke `develop` hanya lewat PR review wajib, lalu `master` hanya menerima promote terkontrol dari `develop` saat state sudah benar-benar clean dan siap deploy.
+Ganti aturan git workflow repo menjadi model branch promotion yang jelas: semua pekerjaan dimulai dari `feature/*` atau `fix/*`, semua change branch masuk ke `develop` hanya lewat PR review wajib, lalu `master` hanya menerima promote terkontrol dari `develop` saat state sudah benar-benar clean dan siap deploy.
 
 ## Goal
 1. Menjadikan `feature/*` sebagai tempat kerja untuk setiap case/perubahan baru.
@@ -49,21 +49,21 @@ User juga menegaskan bahwa merge ke `develop` harus memakai **PR review wajib**.
 Pakai pendekatan **simple promotion flow with explicit release gate**.
 
 Artinya:
-- Semua implementasi dimulai dari `feature/*`.
+- Semua implementasi dimulai dari `feature/*` atau `fix/*`.
 - `develop` adalah branch integrasi hasil PR review wajib.
 - `master` adalah branch hasil promote sadar dari `develop`, bukan tempat kerja langsung.
 - Promote ke `master` harus melewati gate release minimum.
 
 ## Branch Roles
 
-### 1. `feature/*`
-Peran branch feature adalah workspace untuk setiap case/perubahan individual.
+### 1. `feature/*` dan `fix/*`
+Peran branch feature/fix adalah workspace untuk setiap case/perubahan individual.
 
 **Rules:**
-- Setiap pekerjaan baru harus dibuat dari branch feature baru.
+- Setiap pekerjaan baru harus dibuat dari branch baru, biasanya `feature/*` untuk feature work atau `fix/*` untuk bugfix/urgent work.
 - Tidak boleh mengerjakan case langsung di `develop`.
 - Tidak boleh mengerjakan case langsung di `master`.
-- Branch feature adalah tempat implementasi, eksperimen terkontrol, dan penyelesaian per case sebelum diajukan ke review.
+- Branch feature/fix adalah tempat implementasi, eksperimen terkontrol, dan penyelesaian per case sebelum diajukan ke review.
 
 ### 2. `develop`
 Peran `develop` adalah branch integrasi tempat perubahan ditahan sebelum release final.
@@ -85,15 +85,15 @@ Peran `master` adalah branch final yang paling stabil dan siap deploy.
 
 ## Promotion Rules
 
-### Feature → Develop
+### Feature/Fix → Develop
 **Required path:**
-- Kerja di `feature/*`
+- Kerja di `feature/*` atau `fix/*`
 - Buat PR ke `develop`
 - Jalani review wajib
 - Setelah lolos, baru merge ke `develop`
 
 **Not allowed:**
-- Direct push kerja feature ke `develop`
+- Direct push kerja feature/fix ke `develop`
 - Direct merge tanpa review sebagai jalur normal
 - Kerja case langsung di `develop`
 
@@ -160,8 +160,8 @@ Kalau gate release tidak jelas, `master` bisa tetap menerima snapshot yang belum
 Tetapkan gate minimum: review selesai, verification minimum lulus, dan release readiness disetujui secara sadar.
 
 ## Expected Deliverables
-1. Definisi resmi branch role untuk `feature/*`, `develop`, dan `master`.
-2. Jalur merge resmi `feature/*` → `develop` → `master`.
+1. Definisi resmi branch role untuk `feature/*`, `fix/*`, `develop`, dan `master`.
+2. Jalur merge resmi `feature/*` / `fix/*` → `develop` → `master`.
 3. Aturan review wajib untuk merge ke `develop`.
 4. Gate minimum untuk promote dari `develop` ke `master`.
 5. Dasar dokumentasi/rule update agar workflow baru bisa diadopsi konsisten di repo.

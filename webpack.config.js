@@ -5,6 +5,35 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
 require("dotenv").config();
 
+const devServer = {
+  static: {
+    directory: path.join(__dirname, "build"),
+  },
+  host: process.env.WEBPACK_DEV_HOST || "127.0.0.1",
+  allowedHosts: "all",
+  compress: true,
+  port: 3000,
+  hot: true,
+  open: process.env.WEBPACK_OPEN === "true",
+  historyApiFallback: true,
+  proxy: [
+    {
+      context: ["/api"],
+      target:
+        process.env.WEBPACK_API_PROXY_TARGET || "http://localhost:3005",
+      changeOrigin: true,
+      secure: false,
+      logLevel: "debug",
+      onError: (err, req, res) => {
+        console.log("Proxy Error:", err);
+      },
+      onProxyReq: (proxyReq, req, res) => {
+        console.log("Proxying request to:", proxyReq.path);
+      },
+    },
+  ],
+};
+
 const INCLUDE_PATTERN =
   /<include\s+src=["'](.+?)["']\s*\/?>\s*(?:<\/include>)?/gis;
 
@@ -42,22 +71,7 @@ const generateHTMLPlugins = () =>
 module.exports = {
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: "./src/js/index.js",
-  devServer: {
-    static: {
-      directory: path.join(__dirname, "./build"),
-    },
-    compress: true,
-    port: 3000,
-    hot: true,
-    proxy: [
-      {
-        context: ["/api"],
-        target: "http://localhost:3005",
-        changeOrigin: true,
-        secure: false,
-      },
-    ],
-  },
+  devServer: devServer,
   module: {
     rules: [
       {
@@ -155,31 +169,6 @@ module.exports = {
     path: path.resolve(__dirname, "build"),
     clean: true,
     assetModuleFilename: "[path][name][ext]",
-  },
-  devServer: {
-    static: {
-      directory: path.join(__dirname, "build"),
-    },
-    compress: true,
-    port: 3000,
-    hot: true,
-    open: true,
-    historyApiFallback: true,
-    proxy: [
-      {
-        context: ["/api"],
-        target: "http://localhost:3005",
-        changeOrigin: true,
-        secure: false,
-        logLevel: "debug",
-        onError: (err, req, res) => {
-          console.log("Proxy Error:", err);
-        },
-        onProxyReq: (proxyReq, req, res) => {
-          console.log("Proxying request to:", proxyReq.path);
-        },
-      },
-    ],
   },
   target: "web", // fix for "browserslist" error message
   stats: "errors-only", // suppress irrelevant log messages

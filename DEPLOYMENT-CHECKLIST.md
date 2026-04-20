@@ -71,8 +71,8 @@ serve -s build -p 3000
 
 ### Pre-Build
 
-- [ ] File `.env.production` sudah dibuat
-- [ ] `API_BASE_URL` sudah diubah ke backend production
+- [ ] File referensi `.env.production.example` sudah disiapkan, dan untuk simulasi build production lokal sudah dicopy ke `.env.production`
+- [ ] `API_BASE_URL` sudah diubah ke backend production (tanpa trailing slash)
 - [ ] Git status bersih (no conflicts)
 - [ ] Dependencies ter-install (`npm install`)
 
@@ -93,9 +93,9 @@ serve -s build -p 3000
 
 ### Deployment
 
-- [ ] Upload folder `build/` ke hosting
+- [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
-- [ ] Configure server (Nginx/Apache)
+- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch/build/output sudah benar
 - [ ] Test akses dari domain production
 
 ### Docker Compose Verification
@@ -126,13 +126,15 @@ serve -s build -p 3000
 
 ### 1. Backend API Integration
 
-**CRITICAL:** Pastikan `API_BASE_URL` di `.env.production` benar!
+**CRITICAL:** Pastikan `API_BASE_URL` di env build-time production benar. Jika memakai `.env.production` untuk simulasi lokal, nilainya harus sama dengan contract production dan tidak memakai trailing slash.
 
-Contoh konfigurasi:
+Contoh konfigurasi yang direkomendasikan untuk static production:
 
 - Backend di subdomain: `https://api.yourdomain.com`
-- Backend di path sama: `https://yourdomain.com/api`
-- Backend IP+port: `http://192.168.1.100:3005`
+
+Catatan:
+- Untuk production static site, gunakan backend public URL eksplisit.
+- Jangan mengandalkan local `/api` gateway sebagai production default kecuali memang ada reverse proxy production yang sengaja disiapkan.
 
 ### 2. CORS Configuration
 
@@ -218,7 +220,7 @@ scp -r build/* user@your-server:/var/www/infinitetrack/
 
 | Problem             | Solution                                   |
 | ------------------- | ------------------------------------------ |
-| API 404 Error       | Update `API_BASE_URL` di `.env.production` |
+| API 404 Error       | Update `API_BASE_URL` di env build-time production atau `.env.production` lokal |
 | Blank page          | Check console, verify assets path          |
 | 404 on refresh      | Configure server for SPA routing           |
 | Images not loading  | Verify `build/src/images/` exists          |

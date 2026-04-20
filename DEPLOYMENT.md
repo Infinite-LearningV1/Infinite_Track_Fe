@@ -56,24 +56,19 @@ yarn install
 
 ### 1. Setup Environment Variables
 
-**PENTING:** Sebelum build production, Anda HARUS mengonfigurasi file `.env.production`
+**PENTING:** Untuk production static deploy, sumber kebenaran utama adalah **build-time environment variables** pada platform deploy (mis. DigitalOcean App Platform). File `.env.production` hanya salah satu cara lokal untuk mensimulasikan build production sebelum deploy.
 
 ```bash
-# File .env.production sudah dibuat, edit dan sesuaikan:
-nano .env.production
+# Opsional untuk simulasi build production di lokal:
+cp .env.production.example .env.production
+# lalu edit sesuai target backend production Anda
 ```
 
-**Konfigurasi WAJIB yang harus diubah:**
+**Konfigurasi WAJIB yang harus diubah saat build production:**
 
 ```env
-# ⚠️ GANTI dengan URL backend Anda yang sebenarnya!
+# ⚠️ GANTI dengan URL backend public Anda yang sebenarnya (tanpa trailing slash)
 API_BASE_URL=https://api.yourdomain.com
-
-# Atau jika backend di subdomain yang sama:
-# API_BASE_URL=https://yourdomain.com/api
-
-# Atau jika menggunakan IP dan port:
-# API_BASE_URL=http://192.168.1.100:3005
 ```
 
 ### 2. Verifikasi Konfigurasi
@@ -158,7 +153,15 @@ serve -s build -p 3000
 
 ## 🌐 Opsi Deployment
 
-### Opsi 1: Static Hosting (Paling Mudah)
+### Production Truth
+
+Untuk production, frontend ini diperlakukan sebagai **static site**. Jalur deploy yang direkomendasikan adalah build frontend lalu host hasil `build/` pada static hosting seperti DigitalOcean App Platform Static Site. Pada model ini, frontend production harus memakai `API_BASE_URL` yang mengarah langsung ke backend public URL (disarankan subdomain API terpisah), bukan mengandalkan local `/api` gateway.
+
+### Local Tooling Truth
+
+Workflow **Docker Compose + NGINX Gateway** di dokumen ini dipertahankan untuk local development dan staging-like verification. Workflow ini bukan sumber kebenaran deploy production frontend.
+
+### Opsi 1: Static Hosting (Paling Mudah / Direkomendasikan untuk Production)
 
 #### A. Netlify (Recommended)
 

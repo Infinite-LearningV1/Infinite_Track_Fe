@@ -26,6 +26,10 @@ const devServer = {
       logLevel: "debug",
       onError: (err, req, res) => {
         console.log("Proxy Error:", err);
+        if (!res.headersSent) {
+          res.writeHead(502, { "Content-Type": "text/plain" });
+        }
+        res.end("Bad Gateway");
       },
       onProxyReq: (proxyReq, req, res) => {
         console.log("Proxying request to:", proxyReq.path);

@@ -71,7 +71,7 @@ serve -s build -p 3000
 
 ### Pre-Build
 
-- [ ] File referensi `.env.production.example` sudah disiapkan, dan jika perlu simulasi lokal sudah dicopy ke `.env.production`
+- [ ] File referensi `.env.production.example` sudah disiapkan, dan untuk simulasi build production lokal sudah dicopy ke `.env.production`
 - [ ] `API_BASE_URL` sudah diubah ke backend production (tanpa trailing slash)
 - [ ] Git status bersih (no conflicts)
 - [ ] Dependencies ter-install (`npm install`)

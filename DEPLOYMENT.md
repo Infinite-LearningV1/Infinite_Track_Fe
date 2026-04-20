@@ -56,7 +56,7 @@ yarn install
 
 ### 1. Setup Environment Variables
 
-**PENTING:** Untuk production static deploy, sumber kebenaran utama adalah **build-time environment variables** pada platform deploy (mis. DigitalOcean App Platform). File `.env.production` hanya salah satu cara lokal untuk mensimulasikan build production sebelum deploy.
+**PENTING:** Untuk production static deploy, sumber kebenaran utama adalah **build-time environment variables** pada platform deploy (mis. DigitalOcean App Platform). Untuk simulasi build production di lokal, repo ini sekarang membaca `.env.production` saat `NODE_ENV=production`.
 
 ```bash
 # Opsional untuk simulasi build production di lokal:

@@ -100,10 +100,10 @@ serve -s build -p 3000
 
 ### Docker Compose Verification
 
-- [ ] `BACKEND_REPO_PATH` diarahkan ke repo backend lokal yang benar sebelum menjalankan `docker compose up --build`
+- [ ] `BACKEND_REPO_PATH` diarahkan ke repo backend lokal yang benar sebelum menjalankan `docker compose --profile dev up --build`
 - [ ] Tambahkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` saat smoke test Docker lokal karena backend saat ini membutuhkannya untuk startup sukses
-- [ ] Development gateway flow diverifikasi dengan stack Compose aktif dan trafik browser masuk lewat service `nginx`
-- [ ] Jika memakai mode staging-like, jalankan `npm run build` sebelum `NGINX_MODE=staging docker compose up --build`
+- [ ] Development gateway flow diverifikasi dengan stack Compose aktif dan trafik browser masuk lewat service `nginx` setelah menjalankan `docker compose --profile dev up --build`
+- [ ] Jika memakai mode staging-like, jalankan `NGINX_MODE=staging docker compose --profile staging up --build` lalu verifikasi HTTP setelah service `frontend-build` selesai mempopulasi volume `frontend_dist`
 
 ### Docker Gateway Verification
 

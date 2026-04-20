@@ -321,7 +321,7 @@ CLOUDINARY_CLOUD_NAME=dummy \
 CLOUDINARY_API_KEY=dummy \
 CLOUDINARY_API_SECRET=dummy \
 NGINX_MODE=dev \
-docker compose up --build
+docker compose --profile dev up --build
 ```
 
 Catatan runtime truth:
@@ -330,7 +330,7 @@ Catatan runtime truth:
 - Pada smoke test lokal Docker saat ini, backend membutuhkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` agar startup berhasil. Nilai dummy cukup untuk smoke test lokal bila alur yang diuji tidak membutuhkan kredensial Cloudinary nyata.
 - Frontend dev menerima `WEBPACK_API_PROXY_TARGET=http://backend:3000` dari Compose, sehingga request API dari dev server diarahkan ke backend container.
 - Gateway NGINX melayani trafik browser dan mem-proxy `/api` ke `backend:3000`.
-- Jika perlu menghindari bentrok port host, override port gateway saat menjalankan Compose, misalnya `GATEWAY_PORT=8081 docker compose up --build`.
+- Jika perlu menghindari bentrok port host, override port gateway saat menjalankan Compose, misalnya `GATEWAY_PORT=8081 docker compose --profile dev up --build`.
 
 Verifikasi cepat gateway:
 
@@ -345,19 +345,19 @@ Jika port di-override, sesuaikan URL verifikasi, misalnya `http://localhost:8081
 Gunakan mode ini untuk menjalankan alur yang lebih mendekati staging: frontend dibuild lebih dulu lalu NGINX menyajikan aset hasil build, sementara `/api` tetap lewat gateway yang sama.
 
 ```bash
-npm run build
 BACKEND_REPO_PATH=/absolute/path/to/Infinit_Track_BE \
 CLOUDINARY_CLOUD_NAME=dummy \
 CLOUDINARY_API_KEY=dummy \
 CLOUDINARY_API_SECRET=dummy \
 NGINX_MODE=staging \
-docker compose up --build
+docker compose --profile staging up --build
 ```
 
 Catatan staging-like mode:
 
 - `NGINX_MODE=staging` mengalihkan NGINX untuk menyajikan aset build frontend, bukan meneruskan trafik ke `frontend-dev`.
-- Pastikan `npm run build` selesai lebih dulu agar aset yang dilayani NGINX sesuai dengan source worktree saat ini.
+- Aset frontend untuk mode ini dipopulasi oleh service `frontend-build` melalui volume `frontend_dist`, jadi `npm run build` di host bukan syarat wajib untuk alur Compose staging-like.
+- Karena `nginx` dan `frontend-build` start paralel, verifikasi HTTP staging-like sebaiknya dilakukan setelah `frontend-build` selesai mempopulasi volume, bukan tepat pada detik pertama startup.
 - Proxy `/api` tetap mengarah ke `backend:3000`, jadi verifikasi gateway tetap dilakukan dari endpoint NGINX yang sama.
 
 ##### C. Stop commands

@@ -1,0 +1,106 @@
+services:
+  db:
+    image: mysql:8.0
+    profiles: ["dev", "staging"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-v1_infinite_track}
+      MYSQL_USER: ${DB_USER:-trackuser}
+      MYSQL_PASSWORD: ${DB_PASS:-trackpassword}
+      TZ: Asia/Jakarta
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app
+
+  backend:
+    build:
+      context: ${BACKEND_REPO_PATH?set BACKEND_REPO_PATH to your backend repo path}
+      dockerfile: Dockerfile
+    profiles: ["dev", "staging"]
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: db
+      DB_USER: ${DB_USER:-trackuser}
+      DB_PASS: ${DB_PASS:-trackpassword}
+      DB_NAME: ${DB_NAME:-v1_infinite_track}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      TZ: Asia/Jakarta
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
+    expose:
+      - "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app
+
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    profiles: ["dev"]
+    working_dir: /app
+    command: npm run start
+    environment:
+      NODE_ENV: development
+      APP_ENVIRONMENT: development
+      WEBPACK_DEV_HOST: 0.0.0.0
+      WEBPACK_OPEN: "false"
+      WEBPACK_API_PROXY_TARGET: http://backend:3000
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - .:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app
+
+  frontend-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: artifacts
+    profiles: ["staging"]
+    working_dir: /artifacts
+    volumes:
+      - frontend_dist:/shared
+    networks:
+      - app
+
+  nginx:
+    image: nginx:1.27-alpine
+    profiles: ["dev", "staging"]
+    environment:
+      NGINX_MODE: ${NGINX_MODE:-dev}
+    ports:
+      - "${GATEWAY_PORT:-8080}:80"
+    volumes:
+      - ./docker/nginx/dev.conf:/opt/nginx/dev.conf:ro
+      - ./docker/nginx/staging.conf:/opt/nginx/staging.conf:ro
+      - ./docker/nginx/select-config.sh:/docker-entrypoint.d/99-select-config.sh:ro
+      - frontend_dist:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    networks:
+      - app
+
+volumes:
+  mysql_data:
+  frontend_node_modules:
+  frontend_dist:
+
+networks:
+  app:
+    driver: bridge

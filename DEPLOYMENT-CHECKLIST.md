@@ -98,6 +98,20 @@ serve -s build -p 3000
 - [ ] Configure server (Nginx/Apache)
 - [ ] Test akses dari domain production
 
+### Docker Compose Verification
+
+- [ ] `BACKEND_REPO_PATH` diarahkan ke repo backend lokal yang benar sebelum menjalankan `docker compose --profile dev up --build`
+- [ ] Tambahkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` saat smoke test Docker lokal karena backend saat ini membutuhkannya untuk startup sukses
+- [ ] Development gateway flow diverifikasi dengan stack Compose aktif dan trafik browser masuk lewat service `nginx` setelah menjalankan `docker compose --profile dev up --build`
+- [ ] Jika memakai mode staging-like, jalankan `NGINX_MODE=staging docker compose --profile staging up --build` lalu verifikasi HTTP setelah service `frontend-build` selesai mempopulasi volume `frontend_dist`
+
+### Docker Gateway Verification
+
+- [ ] Verifikasi gateway NGINX merespons pada port host yang dipakai, misalnya `curl -I http://localhost:8080`
+- [ ] Jika port gateway dioverride, verifikasi endpoint yang sesuai, misalnya `curl -I http://localhost:8081`
+- [ ] Pastikan `/api` diproxy lewat gateway ke backend container, bukan lagi asumsi lama `localhost:3005`
+- [ ] Gunakan `docker compose down` untuk stop stack, atau `docker compose down -v` bila juga ingin membersihkan volume lokal
+
 ### Post-Deployment
 
 - [ ] Login berhasil
@@ -226,11 +240,10 @@ Jika ada masalah serius saat deployment:
 
 ## 📝 Final Notes
 
-- ✅ Project Anda sudah **PRODUCTION READY**
-- ✅ Code quality baik, no runtime errors
-- ✅ Responsive design implemented
-- ✅ Dark mode fully functional
-- ⚠️ **TINGGAL:** Configure environment variables
-- ⚠️ **TINGGAL:** Deploy ke hosting pilihan Anda
+- ✅ Docker gateway workflow untuk local/staging-like verification sudah terdokumentasi
+- ✅ Verifikasi yang terbukti di worktree ini mencakup build FE, boot stack Docker dev, dan respons gateway HTTP 200
+- ⚠️ Production readiness tetap `REQUIRES REPO VERIFICATION`
+- ⚠️ Cloudinary env masih perlu disuplai saat smoke test backend lokal di Docker
+- ⚠️ Deploy ke hosting pilihan Anda tetap memerlukan validasi environment production terpisah
 
-**Good luck dengan deployment! 🚀**
+**Lanjutkan deployment dengan verifikasi bertahap.**

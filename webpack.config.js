@@ -40,39 +40,6 @@ const devServer = {
   ],
 };
 
-const devServer = {
-  static: {
-    directory: path.join(__dirname, "build"),
-  },
-  host: process.env.WEBPACK_DEV_HOST || "127.0.0.1",
-  allowedHosts: "all",
-  compress: true,
-  port: 3000,
-  hot: true,
-  open: process.env.WEBPACK_OPEN === "true",
-  historyApiFallback: true,
-  proxy: [
-    {
-      context: ["/api"],
-      target:
-        process.env.WEBPACK_API_PROXY_TARGET || "http://localhost:3005",
-      changeOrigin: true,
-      secure: false,
-      logLevel: "debug",
-      onError: (err, req, res) => {
-        console.log("Proxy Error:", err);
-        if (!res.headersSent) {
-          res.writeHead(502, { "Content-Type": "text/plain" });
-        }
-        res.end("Bad Gateway");
-      },
-      onProxyReq: (proxyReq, req, res) => {
-        console.log("Proxying request to:", proxyReq.path);
-      },
-    },
-  ],
-};
-
 const INCLUDE_PATTERN =
   /<include\s+src=["'](.+?)["']\s*\/?>\s*(?:<\/include>)?/gis;
 

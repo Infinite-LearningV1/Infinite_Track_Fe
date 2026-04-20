@@ -44,11 +44,9 @@ export function dashboard() {
     errorMessage: null,
     attendanceData: [],
 
-    // Search and pagination properties
+    // Search state
     searchQuery: "",
     searchTimeout: null,
-    entriesPerPage: 5,
-    currentPage: 1,
 
     // Modal states (legacy)
     isDeleteModalOpen: false,
@@ -114,14 +112,6 @@ export function dashboard() {
 
     // Sorting functionality
     currentSort: { field: null, direction: "asc" },
-
-    // Pagination (placeholder - should come from API)
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      per_page: 10,
-      total: 0,
-    },
 
     /**
      * Initialize component
@@ -441,21 +431,6 @@ export function dashboard() {
       }
     },
 
-    /**
-     * Get showing info text for pagination
-     */
-    get showingInfo() {
-      const { current_page, items_per_page, total_items } = this.paginationData;
-
-      if (total_items === 0) {
-        return "Showing 0 entries";
-      }
-
-      const start = (current_page - 1) * items_per_page + 1;
-      const end = Math.min(current_page * items_per_page, total_items);
-
-      return `Showing ${start} to ${end} of ${total_items} entries`;
-    },
 
     /**
      * Get discipline score color class
@@ -895,159 +870,6 @@ export function dashboard() {
     },
 
     // =================== SEARCH AND PAGINATION FUNCTIONALITY ===================
-
-    /**
-     * Get filtered attendance data based on search query
-     */
-    get filteredAttendanceData() {
-      if (!this.searchQuery.trim()) {
-        return this.attendanceData;
-      }
-
-      const query = this.searchQuery.toLowerCase();
-      return this.attendanceData.filter((log) => {
-        // Safe string checking with fallbacks
-        const fullName = (log.full_name || "").toLowerCase();
-        const id = (log.id || "").toLowerCase();
-        const roleName = (log.role_name || "").toLowerCase();
-        const status = (log.status || "").toLowerCase();
-        const information = (log.information || "").toLowerCase();
-        const email = (log.email || "").toLowerCase();
-
-        return (
-          fullName.includes(query) ||
-          id.includes(query) ||
-          roleName.includes(query) ||
-          status.includes(query) ||
-          information.includes(query) ||
-          email.includes(query)
-        );
-      });
-    },
-
-    /**
-     * Get paginated attendance data
-     */
-    get paginatedAttendanceData() {
-      const filtered = this.filteredAttendanceData;
-      const startIndex = (this.currentPage - 1) * this.entriesPerPage;
-      const endIndex = startIndex + this.entriesPerPage;
-      return filtered.slice(startIndex, endIndex);
-    },
-
-    /**
-     * Get total pages
-     */
-    get totalPages() {
-      return Math.ceil(
-        this.filteredAttendanceData.length / this.entriesPerPage,
-      );
-    },
-
-    /**
-     * Get showing info text
-     */
-    get showingInfo() {
-      const filtered = this.filteredAttendanceData;
-      const total = filtered.length;
-
-      if (total === 0) {
-        return "Showing 0 entries";
-      }
-
-      const start = (this.currentPage - 1) * this.entriesPerPage + 1;
-      const end = Math.min(this.currentPage * this.entriesPerPage, total);
-
-      return `Showing ${start} to ${end} of ${total} entries`;
-    },
-
-    /**
-     * Handle search input change
-     */
-    onSearchChange() {
-      this.currentPage = 1; // Reset to first page when searching
-      this.filters.page = 1;
-      // Pencarian akan di-handle oleh debouncedSearch() via @input
-    },
-
-    /**
-     * Handle entries per page change
-     */
-    onEntriesPerPageChange() {
-      this.currentPage = 1; // Reset to first page when changing entries per page
-      console.log("Entries per page changed:", this.entriesPerPage);
-    },
-
-    /**
-     * Go to previous page
-     */
-    previousPage() {
-      if (this.currentPage > 1) {
-        this.currentPage--;
-      }
-    },
-
-    /**
-     * Go to next page
-     */
-    nextPage() {
-      if (this.currentPage < this.totalPages) {
-        this.currentPage++;
-      }
-    },
-
-    /**
-     * Go to specific page
-     */
-    goToPage(page) {
-      if (page >= 1 && page <= this.totalPages) {
-        this.currentPage = page;
-      }
-    },
-
-    /**
-     * Get page numbers for pagination
-     */
-    getPageNumbers() {
-      const pages = [];
-      const total = this.totalPages;
-      const current = this.currentPage;
-
-      if (total <= 7) {
-        // Show all pages if total is 7 or less
-        for (let i = 1; i <= total; i++) {
-          pages.push(i);
-        }
-      } else {
-        // Show first page
-        pages.push(1);
-
-        if (current > 4) {
-          pages.push("...");
-        }
-
-        // Show pages around current page
-        const start = Math.max(2, current - 1);
-        const end = Math.min(total - 1, current + 1);
-
-        for (let i = start; i <= end; i++) {
-          if (!pages.includes(i)) {
-            pages.push(i);
-          }
-        }
-
-        if (current < total - 3) {
-          pages.push("...");
-        }
-
-        // Show last page
-        if (!pages.includes(total)) {
-          pages.push(total);
-        }
-      }
-
-      return pages;
-    },
 
     // Debounced search function
     debouncedSearch() {

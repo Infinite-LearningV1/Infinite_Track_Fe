@@ -37,6 +37,8 @@ export function dashboard() {
       period: "all",
       page: 1,
       limit: 5,
+      sortBy: null,
+      sortOrder: "asc",
     },
 
     // Table state properties
@@ -167,16 +169,14 @@ export function dashboard() {
           `Loading dashboard data for page: ${this.filters.page}, search: ${this.searchQuery}, period: ${this.period}`,
         );
 
-        // Gunakan period filter yang dipilih user untuk semua tampilan dashboard
-        // Saat search aktif, ambil dataset lebih besar agar filter client-side akurat
-        const effectiveLimit =
-          this.searchQuery && this.searchQuery.trim()
-            ? 100
-            : this.filters.limit;
+        // Gunakan period filter, search, dan sorting pada jalur request server-driven yang sama
         const response = await getSummaryReport({
-          period: this.period, // Menggunakan period filter dari dropdown
+          period: this.period,
           page: this.filters.page,
-          limit: effectiveLimit,
+          limit: this.filters.limit,
+          search: this.searchQuery,
+          sortBy: this.filters.sortBy,
+          sortOrder: this.filters.sortOrder,
         });
 
         console.log(`Dashboard API call made with period='${this.period}'`);
@@ -234,7 +234,7 @@ export function dashboard() {
                 ? p.per_page
                 : typeof p.items_per_page !== "undefined"
                   ? p.items_per_page
-                  : effectiveLimit,
+                  : this.filters.limit,
           };
           // Map report data to attendanceData format (matching exact API structure)
           this.attendanceData = reportData.map((item, index) => ({

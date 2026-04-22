@@ -224,5 +224,11 @@ if (!document.querySelector("#booking-map-styles")) {
   document.head.appendChild(styleElement);
 }
 
-// Export for use in other components
-window.bookingMapModal = bookingMapModal;
+// Export singleton helpers for use in booking feature
+const bookingMapModalInstance = bookingMapModal();
+bookingMapModalInstance.init();
+
+window.bookingMapModal = () => bookingMapModalInstance;
+window.initializeBookingMap = (booking) =>
+  bookingMapModalInstance.initializeMap(booking);
+window.cleanupBookingMap = () => bookingMapModalInstance.cleanup();

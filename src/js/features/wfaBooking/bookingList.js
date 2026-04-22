@@ -44,14 +44,6 @@ export function bookingListAlpineData() {
     },
     isLoading: true,
     errorMessage: "",
-    supportedSortFields: [
-      "id",
-      "employee_name",
-      "employee_position",
-      "schedule_date",
-      "status",
-      "suitability_score",
-    ],
     sortFieldMap: {
       id: "id",
       employee_name: "employee_name",
@@ -337,7 +329,7 @@ export function bookingListAlpineData() {
     },
 
     isSortFieldSupported(fieldName) {
-      return this.supportedSortFields.includes(fieldName);
+      return Object.hasOwn(this.sortFieldMap, fieldName);
     },
 
     /**
@@ -423,9 +415,11 @@ export function bookingListAlpineData() {
         notes: "",
         phoneNumber: "",
       };
-    } /**
+    },
+
+    /**
      * Close booking map modal (alias for compatibility)
-     */,
+     */
     closeBookingMapModal() {
       this.closeMapDetailModal();
     },

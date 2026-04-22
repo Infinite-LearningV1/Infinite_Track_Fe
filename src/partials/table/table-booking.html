@@ -51,7 +51,9 @@
           >
             <button
               @click="changeSort('id')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('id')"
+              :class="isSortFieldSupported('id') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>ID</span>
               <span x-text="getSortIcon('id')" class="text-primary"></span>
@@ -62,7 +64,9 @@
           >
             <button
               @click="changeSort('employee_name')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('employee_name')"
+              :class="isSortFieldSupported('employee_name') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Employee</span>
               <span
@@ -76,7 +80,9 @@
           >
             <button
               @click="changeSort('employee_position')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('employee_position')"
+              :class="isSortFieldSupported('employee_position') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Position</span>
               <span
@@ -90,7 +96,9 @@
           >
             <button
               @click="changeSort('schedule_date')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('schedule_date')"
+              :class="isSortFieldSupported('schedule_date') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Schedule Date</span>
               <span
@@ -114,7 +122,9 @@
           >
             <button
               @click="changeSort('status')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('status')"
+              :class="isSortFieldSupported('status') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Status</span>
               <span x-text="getSortIcon('status')" class="text-primary"></span>
@@ -125,7 +135,9 @@
           >
            <button
                @click="changeSort('suitability_score')"
-               class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+               :disabled="!isSortFieldSupported('suitability_score')"
+               :class="isSortFieldSupported('suitability_score') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+               class="flex items-center space-x-1"
            >
                <span>Suitability</span>
                <span x-text="getSortIcon('suitability_score')" class="text-primary"></span>

@@ -18,8 +18,7 @@
       'stickyMenu': false, 
       'sidebarToggle': false, 
       'scrollTop': false,
-      ...window.bookingListAlpineData(),
-      ...bookingMapModalState()
+      ...window.bookingListAlpineData()
     }"
     x-init="
          darkMode = JSON.parse(localStorage.getItem('darkMode'));
@@ -125,8 +124,8 @@
                       >Show:</label
                     >
                     <select
-                      x-model="pagination.per_page"
-                      @change="changePage(1)"
+                      x-model="filters.limit"
+                      @change="changeLimit(filters.limit)"
                       class="focus:ring-primary focus:border-primary rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     >
                       <option value="10">10</option>

@@ -3,7 +3,7 @@
  * Komponen untuk menangani logout user
  */
 
-import { logout } from "../services/authService.js";
+import { logout, forceReauthenticate } from "../services/authService.js";
 import "./modal/modalAlert.js"; // Import modal alert component
 
 /**
@@ -331,26 +331,10 @@ function updateAlpineStoreOnLogout() {
  * Force logout (clear local data without API call)
  */
 function forceLogout() {
-  try {
-    // Clear localStorage
-    localStorage.removeItem("userData");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("rememberMe");
-    localStorage.removeItem("rememberedEmail");
-
-    // Clear sessionStorage
-    sessionStorage.clear();
-
-    // Update Alpine store
-    updateAlpineStoreOnLogout();
-
-    // Redirect to signin
-    window.location.href = "/signin.html";
-  } catch (error) {
+  forceReauthenticate().catch((error) => {
     console.error("Force logout error:", error);
-    // Last resort: reload page
-    window.location.reload();
-  }
+    window.location.href = "/signin.html";
+  });
 }
 
 /**

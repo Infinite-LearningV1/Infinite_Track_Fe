@@ -7,6 +7,7 @@
     "start": "webpack serve --config webpack.config.js",
     "build": "cross-env NODE_ENV=production webpack --config webpack.config.js",
     "build:dev": "webpack --config webpack.config.js",
+    "test:auth-runtime": "node --import ./tests/auth-session-runtime.test.js -e \"\"",
     "sort": "npx prettier --write src"
   },
   "keywords": [],

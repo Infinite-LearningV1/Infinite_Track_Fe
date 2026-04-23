@@ -63,6 +63,8 @@ function removeUserFromStorage() {
 
     // Hapus data lama (backward compatibility)
     localStorage.removeItem("currentUserData");
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
 
     envLog("debug", "All user data removed from storage");
     return true;

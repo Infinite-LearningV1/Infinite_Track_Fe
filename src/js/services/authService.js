@@ -4,11 +4,7 @@
  */
 
 import axios from "axios";
-import {
-  saveUserToStorage,
-  removeUserFromStorage,
-  getUserFromStorage,
-} from "../utils/storageManager.js";
+import { saveUserToStorage, removeUserFromStorage } from "../utils/storageManager.js";
 import { API_CONFIG, AUTH_CONFIG, envLog } from "../config/env.js";
 import {
   classifyAuthFailure,
@@ -167,14 +163,26 @@ function buildAuthRequestHeaders() {
   };
 }
 
-async function forceReauthenticate() {
-  clearAuthArtifacts(window.localStorage, window.sessionStorage);
+async function forceReauthenticate(options = {}) {
+  const redirectToPreserve =
+    typeof options?.preserveRedirectAfterLogin === "string" &&
+    options.preserveRedirectAfterLogin.length > 0
+      ? options.preserveRedirectAfterLogin
+      : window.sessionStorage?.getItem("redirectAfterLogin") || null;
+
+  clearAuthArtifacts(window.localStorage, window.sessionStorage, {
+    preserveRedirectAfterLogin: redirectToPreserve,
+  });
   removeUserFromStorage();
 
   if (window.Alpine?.store) {
     const authStore = window.Alpine.store("auth");
-    if (authStore?.clearAuth) {
-      authStore.clearAuth();
+    if (authStore) {
+      authStore.user = null;
+      authStore.isAuthenticated = false;
+      authStore.sessionState = "unauthenticated";
+      authStore.error = null;
+      authStore.isLoading = false;
     }
   }
 

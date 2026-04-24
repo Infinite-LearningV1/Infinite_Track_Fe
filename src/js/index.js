@@ -368,7 +368,7 @@ async function initializeAuthSession() {
     if (!hasSessionHint()) {
       sessionStorage.setItem("redirectAfterLogin", window.location.href);
       window.location.href = "/signin.html";
-      return;
+      return "redirecting";
     }
 
     return validateUserSession();
@@ -446,7 +446,7 @@ async function bootAuthentication() {
   initAuthStore();
   const startupState = await initializeAuthSession();
 
-  if (startupState !== "verification_failed") {
+  if (startupState !== "verification_failed" && startupState !== "redirecting") {
     initAuthGuard();
     initRoleBasedAccess();
   }

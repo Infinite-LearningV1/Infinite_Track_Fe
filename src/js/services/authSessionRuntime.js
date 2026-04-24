@@ -150,17 +150,40 @@ export function readStoredSessionSnapshot(localStorageRef = globalThis.localStor
 export function clearAuthArtifacts(
   localStorageRef = globalThis.localStorage,
   sessionStorageRef = globalThis.sessionStorage,
+  options = {},
 ) {
+  const redirectToPreserve =
+    typeof options?.preserveRedirectAfterLogin === "string" &&
+    options.preserveRedirectAfterLogin.length > 0
+      ? options.preserveRedirectAfterLogin
+      : null;
+
   if (localStorageRef) {
     [...USER_KEYS, ...TOKEN_KEYS, ...AUXILIARY_KEYS].forEach((key) => {
+      if (key === "redirectAfterLogin" && redirectToPreserve) {
+        return;
+      }
+
       localStorageRef.removeItem(key);
     });
+
+    if (redirectToPreserve) {
+      localStorageRef.removeItem("redirectAfterLogin");
+    }
   }
 
   if (sessionStorageRef) {
     SESSION_KEYS.forEach((key) => {
+      if (key === "redirectAfterLogin" && redirectToPreserve) {
+        return;
+      }
+
       sessionStorageRef.removeItem(key);
     });
+
+    if (redirectToPreserve) {
+      sessionStorageRef.setItem("redirectAfterLogin", redirectToPreserve);
+    }
   }
 }
 

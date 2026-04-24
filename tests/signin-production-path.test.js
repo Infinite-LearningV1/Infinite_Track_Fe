@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const SIGNIN_HTML_PATH =
-  "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/feature-inf-146-web-fe-refresh-session/src/signin.html";
+const TEST_FILE_PATH = fileURLToPath(import.meta.url);
+const TEST_DIR = path.dirname(TEST_FILE_PATH);
+const SIGNIN_HTML_PATH = path.resolve(TEST_DIR, "../src/signin.html");
 
 test("production Alpine signin submit flow delegates redirect to SigninHandler.redirectAfterLogin", () => {
   const signinHtml = fs.readFileSync(SIGNIN_HTML_PATH, "utf8");

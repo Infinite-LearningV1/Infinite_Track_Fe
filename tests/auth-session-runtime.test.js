@@ -10,6 +10,7 @@ import {
   readStoredSessionSnapshot,
 } from "../src/js/services/authSessionRuntime.js";
 import { buildAuthRequestConfig } from "../src/js/services/authRequest.js";
+import { forceReauthenticate } from "../src/js/services/authService.js";
 
 test("classifyAuthFailure marks expired access token as refreshable", () => {
   const result = classifyAuthFailure({
@@ -392,4 +393,95 @@ test("clearAuthArtifacts removes canonical and legacy auth keys from localStorag
 
   assert.deepEqual(localStorageRef.dump(), { untouched: "keep" });
   assert.deepEqual(sessionStorageRef.dump(), { untouchedSession: "keep" });
+});
+
+test("clearAuthArtifacts preserves redirectAfterLogin in sessionStorage when explicitly requested", () => {
+  const localStorageRef = createMemoryStorage({
+    userData: "x",
+    authToken: "x",
+    redirectAfterLogin: "https://app.example/protected",
+    untouched: "keep",
+  });
+  const sessionStorageRef = createMemoryStorage({
+    redirectAfterLogin: "https://app.example/stale",
+    sessionVerificationState: "x",
+    untouchedSession: "keep",
+  });
+
+  clearAuthArtifacts(localStorageRef, sessionStorageRef, {
+    preserveRedirectAfterLogin: "https://app.example/protected?tab=summary",
+  });
+
+  assert.deepEqual(localStorageRef.dump(), { untouched: "keep" });
+  assert.deepEqual(sessionStorageRef.dump(), {
+    redirectAfterLogin: "https://app.example/protected?tab=summary",
+    untouchedSession: "keep",
+  });
+});
+
+test("forceReauthenticate preserves redirect and avoids second storage cleanup hop", async () => {
+  const localStorageRef = createMemoryStorage({
+    userData: "x",
+    authToken: "x",
+    user: "x",
+    currentUserData: "x",
+    auth_token: "x",
+    rememberMe: "x",
+    rememberedEmail: "x",
+    redirectAfterLogin: "https://app.example/protected",
+    untouched: "keep",
+  });
+  const sessionStorageRef = createMemoryStorage({
+    redirectAfterLogin: "https://app.example/stale",
+    sessionVerificationState: "x",
+    untouchedSession: "keep",
+  });
+
+  const authStore = {
+    user: { id: 1 },
+    isAuthenticated: true,
+    sessionState: "authenticated",
+    error: "old-error",
+    isLoading: true,
+  };
+
+  let clearAuthCalls = 0;
+  authStore.clearAuth = () => {
+    clearAuthCalls += 1;
+  };
+
+  const originalWindow = globalThis.window;
+  const originalLocalStorage = globalThis.localStorage;
+  globalThis.localStorage = localStorageRef;
+  globalThis.window = {
+    localStorage: localStorageRef,
+    sessionStorage: sessionStorageRef,
+    Alpine: {
+      store: () => authStore,
+    },
+    location: { href: "/dashboard.html" },
+  };
+
+  try {
+    await forceReauthenticate({
+      preserveRedirectAfterLogin: "https://app.example/protected?tab=summary",
+    });
+
+    assert.equal(clearAuthCalls, 0);
+    assert.equal(authStore.user, null);
+    assert.equal(authStore.isAuthenticated, false);
+    assert.equal(authStore.sessionState, "unauthenticated");
+    assert.equal(authStore.error, null);
+    assert.equal(authStore.isLoading, false);
+
+    assert.deepEqual(localStorageRef.dump(), { untouched: "keep" });
+    assert.deepEqual(sessionStorageRef.dump(), {
+      redirectAfterLogin: "https://app.example/protected?tab=summary",
+      untouchedSession: "keep",
+    });
+    assert.equal(globalThis.window.location.href, "/signin.html");
+  } finally {
+    globalThis.window = originalWindow;
+    globalThis.localStorage = originalLocalStorage;
+  }
 });

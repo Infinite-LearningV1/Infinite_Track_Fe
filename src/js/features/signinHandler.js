@@ -343,16 +343,19 @@ function resolveStoredRedirectTarget(redirectValue) {
 
   try {
     const parsedUrl = new URL(redirectValue, window.location.origin);
+
+    if (parsedUrl.origin !== window.location.origin) {
+      console.warn("Ignoring cross-origin redirectAfterLogin target");
+      return null;
+    }
+
     return {
-      targetHref: parsedUrl.href,
+      targetHref: `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`,
       pathname: parsedUrl.pathname,
     };
   } catch (error) {
-    console.warn("Invalid redirectAfterLogin value, using raw redirect target", error);
-    return {
-      targetHref: redirectValue,
-      pathname: redirectValue,
-    };
+    console.warn("Invalid redirectAfterLogin value, ignoring redirect target", error);
+    return null;
   }
 }
 

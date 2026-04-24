@@ -30,14 +30,16 @@ import "./services/authService.js";
 import "./services/userService.js";
 import "./services/bookingService.js";
 import "./features/signinHandler.js";
-import "./stores/authStore.js";
-import "./utils/authGuard.js";
-import "./utils/roleBasedAccess.js";
 
 // Import authentication utilities
-import { isAuthenticated, getCurrentUser } from "./services/authService.js";
+import {
+  hasSessionHint,
+  resolveBootstrapSession,
+  forceReauthenticate,
+} from "./services/authService.js";
 import { getUserFromStorage } from "./utils/storageManager.js";
 import { initAuthStore } from "./stores/authStore.js";
+import { initAuthGuard } from "./utils/authGuard.js";
 import { initRoleBasedAccess } from "./utils/roleBasedAccess.js";
 import { formatDate } from "./utils/dateTimeFormatter.js";
 import { userListAlpineData } from "./features/userManagement/userListSimple.js";
@@ -338,7 +340,7 @@ window.openMapDetailModal = function (user) {
 };
 
 // Initialize authentication session checking
-function initializeAuthSession() {
+async function initializeAuthSession() {
   console.log("Initializing authentication session...");
 
   // Check if user is on a protected page
@@ -363,121 +365,96 @@ function initializeAuthSession() {
   if (isProtectedPage) {
     console.log("On protected page, checking authentication...");
 
-    // Check if user is authenticated
-    if (!isAuthenticated()) {
-      console.log("User not authenticated, redirecting to signin...");
-
-      // Save current URL for redirect after login
+    if (!hasSessionHint()) {
       sessionStorage.setItem("redirectAfterLogin", window.location.href);
-
-      // Redirect to signin page
       window.location.href = "/signin.html";
-      return;
+      return "redirecting";
     }
 
-    // User is authenticated, validate session
-    validateUserSession();
+    return validateUserSession();
   }
 
-  // If on signin page and user is already authenticated, redirect to dashboard
-  if (pageName === "signin.html" && isAuthenticated()) {
-    console.log("User already authenticated, redirecting to dashboard...");
-    window.location.href = "/index.html";
-    return;
+  if (pageName === "signin.html" && hasSessionHint()) {
+    await validateSigninPageSession();
   }
+
+  return "unauthenticated";
 }
 
 // Validate user session and sync with Alpine store
 async function validateUserSession() {
   try {
-    console.log("Validating user session...");
-
-    // Get user data from storage
     const storedUser = getUserFromStorage();
+    const resolution = await resolveBootstrapSession();
+    const authStore =
+      typeof Alpine !== "undefined" && Alpine.store ? Alpine.store("auth") : null;
 
-    if (storedUser) {
-      console.log("User data found in storage:", storedUser);
+    if (resolution.state === "authenticated") {
+      authStore?.setUser(resolution.user);
+      return resolution.state;
+    }
 
-      // Try to validate with server
-      try {
-        const currentUser = await getCurrentUser();
-        if (currentUser) {
-          console.log("Session validated with server");
+    if (resolution.state === "verification_failed") {
+      authStore?.setVerificationFailed(storedUser);
 
-          // Update Alpine store if available
-          if (
-            typeof Alpine !== "undefined" &&
-            Alpine.store &&
-            Alpine.store("auth")
-          ) {
-            Alpine.store("auth").setUser(currentUser);
-          }
-        } else {
-          throw new Error("Invalid session");
-        }
-      } catch (error) {
-        console.warn(
-          "Session validation failed, using stored data:",
-          error.message,
-        );
+      window.showInlineAlert?.({
+        type: "warning",
+        message: "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
+      });
+      return resolution.state;
+    }
 
-        // Use stored data if server validation fails
-        if (
-          typeof Alpine !== "undefined" &&
-          Alpine.store &&
-          Alpine.store("auth")
-        ) {
-          Alpine.store("auth").setUser(storedUser);
-        }
-      }
-    } else {
-      console.log("No user data in storage");
+    sessionStorage.setItem("redirectAfterLogin", window.location.href);
+    await forceReauthenticate();
+    return resolution.state;
+  } catch (error) {
+    console.error("Error validating session:", error);
+    sessionStorage.setItem("redirectAfterLogin", window.location.href);
+    await forceReauthenticate();
+    return "non_refreshable";
+  }
+}
 
-      // Clear authentication and redirect to signin
+async function validateSigninPageSession() {
+  try {
+    const resolution = await resolveBootstrapSession();
+
+    if (resolution.state === "authenticated") {
       if (
         typeof Alpine !== "undefined" &&
         Alpine.store &&
         Alpine.store("auth")
       ) {
-        Alpine.store("auth").clearAuth();
+        Alpine.store("auth").setUser(resolution.user);
       }
 
-      sessionStorage.setItem("redirectAfterLogin", window.location.href);
-      window.location.href = "/signin.html";
+      const roleBasedRedirect = window.RoleBasedAccess?.redirectBasedOnRole;
+      if (roleBasedRedirect && resolution.user?.role_name) {
+        roleBasedRedirect(resolution.user.role_name);
+      } else {
+        window.location.href = "/index.html";
+      }
     }
   } catch (error) {
-    console.error("Error validating session:", error);
+    console.warn("Failed to validate signin page session:", error);
+  }
+}
 
-    // Clear authentication on error
-    if (typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
-      Alpine.store("auth").clearAuth();
-    }
+async function bootAuthentication() {
+  console.log("Alpine.js started, setting up authentication...");
 
-    sessionStorage.setItem("redirectAfterLogin", window.location.href);
-    window.location.href = "/signin.html";
+  initAuthStore();
+  const startupState = await initializeAuthSession();
+
+  if (startupState !== "verification_failed" && startupState !== "redirecting") {
+    initAuthGuard();
+    initRoleBasedAccess();
   }
 }
 
 // Initialize Alpine.js with authentication
 Alpine.start();
-
-// Initialize authentication after Alpine.js is ready
-document.addEventListener("alpine:init", () => {
-  console.log("Alpine.js initialized, setting up authentication...");
-
-  // Initialize auth store
-  initAuthStore();
-
-  // Initialize session checking
-  initializeAuthSession();
-});
-
-// Fallback initialization if Alpine is already started
-setTimeout(() => {
-  if (typeof Alpine !== "undefined") {
-    initializeAuthSession();
-  }
-}, 100);
+bootAuthentication();
 
 // Function to show coordinates placeholder
 function showCoordinatesPlaceholder(latitude, longitude, mapElementId) {

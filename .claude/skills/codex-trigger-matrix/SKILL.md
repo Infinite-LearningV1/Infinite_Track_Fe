@@ -8,7 +8,7 @@ allowed-tools:
   - Grep
   - AskUserQuestion
 paths:
-  - Infinite_Track_Fe/**
+  - "**"
 ---
 
 # codex-trigger-matrix

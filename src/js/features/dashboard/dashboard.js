@@ -11,42 +11,44 @@ import {
   getInfoBadgeClass,
   getInfoBadgeText,
 } from "../../utils/badgeHelpers.js";
+import {
+  applyDashboardPageSize,
+  applyDashboardPeriod,
+  applyDashboardSearch,
+  buildDashboardRequestParams,
+  createEmptyDashboardPagination,
+  normalizeDashboardPagination,
+  sortDashboardRows,
+} from "./dashboardTableState.js";
 
 /**
  * Alpine.js component untuk dashboard functionality
  */
 export function dashboard() {
   return {
-    // State management
+    // Dashboard table strategy: server-driven.
+    // Request state lives in `filters`, server pagination lives in `pagination`,
+    // and rendered rows live in `reportData`. Do not add a second local
+    // search/pagination model for the active table path.
     loading: false,
     error: null,
-    period: "all",
 
     // Pagination state
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      total_records: 0,
-      has_prev_page: false,
-      has_next_page: false,
-      per_page: 5,
-    },
+    pagination: createEmptyDashboardPagination(5),
 
     // Filter state
     filters: {
       period: "all",
       page: 1,
       limit: 5,
-      sortBy: null,
-      sortOrder: "asc",
+      search: "",
     },
 
     // Table state properties
     isLoading: false,
     errorMessage: null,
-    attendanceData: [],
 
-    // Search state
+    // Search input/debounce UI state
     searchQuery: "",
     searchTimeout: null,
 
@@ -115,6 +117,10 @@ export function dashboard() {
     // Sorting functionality
     currentSort: { field: null, direction: "asc" },
 
+    get sortedReportData() {
+      return sortDashboardRows(this.reportData, this.currentSort);
+    },
+
     /**
      * Initialize component
      */
@@ -150,6 +156,8 @@ export function dashboard() {
         avg_work_hours: 8.2,
       };
 
+      this.searchQuery = this.filters.search;
+
       console.log("Initial test data set:", this.summaryData);
 
       await this.loadSummaryData();
@@ -166,20 +174,16 @@ export function dashboard() {
 
       try {
         console.log(
-          `Loading dashboard data for page: ${this.filters.page}, search: ${this.searchQuery}, period: ${this.period}`,
+          `Loading dashboard data for page: ${this.filters.page}, search: ${this.filters.search}, period: ${this.filters.period}`,
         );
 
-        // Gunakan period filter, search, dan sorting pada jalur request server-driven yang sama
-        const response = await getSummaryReport({
-          period: this.period,
-          page: this.filters.page,
-          limit: this.filters.limit,
-          search: this.searchQuery,
-          sortBy: this.filters.sortBy,
-          sortOrder: this.filters.sortOrder,
-        });
+        const response = await getSummaryReport(
+          buildDashboardRequestParams(this.filters),
+        );
 
-        console.log(`Dashboard API call made with period='${this.period}'`);
+        console.log(
+          `Dashboard API call made with period='${this.filters.period}'`,
+        );
 
         // Handle API response format dan mapping field names
         if (response && response.summary) {
@@ -196,7 +200,7 @@ export function dashboard() {
           // Update card summary data (terpengaruh period filter)
           this.cardSummaryData = { ...mappedSummary };
           console.log(
-            `✅ Card summary data updated for period '${this.period}':`,
+            `✅ Card summary data updated for period '${this.filters.period}':`,
             this.cardSummaryData,
           );
 
@@ -210,34 +214,11 @@ export function dashboard() {
           // Extract report data dari nested structure
           const reportData = response.report?.data || response.report || [];
 
-          // Update pagination data (dukung kedua skema penamaan dari backend)
-          const p = response.report?.pagination || {};
-          this.pagination = {
-            current_page: p.current_page || 1,
-            total_pages: p.total_pages || 1,
-            total_records:
-              typeof p.total_records !== "undefined"
-                ? p.total_records
-                : typeof p.total_items !== "undefined"
-                  ? p.total_items
-                  : 0,
-            has_prev_page:
-              typeof p.has_prev_page === "boolean"
-                ? p.has_prev_page
-                : p.current_page > 1,
-            has_next_page:
-              typeof p.has_next_page === "boolean"
-                ? p.has_next_page
-                : p.current_page < p.total_pages,
-            per_page:
-              typeof p.per_page !== "undefined"
-                ? p.per_page
-                : typeof p.items_per_page !== "undefined"
-                  ? p.items_per_page
-                  : this.filters.limit,
-          };
-          // Map report data to attendanceData format (matching exact API structure)
-          this.attendanceData = reportData.map((item, index) => ({
+          this.pagination = normalizeDashboardPagination(
+            response.report?.pagination || {},
+            this.filters.limit,
+          );
+          this.reportData = reportData.map((item, index) => ({
             id_attendance: item.attendance_id || `attendance_${index}`,
             id:
               item.nip_nim ||
@@ -277,22 +258,6 @@ export function dashboard() {
             ...item, // spread any additional fields
           }));
 
-          // Set reportData untuk tampilan tabel
-          if (this.searchQuery && this.searchQuery.trim()) {
-            // Saat searching: tampilkan hasil filter client-side dan nonaktifkan pagination server agar empty state benar
-            this.reportData = this.filteredAttendanceData;
-            const filteredCount = this.reportData.length;
-            this.pagination = {
-              current_page: 1,
-              total_pages: 1,
-              total_records: filteredCount,
-              per_page: filteredCount,
-              has_prev_page: false,
-              has_next_page: false,
-            };
-          } else {
-            this.reportData = this.attendanceData;
-          }
           this.summaryData = {
             summary: mappedSummary,
             report: reportData,
@@ -305,7 +270,7 @@ export function dashboard() {
           };
 
           console.log("Summary data loaded successfully:", this.summaryData);
-          console.log("Attendance data mapped:", this.attendanceData);
+          console.log("Report data mapped:", this.reportData);
         } else {
           // No valid response data
           console.warn("No valid data received from API");
@@ -319,20 +284,12 @@ export function dashboard() {
 
         // Clear all data and show error state - no mock data fallback
         this.summaryData = null;
-        this.attendanceData = [];
         this.rawApiData = null; // Critical: No mock data for export
         this.analyticsData = null;
         this.reportData = [];
 
-        // Reset pagination
-        this.pagination = {
-          current_page: 1,
-          total_pages: 1,
-          total_records: 0,
-          per_page: 5,
-          has_next_page: false,
-          has_prev_page: false,
-        };
+        // Preserve canonical search state so users can retry the same query
+        this.pagination = createEmptyDashboardPagination(this.filters.limit);
 
         // Show user-friendly error message
         this.showNotification(
@@ -350,13 +307,13 @@ export function dashboard() {
      */
     async loadExportData() {
       try {
-        console.log(`Loading export data with period: ${this.period}`);
+        console.log(`Loading export data with period: ${this.filters.period}`);
 
         const response = await getSummaryReport({
-          period: this.period, // Gunakan period yang dipilih user
-          page: 1, // Ambil dari halaman pertama
-          limit: 10000, // Ambil SEMUA data dengan limit besar
-          search: "", // Tidak ada search filter untuk export
+          period: this.filters.period,
+          page: 1,
+          limit: 10000,
+          search: "",
         });
 
         if (response && response.summary) {
@@ -367,7 +324,7 @@ export function dashboard() {
           };
 
           console.log(`Export data loaded successfully:`, {
-            period: this.period,
+            period: this.filters.period,
             summaryStats: response.summary,
             recordCount: response.report?.data?.length || 0,
             totalRecords: response.report?.pagination?.total_records || 0,
@@ -408,15 +365,14 @@ export function dashboard() {
      * Handle period change - mempengaruhi semua tampilan dashboard
      */
     async onPeriodChange() {
-      console.log(`🔄 Period filter changed to: ${this.period}`);
+      this.filters = applyDashboardPeriod(this.filters, this.filters.period);
+      console.log(`🔄 Period filter changed to: ${this.filters.period}`);
       console.log("📊 Reloading dashboard data dengan period filter baru");
 
-      // Period filter mempengaruhi SEMUA tampilan dashboard (cards, table, export)
-      // Reload data dashboard dengan period filter baru
       await this.loadSummaryData();
 
       this.showNotification(
-        `Dashboard updated untuk period: ${this.period}`,
+        `Dashboard updated untuk period: ${this.filters.period}`,
         "info",
       );
     },
@@ -431,47 +387,55 @@ export function dashboard() {
       }
     },
 
-
     /**
      * Get discipline score color class
      */
     getDisciplineScoreColor(score) {
-      if (score >= 85) return "bg-green-500"; // Excellent - Green
-      if (score >= 70) return "bg-blue-500"; // Good - Blue
-      if (score >= 55) return "bg-yellow-500"; // Needs Improvement - Yellow
-      return "bg-red-500"; // Poor - Red
-    } /**
+      if (score >= 85) return "bg-green-500";
+      if (score >= 70) return "bg-blue-500";
+      if (score >= 55) return "bg-yellow-500";
+      return "bg-red-500";
+    },
+
+    /**
+     * Validate export payload before handing it to generators
+     */
+    validateExportData(exportData, fileType) {
+      if (!exportData || !exportData.summary || !exportData.report) {
+        console.error(`No valid export data available for ${fileType}`);
+        this.showNotification(
+          "Failed to load export data. Please try again.",
+          "error",
+        );
+        return false;
+      }
+
+      const hasReportRows = Boolean(exportData.report.data || exportData.report);
+      const hasSummaryObject = typeof exportData.summary === "object";
+
+      if (!hasReportRows || !hasSummaryObject) {
+        console.error(`Invalid export data structure for ${fileType}`);
+        this.showNotification(
+          `Invalid data structure for ${fileType} export`,
+          "error",
+        );
+        return false;
+      }
+
+      return true;
+    },
+
+    /**
      * Download report as PDF
-     */,
+     */
     async downloadPDF() {
       try {
-        console.log(`Generating PDF report with period filter: ${this.period}`);
+        console.log(
+          `Generating PDF report with period filter: ${this.filters.period}`,
+        );
 
-        // Load fresh export data dengan period filter
         const exportData = await this.loadExportData();
-
-        // Validasi bahwa kita memiliki data export yang valid
-        if (!exportData || !exportData.summary || !exportData.report) {
-          console.error("No valid export data available for PDF");
-          this.showNotification(
-            "Failed to load export data. Please try again.",
-            "error",
-          );
-          return;
-        }
-
-        // Validasi struktur data
-        const isValidApiData =
-          exportData.summary &&
-          (exportData.report.data || exportData.report) &&
-          typeof exportData.summary === "object";
-
-        if (!isValidApiData) {
-          console.error("Invalid export data structure for PDF");
-          this.showNotification(
-            "Invalid data structure for PDF export",
-            "error",
-          );
+        if (!this.validateExportData(exportData, "PDF")) {
           return;
         }
 
@@ -479,49 +443,25 @@ export function dashboard() {
           "Valid export data being sent to PDF generator:",
           exportData,
         );
-        generatePDFReport(exportData, this.period);
-
-        // Show success notification
+        generatePDFReport(exportData, this.filters.period);
         this.showNotification("PDF report downloaded successfully!", "success");
       } catch (error) {
         console.error("Error generating PDF:", error);
         this.showNotification("Failed to generate PDF report", "error");
       }
     },
+
     /**
      * Download report as Excel
      */
     async downloadExcel() {
       try {
         console.log(
-          `Generating Excel report with period filter: ${this.period}`,
+          `Generating Excel report with period filter: ${this.filters.period}`,
         );
 
-        // Load fresh export data dengan period filter
         const exportData = await this.loadExportData();
-
-        // Validasi bahwa kita memiliki data export yang valid
-        if (!exportData || !exportData.summary || !exportData.report) {
-          console.error("No valid export data available for Excel");
-          this.showNotification(
-            "Failed to load export data. Please try again.",
-            "error",
-          );
-          return;
-        }
-
-        // Validasi struktur data
-        const isValidApiData =
-          exportData.summary &&
-          (exportData.report.data || exportData.report) &&
-          typeof exportData.summary === "object";
-
-        if (!isValidApiData) {
-          console.error("Invalid export data structure for Excel");
-          this.showNotification(
-            "Invalid data structure for Excel export",
-            "error",
-          );
+        if (!this.validateExportData(exportData, "Excel")) {
           return;
         }
 
@@ -529,9 +469,7 @@ export function dashboard() {
           "Valid export data being sent to Excel generator:",
           exportData,
         );
-        generateExcelReport(exportData, this.period);
-
-        // Show success notification
+        generateExcelReport(exportData, this.filters.period);
         this.showNotification(
           "Excel report downloaded successfully!",
           "success",
@@ -654,9 +592,11 @@ export function dashboard() {
     /**
      * Get avatar color based on name (menggunakan avatarUtils)
      */
-    getAvatarColor /**
+    getAvatarColor,
+
+    /**
      * View location on map (exact same as attendance table)
-     */,
+     */
     viewLocation(attendanceItem) {
       console.log("Dashboard viewLocation called with:", attendanceItem);
 
@@ -693,11 +633,11 @@ export function dashboard() {
           alert("Koordinat lokasi tidak tersedia");
         }
       }
-    } /**
-     * Sorting functionality
-     */,
-    currentSort: { field: null, direction: "asc" },
+    },
 
+    /**
+     * Sorting functionality
+     */
     changeSort(field) {
       if (this.currentSort.field === field) {
         this.currentSort.direction =
@@ -721,16 +661,6 @@ export function dashboard() {
 
       return this.currentSort.direction === "asc" ? "↑" : "↓";
     },
-    /**
-     * Pagination (placeholder - should come from API)
-     */
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      per_page: 10,
-      total: 0,
-    },
-
     /**
      * Get status badge CSS classes (using universal badge helper)
      */
@@ -822,9 +752,10 @@ export function dashboard() {
      * Handle empty API response
      */
     handleEmptyApiResponse() {
-      console.warn(`API returned empty response for period: ${this.period}`);
+      console.warn(
+        `API returned empty response for period: ${this.filters.period}`,
+      );
 
-      // Reset card summary data hanya jika benar-benar error API
       this.cardSummaryData = {
         onTime: 0,
         late: 0,
@@ -852,39 +783,26 @@ export function dashboard() {
         avg_work_hours: 0,
       };
 
-      this.pagination = {
-        current_page: 1,
-        total_pages: 1,
-        total_records: 0,
-        per_page: 5,
-        has_next_page: false,
-        has_prev_page: false,
-      };
+      this.pagination = createEmptyDashboardPagination(this.filters.limit);
 
       // Critical: No raw API data means no export capability
       this.rawApiData = null;
-      this.attendanceData = [];
       this.reportData = [];
 
       this.showNotification("No data available from server", "info");
     },
 
-    // =================== SEARCH AND PAGINATION FUNCTIONALITY ===================
-
-    // Debounced search function
     debouncedSearch() {
       clearTimeout(this.searchTimeout);
       this.searchTimeout = setTimeout(() => {
-        this.filters.page = 1;
-        // searchQuery sudah di-bind oleh input; cukup reload data agar reportData & pagination disesuaikan
+        this.filters = applyDashboardSearch(this.filters, this.searchQuery);
+        this.searchQuery = this.filters.search;
         this.loadSummaryData();
       }, 1000);
     },
 
-    // Update filters limit and reload data
     changeEntriesPerPage(newLimit) {
-      this.filters.limit = Number(newLimit) || 5;
-      this.filters.page = 1; // Reset to first page
+      this.filters = applyDashboardPageSize(this.filters, newLimit);
       this.loadSummaryData();
     },
   };

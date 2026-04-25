@@ -12,11 +12,11 @@
 
 ## File Structure Map
 
-- `E:/skrisi/clonefee/Infinite_Track_Fe/package.json` — primary runtime contract; must declare Node `>=20`.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/.nvmrc` — single-version local hint; should be removed because the repo policy is now flexible 20+.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/README.md` — public install prerequisites; should say Node 20 or later.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/DEPLOYMENT.md` — runtime/deploy guide; should say Node 20+ and keep the Docker example on a Node 20 baseline image.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/package-lock.json` — install metadata that may refresh during the smoke install on the active runtime.
+- `package.json` — primary runtime contract; must declare Node `>=20`.
+- `.nvmrc` — single-version local hint; should be removed because the repo policy is now flexible 20+.
+- `README.md` — public install prerequisites; should say Node 20 or later.
+- `DEPLOYMENT.md` — runtime/deploy guide; should say Node 20+ and keep the Docker example on a Node 20 baseline image.
+- local install metadata / lockfile state — may refresh during the smoke install on the active runtime, but is not a committed repo artifact.
 
 ### Task 1: Make the runtime contract flexible at Node 20+
 

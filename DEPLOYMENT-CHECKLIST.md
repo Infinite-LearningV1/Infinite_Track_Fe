@@ -63,10 +63,16 @@ serve -s build -p 3000
 
 ## 📋 Checklist Lengkap
 
+## Governance Reminder
+
+- [ ] Verifikasi evidence untuk perubahan deploy/runtime sudah jelas, atau tandai `REQUIRES REPO VERIFICATION` bila jalur verifikasinya belum terkunci.
+- [ ] Tinjau kebutuhan update `CLAUDE.md` / ADR bila perubahan menggeser env, build, deploy, atau runtime assumptions.
+
+
 ### Pre-Build
 
-- [ ] File `.env.production` sudah dibuat
-- [ ] `API_BASE_URL` sudah diubah ke backend production
+- [ ] File referensi `.env.production.example` sudah disiapkan, dan untuk simulasi build production lokal sudah dicopy ke `.env.production`
+- [ ] `API_BASE_URL` sudah diubah ke backend production (tanpa trailing slash)
 - [ ] Git status bersih (no conflicts)
 - [ ] Dependencies ter-install (`npm install`)
 
@@ -87,10 +93,24 @@ serve -s build -p 3000
 
 ### Deployment
 
-- [ ] Upload folder `build/` ke hosting
+- [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
-- [ ] Configure server (Nginx/Apache)
+- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch/build/output sudah benar
 - [ ] Test akses dari domain production
+
+### Docker Compose Verification
+
+- [ ] `BACKEND_REPO_PATH` diarahkan ke repo backend lokal yang benar sebelum menjalankan `docker compose --profile dev up --build`
+- [ ] Tambahkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` saat smoke test Docker lokal karena backend saat ini membutuhkannya untuk startup sukses
+- [ ] Development gateway flow diverifikasi dengan stack Compose aktif dan trafik browser masuk lewat service `nginx` setelah menjalankan `docker compose --profile dev up --build`
+- [ ] Jika memakai mode staging-like, jalankan `NGINX_MODE=staging docker compose --profile staging up --build` lalu verifikasi HTTP setelah service `frontend-build` selesai mempopulasi volume `frontend_dist`
+
+### Docker Gateway Verification
+
+- [ ] Verifikasi gateway NGINX merespons pada port host yang dipakai, misalnya `curl -I http://localhost:8080`
+- [ ] Jika port gateway dioverride, verifikasi endpoint yang sesuai, misalnya `curl -I http://localhost:8081`
+- [ ] Pastikan `/api` diproxy lewat gateway ke backend container, bukan lagi asumsi lama `localhost:3005`
+- [ ] Gunakan `docker compose down` untuk stop stack, atau `docker compose down -v` bila juga ingin membersihkan volume lokal
 
 ### Post-Deployment
 
@@ -106,13 +126,15 @@ serve -s build -p 3000
 
 ### 1. Backend API Integration
 
-**CRITICAL:** Pastikan `API_BASE_URL` di `.env.production` benar!
+**CRITICAL:** Pastikan `API_BASE_URL` di env build-time production benar. Jika memakai `.env.production` untuk simulasi lokal, nilainya harus sama dengan contract production dan tidak memakai trailing slash.
 
-Contoh konfigurasi:
+Contoh konfigurasi yang direkomendasikan untuk static production:
 
 - Backend di subdomain: `https://api.yourdomain.com`
-- Backend di path sama: `https://yourdomain.com/api`
-- Backend IP+port: `http://192.168.1.100:3005`
+
+Catatan:
+- Untuk production static site, gunakan backend public URL eksplisit.
+- Jangan mengandalkan local `/api` gateway sebagai production default kecuali memang ada reverse proxy production yang sengaja disiapkan.
 
 ### 2. CORS Configuration
 
@@ -198,7 +220,7 @@ scp -r build/* user@your-server:/var/www/infinitetrack/
 
 | Problem             | Solution                                   |
 | ------------------- | ------------------------------------------ |
-| API 404 Error       | Update `API_BASE_URL` di `.env.production` |
+| API 404 Error       | Update `API_BASE_URL` di env build-time production atau `.env.production` lokal |
 | Blank page          | Check console, verify assets path          |
 | 404 on refresh      | Configure server for SPA routing           |
 | Images not loading  | Verify `build/src/images/` exists          |
@@ -220,11 +242,10 @@ Jika ada masalah serius saat deployment:
 
 ## 📝 Final Notes
 
-- ✅ Project Anda sudah **PRODUCTION READY**
-- ✅ Code quality baik, no runtime errors
-- ✅ Responsive design implemented
-- ✅ Dark mode fully functional
-- ⚠️ **TINGGAL:** Configure environment variables
-- ⚠️ **TINGGAL:** Deploy ke hosting pilihan Anda
+- ✅ Docker gateway workflow untuk local/staging-like verification sudah terdokumentasi
+- ✅ Verifikasi yang terbukti di worktree ini mencakup build FE, boot stack Docker dev, dan respons gateway HTTP 200
+- ⚠️ Production readiness tetap `REQUIRES REPO VERIFICATION`
+- ⚠️ Cloudinary env masih perlu disuplai saat smoke test backend lokal di Docker
+- ⚠️ Deploy ke hosting pilihan Anda tetap memerlukan validasi environment production terpisah
 
-**Good luck dengan deployment! 🚀**
+**Lanjutkan deployment dengan verifikasi bertahap.**

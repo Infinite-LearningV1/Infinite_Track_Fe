@@ -41,7 +41,7 @@ Hasil eksplorasi source usage saat ini:
   - `jspdf-autotable`
   - `xlsx`
   - `swiper`
-- `npm ls` setelah install menunjukkan versi terpasang saat ini yang relevan:
+- **Pre-change snapshot** dari `npm ls` saat eksplorasi awal menunjukkan versi terpasang yang relevan:
   - `axios@1.10.0`
   - `jspdf@3.0.1`
   - `jspdf-autotable@5.0.2`
@@ -77,7 +77,7 @@ Artinya:
 
 **Affected files:**
 - `package.json`
-- `package-lock.json`
+- local install metadata / lockfile state (non-committed repo artifact)
 - source verification target:
   - `src/js/services/authService.js`
   - `src/js/services/userService.js`
@@ -94,7 +94,7 @@ Kedua package ini dipakai bersamaan di generator export report, jadi remediation
 
 **Affected files:**
 - `package.json`
-- `package-lock.json`
+- local install metadata / lockfile state (non-committed repo artifact)
 - source verification target:
   - `src/js/utils/reportGenerator.js`
 
@@ -130,7 +130,8 @@ Kedua package ini dipakai bersamaan di generator export report, jadi remediation
 3. Cek source compatibility pada:
    - service layer untuk `axios`
    - `src/js/utils/reportGenerator.js` untuk `jspdf` / `jspdf-autotable`
-4. Jalankan `npm audit` lagi untuk mengonfirmasi apakah temuan pada package target turun.
+4. Lakukan smoke test cepat pada flow export PDF / `reportGenerator` bila perubahan dependency PDF sudah masuk.
+5. Jalankan `npm audit` lagi untuk mengonfirmasi apakah temuan pada package target turun.
 
 ### Success criteria
 - `axios` berhasil diperbarui ke versi yang aman/lebih aman tanpa memecahkan service layer.

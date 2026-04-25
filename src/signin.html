@@ -419,55 +419,10 @@
                   true,
                 );
                 if (result.success) {
-                  // Redirect berdasarkan role user
-                  if (
-                    window.RoleBasedAccess &&
-                    window.RoleBasedAccess.redirectBasedOnRole
-                  ) {
-                    // Get user data to determine role
-                    const userData = result.data;
-
-                    // Check if there's a saved redirect URL
-                    const savedRedirectUrl =
-                      localStorage.getItem("redirectAfterLogin") ||
-                      sessionStorage.getItem("redirectAfterLogin");
-
-                    if (savedRedirectUrl) {
-                      // Check if user has access to saved URL
-                      const hasAccess =
-                        window.RoleBasedAccess.hasPageAccess(savedRedirectUrl);
-
-                      if (hasAccess) {
-                        // Clear redirect URLs
-                        localStorage.removeItem("redirectAfterLogin");
-                        sessionStorage.removeItem("redirectAfterLogin");
-
-                        window.location.href = savedRedirectUrl;
-                        return;
-                      }
-                    }
-
-                    // Clear redirect URLs
-                    localStorage.removeItem("redirectAfterLogin");
-                    sessionStorage.removeItem("redirectAfterLogin");
-
-                    // Redirect based on user role
-                    window.RoleBasedAccess.redirectBasedOnRole(
-                      userData.role_name,
-                    );
-                  } else {
-                    // Fallback to default redirect
-                    const redirectUrl =
-                      localStorage.getItem("redirectAfterLogin") ||
-                      sessionStorage.getItem("redirectAfterLogin") ||
-                      "/index.html";
-
-                    // Clear redirect URL
-                    localStorage.removeItem("redirectAfterLogin");
-                    sessionStorage.removeItem("redirectAfterLogin");
-
-                    window.location.href = redirectUrl;
-                  }
+                  await window.SigninHandler.redirectAfterLogin({
+                    loginJustSucceeded: true,
+                    loginUser: result.data,
+                  });
                 } else {
                   // Tampilkan semua error dari handleLoginSubmit, termasuk validation errors
                   // Karena DOM handler tidak lagi berjalan untuk Alpine.js forms

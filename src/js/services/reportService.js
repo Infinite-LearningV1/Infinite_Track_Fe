@@ -1,27 +1,14 @@
-import axios from "axios";
-
-/**
- * Mendapatkan token dari localStorage untuk header Authorization
- * @returns {string|null} - Bearer token atau null jika tidak ada
- */
-function getBearerToken() {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  return user.token || null;
-}
-
-/**
- * Membuat header Authorization dengan Bearer token
- * @returns {Object} - Headers object dengan Authorization atau empty object
- */
-function getAuthHeaders() {
-  const token = getBearerToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { API_CONFIG } from "../config/env.js";
+import { authRequest } from "./authRequest.js";
 
 /**
  * Service untuk menangani API calls terkait laporan summary
  */
 class ReportService {
+  constructor(requestExecutor = authRequest) {
+    this.requestExecutor = requestExecutor;
+  }
+
   /**
    * Mendapatkan summary report dari backend
    * @param {Object} params - Request parameters
@@ -45,9 +32,10 @@ class ReportService {
         queryParams.keyword = normalizedSearch;
       }
 
-      const response = await axios.get("/api/summary", {
+      const response = await this.requestExecutor({
+        method: "get",
+        url: `${API_CONFIG.BASE_URL}/summary`,
         params: queryParams,
-        headers: getAuthHeaders(),
       });
 
       console.log("API Response received:", response.data);
@@ -236,6 +224,8 @@ class ReportService {
     };
   }
 }
+
+export { ReportService };
 
 // Export singleton instance
 export const reportService = new ReportService();

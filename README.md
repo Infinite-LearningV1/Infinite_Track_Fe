@@ -70,15 +70,15 @@ git clone https://github.com/InfiniteTrack/infinitetrack-free-tailwind-dashboard
 
 This repository uses a branch-promotion workflow:
 
-- Start every new case or change from a dedicated `feature/*` branch.
-- Merge feature work into `develop` only through PR review.
+- Start every new feature from a dedicated `feature/*` branch, and use `fix/*` branches for bugfix or urgent work.
+- Merge feature and fix work into `develop` only through PR review.
 - Treat `develop` as the integration branch where reviewed changes are held before release.
 - Treat `master` as the final clean branch that is updated only when `develop` is ready to deploy.
 
-Other historical or auxiliary branches may still exist in the repository, but the primary workflow is `feature/*` -> `develop` -> `master`.
+Other historical or auxiliary branches may still exist in the repository, but the primary workflow is `feature/*` / `fix/*` -> `develop` -> `master`.
 
 In short:
-- `feature/*` -> `develop` via PR review
+- `feature/*` / `fix/*` -> `develop` via PR review
 - `develop` -> `master` via controlled release promotion
 
 ## Components

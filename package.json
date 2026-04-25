@@ -4,9 +4,10 @@
   "description": "InfiniteTrack is a high-quality, open-source, and free Tailwind CSS admin template that is perfect for creating data-rich backends, powerful web applications and dashboard-admin projects.",
   "main": "index.js",
   "scripts": {
-    "start": "webpack serve --open --config webpack.config.js",
+    "start": "webpack serve --config webpack.config.js",
     "build": "cross-env NODE_ENV=production webpack --config webpack.config.js",
     "build:dev": "webpack --config webpack.config.js",
+    "test:auth-runtime": "node --test ./tests/auth-session-runtime.test.js",
     "sort": "npx prettier --write src"
   },
   "keywords": [],

@@ -12,16 +12,16 @@
 
 ## File Structure Map
 
-- `E:/skrisi/clonefee/Infinite_Track_Fe/README.md` — public onboarding doc; if it currently mentions repo workflow expectations, it should reflect the new branch model or link to the policy source.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/AGENTS.md` — repo-level operating guidance already exists and is the most likely place to record branch workflow rules used during engineering/review work.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-18-branch-promotion-workflow-design.md` — approved design/spec for the new workflow.
-- `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/plans/2026-04-18-branch-promotion-workflow.md` — this implementation plan.
+- `README.md` — public onboarding doc; if it currently mentions repo workflow expectations, it should reflect the new branch model or link to the policy source.
+- `AGENTS.md` — repo-level operating guidance already exists and is the most likely place to record branch workflow rules used during engineering/review work.
+- `docs/superpowers/specs/2026-04-18-branch-promotion-workflow-design.md` — approved design/spec for the new workflow.
+- `docs/superpowers/plans/2026-04-18-branch-promotion-workflow.md` — this implementation plan.
 
 ### Task 1: Add the official branch-promotion policy to repo guidance
 
 **Files:**
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/AGENTS.md`
-- Test: policy text inspection in `E:/skrisi/clonefee/Infinite_Track_Fe/AGENTS.md`
+- Modify: `AGENTS.md`
+- Test: policy text inspection in `AGENTS.md`
 
 - [ ] **Step 1: Inspect the current repo guidance to find the best insertion point**
 
@@ -29,7 +29,7 @@ Run:
 ```bash
 python - <<'PY'
 from pathlib import Path
-path = Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/AGENTS.md")
+path = Path(r"AGENTS.md")
 text = path.read_text().splitlines()
 for i, line in enumerate(text, start=1):
     if any(keyword in line.lower() for keyword in ["review", "runtime", "env", "linear", "severity"]):
@@ -41,7 +41,7 @@ Expected:
 
 - [ ] **Step 2: Add a new section that defines branch roles and allowed merge paths**
 
-Insert this exact section into `E:/skrisi/clonefee/Infinite_Track_Fe/AGENTS.md` at a location where repo workflow rules fit naturally (for example after the introductory review guidance and before detailed risk areas):
+Insert this exact section into `AGENTS.md` at a location where repo workflow rules fit naturally (for example after the introductory review guidance and before detailed risk areas):
 
 ```md
 ## Branch promotion workflow
@@ -78,7 +78,7 @@ Run:
 ```bash
 python - <<'PY'
 from pathlib import Path
-path = Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/AGENTS.md")
+path = Path(r"AGENTS.md")
 text = path.read_text()
 required = [
     "## Branch promotion workflow",
@@ -119,8 +119,8 @@ Expected:
 ### Task 2: Add contributor-facing workflow documentation in the README
 
 **Files:**
-- Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/README.md`
-- Test: policy text inspection in `E:/skrisi/clonefee/Infinite_Track_Fe/README.md`
+- Modify: `README.md`
+- Test: policy text inspection in `README.md`
 
 - [ ] **Step 1: Find the most appropriate README section for contribution workflow guidance**
 
@@ -128,7 +128,7 @@ Run:
 ```bash
 python - <<'PY'
 from pathlib import Path
-path = Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/README.md")
+path = Path(r"README.md")
 for i, line in enumerate(path.read_text().splitlines(), start=1):
     if any(keyword in line.lower() for keyword in ["installation", "components", "update logs", "support"]):
         print(f"{i}: {line}")
@@ -139,7 +139,7 @@ Expected:
 
 - [ ] **Step 2: Add a concise contributor workflow section to the README**
 
-Insert this exact section into `E:/skrisi/clonefee/Infinite_Track_Fe/README.md` in a contributor-facing location (for example after Installation and before Components):
+Insert this exact section into `README.md` in a contributor-facing location (for example after Installation and before Components):
 
 ```md
 ## Branch Workflow
@@ -162,7 +162,7 @@ Run:
 ```bash
 python - <<'PY'
 from pathlib import Path
-path = Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/README.md")
+path = Path(r"README.md")
 text = path.read_text()
 required = [
     "## Branch Workflow",
@@ -201,8 +201,8 @@ Expected:
 ### Task 3: Cross-check the policy, document the current branch reality, and leave no ambiguity
 
 **Files:**
-- Modify if needed: `E:/skrisi/clonefee/Infinite_Track_Fe/AGENTS.md`
-- Modify if needed: `E:/skrisi/clonefee/Infinite_Track_Fe/README.md`
+- Modify if needed: `AGENTS.md`
+- Modify if needed: `README.md`
 - Test: combined policy verification
 
 - [ ] **Step 1: Inspect the current branch topology so the docs match repo reality**
@@ -232,8 +232,8 @@ Run:
 python - <<'PY'
 from pathlib import Path
 files = [
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/AGENTS.md"),
-    Path(r"E:/skrisi/clonefee/Infinite_Track_Fe/README.md"),
+    Path(r"AGENTS.md"),
+    Path(r"README.md"),
 ]
 combined = "\n".join(path.read_text() for path in files)
 required = [

@@ -3,34 +3,13 @@
  * Mengenkapsulasi logika panggilan API untuk manajemen pengguna
  */
 
-import axios from "axios";
 import { API_CONFIG, envLog } from "../config/env.js";
 import {
   validatePhotoFile,
   handlePhotoUploadError,
   PHOTO_CONFIG,
 } from "../utils/photoValidation.js";
-
-// Konfigurasi axios default
-axios.defaults.withCredentials = true;
-
-/**
- * Mendapatkan token dari localStorage untuk header Authorization
- * @returns {string|null} - Bearer token atau null jika tidak ada
- */
-function getBearerToken() {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  return user.token || null;
-}
-
-/**
- * Membuat header Authorization dengan Bearer token
- * @returns {Object} - Headers object dengan Authorization atau empty object
- */
-function getAuthHeaders() {
-  const token = getBearerToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { authRequest } from "./authRequest.js";
 
 /**
  * Mengambil daftar pengguna dari API
@@ -61,7 +40,10 @@ async function getUsers(params = {}) {
     envLog("debug", "Requesting users from URL:", url.toString());
 
     // Lakukan panggilan GET ke endpoint users
-    const response = await axios.get(url.toString());
+    const response = await authRequest({
+      method: "get",
+      url: url.toString(),
+    });
 
     // Periksa response dari backend
     if (response.data && response.data.success === true) {
@@ -117,7 +99,10 @@ async function getUserById(userId) {
   try {
     envLog("debug", "Fetching user by ID:", userId);
 
-    const response = await axios.get(`${API_CONFIG.BASE_URL}/users/${userId}`);
+    const response = await authRequest({
+      method: "get",
+      url: `${API_CONFIG.BASE_URL}/users/${userId}`,
+    });
 
     if (response.data && response.data.success === true) {
       return response.data.data;
@@ -171,16 +156,14 @@ async function updateUser(userId, formData) {
       envLog("debug", `FormData ${key}:`, value);
     }
 
-    const response = await axios.patch(
-      `${API_CONFIG.BASE_URL}/users/${userId}`,
-      formData,
-      {
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "multipart/form-data",
-        },
+    const response = await authRequest({
+      method: "patch",
+      url: `${API_CONFIG.BASE_URL}/users/${userId}`,
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
       },
-    );
+    });
 
     if (response.data && response.data.success === true) {
       envLog("debug", "Successfully updated user:", response.data.data);
@@ -233,9 +216,10 @@ async function deleteUser(userId) {
   try {
     envLog("debug", "Deleting user:", userId);
 
-    const response = await axios.delete(
-      `${API_CONFIG.BASE_URL}/users/${userId}`,
-    );
+    const response = await authRequest({
+      method: "delete",
+      url: `${API_CONFIG.BASE_URL}/users/${userId}`,
+    });
 
     if (response.data && response.data.success === true) {
       envLog("debug", "Successfully deleted user:", userId);
@@ -338,16 +322,14 @@ async function createUser(formData) {
       envLog("debug", `FormData ${key}:`, value);
     }
 
-    const response = await axios.post(
-      `${API_CONFIG.BASE_URL}/users`,
-      formData,
-      {
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "multipart/form-data",
-        },
+    const response = await authRequest({
+      method: "post",
+      url: `${API_CONFIG.BASE_URL}/users`,
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
       },
-    );
+    });
 
     if (response.data && response.data.success === true) {
       envLog("debug", "Successfully created user:", response.data.data);
@@ -447,16 +429,14 @@ async function updateUserData(userId, userData) {
     // Hapus confirmPassword jika ada
     delete dataToSend.confirmPassword;
 
-    const response = await axios.patch(
-      `${API_CONFIG.BASE_URL}/users/${userId}`,
-      dataToSend,
-      {
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "application/json",
-        },
+    const response = await authRequest({
+      method: "patch",
+      url: `${API_CONFIG.BASE_URL}/users/${userId}`,
+      data: dataToSend,
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+    });
 
     if (response.data && response.data.success === true) {
       envLog("debug", "Successfully updated user data:", response.data.data);
@@ -519,16 +499,14 @@ async function updateUserPhoto(userId, photoFile) {
     const formData = new FormData();
     formData.append("face_photo", photoFile);
 
-    const response = await axios.post(
-      `${API_CONFIG.BASE_URL}/users/${userId}/photo`,
-      formData,
-      {
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "multipart/form-data",
-        },
+    const response = await authRequest({
+      method: "post",
+      url: `${API_CONFIG.BASE_URL}/users/${userId}/photo`,
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
       },
-    );
+    });
 
     if (response.data && response.data.success === true) {
       envLog("debug", "Successfully updated user photo:", response.data.data);
@@ -601,8 +579,9 @@ async function getRoles() {
       }
     }
 
-    const response = await axios.get(`${API_CONFIG.BASE_URL}/roles`, {
-      headers: getAuthHeaders(),
+    const response = await authRequest({
+      method: "get",
+      url: `${API_CONFIG.BASE_URL}/roles`,
     });
     if (response.data && response.data.success === true) {
       const rawRoles = response.data.data;
@@ -676,8 +655,9 @@ async function getPrograms() {
       }
     }
 
-    const response = await axios.get(`${API_CONFIG.BASE_URL}/programs`, {
-      headers: getAuthHeaders(),
+    const response = await authRequest({
+      method: "get",
+      url: `${API_CONFIG.BASE_URL}/programs`,
     });
     if (response.data && response.data.success === true) {
       const rawPrograms = response.data.data;
@@ -754,8 +734,9 @@ async function getPositions(programId = null) {
       url.searchParams.append("program_id", programId);
     }
 
-    const response = await axios.get(url.toString(), {
-      headers: getAuthHeaders(),
+    const response = await authRequest({
+      method: "get",
+      url: url.toString(),
     });
     if (response.data && response.data.success === true) {
       const rawPositions = response.data.data;
@@ -822,8 +803,9 @@ async function getDivisions() {
       }
     }
 
-    const response = await axios.get(`${API_CONFIG.BASE_URL}/divisions`, {
-      headers: getAuthHeaders(),
+    const response = await authRequest({
+      method: "get",
+      url: `${API_CONFIG.BASE_URL}/divisions`,
     });
     if (response.data && response.data.success === true) {
       const rawDivisions = response.data.data;

@@ -1,13 +1,13 @@
 # Node 20 Runtime Upgrade Design
 
 ## Summary
-Upgrade Web FE Infinite Track ke contract runtime **Node.js 20** yang eksplisit dan konsisten di seluruh repo, dengan pendekatan **selective dependency cleanup**: runtime surfaces diselaraskan ke Node 20, sementara dependency hanya diubah jika memang diperlukan agar install/build berjalan stabil di Node 20.
+Upgrade Web FE Infinite Track ke contract runtime **Node.js 20+** yang eksplisit dan konsisten di seluruh repo, dengan pendekatan **selective dependency cleanup**: runtime surfaces diselaraskan ke baseline Node 20+, sementara dependency hanya diubah jika memang diperlukan agar install/build berjalan stabil di runtime aktif yang memenuhi batas minimum tersebut.
 
 ## Goal
-1. Menjadikan target runtime repo eksplisit: `>=20 <21`.
+1. Menjadikan target runtime repo eksplisit: `>=20`.
 2. Menyelaraskan surface runtime utama: local tooling, package metadata, Docker example, dan dokumentasi deploy/runtime.
-3. Memastikan install dan build berhasil di Node 20.
-4. Membatasi perubahan dependency hanya pada package yang benar-benar perlu untuk kompatibilitas Node 20.
+3. Memastikan install dan build berhasil pada runtime aktif `>=20`.
+4. Membatasi perubahan dependency hanya pada package yang benar-benar perlu untuk kompatibilitas Node 20+.
 
 ## Non-Goals
 - Melakukan full dependency refresh.
@@ -23,59 +23,59 @@ Repo ini adalah Web FE dashboard berbasis webpack, Alpine.js, Tailwind, dan stat
 - `package.json` belum memiliki field `engines`.
 - Repo belum memiliki `.nvmrc` atau `.node-version` di root proyek.
 
-Dependency stack utama (`webpack@5`, `webpack-dev-server@5`, `tailwindcss@4`, `postcss@8`, `babel-loader@9`) secara umum sudah modern dan seharusnya cocok dengan Node 20, tetapi compatiblity tetap harus dibuktikan lewat install/build nyata.
+Dependency stack utama (`webpack@5`, `webpack-dev-server@5`, `tailwindcss@4`, `postcss@8`, `babel-loader@9`) secara umum sudah modern dan seharusnya cocok dengan Node 20, tetapi compatibility tetap harus dibuktikan lewat install/build nyata.
 
 ## Evidence Snapshot
 ### FAKTA
-- `package.json` belum mengunci versi Node maupun npm.
-- `README.md`, `DEPLOYMENT.md`, dan contoh Docker masih menyisakan drift runtime contract.
-- Baseline verifikasi yang relevan menurut `AGENTS.md` adalah `npm ci` dan `npm run build`, dengan `npm run start` bila perubahan menyentuh runtime-sensitive path.
-- Repo memakai `package-lock.json`, jadi perubahan hasil install akan tercermin di lockfile.
+- `package.json` kini mendeklarasikan runtime minimum `>=20`.
+- `README.md`, `DEPLOYMENT.md`, dan contoh Docker utama sudah diarahkan ke baseline Node 20+.
+- Baseline verifikasi yang relevan adalah `npm install` dan `npm run build`, dengan `npm run start` bila perubahan menyentuh runtime-sensitive path.
+- Repo meng-ignore `package-lock.json`, jadi lockfile bukan artifact kontrak repo yang committed walaupun hasil install lokal tetap dapat memengaruhi file itu sementara.
 
 ### ASUMSI
-- Node 20 adalah target final yang diinginkan untuk semua runtime surface di repo.
-- User memilih contract major-version lock `>=20 <21`, bukan exact patch pin.
+- Node 20+ adalah target final yang diinginkan untuk semua runtime surface di repo.
+- User memilih contract minimum-version lock `>=20`, bukan exact patch pin.
 - User memilih strategi dependency **minimal aman**, bukan batch refresh.
 
 ### NEEDS-VERIFICATION
-- Apakah install tree saat ini bersih di Node 20 tanpa perlu update dependency.
+- Apakah install tree saat ini bersih pada runtime aktif `>=20` tanpa perlu update dependency tambahan.
 - Apakah ada workflow/config deploy lain di repo yang juga menyebut versi Node dan perlu diselaraskan.
-- Apakah `npm run start` tetap berjalan normal setelah lock/runtime metadata diperbarui.
+- Apakah `npm run start` tetap berjalan normal setelah metadata/runtime docs diperbarui.
 
 ## Design Decision
-Pakai pendekatan **explicit Node 20 runtime contract + selective dependency cleanup**.
+Pakai pendekatan **explicit Node 20+ runtime contract + selective dependency cleanup**.
 
 Artinya:
-- Target runtime Node 20 dinyatakan eksplisit di source-of-truth repo.
+- Target runtime minimum Node 20 dinyatakan eksplisit di source-of-truth repo.
 - Semua referensi runtime utama di repo diselaraskan ke target tersebut.
 - Dependency tidak di-upgrade massal.
-- Hanya package yang terbukti menyebabkan install/build problem di Node 20 yang akan disentuh.
+- Hanya package yang terbukti menyebabkan install/build problem pada runtime aktif `>=20` yang akan disentuh.
 
 ## Planned Changes
 
-### 1. Make Node 20 the explicit repo runtime contract
-Tetapkan Node 20 sebagai runtime contract utama repo.
+### 1. Make Node 20+ the explicit repo runtime contract
+Tetapkan Node 20+ sebagai runtime contract utama repo.
 
 **Affected files:**
 - `package.json`
-- `.nvmrc` (baru)
+- `.nvmrc` (opsional; hanya bila ingin memberi hint local tooling tanpa mempersempit contract repo)
 - `.node-version` (opsional; tambahkan bila ingin memperluas dukungan tool lokal)
 
 **Planned rules:**
-- Tambah `engines.node: ">=20 <21"` di `package.json`.
-- Tambah `.nvmrc` dengan target major Node 20.
+- Tambah `engines.node: ">=20"` di `package.json`.
+- Tambah `.nvmrc` dengan target major Node 20 sebagai default local tooling bila diperlukan, tanpa mempersempit contract kompatibilitas repo yang tetap Node 20+.
 - Tambah `.node-version` bila dianggap membantu tool lintas environment tanpa menambah ambiguitas.
-- Jangan menetapkan patch exact karena keputusan user adalah major lock, bukan exact lock.
+- Jangan menetapkan patch exact karena keputusan user adalah minimum-version contract `>=20`, bukan exact lock.
 
-### 2. Regenerate install metadata under Node 20
-Selaraskan dependency resolution metadata dengan runtime baru.
+### 2. Verify install behavior under Node 20
+Validasi bahwa dependency dapat di-install dengan stabil pada runtime baru tanpa menjadikan lockfile sebagai baseline repo.
 
 **Affected files:**
-- `package-lock.json`
+- Tidak ada file wajib; verifikasi dilakukan lewat install aktual di environment Node 20
 
 **Planned rules:**
-- Lakukan install/cI di Node 20.
-- Biarkan `package-lock.json` terbarui sesuai hasil install aktual di Node 20.
+- Lakukan verifikasi install di Node 20 menggunakan `npm install`, bukan `npm ci`, karena repo tidak mengandalkan `package-lock.json` sebagai baseline committed.
+- Perlakukan perubahan `package-lock.json` yang muncul dari hasil install sebagai metadata lokal/non-committed saja, sesuai kebijakan repo.
 - Jangan mengubah dependency version range di `package.json` kecuali memang dibutuhkan karena incompatibility.
 
 ### 3. Align Docker/runtime examples to Node 20
@@ -138,11 +138,16 @@ Dependency hanya boleh diubah jika salah satu kondisi berikut terjadi di Node 20
 3. Jika perubahan menyentuh runtime-sensitive startup path, jalankan `npm run start` untuk memastikan dev server tetap bootstrap dengan benar.
 
 ### Success criteria
-- Repo menyatakan target runtime Node 20 secara eksplisit.
-- Semua surface runtime utama yang ada di repo selaras ke Node 20.
-- Install selesai tanpa incompatibility blocker di Node 20.
-- Build selesai sukses di Node 20.
+- Repo menyatakan target runtime Node 20+ secara eksplisit.
+- Semua surface runtime utama yang ada di repo selaras ke Node 20+.
+- Install selesai tanpa incompatibility blocker pada runtime aktif `>=20`.
+- Build selesai sukses pada runtime aktif `>=20`.
 - Dependency changes, jika ada, terbatas pada yang diperlukan untuk compatibility.
+
+### Run log (2026-04-18)
+- Lingkungan: Node.js 20.x (local CLI).
+- Perintah: `npm install` lalu `npm run build`.
+- Hasil: keduanya sukses tanpa error build. Smoke test PDF (`reportGenerator`) belum dijalankan di browser/runtime UI pada sesi ini; lakukan verifikasi UI cepat saat staging untuk memastikan ekspor PDF tetap kompatibel dengan `jspdf`/`jspdf-autotable` terbaru.
 
 ## Implementation Boundaries
 ### In scope

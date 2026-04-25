@@ -6,15 +6,15 @@ This repository is a Web FE admin/dashboard application built as a multi-page HT
 
 This repo uses a branch-promotion model:
 
-- All new work starts from a dedicated `feature/*` branch.
-- Feature work must not be done directly on `develop`.
-- Feature work must not be done directly on `master`.
-- `develop` is the integration branch. Feature branches merge into `develop` only through PR review.
-- `master` is the final deployable branch. It must not receive feature work directly.
+- All new work starts from a dedicated `feature/*` branch or an explicitly named `fix/*` branch for bugfix and urgent work.
+- Change work must not be done directly on `develop`.
+- Change work must not be done directly on `master`.
+- `develop` is the integration branch. Feature and fix branches merge into `develop` only through PR review.
+- `master` is the final deployable branch. It must not receive change work directly.
 - `master` is updated only by promoting a release-ready state from `develop`.
 
 ### Required merge path
-- `feature/*` -> PR review -> `develop`
+- `feature/*` / `fix/*` -> PR review -> `develop`
 - `develop` -> controlled promotion -> `master`
 
 ### Release gate for `develop` -> `master`
@@ -109,7 +109,7 @@ Promote to `master` only when:
 ## What reviewers should verify
 
 - Baseline verification for most PRs:
-  - `npm ci`
+  - `npm install`
   - `npm run build`
 - Sensitive-path verification when relevant:
   - `npm run start` for changes affecting page bootstrap, partial rendering, modal flows, auth guards, env-sensitive behavior, or runtime-only interaction

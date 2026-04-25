@@ -35,15 +35,14 @@ class ReportService {
     const { period = "all", page = 1, limit = 10, search = "" } = params;
 
     try {
-      // Attempt to call the real API
       const queryParams = { period, page, limit };
-      if (search && String(search).trim() !== "") {
-        const s = String(search).trim();
-        // include common synonyms to maximize compatibility with backend
-        queryParams.search = s;
-        queryParams.q = s;
-        queryParams.query = s;
-        queryParams.keyword = s;
+      const normalizedSearch = String(search).trim();
+
+      if (normalizedSearch !== "") {
+        queryParams.search = normalizedSearch;
+        queryParams.q = normalizedSearch;
+        queryParams.query = normalizedSearch;
+        queryParams.keyword = normalizedSearch;
       }
 
       const response = await axios.get("/api/summary", {
@@ -57,21 +56,7 @@ class ReportService {
       return response.data;
     } catch (error) {
       console.error("Error fetching from API:", error.message);
-
-      // Check if we're in development mode
-      const isDevelopment =
-        process.env.NODE_ENV === "development" ||
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1";
-
-      if (isDevelopment) {
-        console.warn("Development mode: Using mock data as fallback");
-        return this.getMockSummaryData(params);
-      } else {
-        // In production, throw the error instead of using mock data
-        console.error("Production mode: API call failed, no fallback data");
-        throw new Error(`Failed to fetch summary report: ${error.message}`);
-      }
+      throw new Error(`Failed to fetch summary report: ${error.message}`);
     }
   }
 

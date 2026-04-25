@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>
+      Backend Operational Settings | InfiniteTrack - Tailwind CSS Admin Dashboard
+      Template
+    </title>
+  </head>
+  <body
+    x-data="{
+      page: 'managementBackendSettings',
+      'loaded': true,
+      'darkMode': false,
+      'stickyMenu': false,
+      'sidebarToggle': false,
+      'scrollTop': false
+    }"
+    x-init="
+         darkMode = JSON.parse(localStorage.getItem('darkMode'));
+         $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
+    :class="{'dark bg-gray-900': darkMode === true}"
+  >
+    <include src="./partials/common/preloader.html"></include>
+
+    <div class="flex h-screen overflow-hidden">
+      <include src="./partials/common/sidebar.html"></include>
+
+      <div
+        class="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto"
+      >
+        <include src="./partials/common/overlay.html" />
+        <include src="./partials/common/header.html" />
+
+        <main>
+          <div class="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">
+            <div x-data="{ pageName: `Backend Operational Settings`}">
+              <include src="./partials/common/breadcrumb.html" />
+            </div>
+
+            <include src="./partials/alert/alert-templates.html" />
+            <div id="alert-container"></div>
+
+            <div
+              x-data="backendOperationalSettingsAlpineData()"
+              x-init="init()"
+              class="space-y-5 sm:space-y-6"
+            >
+              <template x-if="loadError">
+                <div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                  <p class="text-sm text-red-700 dark:text-red-300" x-text="loadError"></p>
+                </div>
+              </template>
+
+              <template x-if="infoMessage">
+                <div
+                  id="temporaryDraftWarning"
+                  class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
+                >
+                  <p class="text-sm text-amber-700 dark:text-amber-300" x-text="infoMessage"></p>
+                </div>
+              </template>
+
+              <include src="./partials/form/form-backend-operational-settings.html"></include>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

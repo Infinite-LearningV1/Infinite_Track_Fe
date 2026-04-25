@@ -91,6 +91,7 @@ function isProtectedPage(page) {
     "/management-user.html",
     "/management-booking.html",
     "/management-attendance.html",
+    "/management-backend-settings.html",
     "/calendar.html",
     "/form-user.html",
     "/alerts.html",

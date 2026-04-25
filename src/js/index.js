@@ -1,6 +1,6 @@
-import "/node_modules/flatpickr/dist/flatpickr.min.css";
-import "/node_modules/dropzone/dist/dropzone.css";
-import "/node_modules/leaflet/dist/leaflet.css";
+import "flatpickr/dist/flatpickr.min.css";
+import "dropzone/dist/dropzone.css";
+import "leaflet/dist/leaflet.css";
 import "../css/style.css";
 
 import Alpine from "alpinejs";
@@ -46,6 +46,7 @@ import { userListAlpineData } from "./features/userManagement/userListSimple.js"
 import { userFormAlpineData } from "./features/userManagement/userForm.js";
 import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
+import { backendOperationalSettingsAlpineData } from "./features/backendOperationalSettings/backendOperationalSettings.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
 import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
 import { showInlineAlert } from "./utils/inlineAlert.js";
@@ -66,6 +67,8 @@ window.userListAlpineData = userListAlpineData;
 window.userFormAlpineData = userFormAlpineData;
 window.attendanceLogAlpineData = attendanceLogAlpineData;
 window.bookingListAlpineData = bookingListAlpineData;
+window.backendOperationalSettingsAlpineData =
+  backendOperationalSettingsAlpineData;
 
 // Expose utility functions to window for use in HTML
 window.getUserPhotoUrl = getUserPhotoUrl;
@@ -350,6 +353,7 @@ async function initializeAuthSession() {
     "/management-user.html",
     "/management-booking.html",
     "/management-attendance.html",
+    "/management-backend-settings.html",
     "/profile.html",
     "/calendar.html",
     "/form-user.html",

@@ -1,10 +1,6 @@
-const ALLOWED_OPERATIONAL_SETTING_KEYS = [
-  "GEOFENCE_RADIUS_DEFAULT_M",
-  "AUTO_CHECKOUT_IDLE_MIN",
-  "AUTO_CHECKOUT_TBUFFER_MIN",
-  "LATE_CHECKOUT_TOLERANCE_MIN",
-  "DEFAULT_SHIFT_END",
-];
+import { OPERATIONAL_SETTING_KEYS } from "../features/backendOperationalSettings/backendOperationalSettings.constants.js";
+
+const ALLOWED_OPERATIONAL_SETTING_KEYS = OPERATIONAL_SETTING_KEYS;
 
 function assertAllowedOperationalSettingsPayload(payload = {}) {
   for (const key of Object.keys(payload)) {

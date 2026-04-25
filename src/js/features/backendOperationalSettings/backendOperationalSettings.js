@@ -1,29 +1,11 @@
-const OPERATIONAL_SETTING_KEYS = [
-  "GEOFENCE_RADIUS_DEFAULT_M",
-  "AUTO_CHECKOUT_IDLE_MIN",
-  "AUTO_CHECKOUT_TBUFFER_MIN",
-  "LATE_CHECKOUT_TOLERANCE_MIN",
-  "DEFAULT_SHIFT_END",
-];
-
-const INTEGER_OPERATIONAL_SETTING_KEYS = OPERATIONAL_SETTING_KEYS.slice(0, 4);
-
-const EMPTY_BACKEND_OPERATIONAL_SETTINGS_DRAFT = {
-  GEOFENCE_RADIUS_DEFAULT_M: "",
-  AUTO_CHECKOUT_IDLE_MIN: "",
-  AUTO_CHECKOUT_TBUFFER_MIN: "",
-  LATE_CHECKOUT_TOLERANCE_MIN: "",
-  DEFAULT_SHIFT_END: "",
-};
+import {
+  createEmptyBackendOperationalSettingsDraft,
+  INTEGER_OPERATIONAL_SETTING_KEYS,
+  OPERATIONAL_SETTING_KEYS,
+} from "./backendOperationalSettings.constants.js";
 
 function createDefaultBackendOperationalSettingsForm() {
-  return {
-    GEOFENCE_RADIUS_DEFAULT_M: "",
-    AUTO_CHECKOUT_IDLE_MIN: "",
-    AUTO_CHECKOUT_TBUFFER_MIN: "",
-    LATE_CHECKOUT_TOLERANCE_MIN: "",
-    DEFAULT_SHIFT_END: "",
-  };
+  return createEmptyBackendOperationalSettingsDraft();
 }
 
 function normalizeBackendOperationalSettingsForm(form = {}) {
@@ -104,8 +86,8 @@ function backendOperationalSettingsAlpineData() {
     },
 
     resetToDefaultDraft() {
-      this.form = { ...EMPTY_BACKEND_OPERATIONAL_SETTINGS_DRAFT };
-      this.originalForm = { ...EMPTY_BACKEND_OPERATIONAL_SETTINGS_DRAFT };
+      this.form = { ...createEmptyBackendOperationalSettingsDraft() };
+      this.originalForm = { ...createEmptyBackendOperationalSettingsDraft() };
       this.fieldErrors = {};
       this.loadError = "";
       this.saveError = "";
@@ -138,7 +120,7 @@ function backendOperationalSettingsAlpineData() {
         this.originalForm = { ...normalizedForm };
         this.lastSavedDraftAt = "";
 
-        window.showInlineAlert?.({
+        globalThis.window?.showInlineAlert?.({
           type: "warning",
           title: "Draft hanya sementara",
           message:

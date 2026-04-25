@@ -230,6 +230,36 @@ test("backendOperationalSettingsAlpineData saveDraft keeps baseline on invalid i
   assert.deepEqual(state.fieldErrors, {});
 });
 
+test("backendOperationalSettingsAlpineData saveDraft stays safe without a browser window shim", async () => {
+  const previousWindow = globalThis.window;
+  Reflect.deleteProperty(globalThis, "window");
+
+  try {
+    const state = backendOperationalSettingsAlpineData();
+    state.init();
+    state.form = {
+      GEOFENCE_RADIUS_DEFAULT_M: "100",
+      AUTO_CHECKOUT_IDLE_MIN: "20",
+      AUTO_CHECKOUT_TBUFFER_MIN: "10",
+      LATE_CHECKOUT_TBUFFER_MIN: undefined,
+      LATE_CHECKOUT_TOLERANCE_MIN: "120",
+      DEFAULT_SHIFT_END: "17:00",
+    };
+
+    await state.saveDraft();
+
+    assert.equal(state.saveError, "");
+    assert.equal(state.isSaving, false);
+    assert.equal(state.originalForm.AUTO_CHECKOUT_IDLE_MIN, "20");
+  } finally {
+    if (typeof previousWindow === "undefined") {
+      Reflect.deleteProperty(globalThis, "window");
+    } else {
+      globalThis.window = previousWindow;
+    }
+  }
+});
+
 test("validateBackendOperationalSettingsForm rejects malformed numeric and time values", () => {
   const errors = validateBackendOperationalSettingsForm({
     GEOFENCE_RADIUS_DEFAULT_M: "-1",

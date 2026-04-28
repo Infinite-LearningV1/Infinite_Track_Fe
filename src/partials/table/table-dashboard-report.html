@@ -179,7 +179,7 @@
       <tbody
         class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900"
       >
-        <template x-for="log in sortedReportData" :key="log.id_attendance">
+        <template x-for="log in reportData" :key="log.id_attendance">
           <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
             <!-- Full Name -->
             <td class="px-6 py-4">
@@ -347,12 +347,12 @@
         Showing
         <span
           class="font-medium"
-          x-text="pagination.total_records === 0 ? 0 : ((pagination.current_page - 1) * pagination.per_page) + 1"
+          x-text="((pagination.current_page - 1) * pagination.per_page) + 1"
         ></span>
         to
         <span
           class="font-medium"
-          x-text="pagination.total_records === 0 ? 0 : Math.min(pagination.current_page * pagination.per_page, pagination.total_records)"
+          x-text="Math.min(pagination.current_page * pagination.per_page, pagination.total_records)"
         ></span>
         of
         <span class="font-medium" x-text="pagination.total_records"></span>

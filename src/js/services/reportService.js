@@ -1,4 +1,5 @@
 import axios from "axios";
+import { API_CONFIG } from "../config/env.js";
 
 /**
  * Mendapatkan token dari localStorage untuk header Authorization
@@ -46,7 +47,7 @@ class ReportService {
         queryParams.keyword = s;
       }
 
-      const response = await axios.get("/api/summary", {
+      const response = await axios.get(`${API_CONFIG.BASE_URL}/summary`, {
         params: queryParams,
         headers: getAuthHeaders(),
       });

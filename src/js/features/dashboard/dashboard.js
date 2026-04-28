@@ -37,6 +37,8 @@ export function dashboard() {
       period: "all",
       page: 1,
       limit: 5,
+      sortBy: null,
+      sortOrder: "asc",
     },
 
     // Table state properties
@@ -44,11 +46,9 @@ export function dashboard() {
     errorMessage: null,
     attendanceData: [],
 
-    // Search and pagination properties
+    // Search state
     searchQuery: "",
     searchTimeout: null,
-    entriesPerPage: 5,
-    currentPage: 1,
 
     // Modal states (legacy)
     isDeleteModalOpen: false,
@@ -115,14 +115,6 @@ export function dashboard() {
     // Sorting functionality
     currentSort: { field: null, direction: "asc" },
 
-    // Pagination (placeholder - should come from API)
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      per_page: 10,
-      total: 0,
-    },
-
     /**
      * Initialize component
      */
@@ -177,16 +169,14 @@ export function dashboard() {
           `Loading dashboard data for page: ${this.filters.page}, search: ${this.searchQuery}, period: ${this.period}`,
         );
 
-        // Gunakan period filter yang dipilih user untuk semua tampilan dashboard
-        // Saat search aktif, ambil dataset lebih besar agar filter client-side akurat
-        const effectiveLimit =
-          this.searchQuery && this.searchQuery.trim()
-            ? 100
-            : this.filters.limit;
+        // Gunakan period filter dan search query pada jalur request server-driven yang sama
         const response = await getSummaryReport({
-          period: this.period, // Menggunakan period filter dari dropdown
+          period: this.period,
           page: this.filters.page,
-          limit: effectiveLimit,
+          limit: this.filters.limit,
+          search: this.searchQuery,
+          sortBy: this.filters.sortBy,
+          sortOrder: this.filters.sortOrder,
         });
 
         console.log(`Dashboard API call made with period='${this.period}'`);
@@ -244,7 +234,7 @@ export function dashboard() {
                 ? p.per_page
                 : typeof p.items_per_page !== "undefined"
                   ? p.items_per_page
-                  : effectiveLimit,
+                  : this.filters.limit,
           };
           // Map report data to attendanceData format (matching exact API structure)
           this.attendanceData = reportData.map((item, index) => ({
@@ -288,21 +278,7 @@ export function dashboard() {
           }));
 
           // Set reportData untuk tampilan tabel
-          if (this.searchQuery && this.searchQuery.trim()) {
-            // Saat searching: tampilkan hasil filter client-side dan nonaktifkan pagination server agar empty state benar
-            this.reportData = this.filteredAttendanceData;
-            const filteredCount = this.reportData.length;
-            this.pagination = {
-              current_page: 1,
-              total_pages: 1,
-              total_records: filteredCount,
-              per_page: filteredCount,
-              has_prev_page: false,
-              has_next_page: false,
-            };
-          } else {
-            this.reportData = this.attendanceData;
-          }
+          this.reportData = this.attendanceData;
           this.summaryData = {
             summary: mappedSummary,
             report: reportData,
@@ -441,21 +417,6 @@ export function dashboard() {
       }
     },
 
-    /**
-     * Get showing info text for pagination
-     */
-    get showingInfo() {
-      const { current_page, items_per_page, total_items } = this.paginationData;
-
-      if (total_items === 0) {
-        return "Showing 0 entries";
-      }
-
-      const start = (current_page - 1) * items_per_page + 1;
-      const end = Math.min(current_page * items_per_page, total_items);
-
-      return `Showing ${start} to ${end} of ${total_items} entries`;
-    },
 
     /**
      * Get discipline score color class
@@ -747,16 +708,6 @@ export function dashboard() {
       return this.currentSort.direction === "asc" ? "↑" : "↓";
     },
     /**
-     * Pagination (placeholder - should come from API)
-     */
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      per_page: 10,
-      total: 0,
-    },
-
-    /**
      * Get status badge CSS classes (using universal badge helper)
      */
     getStatusBadgeClass(status) {
@@ -894,161 +845,6 @@ export function dashboard() {
       this.showNotification("No data available from server", "info");
     },
 
-    // =================== SEARCH AND PAGINATION FUNCTIONALITY ===================
-
-    /**
-     * Get filtered attendance data based on search query
-     */
-    get filteredAttendanceData() {
-      if (!this.searchQuery.trim()) {
-        return this.attendanceData;
-      }
-
-      const query = this.searchQuery.toLowerCase();
-      return this.attendanceData.filter((log) => {
-        // Safe string checking with fallbacks
-        const fullName = (log.full_name || "").toLowerCase();
-        const id = (log.id || "").toLowerCase();
-        const roleName = (log.role_name || "").toLowerCase();
-        const status = (log.status || "").toLowerCase();
-        const information = (log.information || "").toLowerCase();
-        const email = (log.email || "").toLowerCase();
-
-        return (
-          fullName.includes(query) ||
-          id.includes(query) ||
-          roleName.includes(query) ||
-          status.includes(query) ||
-          information.includes(query) ||
-          email.includes(query)
-        );
-      });
-    },
-
-    /**
-     * Get paginated attendance data
-     */
-    get paginatedAttendanceData() {
-      const filtered = this.filteredAttendanceData;
-      const startIndex = (this.currentPage - 1) * this.entriesPerPage;
-      const endIndex = startIndex + this.entriesPerPage;
-      return filtered.slice(startIndex, endIndex);
-    },
-
-    /**
-     * Get total pages
-     */
-    get totalPages() {
-      return Math.ceil(
-        this.filteredAttendanceData.length / this.entriesPerPage,
-      );
-    },
-
-    /**
-     * Get showing info text
-     */
-    get showingInfo() {
-      const filtered = this.filteredAttendanceData;
-      const total = filtered.length;
-
-      if (total === 0) {
-        return "Showing 0 entries";
-      }
-
-      const start = (this.currentPage - 1) * this.entriesPerPage + 1;
-      const end = Math.min(this.currentPage * this.entriesPerPage, total);
-
-      return `Showing ${start} to ${end} of ${total} entries`;
-    },
-
-    /**
-     * Handle search input change
-     */
-    onSearchChange() {
-      this.currentPage = 1; // Reset to first page when searching
-      this.filters.page = 1;
-      // Pencarian akan di-handle oleh debouncedSearch() via @input
-    },
-
-    /**
-     * Handle entries per page change
-     */
-    onEntriesPerPageChange() {
-      this.currentPage = 1; // Reset to first page when changing entries per page
-      console.log("Entries per page changed:", this.entriesPerPage);
-    },
-
-    /**
-     * Go to previous page
-     */
-    previousPage() {
-      if (this.currentPage > 1) {
-        this.currentPage--;
-      }
-    },
-
-    /**
-     * Go to next page
-     */
-    nextPage() {
-      if (this.currentPage < this.totalPages) {
-        this.currentPage++;
-      }
-    },
-
-    /**
-     * Go to specific page
-     */
-    goToPage(page) {
-      if (page >= 1 && page <= this.totalPages) {
-        this.currentPage = page;
-      }
-    },
-
-    /**
-     * Get page numbers for pagination
-     */
-    getPageNumbers() {
-      const pages = [];
-      const total = this.totalPages;
-      const current = this.currentPage;
-
-      if (total <= 7) {
-        // Show all pages if total is 7 or less
-        for (let i = 1; i <= total; i++) {
-          pages.push(i);
-        }
-      } else {
-        // Show first page
-        pages.push(1);
-
-        if (current > 4) {
-          pages.push("...");
-        }
-
-        // Show pages around current page
-        const start = Math.max(2, current - 1);
-        const end = Math.min(total - 1, current + 1);
-
-        for (let i = start; i <= end; i++) {
-          if (!pages.includes(i)) {
-            pages.push(i);
-          }
-        }
-
-        if (current < total - 3) {
-          pages.push("...");
-        }
-
-        // Show last page
-        if (!pages.includes(total)) {
-          pages.push(total);
-        }
-      }
-
-      return pages;
-    },
-
     // Debounced search function
     debouncedSearch() {
       clearTimeout(this.searchTimeout);
@@ -1057,6 +853,36 @@ export function dashboard() {
         // searchQuery sudah di-bind oleh input; cukup reload data agar reportData & pagination disesuaikan
         this.loadSummaryData();
       }, 1000);
+    },
+
+    changeSort(field) {
+      const allowedSortFields = ["full_name", "status", "attendance_date"];
+      if (!allowedSortFields.includes(field)) {
+        return;
+      }
+
+      if (this.filters.sortBy === field) {
+        this.filters.sortOrder =
+          this.filters.sortOrder === "asc" ? "desc" : "asc";
+      } else {
+        this.filters.sortBy = field;
+        this.filters.sortOrder = "asc";
+      }
+
+      this.currentSort = {
+        field: this.filters.sortBy,
+        direction: this.filters.sortOrder,
+      };
+      this.filters.page = 1;
+      this.loadSummaryData();
+    },
+
+    getSortIcon(fieldName) {
+      if (this.currentSort.field !== fieldName) {
+        return "";
+      }
+
+      return this.currentSort.direction === "asc" ? "↑" : "↓";
     },
 
     // Update filters limit and reload data

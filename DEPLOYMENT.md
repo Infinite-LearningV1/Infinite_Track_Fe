@@ -50,6 +50,10 @@ npm install
 yarn install
 ```
 
+> Untuk clean install yang reproducible seperti baseline CI repo ini, gunakan `npm ci`.
+>
+> Catatan CI baseline: workflow GitHub Actions repo ini memakai Node.js 20 dan `npm ci` untuk build verification yang reproducible.
+
 ---
 
 ## ⚙️ Konfigurasi Environment
@@ -156,6 +160,12 @@ serve -s build -p 3000
 ### Production Truth
 
 Untuk production, frontend ini diperlakukan sebagai **static site**. Jalur deploy yang direkomendasikan adalah build frontend lalu host hasil `build/` pada static hosting seperti DigitalOcean App Platform Static Site. Pada model ini, frontend production harus memakai `API_BASE_URL` yang mengarah langsung ke backend public URL (disarankan subdomain API terpisah), bukan mengandalkan local `/api` gateway.
+
+Dalam branch model repo ini, `master` adalah branch final yang dimaksudkan menjadi source release / deploy production. Snapshot `develop` harus dipromosikan secara terkontrol ke `master`, dan setiap PR yang menargetkan `master` akan menjalankan build verification sebelum `master` diperlakukan sebagai branch release-ready.
+
+Baseline repo ini hanya menambahkan build gate minimum dan **tidak** menyalakan deploy production otomatis. Build yang lulus menunjukkan evidence minimum bahwa static bundle dapat dibentuk, tetapi bukan klaim bahwa runtime production sudah tervalidasi penuh.
+
+> Needs Verification: branch protection / ruleset GitHub yang mewajibkan required status check untuk `develop` dan `master`, pembatasan direct push ke `master`, pembatasan source branch promotion, dan source branch hosting production aktual tidak bisa dibuktikan dari isi repo saja dan harus dikonfirmasi di GitHub UI / platform hosting.
 
 ### Local Tooling Truth
 

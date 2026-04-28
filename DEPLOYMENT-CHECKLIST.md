@@ -42,7 +42,7 @@ git commit -m "Fix: Update logo files and prepare for deployment"
 ### 3️⃣ Install Dependencies Baru
 
 ```bash
-npm install
+npm ci
 ```
 
 ### 4️⃣ Build Production
@@ -67,6 +67,8 @@ serve -s build -p 3000
 
 - [ ] Verifikasi evidence untuk perubahan deploy/runtime sudah jelas, atau tandai `REQUIRES REPO VERIFICATION` bila jalur verifikasinya belum terkunci.
 - [ ] Tinjau kebutuhan update `CLAUDE.md` / ADR bila perubahan menggeser env, build, deploy, atau runtime assumptions.
+- [ ] `Needs Verification`: branch protection / GitHub ruleset benar-benar mewajibkan status check workflow build pada PR ke `develop` dan PR promotion ke `master`.
+- [ ] `Needs Verification`: source branch static hosting production memang menunjuk ke `master` sebagai branch final.
 
 
 ### Pre-Build
@@ -74,10 +76,12 @@ serve -s build -p 3000
 - [ ] File referensi `.env.production.example` sudah disiapkan, dan untuk simulasi build production lokal sudah dicopy ke `.env.production`
 - [ ] `API_BASE_URL` sudah diubah ke backend production (tanpa trailing slash)
 - [ ] Git status bersih (no conflicts)
-- [ ] Dependencies ter-install (`npm install`)
+- [ ] Dependencies ter-install (`npm ci` untuk clean install yang konsisten dengan baseline CI, atau `npm install` bila konteksnya local iteration biasa)
 
 ### Build
 
+- [ ] Workflow build lulus pada PR ke `develop`
+- [ ] Workflow build lulus pada promotion PR `develop` -> `master`
 - [ ] `npm run build` berhasil tanpa error
 - [ ] Folder `build/` ter-generate dengan lengkap
 - [ ] File `bundle.js` dan `style.css` ada
@@ -95,7 +99,8 @@ serve -s build -p 3000
 
 - [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
-- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch/build/output sudah benar
+- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch final adalah `master`, build command benar, dan output directory mengarah ke artifact static yang tepat
+- [ ] Promotion PR `develop` -> `master` sudah lulus workflow build sebelum `master` diperlakukan release-ready
 - [ ] Test akses dari domain production
 
 ### Docker Compose Verification
@@ -244,8 +249,13 @@ Jika ada masalah serius saat deployment:
 
 - ✅ Docker gateway workflow untuk local/staging-like verification sudah terdokumentasi
 - ✅ Verifikasi yang terbukti di worktree ini mencakup build FE, boot stack Docker dev, dan respons gateway HTTP 200
-- ⚠️ Production readiness tetap `REQUIRES REPO VERIFICATION`
+- ✅ Baseline CI sekarang mencakup build verification untuk PR ke `develop`, push ke `develop`, dan promotion PR ke `master`
+- ✅ `master` adalah branch final yang dimaksudkan menjadi release / deploy source dalam workflow repo ini
+- ⚠️ `Needs Verification`: required status check, branch protection GitHub UI, direct-push restriction, dan source-branch restriction ke `master` benar-benar sudah enforced
+- ⚠️ `Needs Verification`: source branch, build command, dan output directory pada static hosting production sudah benar
 - ⚠️ Cloudinary env masih perlu disuplai saat smoke test backend lokal di Docker
-- ⚠️ Deploy ke hosting pilihan Anda tetap memerlukan validasi environment production terpisah
+- ⚠️ **TINGGAL:** Configure environment variables
+- ⚠️ **TINGGAL:** Deploy ke hosting pilihan Anda
+- ⚠️ **TINGGAL:** Jalankan post-deploy smoke checks sebelum menyebut snapshot ini production-ready
 
 **Lanjutkan deployment dengan verifikasi bertahap.**

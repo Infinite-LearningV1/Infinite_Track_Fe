@@ -42,7 +42,7 @@ git commit -m "Fix: Update logo files and prepare for deployment"
 ### 3️⃣ Install Dependencies Baru
 
 ```bash
-npm install
+npm ci
 ```
 
 ### 4️⃣ Build Production
@@ -67,6 +67,8 @@ serve -s build -p 3000
 
 - [ ] Verifikasi evidence untuk perubahan deploy/runtime sudah jelas, atau tandai `REQUIRES REPO VERIFICATION` bila jalur verifikasinya belum terkunci.
 - [ ] Tinjau kebutuhan update `CLAUDE.md` / ADR bila perubahan menggeser env, build, deploy, atau runtime assumptions.
+- [ ] `Needs Verification`: branch protection / GitHub ruleset benar-benar mewajibkan status check workflow build pada PR ke `develop` dan PR promotion ke `master`.
+- [ ] `Needs Verification`: source branch static hosting production memang menunjuk ke `master` sebagai branch final.
 
 
 ### Pre-Build
@@ -74,10 +76,12 @@ serve -s build -p 3000
 - [ ] File `.env.production` sudah dibuat
 - [ ] `API_BASE_URL` sudah diubah ke backend production
 - [ ] Git status bersih (no conflicts)
-- [ ] Dependencies ter-install (`npm install`)
+- [ ] Dependencies ter-install (`npm ci` untuk clean install yang konsisten dengan baseline CI, atau `npm install` bila konteksnya local iteration biasa)
 
 ### Build
 
+- [ ] Workflow build lulus pada PR ke `develop`
+- [ ] Workflow build lulus pada promotion PR `develop` -> `master`
 - [ ] `npm run build` berhasil tanpa error
 - [ ] Folder `build/` ter-generate dengan lengkap
 - [ ] File `bundle.js` dan `style.css` ada
@@ -93,10 +97,25 @@ serve -s build -p 3000
 
 ### Deployment
 
-- [ ] Upload folder `build/` ke hosting
+- [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
-- [ ] Configure server (Nginx/Apache)
+- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch final adalah `master`, build command benar, dan output directory mengarah ke artifact static yang tepat
+- [ ] Promotion PR `develop` -> `master` sudah lulus workflow build sebelum `master` diperlakukan release-ready
 - [ ] Test akses dari domain production
+
+### Docker Compose Verification
+
+- [ ] `BACKEND_REPO_PATH` diarahkan ke repo backend lokal yang benar sebelum menjalankan `docker compose up --build`
+- [ ] Tambahkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` saat smoke test Docker lokal karena backend saat ini membutuhkannya untuk startup sukses
+- [ ] Development gateway flow diverifikasi dengan stack Compose aktif dan trafik browser masuk lewat service `nginx`
+- [ ] Jika memakai mode staging-like, jalankan `npm run build` sebelum `NGINX_MODE=staging docker compose up --build`
+
+### Docker Gateway Verification
+
+- [ ] Verifikasi gateway NGINX merespons pada port host yang dipakai, misalnya `curl -I http://localhost:8080`
+- [ ] Jika port gateway dioverride, verifikasi endpoint yang sesuai, misalnya `curl -I http://localhost:8081`
+- [ ] Pastikan `/api` diproxy lewat gateway ke backend container, bukan lagi asumsi lama `localhost:3005`
+- [ ] Gunakan `docker compose down` untuk stop stack, atau `docker compose down -v` bila juga ingin membersihkan volume lokal
 
 ### Post-Deployment
 
@@ -112,13 +131,15 @@ serve -s build -p 3000
 
 ### 1. Backend API Integration
 
-**CRITICAL:** Pastikan `API_BASE_URL` di `.env.production` benar!
+**CRITICAL:** Pastikan `API_BASE_URL` di `.env.production` atau env build-time production benar.
 
-Contoh konfigurasi:
+Contoh konfigurasi yang direkomendasikan untuk static production:
 
 - Backend di subdomain: `https://api.yourdomain.com`
-- Backend di path sama: `https://yourdomain.com/api`
-- Backend IP+port: `http://192.168.1.100:3005`
+
+Catatan:
+- Untuk production static site, gunakan backend public URL eksplisit.
+- Jangan mengandalkan local `/api` gateway sebagai production default kecuali memang ada reverse proxy production yang sengaja disiapkan.
 
 ### 2. CORS Configuration
 
@@ -226,11 +247,12 @@ Jika ada masalah serius saat deployment:
 
 ## 📝 Final Notes
 
-- ✅ Project Anda sudah **PRODUCTION READY**
-- ✅ Code quality baik, no runtime errors
-- ✅ Responsive design implemented
-- ✅ Dark mode fully functional
+- ✅ Baseline CI sekarang mencakup build verification untuk PR ke `develop`, push ke `develop`, dan promotion PR ke `master`
+- ✅ `master` adalah branch final yang dimaksudkan menjadi release / deploy source dalam workflow repo ini
+- ⚠️ `Needs Verification`: required status check, branch protection GitHub UI, direct-push restriction, dan source-branch restriction ke `master` benar-benar sudah enforced
+- ⚠️ `Needs Verification`: source branch, build command, dan output directory pada static hosting production sudah benar
 - ⚠️ **TINGGAL:** Configure environment variables
 - ⚠️ **TINGGAL:** Deploy ke hosting pilihan Anda
+- ⚠️ **TINGGAL:** Jalankan post-deploy smoke checks sebelum menyebut snapshot ini production-ready
 
 **Good luck dengan deployment! 🚀**

@@ -35,6 +35,7 @@ const PAGE_PERMISSIONS = {
   "/management-user.html": [ROLES.ADMIN],
   "/management-booking.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
   "/management-attendance.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
+  "/management-backend-settings.html": [ROLES.ADMIN],
   "/form-user.html": [ROLES.ADMIN],
   "/profile.html": [
     ROLES.ADMIN,

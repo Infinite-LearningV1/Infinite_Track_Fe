@@ -216,7 +216,7 @@
               <span x-text="log.time_out || '-'"> </span>
             </td>
 
-            <!-- Work Hour -->
+            <!-- Attendance Date -->
             <td
               class="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-white"
             >
@@ -347,7 +347,7 @@
         Showing
         <span
           class="font-medium"
-          x-text="((pagination.current_page - 1) * pagination.per_page) + 1"
+          x-text="pagination.total_records === 0 ? 0 : ((pagination.current_page - 1) * pagination.per_page) + 1"
         ></span>
         to
         <span

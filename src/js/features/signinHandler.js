@@ -9,13 +9,33 @@ import {
   hasSessionHint,
   resolveBootstrapSession,
 } from "../services/authService.js";
+import {
+  clearAuthRedirectNotice,
+  readAuthRedirectNotice,
+} from "../services/authSessionRuntime.js";
+
+function showAuthRedirectNotice() {
+  const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
+
+  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
+    return;
+  }
+
+  clearAuthRedirectNotice(window.sessionStorage);
+  window.showInlineAlert({
+    type: redirectNotice.type || "warning",
+    title: redirectNotice.title || "Perlu Login",
+    message: redirectNotice.message,
+    timeoutMs: 4000,
+  });
+}
 
 function shouldAutoInitSigninHandler(doc = document) {
   const form = doc.querySelector("form");
   const emailInput = doc.getElementById("email");
-  const passwordInput = doc.querySelector(
-    'input[type="password"], input[x-bind\\:type]',
-  );
+  const passwordInput =
+    doc.getElementById("password") ||
+    doc.querySelector('input[type="password"]');
   const submitButton = doc.querySelector(
     'button[type="submit"], form button:last-of-type',
   );
@@ -32,6 +52,8 @@ function initSigninHandler() {
     return;
   }
 
+  showAuthRedirectNotice();
+
   // Tunggu hingga DOM fully loaded
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", setupSigninForm);
@@ -44,11 +66,13 @@ function initSigninHandler() {
  * Setup signin form dengan event listeners
  */
 function setupSigninForm() {
+  showAuthRedirectNotice();
+
   const form = document.querySelector("form");
   const emailInput = document.getElementById("email");
-  const passwordInput = document.querySelector(
-    'input[type="password"], input[x-bind\\:type]',
-  );
+  const passwordInput =
+    document.getElementById("password") ||
+    document.querySelector('input[type="password"]');
   const submitButton = document.querySelector(
     'button[type="submit"], form button:last-of-type',
   );

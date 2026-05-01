@@ -453,6 +453,7 @@ async function bootAuthentication() {
 }
 
 // Initialize Alpine.js with authentication
+initAuthStore();
 Alpine.start();
 bootAuthentication();
 

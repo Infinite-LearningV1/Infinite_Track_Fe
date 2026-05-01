@@ -10,11 +10,28 @@ import {
   resolveBootstrapSession,
 } from "../services/authService.js";
 
+function shouldAutoInitSigninHandler(doc = document) {
+  const form = doc.querySelector("form");
+  const emailInput = doc.getElementById("email");
+  const passwordInput = doc.querySelector(
+    'input[type="password"], input[x-bind\\:type]',
+  );
+  const submitButton = doc.querySelector(
+    'button[type="submit"], form button:last-of-type',
+  );
+
+  return Boolean(form && emailInput && passwordInput && submitButton);
+}
+
 /**
  * Initialize signin form handler
  * Menginisialisasi event listeners dan validasi form
  */
 function initSigninHandler() {
+  if (!shouldAutoInitSigninHandler()) {
+    return;
+  }
+
   // Tunggu hingga DOM fully loaded
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", setupSigninForm);
@@ -533,6 +550,7 @@ const SigninHandler = {
 
 // Export untuk penggunaan sebagai module
 export {
+  shouldAutoInitSigninHandler,
   initSigninHandler,
   showError,
   clearError,

@@ -3,7 +3,10 @@
  * See post @ http://www.lab4games.net/zz85/blog/2014/11/15/resizing-moving-snapping-windows-with-js-css/
  */
 
-if (document.querySelectorAll("#pane").length) {
+const pane = document.getElementById("pane");
+const ghostpane = document.getElementById("ghostpane");
+
+if (pane && ghostpane) {
   ("use strict");
 
   // Minimum resizable area
@@ -25,9 +28,6 @@ if (document.querySelectorAll("#pane").length) {
   var b, x, y;
 
   var redraw = false;
-
-  var pane = document.getElementById("pane");
-  var ghostpane = document.getElementById("ghostpane");
 
   function setBounds(element, x, y, w, h) {
     element.style.left = x + "px";

@@ -1,6 +1,6 @@
-import "/node_modules/flatpickr/dist/flatpickr.min.css";
-import "/node_modules/dropzone/dist/dropzone.css";
-import "/node_modules/leaflet/dist/leaflet.css";
+import "flatpickr/dist/flatpickr.min.css";
+import "dropzone/dist/dropzone.css";
+import "leaflet/dist/leaflet.css";
 import "../css/style.css";
 
 import Alpine from "alpinejs";
@@ -84,14 +84,16 @@ function showAuthRedirectNoticeOnSignin() {
 
   const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
 
-  if (!redirectNotice?.message || typeof window.showWarningAlert !== "function") {
+  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
     return;
   }
 
   clearAuthRedirectNotice(window.sessionStorage);
-  window.showWarningAlert(redirectNotice.message, {
+  window.showInlineAlert({
+    type: redirectNotice.type || "warning",
     title: redirectNotice.title || "Perlu Login",
-    buttonText: "OK",
+    message: redirectNotice.message,
+    timeoutMs: 4000,
   });
 }
 

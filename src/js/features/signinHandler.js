@@ -17,14 +17,16 @@ import {
 function showAuthRedirectNotice() {
   const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
 
-  if (!redirectNotice?.message || typeof window.showWarningAlert !== "function") {
+  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
     return;
   }
 
   clearAuthRedirectNotice(window.sessionStorage);
-  window.showWarningAlert(redirectNotice.message, {
+  window.showInlineAlert({
+    type: redirectNotice.type || "warning",
     title: redirectNotice.title || "Perlu Login",
-    buttonText: "OK",
+    message: redirectNotice.message,
+    timeoutMs: 4000,
   });
 }
 

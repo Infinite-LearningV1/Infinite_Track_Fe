@@ -34,3 +34,20 @@ test("auth store is initialized before Alpine.start during module bootstrap", ()
     "Expected top-level bootstrap to register Alpine auth store before Alpine.start() so shared Alpine templates can read Alpine.store('auth') safely on first render",
   );
 });
+
+test("auth store is not re-initialized inside bootAuthentication", () => {
+  const indexSource = fs.readFileSync(INDEX_JS_PATH, "utf8");
+  const bootFunctionMatch = indexSource.match(
+    /async function bootAuthentication\(\) \{([\s\S]*?)\n\}/,
+  );
+
+  assert.ok(
+    bootFunctionMatch,
+    "Expected bootAuthentication function in src/js/index.js",
+  );
+  assert.doesNotMatch(
+    bootFunctionMatch[1],
+    /initAuthStore\(\);/,
+    "Expected bootAuthentication to avoid re-registering the Alpine auth store after top-level bootstrap",
+  );
+});

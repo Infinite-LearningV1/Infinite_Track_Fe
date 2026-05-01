@@ -315,7 +315,7 @@ export function dashboard() {
           current_page: 1,
           total_pages: 1,
           total_records: 0,
-          per_page: this.filters.limit,
+          per_page: this.pagination?.per_page || this.filters.limit,
           has_next_page: false,
           has_prev_page: false,
         };

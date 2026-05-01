@@ -29,4 +29,19 @@ test("dashboard report table renders attendance date in the Attendance Date body
   assert.ok(attendanceDateBodyColumn, "Expected to find the fourth dashboard report table body column");
   assert.equal(attendanceDateBodyColumn[1], "log.attendance_date || '-'");
   assert.doesNotMatch(attendanceDateBodyColumn[0], /log\.work_hour/);
+  assert.match(attendanceDateBodyColumn[0], /<!-- Attendance Date -->/);
+});
+
+test("dashboard report empty pagination summary does not render a 1 to 0 range", () => {
+  const partial = readPartial();
+
+  assert.doesNotMatch(
+    partial,
+    /x-text="\(\(pagination\.current_page - 1\) \* pagination\.per_page\) \+ 1"/,
+    "Expected empty-state-safe pagination summary instead of always rendering a first-row index",
+  );
+  assert.match(
+    partial,
+    /pagination\.total_records === 0 \? 0 : \(\(pagination\.current_page - 1\) \* pagination\.per_page\) \+ 1/,
+  );
 });

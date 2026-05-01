@@ -31,7 +31,7 @@ function createFakeDocument({
         return form;
       }
 
-      if (selector === 'input[type="password"], input[x-bind\\:type]') {
+      if (selector === "#password") {
         return passwordInput;
       }
 

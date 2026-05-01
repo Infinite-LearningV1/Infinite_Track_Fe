@@ -33,9 +33,9 @@ function showAuthRedirectNotice() {
 function shouldAutoInitSigninHandler(doc = document) {
   const form = doc.querySelector("form");
   const emailInput = doc.getElementById("email");
-  const passwordInput =
-    doc.getElementById("password") ||
-    doc.querySelector('input[type="password"]');
+  const passwordInput = doc.querySelector(
+    "#password",
+  );
   const submitButton = doc.querySelector(
     'button[type="submit"], form button:last-of-type',
   );
@@ -70,9 +70,9 @@ function setupSigninForm() {
 
   const form = document.querySelector("form");
   const emailInput = document.getElementById("email");
-  const passwordInput =
-    document.getElementById("password") ||
-    document.querySelector('input[type="password"]');
+  const passwordInput = document.querySelector(
+    "#password",
+  );
   const submitButton = document.querySelector(
     'button[type="submit"], form button:last-of-type',
   );

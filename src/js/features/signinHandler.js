@@ -30,11 +30,28 @@ function showAuthRedirectNotice() {
   });
 }
 
+function shouldAutoInitSigninHandler(doc = document) {
+  const form = doc.querySelector("form");
+  const emailInput = doc.getElementById("email");
+  const passwordInput = doc.querySelector(
+    "#password",
+  );
+  const submitButton = doc.querySelector(
+    'button[type="submit"], form button:last-of-type',
+  );
+
+  return Boolean(form && emailInput && passwordInput && submitButton);
+}
+
 /**
  * Initialize signin form handler
  * Menginisialisasi event listeners dan validasi form
  */
 function initSigninHandler() {
+  if (!shouldAutoInitSigninHandler()) {
+    return;
+  }
+
   showAuthRedirectNotice();
 
   // Tunggu hingga DOM fully loaded
@@ -54,7 +71,7 @@ function setupSigninForm() {
   const form = document.querySelector("form");
   const emailInput = document.getElementById("email");
   const passwordInput = document.querySelector(
-    'input[type="password"], input[x-bind\\:type]',
+    "#password",
   );
   const submitButton = document.querySelector(
     'button[type="submit"], form button:last-of-type',
@@ -557,6 +574,7 @@ const SigninHandler = {
 
 // Export untuk penggunaan sebagai module
 export {
+  shouldAutoInitSigninHandler,
   initSigninHandler,
   showError,
   clearError,

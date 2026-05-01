@@ -492,7 +492,6 @@ async function bootAuthentication() {
   console.log("Alpine.js started, setting up authentication...");
 
   showAuthRedirectNoticeOnSignin();
-  initAuthStore();
   const startupState = await initializeAuthSession();
 
   if (startupState !== "verification_failed" && startupState !== "redirecting") {
@@ -502,6 +501,7 @@ async function bootAuthentication() {
 }
 
 // Initialize Alpine.js with authentication
+initAuthStore();
 Alpine.start();
 bootAuthentication();
 

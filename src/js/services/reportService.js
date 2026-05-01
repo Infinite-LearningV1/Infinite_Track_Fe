@@ -4,7 +4,7 @@ import { authRequest } from "./authRequest.js";
 /**
  * Service untuk menangani API calls terkait laporan summary
  */
-class ReportService {
+export class ReportService {
   constructor(requestExecutor = authRequest) {
     this.requestExecutor = requestExecutor;
   }
@@ -16,10 +16,19 @@ class ReportService {
    * @param {number} params.page - Page number for pagination
    * @param {number} params.limit - Items per page
    * @param {string} params.search - Search query
+   * @param {string|null} params.sortBy - Backend sort field
+   * @param {string} params.sortOrder - Backend sort order ('asc' or 'desc')
    * @returns {Promise<Object>} Response data containing summary, report, and analytics
    */
   async getSummaryReport(params = {}) {
-    const { period = "all", page = 1, limit = 10, search = "" } = params;
+    const {
+      period = "all",
+      page = 1,
+      limit = 10,
+      search = "",
+      sortBy = null,
+      sortOrder = "asc",
+    } = params;
 
     try {
       const queryParams = { period, page, limit };
@@ -30,6 +39,11 @@ class ReportService {
         queryParams.q = normalizedSearch;
         queryParams.query = normalizedSearch;
         queryParams.keyword = normalizedSearch;
+      }
+
+      if (sortBy) {
+        queryParams.sortBy = sortBy;
+        queryParams.sortOrder = sortOrder;
       }
 
       const response = await this.requestExecutor({
@@ -44,6 +58,7 @@ class ReportService {
       return response.data;
     } catch (error) {
       console.error("Error fetching from API:", error.message);
+
       throw new Error(`Failed to fetch summary report: ${error.message}`);
     }
   }
@@ -224,8 +239,6 @@ class ReportService {
     };
   }
 }
-
-export { ReportService };
 
 // Export singleton instance
 export const reportService = new ReportService();

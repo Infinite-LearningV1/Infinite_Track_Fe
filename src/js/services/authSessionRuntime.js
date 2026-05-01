@@ -14,12 +14,18 @@ export const NON_REFRESHABLE_CODES = new Set([
 
 export const USER_KEYS = ["userData", "user", "currentUserData"];
 export const TOKEN_KEYS = ["authToken", "auth_token"];
+export const AUTH_REDIRECT_NOTICE_STORAGE_KEY = "authRedirectNotice";
+
 export const AUXILIARY_KEYS = [
   "rememberMe",
   "rememberedEmail",
   "redirectAfterLogin",
 ];
-export const SESSION_KEYS = ["redirectAfterLogin", "sessionVerificationState"];
+export const SESSION_KEYS = [
+  "redirectAfterLogin",
+  "sessionVerificationState",
+  AUTH_REDIRECT_NOTICE_STORAGE_KEY,
+];
 
 export function parseJson(value) {
   if (typeof value !== "string" || value.length === 0) {
@@ -31,6 +37,47 @@ export function parseJson(value) {
   } catch {
     return null;
   }
+}
+
+export function readAuthRedirectNotice(
+  sessionStorageRef = globalThis.sessionStorage,
+) {
+  if (!sessionStorageRef) {
+    return null;
+  }
+
+  const storedNotice = sessionStorageRef.getItem(AUTH_REDIRECT_NOTICE_STORAGE_KEY);
+  const parsedNotice = parseJson(storedNotice);
+
+  if (parsedNotice && typeof parsedNotice === "object") {
+    return parsedNotice;
+  }
+
+  if (storedNotice) {
+    sessionStorageRef.removeItem(AUTH_REDIRECT_NOTICE_STORAGE_KEY);
+  }
+
+  return null;
+}
+
+export function persistAuthRedirectNotice(
+  notice,
+  sessionStorageRef = globalThis.sessionStorage,
+) {
+  if (!sessionStorageRef || !notice || typeof notice !== "object") {
+    return;
+  }
+
+  sessionStorageRef.setItem(
+    AUTH_REDIRECT_NOTICE_STORAGE_KEY,
+    JSON.stringify(notice),
+  );
+}
+
+export function clearAuthRedirectNotice(
+  sessionStorageRef = globalThis.sessionStorage,
+) {
+  sessionStorageRef?.removeItem(AUTH_REDIRECT_NOTICE_STORAGE_KEY);
 }
 
 export function classifyAuthFailure(error) {

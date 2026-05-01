@@ -10,6 +10,7 @@ import {
   classifyAuthFailure,
   clearAuthArtifacts,
   createBootstrapSessionResolver,
+  persistAuthRedirectNotice,
   readStoredSessionSnapshot,
 } from "./authSessionRuntime.js";
 
@@ -170,9 +171,19 @@ async function forceReauthenticate(options = {}) {
       ? options.preserveRedirectAfterLogin
       : window.sessionStorage?.getItem("redirectAfterLogin") || null;
 
+  const redirectNotice =
+    options?.redirectNotice && typeof options.redirectNotice === "object"
+      ? options.redirectNotice
+      : null;
+
   clearAuthArtifacts(window.localStorage, window.sessionStorage, {
     preserveRedirectAfterLogin: redirectToPreserve,
   });
+
+  if (redirectNotice) {
+    persistAuthRedirectNotice(redirectNotice, window.sessionStorage);
+  }
+
   removeUserFromStorage();
 
   if (window.Alpine?.store) {

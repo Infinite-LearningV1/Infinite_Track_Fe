@@ -9,12 +9,32 @@ import {
   hasSessionHint,
   resolveBootstrapSession,
 } from "../services/authService.js";
+import {
+  clearAuthRedirectNotice,
+  readAuthRedirectNotice,
+} from "../services/authSessionRuntime.js";
+
+function showAuthRedirectNotice() {
+  const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
+
+  if (!redirectNotice?.message || typeof window.showWarningAlert !== "function") {
+    return;
+  }
+
+  clearAuthRedirectNotice(window.sessionStorage);
+  window.showWarningAlert(redirectNotice.message, {
+    title: redirectNotice.title || "Perlu Login",
+    buttonText: "OK",
+  });
+}
 
 /**
  * Initialize signin form handler
  * Menginisialisasi event listeners dan validasi form
  */
 function initSigninHandler() {
+  showAuthRedirectNotice();
+
   // Tunggu hingga DOM fully loaded
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", setupSigninForm);
@@ -27,6 +47,8 @@ function initSigninHandler() {
  * Setup signin form dengan event listeners
  */
 function setupSigninForm() {
+  showAuthRedirectNotice();
+
   const form = document.querySelector("form");
   const emailInput = document.getElementById("email");
   const passwordInput = document.querySelector(

@@ -37,6 +37,11 @@ import {
   resolveBootstrapSession,
   forceReauthenticate,
 } from "./services/authService.js";
+import {
+  clearAuthRedirectNotice,
+  persistAuthRedirectNotice,
+  readAuthRedirectNotice,
+} from "./services/authSessionRuntime.js";
 import { getUserFromStorage } from "./utils/storageManager.js";
 import { initAuthStore } from "./stores/authStore.js";
 import { initAuthGuard } from "./utils/authGuard.js";
@@ -69,6 +74,26 @@ window.bookingListAlpineData = bookingListAlpineData;
 
 // Expose utility functions to window for use in HTML
 window.getUserPhotoUrl = getUserPhotoUrl;
+
+function showAuthRedirectNoticeOnSignin() {
+  const pageName = window.location.pathname.split("/").pop() || "index.html";
+
+  if (pageName !== "signin.html") {
+    return;
+  }
+
+  const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
+
+  if (!redirectNotice?.message || typeof window.showWarningAlert !== "function") {
+    return;
+  }
+
+  clearAuthRedirectNotice(window.sessionStorage);
+  window.showWarningAlert(redirectNotice.message, {
+    title: redirectNotice.title || "Perlu Login",
+    buttonText: "OK",
+  });
+}
 
 // Global Alpine.js state for Map Detail Modal
 Alpine.data("mapDetailModalState", () => ({
@@ -367,6 +392,11 @@ async function initializeAuthSession() {
 
     if (!hasSessionHint()) {
       sessionStorage.setItem("redirectAfterLogin", window.location.href);
+      persistAuthRedirectNotice({
+        type: "warning",
+        title: "Perlu Login",
+        message: "Silakan login untuk melanjutkan",
+      });
       window.location.href = "/signin.html";
       return "redirecting";
     }
@@ -405,12 +435,24 @@ async function validateUserSession() {
     }
 
     sessionStorage.setItem("redirectAfterLogin", window.location.href);
-    await forceReauthenticate();
+    await forceReauthenticate({
+      redirectNotice: {
+        type: "warning",
+        title: "Sesi Berakhir",
+        message: "Sesi telah berakhir. Silakan login kembali.",
+      },
+    });
     return resolution.state;
   } catch (error) {
     console.error("Error validating session:", error);
     sessionStorage.setItem("redirectAfterLogin", window.location.href);
-    await forceReauthenticate();
+    await forceReauthenticate({
+      redirectNotice: {
+        type: "warning",
+        title: "Sesi Berakhir",
+        message: "Sesi telah berakhir. Silakan login kembali.",
+      },
+    });
     return "non_refreshable";
   }
 }
@@ -443,6 +485,7 @@ async function validateSigninPageSession() {
 async function bootAuthentication() {
   console.log("Alpine.js started, setting up authentication...");
 
+  showAuthRedirectNoticeOnSignin();
   initAuthStore();
   const startupState = await initializeAuthSession();
 
@@ -563,52 +606,49 @@ if (year) {
 // For Copy//
 document.addEventListener("DOMContentLoaded", () => {
   const copyInput = document.getElementById("copy-input");
-  if (copyInput) {
-    // Select the copy button and input field
-    const copyButton = document.getElementById("copy-button");
-    const copyText = document.getElementById("copy-text");
-    const websiteInput = document.getElementById("website-input");
+  const copyButton = document.getElementById("copy-button");
+  const copyText = document.getElementById("copy-text");
+  const websiteInput = document.getElementById("website-input");
 
-    // Event listener for the copy button
-    copyButton.addEventListener("click", () => {
-      // Copy the input value to the clipboard
-      navigator.clipboard.writeText(websiteInput.value).then(() => {
-        // Change the text to "Copied"
-        copyText.textContent = "Copied";
-
-        // Reset the text back to "Copy" after 2 seconds
-        setTimeout(() => {
-          copyText.textContent = "Copy";
-        }, 2000);
-      });
-    });
+  if (!copyInput || !copyButton || !copyText || !websiteInput) {
+    return;
   }
+
+  copyButton.addEventListener("click", () => {
+    navigator.clipboard.writeText(websiteInput.value).then(() => {
+      copyText.textContent = "Copied";
+
+      setTimeout(() => {
+        copyText.textContent = "Copy";
+      }, 2000);
+    });
+  });
 });
 
 document.addEventListener("DOMContentLoaded", function () {
   const searchInput = document.getElementById("search-input");
   const searchButton = document.getElementById("search-button");
 
-  // Function to focus the search input
+  if (!searchInput || !searchButton) {
+    return;
+  }
+
   function focusSearchInput() {
     searchInput.focus();
   }
 
-  // Add click event listener to the search button
   searchButton.addEventListener("click", focusSearchInput);
 
-  // Add keyboard event listener for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
   document.addEventListener("keydown", function (event) {
     if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-      event.preventDefault(); // Prevent the default browser behavior
+      event.preventDefault();
       focusSearchInput();
     }
   });
 
-  // Add keyboard event listener for "/" key
   document.addEventListener("keydown", function (event) {
     if (event.key === "/" && document.activeElement !== searchInput) {
-      event.preventDefault(); // Prevent the "/" character from being typed
+      event.preventDefault();
       focusSearchInput();
     }
   });

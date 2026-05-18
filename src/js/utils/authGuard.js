@@ -218,4 +218,3 @@ export default AuthGuard;
 if (typeof window !== "undefined") {
   window.AuthGuard = AuthGuard;
 }
-

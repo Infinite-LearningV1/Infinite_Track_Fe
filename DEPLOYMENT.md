@@ -50,25 +50,34 @@ npm install
 yarn install
 ```
 
+> Untuk clean install yang reproducible seperti baseline CI repo ini, gunakan `npm ci`.
+>
+> Catatan CI baseline: workflow GitHub Actions repo ini memakai Node.js 20 dan `npm ci` untuk build verification yang reproducible.
+
 ---
 
 ## ⚙️ Konfigurasi Environment
 
 ### 1. Setup Environment Variables
 
-**PENTING:** Untuk production static deploy, sumber kebenaran utama adalah **build-time environment variables** pada platform deploy (mis. DigitalOcean App Platform). Untuk simulasi build production di lokal, repo ini sekarang membaca `.env.production` saat `NODE_ENV=production`.
+**PENTING:** Sebelum build production, Anda HARUS mengonfigurasi file `.env.production`
 
 ```bash
-# Opsional untuk simulasi build production di lokal:
-cp .env.production.example .env.production
-# lalu edit sesuai target backend production Anda
+# File .env.production sudah dibuat, edit dan sesuaikan:
+nano .env.production
 ```
 
-**Konfigurasi WAJIB yang harus diubah saat build production:**
+**Konfigurasi WAJIB yang harus diubah:**
 
 ```env
-# ⚠️ GANTI dengan URL backend public Anda yang sebenarnya (tanpa trailing slash)
+# ⚠️ GANTI dengan URL backend Anda yang sebenarnya!
 API_BASE_URL=https://api.yourdomain.com
+
+# Atau jika backend di subdomain yang sama:
+# API_BASE_URL=https://yourdomain.com/api
+
+# Atau jika menggunakan IP dan port:
+# API_BASE_URL=http://192.168.1.100:3005
 ```
 
 ### 2. Verifikasi Konfigurasi
@@ -156,6 +165,12 @@ serve -s build -p 3000
 ### Production Truth
 
 Untuk production, frontend ini diperlakukan sebagai **static site**. Jalur deploy yang direkomendasikan adalah build frontend lalu host hasil `build/` pada static hosting seperti DigitalOcean App Platform Static Site. Pada model ini, frontend production harus memakai `API_BASE_URL` yang mengarah langsung ke backend public URL (disarankan subdomain API terpisah), bukan mengandalkan local `/api` gateway.
+
+Dalam branch model repo ini, `master` adalah branch final yang dimaksudkan menjadi source release / deploy production. Snapshot `develop` harus dipromosikan secara terkontrol ke `master`, dan setiap PR yang menargetkan `master` akan menjalankan build verification sebelum `master` diperlakukan sebagai branch release-ready.
+
+Baseline repo ini hanya menambahkan build gate minimum dan **tidak** menyalakan deploy production otomatis. Build yang lulus menunjukkan evidence minimum bahwa static bundle dapat dibentuk, tetapi bukan klaim bahwa runtime production sudah tervalidasi penuh.
+
+> Needs Verification: branch protection / ruleset GitHub yang mewajibkan required status check untuk `develop` dan `master`, pembatasan direct push ke `master`, pembatasan source branch promotion, dan source branch hosting production aktual tidak bisa dibuktikan dari isi repo saja dan harus dikonfirmasi di GitHub UI / platform hosting.
 
 ### Local Tooling Truth
 
@@ -310,7 +325,7 @@ firebase deploy
 
 ### Opsi 3: Docker Compose + NGINX Gateway
 
-Dokumentasi ini mengikuti setup aktual di repo: `compose.yaml` menjalankan empat service utama yaitu `db` (MySQL 8), `backend`, `frontend-dev`, dan `nginx`. Gateway NGINX menjadi entrypoint lokal, dan proxy `/api` diteruskan ke `backend:3000`.
+Workflow ini adalah tooling lokal/staging-like untuk memverifikasi frontend lewat satu browser entrypoint NGINX. `compose.yaml` menjalankan backend dari image yang sudah tersedia, frontend dev server untuk profile `dev`, builder artifact untuk profile `staging`, dan gateway NGINX sesuai profile yang dipilih. Browser tetap memakai boundary `/api`, lalu NGINX meneruskan request itu ke backend container pada port `3005`.
 
 #### Docker Compose Workflows
 
@@ -319,20 +334,16 @@ Dokumentasi ini mengikuti setup aktual di repo: `compose.yaml` menjalankan empat
 Gunakan mode ini saat ingin menjalankan frontend dev server di belakang gateway NGINX, dengan request browser tetap masuk lewat satu origin.
 
 ```bash
-BACKEND_REPO_PATH=/absolute/path/to/Infinit_Track_BE \
-CLOUDINARY_CLOUD_NAME=dummy \
-CLOUDINARY_API_KEY=dummy \
-CLOUDINARY_API_SECRET=dummy \
-NGINX_MODE=dev \
+BACKEND_IMAGE=infinite-track-backend:latest \
 docker compose --profile dev up --build
 ```
 
 Catatan runtime truth:
 
-- `BACKEND_REPO_PATH` wajib menunjuk ke path repo backend lokal karena service `backend` dibuild dari repo backend, bukan dari placeholder image.
-- Pada smoke test lokal Docker saat ini, backend membutuhkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` agar startup berhasil. Nilai dummy cukup untuk smoke test lokal bila alur yang diuji tidak membutuhkan kredensial Cloudinary nyata.
-- Frontend dev menerima `WEBPACK_API_PROXY_TARGET=http://backend:3000` dari Compose, sehingga request API dari dev server diarahkan ke backend container.
-- Gateway NGINX melayani trafik browser dan mem-proxy `/api` ke `backend:3000`.
+- `BACKEND_IMAGE` harus menunjuk ke image backend yang sudah bisa berjalan dan listen pada port container `3005`.
+- `frontend-dev` menerima `WEBPACK_API_PROXY_TARGET=http://backend:3005` dari Compose, sehingga request API dari dev server tetap diarahkan ke backend container saat dibutuhkan.
+- Service `nginx-dev` otomatis memakai config NGINX development saat profile `dev` dipilih.
+- Gateway NGINX melayani trafik browser dan mem-proxy `/api` ke `backend:3005`.
 - Jika perlu menghindari bentrok port host, override port gateway saat menjalankan Compose, misalnya `GATEWAY_PORT=8081 docker compose --profile dev up --build`.
 
 Verifikasi cepat gateway:
@@ -345,23 +356,19 @@ Jika port di-override, sesuaikan URL verifikasi, misalnya `http://localhost:8081
 
 ##### B. Staging-like mode dengan NGINX serving built assets
 
-Gunakan mode ini untuk menjalankan alur yang lebih mendekati staging: frontend dibuild lebih dulu lalu NGINX menyajikan aset hasil build, sementara `/api` tetap lewat gateway yang sama.
+Gunakan mode ini untuk menjalankan alur yang lebih mendekati staging: frontend dibuild di container, hasil build disalin ke volume `frontend_dist`, lalu NGINX menyajikan aset tersebut sementara `/api` tetap lewat gateway yang sama.
 
 ```bash
-BACKEND_REPO_PATH=/absolute/path/to/Infinit_Track_BE \
-CLOUDINARY_CLOUD_NAME=dummy \
-CLOUDINARY_API_KEY=dummy \
-CLOUDINARY_API_SECRET=dummy \
-NGINX_MODE=staging \
+BACKEND_IMAGE=infinite-track-backend:latest \
 docker compose --profile staging up --build
 ```
 
 Catatan staging-like mode:
 
-- `NGINX_MODE=staging` mengalihkan NGINX untuk menyajikan aset build frontend, bukan meneruskan trafik ke `frontend-dev`.
-- Aset frontend untuk mode ini dipopulasi oleh service `frontend-build` melalui volume `frontend_dist`, jadi `npm run build` di host bukan syarat wajib untuk alur Compose staging-like.
-- Karena `nginx` dan `frontend-build` start paralel, verifikasi HTTP staging-like sebaiknya dilakukan setelah `frontend-build` selesai mempopulasi volume, bukan tepat pada detik pertama startup.
-- Proxy `/api` tetap mengarah ke `backend:3000`, jadi verifikasi gateway tetap dilakukan dari endpoint NGINX yang sama.
+- `frontend-build` memakai target Dockerfile `artifacts`, menjalankan `npm ci` dan `npm run build`, lalu menyalin output `build/` ke volume `frontend_dist`.
+- Build staging-like di Docker menerima build args eksplisit `API_BASE_URL=/api`, `APP_ENVIRONMENT=staging`, `DEBUG_MODE=false`, dan `LOG_LEVEL=info`; workflow ini tidak bergantung pada `.env` lokal di build context.
+- Service `nginx-staging` menunggu marker artifact dari `frontend-build` sebelum menyajikan aset build frontend.
+- Proxy `/api` tetap mengarah ke `backend:3005`, jadi verifikasi gateway tetap dilakukan dari endpoint NGINX yang sama.
 
 ##### C. Stop commands
 
@@ -371,7 +378,7 @@ Untuk menghentikan stack:
 docker compose down
 ```
 
-Untuk menghentikan stack sekaligus menghapus volume database lokal:
+Untuk menghentikan stack sekaligus menghapus volume lokal Compose:
 
 ```bash
 docker compose down -v

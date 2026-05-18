@@ -431,4 +431,3 @@ if (typeof window !== "undefined") {
     canAccessDashboard,
   };
 }
-

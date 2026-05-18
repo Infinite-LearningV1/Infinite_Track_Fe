@@ -3,42 +3,7 @@ const glob = require("glob");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
-require("dotenv").config({
-  path: process.env.NODE_ENV === "production" ? ".env.production" : ".env",
-});
-
-const devServer = {
-  static: {
-    directory: path.join(__dirname, "build"),
-  },
-  host: process.env.WEBPACK_DEV_HOST || "127.0.0.1",
-  allowedHosts: "all",
-  compress: true,
-  port: 3000,
-  hot: true,
-  open: process.env.WEBPACK_OPEN === "true",
-  historyApiFallback: true,
-  proxy: [
-    {
-      context: ["/api"],
-      target:
-        process.env.WEBPACK_API_PROXY_TARGET || "http://localhost:3005",
-      changeOrigin: true,
-      secure: false,
-      logLevel: "debug",
-      onError: (err, req, res) => {
-        console.log("Proxy Error:", err);
-        if (!res.headersSent) {
-          res.writeHead(502, { "Content-Type": "text/plain" });
-        }
-        res.end("Bad Gateway");
-      },
-      onProxyReq: (proxyReq, req, res) => {
-        console.log("Proxying request to:", proxyReq.path);
-      },
-    },
-  ],
-};
+require("dotenv").config();
 
 const INCLUDE_PATTERN =
   /<include\s+src=["'](.+?)["']\s*\/?>\s*(?:<\/include>)?/gis;
@@ -74,10 +39,37 @@ const generateHTMLPlugins = () =>
     });
   });
 
+const devServer = {
+  static: {
+    directory: path.join(__dirname, "build"),
+  },
+  host: process.env.WEBPACK_DEV_HOST || "127.0.0.1",
+  allowedHosts: "all",
+  compress: true,
+  port: 3000,
+  hot: true,
+  open: process.env.WEBPACK_OPEN === "true",
+  historyApiFallback: true,
+  proxy: [
+    {
+      context: ["/api"],
+      target: process.env.WEBPACK_API_PROXY_TARGET || "http://localhost:3005",
+      changeOrigin: true,
+      secure: false,
+      logLevel: "debug",
+      onError: (err, req, res) => {
+        console.log("Proxy Error:", err);
+      },
+      onProxyReq: (proxyReq, req, res) => {
+        console.log("Proxying request to:", proxyReq.path);
+      },
+    },
+  ],
+};
+
 module.exports = {
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: "./src/js/index.js",
-  devServer: devServer,
   module: {
     rules: [
       {
@@ -176,6 +168,7 @@ module.exports = {
     clean: true,
     assetModuleFilename: "[path][name][ext]",
   },
+  devServer,
   target: "web", // fix for "browserslist" error message
   stats: "errors-only", // suppress irrelevant log messages
 };

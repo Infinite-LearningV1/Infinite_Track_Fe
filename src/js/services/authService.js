@@ -4,12 +4,15 @@
  */
 
 import axios from "axios";
-import {
-  saveUserToStorage,
-  removeUserFromStorage,
-  getUserFromStorage,
-} from "../utils/storageManager.js";
+import { saveUserToStorage, removeUserFromStorage } from "../utils/storageManager.js";
 import { API_CONFIG, AUTH_CONFIG, envLog } from "../config/env.js";
+import {
+  classifyAuthFailure,
+  clearAuthArtifacts,
+  createBootstrapSessionResolver,
+  persistAuthRedirectNotice,
+  readStoredSessionSnapshot,
+} from "./authSessionRuntime.js";
 
 // Konfigurasi axios default
 axios.defaults.withCredentials = true; // Mengizinkan pengiriman cookie
@@ -103,8 +106,7 @@ async function fetchCurrentUser() {
 
       if (statusCode === 401) {
         console.error("User not authenticated");
-        removeUserFromStorage();
-        throw new Error("Sesi telah berakhir. Silakan login kembali.");
+        throw error;
       } else {
         const errorMessage =
           error.response.data?.message || "Gagal mengambil data pengguna";
@@ -123,38 +125,101 @@ async function fetchCurrentUser() {
   }
 }
 
+async function refreshSession() {
+  const response = await axios.post(
+    API_CONFIG.REFRESH_URL,
+    {},
+    {
+      withCredentials: true,
+      headers: {
+        "X-Client-Type": "web-fe",
+        ...buildAuthRequestHeaders(),
+      },
+    },
+  );
+
+  const refreshedUser = response.data?.data?.user || response.data?.data || null;
+  if (refreshedUser) {
+    saveUserToStorage(refreshedUser);
+  }
+
+  const refreshedToken =
+    response.data?.data?.access_token || response.data?.data?.token || null;
+  if (refreshedToken) {
+    window.localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.AUTH_TOKEN, refreshedToken);
+  }
+
+  return response.data;
+}
+
+function buildAuthRequestHeaders() {
+  const snapshot = readStoredSessionSnapshot(window.localStorage);
+
+  if (!snapshot?.token) {
+    return {};
+  }
+
+  return {
+    Authorization: `Bearer ${snapshot.token}`,
+  };
+}
+
+async function forceReauthenticate(options = {}) {
+  const redirectToPreserve =
+    typeof options?.preserveRedirectAfterLogin === "string" &&
+    options.preserveRedirectAfterLogin.length > 0
+      ? options.preserveRedirectAfterLogin
+      : window.sessionStorage?.getItem("redirectAfterLogin") || null;
+
+  const redirectNotice =
+    options?.redirectNotice && typeof options.redirectNotice === "object"
+      ? options.redirectNotice
+      : null;
+
+  clearAuthArtifacts(window.localStorage, window.sessionStorage, {
+    preserveRedirectAfterLogin: redirectToPreserve,
+  });
+
+  if (redirectNotice) {
+    persistAuthRedirectNotice(redirectNotice, window.sessionStorage);
+  }
+
+  removeUserFromStorage();
+
+  if (window.Alpine?.store) {
+    const authStore = window.Alpine.store("auth");
+    if (authStore) {
+      authStore.user = null;
+      authStore.isAuthenticated = false;
+      authStore.sessionState = "unauthenticated";
+      authStore.error = null;
+      authStore.isLoading = false;
+    }
+  }
+
+  window.location.href = "/signin.html";
+}
+
 /**
  * Logout pengguna
  * @returns {Promise<boolean>} - Promise yang resolve dengan true jika berhasil
  */
 async function logout() {
   try {
-    // Coba kirim request logout ke backend untuk menghapus cookie di server
-    try {
-      envLog("debug", "Attempting logout with URL:", API_CONFIG.LOGOUT_URL);
-      await axios.post(API_CONFIG.LOGOUT_URL);
-      envLog("info", "Logout berhasil di backend");
-    } catch (error) {
-      // Jika endpoint logout tidak ada atau error, lanjutkan proses logout di frontend
-      envLog(
-        "warn",
-        "Backend logout failed, proceeding with frontend logout:",
-        error.message,
-      );
-    }
+    envLog("debug", "Attempting logout with URL:", API_CONFIG.LOGOUT_URL);
+    await axios.post(API_CONFIG.LOGOUT_URL);
+    envLog("info", "Logout berhasil di backend");
+  } catch (error) {
+    envLog(
+      "warn",
+      "Backend logout failed, proceeding with frontend logout:",
+      error.message,
+    );
+  }
 
-    // Bersihkan data sesi di frontend
+  try {
+    clearAuthArtifacts(window.localStorage, window.sessionStorage);
     removeUserFromStorage();
-
-    // Clear additional localStorage items
-    localStorage.removeItem("userData");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("rememberMe");
-    localStorage.removeItem("rememberedEmail");
-    localStorage.removeItem("redirectAfterLogin");
-
-    // Clear sessionStorage completely
-    sessionStorage.clear();
 
     // Clear cookies manually (fallback)
     document.cookie.split(";").forEach((cookie) => {
@@ -171,29 +236,38 @@ async function logout() {
   } catch (error) {
     console.error("Logout error:", error.message);
 
-    // Tetap bersihkan data lokal meskipun ada error
+    clearAuthArtifacts(window.localStorage, window.sessionStorage);
     removeUserFromStorage();
-
-    // Clear additional data on error
-    localStorage.removeItem("userData");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("rememberMe");
-    localStorage.removeItem("rememberedEmail");
-    localStorage.removeItem("redirectAfterLogin");
-    sessionStorage.clear();
 
     // Return true karena logout lokal tetap berhasil
     return true;
   }
 }
 
+function hasSessionHint() {
+  return readStoredSessionSnapshot(window.localStorage) !== null;
+}
+
+const classifyFailure = classifyAuthFailure;
+
+const resolveBootstrapSession = createBootstrapSessionResolver({
+  hasSessionHint,
+  fetchCurrentUser,
+  refreshSession,
+  classifyFailure,
+});
+
 /**
  * Mengecek apakah pengguna sedang login
- * @returns {boolean} - true jika ada data pengguna
+ * @returns {boolean} - true jika runtime auth store terautentikasi
  */
 function isAuthenticated() {
-  const userData = getUserFromStorage();
-  return userData !== null && typeof userData === "object";
+  if (!window.Alpine?.store) {
+    return false;
+  }
+
+  const authStore = window.Alpine.store("auth");
+  return authStore?.isAuthenticated === true;
 }
 
 /**
@@ -201,18 +275,34 @@ function isAuthenticated() {
  * @returns {Object|null} - Data pengguna atau null
  */
 function getCurrentUser() {
-  return getUserFromStorage();
+  return readStoredSessionSnapshot(window.localStorage)?.user ?? null;
 }
 
 // Export fungsi untuk penggunaan sebagai module
-export { login, fetchCurrentUser, logout, isAuthenticated, getCurrentUser };
+export {
+  login,
+  fetchCurrentUser,
+  refreshSession,
+  buildAuthRequestHeaders,
+  forceReauthenticate,
+  logout,
+  hasSessionHint,
+  resolveBootstrapSession,
+  isAuthenticated,
+  getCurrentUser,
+};
 
 // Untuk penggunaan global di browser
 if (typeof window !== "undefined") {
   window.AuthService = {
     login,
     fetchCurrentUser,
+    refreshSession,
+    buildAuthRequestHeaders,
+    forceReauthenticate,
     logout,
+    hasSessionHint,
+    resolveBootstrapSession,
     isAuthenticated,
     getCurrentUser,
   };

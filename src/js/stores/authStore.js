@@ -7,7 +7,12 @@ import {
   getUserFromStorage,
   removeUserFromStorage,
 } from "../utils/storageManager.js";
-import { getCurrentUser, isAuthenticated } from "../services/authService.js";
+import {
+  fetchCurrentUser,
+  hasSessionHint,
+  resolveBootstrapSession,
+} from "../services/authService.js";
+import { clearAuthArtifacts } from "../services/authSessionRuntime.js";
 
 /**
  * Initialize Authentication Store untuk Alpine.js
@@ -24,6 +29,7 @@ function initAuthStore() {
     // State
     user: null,
     isAuthenticated: false,
+    sessionState: "unauthenticated",
     isLoading: false,
     error: null,
 
@@ -55,17 +61,13 @@ function initAuthStore() {
     },
 
     // Actions
-    init() {
-      // Load user data from storage saat aplikasi dimulai
-      this.loadUserFromStorage();
-    },
-
     loadUserFromStorage() {
       try {
         const userData = getUserFromStorage();
-        if (userData && isAuthenticated()) {
+        if (userData && hasSessionHint()) {
           this.user = userData;
-          this.isAuthenticated = true;
+          this.isAuthenticated = false;
+          this.sessionState = "unauthenticated";
           console.log("User data loaded from storage:", userData);
         } else {
           this.clearAuth();
@@ -79,8 +81,17 @@ function initAuthStore() {
     setUser(userData) {
       this.user = userData;
       this.isAuthenticated = true;
+      this.sessionState = "authenticated";
       this.error = null;
       console.log("User data set in auth store:", userData);
+    },
+
+    setVerificationFailed(userData = null) {
+      this.user = userData;
+      this.isAuthenticated = false;
+      this.sessionState = "verification_failed";
+      this.error = "Session belum bisa diverifikasi.";
+      console.log("Auth store marked verification_failed", userData);
     },
 
     setLoading(isLoading) {
@@ -95,8 +106,10 @@ function initAuthStore() {
     clearAuth() {
       this.user = null;
       this.isAuthenticated = false;
+      this.sessionState = "unauthenticated";
       this.error = null;
       this.isLoading = false;
+      clearAuthArtifacts(window.localStorage, window.sessionStorage);
       removeUserFromStorage();
       console.log("Auth store cleared");
     },
@@ -104,12 +117,19 @@ function initAuthStore() {
     async refreshUser() {
       try {
         this.setLoading(true);
-        const userData = await getCurrentUser();
-        if (userData) {
-          this.setUser(userData);
-        } else {
-          this.clearAuth();
+        const resolution = await resolveBootstrapSession();
+
+        if (resolution.state === "authenticated") {
+          this.setUser(resolution.user || (await fetchCurrentUser()));
+          return;
         }
+
+        if (resolution.state === "verification_failed") {
+          this.setVerificationFailed(this.user || getUserFromStorage());
+          return;
+        }
+
+        this.clearAuth();
       } catch (error) {
         console.error("Error refreshing user:", error);
         this.setError(error.message);
@@ -160,10 +180,7 @@ function initAuthStore() {
     },
   });
 
-  // Initialize store setelah Alpine dimulai
-  document.addEventListener("alpine:init", () => {
-    Alpine.store("auth").init();
-  });
+  Alpine.store("auth").loadUserFromStorage();
 
   console.log("Auth store initialized");
 }
@@ -174,12 +191,4 @@ export { initAuthStore };
 // Untuk penggunaan global di browser
 if (typeof window !== "undefined") {
   window.initAuthStore = initAuthStore;
-}
-
-// Auto-initialize
-if (typeof Alpine !== "undefined") {
-  initAuthStore();
-} else {
-  // Tunggu Alpine.js dimuat
-  document.addEventListener("alpine:init", initAuthStore);
 }

@@ -1,6 +1,6 @@
-import "/node_modules/flatpickr/dist/flatpickr.min.css";
-import "/node_modules/dropzone/dist/dropzone.css";
-import "/node_modules/leaflet/dist/leaflet.css";
+import "flatpickr/dist/flatpickr.min.css";
+import "dropzone/dist/dropzone.css";
+import "leaflet/dist/leaflet.css";
 import "../css/style.css";
 
 import Alpine from "alpinejs";
@@ -30,20 +30,28 @@ import "./services/authService.js";
 import "./services/userService.js";
 import "./services/bookingService.js";
 import "./features/signinHandler.js";
-import "./stores/authStore.js";
-import "./utils/authGuard.js";
-import "./utils/roleBasedAccess.js";
 
 // Import authentication utilities
-import { isAuthenticated, getCurrentUser } from "./services/authService.js";
+import {
+  hasSessionHint,
+  resolveBootstrapSession,
+  forceReauthenticate,
+} from "./services/authService.js";
+import {
+  clearAuthRedirectNotice,
+  persistAuthRedirectNotice,
+  readAuthRedirectNotice,
+} from "./services/authSessionRuntime.js";
 import { getUserFromStorage } from "./utils/storageManager.js";
 import { initAuthStore } from "./stores/authStore.js";
+import { initAuthGuard } from "./utils/authGuard.js";
 import { initRoleBasedAccess } from "./utils/roleBasedAccess.js";
 import { formatDate } from "./utils/dateTimeFormatter.js";
 import { userListAlpineData } from "./features/userManagement/userListSimple.js";
 import { userFormAlpineData } from "./features/userManagement/userForm.js";
 import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
+import { backendOperationalSettingsAlpineData } from "./features/backendOperationalSettings/backendOperationalSettings.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
 import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
 import { showInlineAlert } from "./utils/inlineAlert.js";
@@ -64,9 +72,33 @@ window.userListAlpineData = userListAlpineData;
 window.userFormAlpineData = userFormAlpineData;
 window.attendanceLogAlpineData = attendanceLogAlpineData;
 window.bookingListAlpineData = bookingListAlpineData;
+window.backendOperationalSettingsAlpineData =
+  backendOperationalSettingsAlpineData;
 
 // Expose utility functions to window for use in HTML
 window.getUserPhotoUrl = getUserPhotoUrl;
+
+function showAuthRedirectNoticeOnSignin() {
+  const pageName = window.location.pathname.split("/").pop() || "index.html";
+
+  if (pageName !== "signin.html") {
+    return;
+  }
+
+  const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
+
+  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
+    return;
+  }
+
+  clearAuthRedirectNotice(window.sessionStorage);
+  window.showInlineAlert({
+    type: redirectNotice.type || "warning",
+    title: redirectNotice.title || "Perlu Login",
+    message: redirectNotice.message,
+    timeoutMs: 4000,
+  });
+}
 
 // Global Alpine.js state for Map Detail Modal
 Alpine.data("mapDetailModalState", () => ({
@@ -338,7 +370,7 @@ window.openMapDetailModal = function (user) {
 };
 
 // Initialize authentication session checking
-function initializeAuthSession() {
+async function initializeAuthSession() {
   console.log("Initializing authentication session...");
 
   // Check if user is on a protected page
@@ -348,6 +380,7 @@ function initializeAuthSession() {
     "/management-user.html",
     "/management-booking.html",
     "/management-attendance.html",
+    "/management-backend-settings.html",
     "/profile.html",
     "/calendar.html",
     "/form-user.html",
@@ -363,121 +396,114 @@ function initializeAuthSession() {
   if (isProtectedPage) {
     console.log("On protected page, checking authentication...");
 
-    // Check if user is authenticated
-    if (!isAuthenticated()) {
-      console.log("User not authenticated, redirecting to signin...");
-
-      // Save current URL for redirect after login
+    if (!hasSessionHint()) {
       sessionStorage.setItem("redirectAfterLogin", window.location.href);
-
-      // Redirect to signin page
+      persistAuthRedirectNotice({
+        type: "warning",
+        title: "Perlu Login",
+        message: "Silakan login untuk melanjutkan",
+      });
       window.location.href = "/signin.html";
-      return;
+      return "redirecting";
     }
 
-    // User is authenticated, validate session
-    validateUserSession();
+    return validateUserSession();
   }
 
-  // If on signin page and user is already authenticated, redirect to dashboard
-  if (pageName === "signin.html" && isAuthenticated()) {
-    console.log("User already authenticated, redirecting to dashboard...");
-    window.location.href = "/index.html";
-    return;
+  if (pageName === "signin.html" && hasSessionHint()) {
+    await validateSigninPageSession();
   }
+
+  return "unauthenticated";
 }
 
 // Validate user session and sync with Alpine store
 async function validateUserSession() {
   try {
-    console.log("Validating user session...");
-
-    // Get user data from storage
     const storedUser = getUserFromStorage();
+    const resolution = await resolveBootstrapSession();
+    const authStore =
+      typeof Alpine !== "undefined" && Alpine.store ? Alpine.store("auth") : null;
 
-    if (storedUser) {
-      console.log("User data found in storage:", storedUser);
+    if (resolution.state === "authenticated") {
+      authStore?.setUser(resolution.user);
+      return resolution.state;
+    }
 
-      // Try to validate with server
-      try {
-        const currentUser = await getCurrentUser();
-        if (currentUser) {
-          console.log("Session validated with server");
+    if (resolution.state === "verification_failed") {
+      authStore?.setVerificationFailed(storedUser);
 
-          // Update Alpine store if available
-          if (
-            typeof Alpine !== "undefined" &&
-            Alpine.store &&
-            Alpine.store("auth")
-          ) {
-            Alpine.store("auth").setUser(currentUser);
-          }
-        } else {
-          throw new Error("Invalid session");
-        }
-      } catch (error) {
-        console.warn(
-          "Session validation failed, using stored data:",
-          error.message,
-        );
+      window.showInlineAlert?.({
+        type: "warning",
+        message: "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
+      });
+      return resolution.state;
+    }
 
-        // Use stored data if server validation fails
-        if (
-          typeof Alpine !== "undefined" &&
-          Alpine.store &&
-          Alpine.store("auth")
-        ) {
-          Alpine.store("auth").setUser(storedUser);
-        }
-      }
-    } else {
-      console.log("No user data in storage");
+    sessionStorage.setItem("redirectAfterLogin", window.location.href);
+    await forceReauthenticate({
+      redirectNotice: {
+        type: "warning",
+        title: "Sesi Berakhir",
+        message: "Sesi telah berakhir. Silakan login kembali.",
+      },
+    });
+    return resolution.state;
+  } catch (error) {
+    console.error("Error validating session:", error);
+    sessionStorage.setItem("redirectAfterLogin", window.location.href);
+    await forceReauthenticate({
+      redirectNotice: {
+        type: "warning",
+        title: "Sesi Berakhir",
+        message: "Sesi telah berakhir. Silakan login kembali.",
+      },
+    });
+    return "non_refreshable";
+  }
+}
 
-      // Clear authentication and redirect to signin
+async function validateSigninPageSession() {
+  try {
+    const resolution = await resolveBootstrapSession();
+
+    if (resolution.state === "authenticated") {
       if (
         typeof Alpine !== "undefined" &&
         Alpine.store &&
         Alpine.store("auth")
       ) {
-        Alpine.store("auth").clearAuth();
+        Alpine.store("auth").setUser(resolution.user);
       }
 
-      sessionStorage.setItem("redirectAfterLogin", window.location.href);
-      window.location.href = "/signin.html";
+      const roleBasedRedirect = window.RoleBasedAccess?.redirectBasedOnRole;
+      if (roleBasedRedirect && resolution.user?.role_name) {
+        roleBasedRedirect(resolution.user.role_name);
+      } else {
+        window.location.href = "/index.html";
+      }
     }
   } catch (error) {
-    console.error("Error validating session:", error);
+    console.warn("Failed to validate signin page session:", error);
+  }
+}
 
-    // Clear authentication on error
-    if (typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
-      Alpine.store("auth").clearAuth();
-    }
+async function bootAuthentication() {
+  console.log("Alpine.js started, setting up authentication...");
 
-    sessionStorage.setItem("redirectAfterLogin", window.location.href);
-    window.location.href = "/signin.html";
+  showAuthRedirectNoticeOnSignin();
+  const startupState = await initializeAuthSession();
+
+  if (startupState !== "verification_failed" && startupState !== "redirecting") {
+    initAuthGuard();
+    initRoleBasedAccess();
   }
 }
 
 // Initialize Alpine.js with authentication
+initAuthStore();
 Alpine.start();
-
-// Initialize authentication after Alpine.js is ready
-document.addEventListener("alpine:init", () => {
-  console.log("Alpine.js initialized, setting up authentication...");
-
-  // Initialize auth store
-  initAuthStore();
-
-  // Initialize session checking
-  initializeAuthSession();
-});
-
-// Fallback initialization if Alpine is already started
-setTimeout(() => {
-  if (typeof Alpine !== "undefined") {
-    initializeAuthSession();
-  }
-}, 100);
+bootAuthentication();
 
 // Function to show coordinates placeholder
 function showCoordinatesPlaceholder(latitude, longitude, mapElementId) {
@@ -542,91 +568,6 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// Initialize user table modal functionality
-document.addEventListener("DOMContentLoaded", function () {
-  // Success buttons (green checkmark/approve)
-  const successButtons = document.querySelectorAll(".js-success-btn");
-  successButtons.forEach((button) => {
-    button.addEventListener("click", function (e) {
-      e.preventDefault();
-
-      const userId = this.getAttribute("data-user-id");
-      const userName = this.getAttribute("data-user-name");
-
-      window.showInlineAlert({
-        type: "success",
-        message: `Apakah Anda yakin ingin menyetujui booking dari "${userName}" (${userId})?`,
-      });
-    });
-  });
-
-  // Info buttons (blue eye icon/view details)
-  const infoButtons = document.querySelectorAll(".js-info-btn");
-  infoButtons.forEach((button) => {
-    button.addEventListener("click", function (e) {
-      e.preventDefault();
-
-      // Extract all data attributes
-      const userId = this.getAttribute("data-user-id");
-      const userName = this.getAttribute("data-user-name");
-      const role = this.getAttribute("data-role");
-      const position = this.getAttribute("data-position");
-      const schedule = this.getAttribute("data-schedule");
-      const notes = this.getAttribute("data-notes");
-      const koordinat = this.getAttribute("data-koordinat");
-      const latitude = this.getAttribute("data-latitude");
-      const longitude = this.getAttribute("data-longitude");
-
-      // Find the body element and update its Alpine.js data
-      const bodyElement = document.body;
-      if (bodyElement._x_dataStack && bodyElement._x_dataStack[0]) {
-        // Update the booking detail data
-        bodyElement._x_dataStack[0].bookingDetailData = {
-          userId: userId || "",
-          fullName: userName || "", // Change namaLengkap to fullName
-          role: role || "",
-          position: position || "",
-          jadwalBooking: schedule || "",
-          notes: notes || "",
-          koordinat: koordinat || "",
-          latitude: latitude || "",
-          longitude: longitude || "",
-        };
-        // Open the modal
-        bodyElement._x_dataStack[0].isBookingDetailModalOpen = true;
-
-        // Show coordinates placeholder after modal is shown
-        setTimeout(() => {
-          showCoordinatesPlaceholder(
-            latitude,
-            longitude,
-            "booking-detail-map-container",
-          );
-        }, 100);
-      }
-
-      console.log(`Opening booking detail modal for: ${userName} (${userId})`);
-    });
-  });
-
-  // Danger buttons (red X icon/delete) - Using new Delete Modal
-  const dangerButtons = document.querySelectorAll(".js-danger-btn");
-  dangerButtons.forEach((button) => {
-    button.addEventListener("click", function (e) {
-      e.preventDefault();
-
-      const userId = this.getAttribute("data-user-id");
-      const userName = this.getAttribute("data-user-name");
-
-      // Use the new delete modal instead of alert modal
-      window.showInlineAlert({
-        type: "danger",
-        message: `Apakah Anda yakin ingin menghapus booking dari "${userName}" (${userId})? Tindakan ini tidak dapat dibatalkan.`,
-      });
-    });
-  });
-});
-
 // Init flatpickr
 flatpickr(".datepicker", {
   mode: "range",
@@ -671,52 +612,49 @@ if (year) {
 // For Copy//
 document.addEventListener("DOMContentLoaded", () => {
   const copyInput = document.getElementById("copy-input");
-  if (copyInput) {
-    // Select the copy button and input field
-    const copyButton = document.getElementById("copy-button");
-    const copyText = document.getElementById("copy-text");
-    const websiteInput = document.getElementById("website-input");
+  const copyButton = document.getElementById("copy-button");
+  const copyText = document.getElementById("copy-text");
+  const websiteInput = document.getElementById("website-input");
 
-    // Event listener for the copy button
-    copyButton.addEventListener("click", () => {
-      // Copy the input value to the clipboard
-      navigator.clipboard.writeText(websiteInput.value).then(() => {
-        // Change the text to "Copied"
-        copyText.textContent = "Copied";
-
-        // Reset the text back to "Copy" after 2 seconds
-        setTimeout(() => {
-          copyText.textContent = "Copy";
-        }, 2000);
-      });
-    });
+  if (!copyInput || !copyButton || !copyText || !websiteInput) {
+    return;
   }
+
+  copyButton.addEventListener("click", () => {
+    navigator.clipboard.writeText(websiteInput.value).then(() => {
+      copyText.textContent = "Copied";
+
+      setTimeout(() => {
+        copyText.textContent = "Copy";
+      }, 2000);
+    });
+  });
 });
 
 document.addEventListener("DOMContentLoaded", function () {
   const searchInput = document.getElementById("search-input");
   const searchButton = document.getElementById("search-button");
 
-  // Function to focus the search input
+  if (!searchInput || !searchButton) {
+    return;
+  }
+
   function focusSearchInput() {
     searchInput.focus();
   }
 
-  // Add click event listener to the search button
   searchButton.addEventListener("click", focusSearchInput);
 
-  // Add keyboard event listener for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
   document.addEventListener("keydown", function (event) {
     if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-      event.preventDefault(); // Prevent the default browser behavior
+      event.preventDefault();
       focusSearchInput();
     }
   });
 
-  // Add keyboard event listener for "/" key
   document.addEventListener("keydown", function (event) {
     if (event.key === "/" && document.activeElement !== searchInput) {
-      event.preventDefault(); // Prevent the "/" character from being typed
+      event.preventDefault();
       focusSearchInput();
     }
   });

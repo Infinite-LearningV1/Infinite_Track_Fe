@@ -3,7 +3,7 @@
  * Komponen untuk menangani logout user
  */
 
-import { logout } from "../services/authService.js";
+import { logout, forceReauthenticate } from "../services/authService.js";
 import "./modal/modalAlert.js"; // Import modal alert component
 
 /**
@@ -147,16 +147,22 @@ function showLogoutConfirmation() {
       // Insert modal into DOM
       document.body.insertAdjacentHTML("beforeend", modalHTML);
       const modal = document.getElementById("logout-confirmation-modal");
+      const modalContent = modal?.querySelector(".relative");
+      const confirmBtn = modal?.querySelector("#logout-confirm-btn");
+      const cancelBtn = modal?.querySelector("#logout-cancel-btn");
+      const backdrop = modal?.querySelector("#modal-backdrop");
 
-      const confirmBtn = modal.querySelector("#logout-confirm-btn");
-      const cancelBtn = modal.querySelector("#logout-cancel-btn");
-      const backdrop = modal.querySelector("#modal-backdrop");
+      if (!modal || !modalContent || !confirmBtn || !cancelBtn || !backdrop) {
+        resolve(confirm("Apakah Anda yakin ingin keluar?"));
+        modal?.remove();
+        return;
+      }
 
       // Setup event handlers
       const cleanup = () => {
-        if (modal && modal.parentNode) {
+        if (modal.parentNode) {
           modal.style.opacity = "0";
-          modal.querySelector(".relative").style.transform = "scale(0.95)";
+          modalContent.style.transform = "scale(0.95)";
           setTimeout(() => {
             modal.remove();
             document.body.style.overflow = "";
@@ -192,7 +198,7 @@ function showLogoutConfirmation() {
       // Show modal with animation
       requestAnimationFrame(() => {
         modal.style.opacity = "1";
-        modal.querySelector(".relative").style.transform = "scale(1)";
+        modalContent.style.transform = "scale(1)";
       });
 
       // Prevent body scroll
@@ -275,11 +281,16 @@ function showLogoutLoading() {
     // Insert modal into DOM
     document.body.insertAdjacentHTML("beforeend", modalHTML);
     const modal = document.getElementById("logout-loading-modal");
+    const modalContent = modal?.querySelector(".relative");
+
+    if (!modal || !modalContent) {
+      return;
+    }
 
     // Show modal with animation
     requestAnimationFrame(() => {
       modal.style.opacity = "1";
-      modal.querySelector(".relative").style.transform = "scale(1)";
+      modalContent.style.transform = "scale(1)";
     });
 
     // Prevent body scroll
@@ -331,26 +342,10 @@ function updateAlpineStoreOnLogout() {
  * Force logout (clear local data without API call)
  */
 function forceLogout() {
-  try {
-    // Clear localStorage
-    localStorage.removeItem("userData");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("rememberMe");
-    localStorage.removeItem("rememberedEmail");
-
-    // Clear sessionStorage
-    sessionStorage.clear();
-
-    // Update Alpine store
-    updateAlpineStoreOnLogout();
-
-    // Redirect to signin
-    window.location.href = "/signin.html";
-  } catch (error) {
+  forceReauthenticate().catch((error) => {
     console.error("Force logout error:", error);
-    // Last resort: reload page
-    window.location.reload();
-  }
+    window.location.href = "/signin.html";
+  });
 }
 
 /**

@@ -100,10 +100,10 @@
               href="#"
               @click.prevent="selected = (selected === 'Management' ? '':'Management')"
               class="menu-item group"
-              :class=" (selected === 'Management') || (page === 'managementUser' || page === 'managementAttendance' || page === 'managementBooking') ? 'menu-item-active' : 'menu-item-inactive'"
+              :class=" (selected === 'Management') || (page === 'managementUser' || page === 'managementAttendance' || page === 'managementBooking' || page === 'managementBackendSettings') ? 'menu-item-active' : 'menu-item-inactive'"
             >
               <svg
-              :class="(selected === 'Management') || (page === 'managementUser' || page === 'managementAttendance' || page === 'managementBooking') ? 'menu-item-icon-active'  :'menu-item-icon-inactive'"
+              :class="(selected === 'Management') || (page === 'managementUser' || page === 'managementAttendance' || page === 'managementBooking' || page === 'managementBackendSettings') ? 'menu-item-icon-active'  :'menu-item-icon-inactive'"
               width="24"
               height="24"
               viewBox="0 0 24 24"
@@ -208,6 +208,15 @@
                     :class="page === 'managementBooking' ? 'menu-dropdown-item-active' : 'menu-dropdown-item-inactive'"
                   >
                     Management Booking
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="management-backend-settings.html"
+                    class="menu-dropdown-item group"
+                    :class="page === 'managementBackendSettings' ? 'menu-dropdown-item-active' : 'menu-dropdown-item-inactive'"
+                  >
+                    Backend Operational Settings
                   </a>
                 </li>
               </ul>

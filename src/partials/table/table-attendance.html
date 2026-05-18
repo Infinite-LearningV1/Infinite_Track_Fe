@@ -51,7 +51,9 @@
           >
             <button
               @click="changeSort('id')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('id')"
+              :class="isSortFieldSupported('id') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>User ID</span>
               <span x-text="getSortIcon('id')" class="text-primary"></span>
@@ -62,7 +64,9 @@
           >
             <button
               @click="changeSort('full_name')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('full_name')"
+              :class="isSortFieldSupported('full_name') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Full Name</span>
               <span
@@ -76,7 +80,9 @@
           >
             <button
               @click="changeSort('time_in')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('time_in')"
+              :class="isSortFieldSupported('time_in') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Time In</span>
               <span x-text="getSortIcon('time_in')" class="text-primary"></span>
@@ -87,7 +93,9 @@
           >
             <button
               @click="changeSort('time_out')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('time_out')"
+              :class="isSortFieldSupported('time_out') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Time Out</span>
               <span
@@ -111,7 +119,9 @@
           >
             <button
               @click="changeSort('status')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('status')"
+              :class="isSortFieldSupported('status') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Status</span>
               <span x-text="getSortIcon('status')" class="text-primary"></span>

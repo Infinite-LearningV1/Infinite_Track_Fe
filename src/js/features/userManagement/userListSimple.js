@@ -283,25 +283,7 @@ function userListAlpineData() {
           alert("Koordinat lokasi tidak tersedia");
         }
       }
-    } /**
-     * Wrapper method for template - Get initials from full name
-     * @param {string} fullName - Full name of the user
-     * @returns {string} - User initials
-     */,
-    getInitials(fullName) {
-      return getInitials(fullName);
-    },
-
-    /**
-     * Wrapper method for template - Get avatar color based on name
-     * @param {string} fullName - Full name of the user
-     * @returns {string} - CSS class for avatar color
-     */
-    getAvatarColor(fullName) {
-      return getAvatarColor(fullName);
-    },
-
-    /**
+    }, /**
      * Menangani aksi edit pengguna
      */
     editUser(userId) {

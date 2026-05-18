@@ -20,7 +20,7 @@
           @click="exportToPDF()"
           :disabled="isExporting"
           class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-          :title="`Download PDF Report (${period})`"
+          :title="`Download PDF Report (${filters.period})`"
         >
           <svg
             class="h-4 w-4 text-red-600"
@@ -41,7 +41,7 @@
           @click="exportToExcel()"
           :disabled="isExporting"
           class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-          :title="`Download Excel Report (${period})`"
+          :title="`Download Excel Report (${filters.period})`"
         >
           <svg
             class="h-4 w-4 text-green-600"
@@ -61,7 +61,7 @@
       <!-- Period Filter Dropdown -->
       <div class="flex items-center gap-2">
         <select
-          x-model="period"
+          x-model="filters.period"
           @change="onPeriodChange()"
           class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]"
           title="Filter periode untuk dashboard dan export"

@@ -3,31 +3,21 @@
  * Middleware untuk mengecek autentikasi dan redirect jika diperlukan
  */
 
-import { isAuthenticated, getCurrentUser } from "../services/authService.js";
+import { getCurrentUser, hasSessionHint } from "../services/authService.js";
+
+function getAuthStore() {
+  if (typeof Alpine === "undefined" || !Alpine.store) {
+    return null;
+  }
+
+  return Alpine.store("auth");
+}
 
 /**
  * Initialize authentication guard
  */
 function initAuthGuard() {
-  // Daftar halaman yang memerlukan autentikasi
-  const protectedPages = [
-    "/index.html",
-    "/profile.html",
-    "/management-user.html",
-    "/management-booking.html",
-    "/management-attendance.html",
-    "/calendar.html",
-    "/form-user.html",
-    "/alerts.html",
-    "/badge.html",
-    "/buttons.html",
-    "/blank.html",
-  ];
-
-  // Daftar halaman publik (tidak perlu autentikasi)
-  const publicPages = ["/signin.html", "/404.html"];
-
-  // Jalankan pengecekan
+  // Jalankan pengecekan hanya saat dipanggil explicit dari startup boot path
   checkAuthentication();
 }
 
@@ -37,19 +27,18 @@ function initAuthGuard() {
 function checkAuthentication() {
   const currentPath = window.location.pathname;
   const currentPage = getCurrentPageFromPath(currentPath);
+  const authStore = getAuthStore();
 
   console.log("Auth guard checking page:", currentPage);
 
-  // Jika di halaman signin dan sudah login, redirect ke dashboard
-  if (currentPage === "/signin.html" && isAuthenticated()) {
-    console.log("User already authenticated, redirecting to dashboard");
-    window.location.href = "/index.html";
+  if (authStore?.sessionState === "verification_failed") {
+    console.log("Auth verification failed at startup, skipping auth guard enforcement");
     return;
   }
 
-  // Jika di halaman protected dan belum login, redirect ke signin
-  if (isProtectedPage(currentPage) && !isAuthenticated()) {
-    console.log("User not authenticated, redirecting to signin");
+  // Jika di halaman protected dan tidak ada indikasi sesi, redirect ke signin
+  if (isProtectedPage(currentPage) && !hasSessionHint()) {
+    console.log("Session hint missing, redirecting to signin");
 
     // Simpan current URL untuk redirect setelah login
     sessionStorage.setItem("redirectAfterLogin", window.location.href);
@@ -58,8 +47,8 @@ function checkAuthentication() {
     return;
   }
 
-  // Jika sudah login, update Alpine store
-  if (isAuthenticated()) {
+  // Sync Alpine store jika user tersedia
+  if (getCurrentUser()) {
     updateAlpineAuthStore();
   }
 
@@ -102,6 +91,7 @@ function isProtectedPage(page) {
     "/management-user.html",
     "/management-booking.html",
     "/management-attendance.html",
+    "/management-backend-settings.html",
     "/calendar.html",
     "/form-user.html",
     "/alerts.html",
@@ -117,11 +107,15 @@ function isProtectedPage(page) {
  * Update Alpine.js auth store with current user data
  */
 function updateAlpineAuthStore() {
-  if (typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
-    const userData = getCurrentUser();
-    if (userData) {
-      Alpine.store("auth").setUser(userData);
-    }
+  const authStore = getAuthStore();
+
+  if (authStore?.sessionState === "verification_failed") {
+    return;
+  }
+
+  const userData = getCurrentUser();
+  if (authStore && userData) {
+    authStore.setUser(userData);
   }
 }
 
@@ -149,11 +143,17 @@ function redirectToDashboard() {
  * @returns {boolean} - True if user has permission
  */
 function hasPermission(permission) {
-  if (!isAuthenticated()) {
+  const authStore = getAuthStore();
+
+  if (authStore?.sessionState === "verification_failed") {
     return false;
   }
 
-  const userData = getCurrentUser();
+  if (!hasSessionHint()) {
+    return false;
+  }
+
+  const userData = authStore?.user ?? getCurrentUser();
   if (!userData || !userData.permissions) {
     return false;
   }
@@ -168,7 +168,13 @@ function hasPermission(permission) {
  * @param {Function} onDenied - Fungsi yang dijalankan jika tidak ada permission
  */
 function requirePermission(permission, callback, onDenied = null) {
-  if (!isAuthenticated()) {
+  const authStore = getAuthStore();
+
+  if (authStore?.sessionState === "verification_failed") {
+    return;
+  }
+
+  if (!hasSessionHint()) {
     redirectToLogin();
     return;
   }
@@ -211,18 +217,4 @@ export default AuthGuard;
 // Untuk penggunaan global di browser
 if (typeof window !== "undefined") {
   window.AuthGuard = AuthGuard;
-}
-
-// Auto-initialize jika bukan di halaman signin
-if (typeof window !== "undefined") {
-  const currentPage = getCurrentPageFromPath(window.location.pathname);
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      // Delay sedikit untuk memastikan semua module sudah loaded
-      setTimeout(initAuthGuard, 100);
-    });
-  } else {
-    setTimeout(initAuthGuard, 100);
-  }
 }

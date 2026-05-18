@@ -3,13 +3,57 @@
  * Menangani logika form login dan integrasi dengan Alpine.js store
  */
 
-import { login, getCurrentUser } from "../services/authService.js";
+import {
+  login,
+  getCurrentUser,
+  hasSessionHint,
+  resolveBootstrapSession,
+} from "../services/authService.js";
+import {
+  clearAuthRedirectNotice,
+  readAuthRedirectNotice,
+} from "../services/authSessionRuntime.js";
+
+function showAuthRedirectNotice() {
+  const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
+
+  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
+    return;
+  }
+
+  clearAuthRedirectNotice(window.sessionStorage);
+  window.showInlineAlert({
+    type: redirectNotice.type || "warning",
+    title: redirectNotice.title || "Perlu Login",
+    message: redirectNotice.message,
+    timeoutMs: 4000,
+  });
+}
+
+function shouldAutoInitSigninHandler(doc = document) {
+  const form = doc.querySelector("form");
+  const emailInput = doc.getElementById("email");
+  const passwordInput = doc.querySelector(
+    "#password",
+  );
+  const submitButton = doc.querySelector(
+    'button[type="submit"], form button:last-of-type',
+  );
+
+  return Boolean(form && emailInput && passwordInput && submitButton);
+}
 
 /**
  * Initialize signin form handler
  * Menginisialisasi event listeners dan validasi form
  */
 function initSigninHandler() {
+  if (!shouldAutoInitSigninHandler()) {
+    return;
+  }
+
+  showAuthRedirectNotice();
+
   // Tunggu hingga DOM fully loaded
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", setupSigninForm);
@@ -22,10 +66,12 @@ function initSigninHandler() {
  * Setup signin form dengan event listeners
  */
 function setupSigninForm() {
+  showAuthRedirectNotice();
+
   const form = document.querySelector("form");
   const emailInput = document.getElementById("email");
   const passwordInput = document.querySelector(
-    'input[type="password"], input[x-bind\\:type]',
+    "#password",
   );
   const submitButton = document.querySelector(
     'button[type="submit"], form button:last-of-type',
@@ -106,7 +152,7 @@ function setupSigninForm() {
       }
 
       // Redirect ke dashboard atau halaman yang sesuai
-      redirectAfterLogin();
+      redirectAfterLogin({ loginJustSucceeded: true, loginUser: userData });
     } catch (error) {
       // Login gagal setelah validasi berhasil - tampilkan error dari server
       console.error("Login failed:", error.message);
@@ -331,38 +377,86 @@ function updateAlpineStore(userData) {
   }
 }
 
+function resolveStoredRedirectTarget(redirectValue) {
+  if (!redirectValue) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(redirectValue, window.location.origin);
+
+    if (parsedUrl.origin !== window.location.origin) {
+      console.warn("Ignoring cross-origin redirectAfterLogin target");
+      return null;
+    }
+
+    return {
+      targetHref: `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`,
+      pathname: parsedUrl.pathname,
+    };
+  } catch (error) {
+    console.warn("Invalid redirectAfterLogin value, ignoring redirect target", error);
+    return null;
+  }
+}
+
 /**
  * Redirect user setelah login berhasil
  */
-function redirectAfterLogin() {
+async function redirectAfterLogin({
+  loginJustSucceeded = false,
+  loginUser = null,
+} = {}) {
   // Import role-based redirect function
   const { redirectBasedOnRole } = window.RoleBasedAccess || {};
 
+  let verifiedUser = null;
+
+  if (hasSessionHint()) {
+    try {
+      const resolution = await resolveBootstrapSession();
+      if (resolution.state === "authenticated") {
+        verifiedUser = resolution.user || null;
+      } else if (!(resolution.state === "verification_failed" && loginJustSucceeded)) {
+        return;
+      }
+    } catch (error) {
+      console.warn("Bootstrap session resolution failed before redirect", error);
+      if (!loginJustSucceeded) {
+        return;
+      }
+    }
+  }
+
   // Get current user data to determine role
-  const userData = getCurrentUser ? getCurrentUser() : null;
+  const userData =
+    verifiedUser || loginUser || (getCurrentUser ? getCurrentUser() : null);
 
   // Cek jika ada URL redirect yang disimpan
   const redirectUrl =
     localStorage.getItem("redirectAfterLogin") ||
     sessionStorage.getItem("redirectAfterLogin");
+  const redirectTarget = resolveStoredRedirectTarget(redirectUrl);
 
-  if (redirectUrl) {
+  if (redirectTarget) {
     // Clear redirect URL
     localStorage.removeItem("redirectAfterLogin");
     sessionStorage.removeItem("redirectAfterLogin");
 
     // Check if user has access to the requested page
     if (userData && userData.role_name && window.RoleBasedAccess) {
-      const hasAccess = window.RoleBasedAccess.hasPageAccess(redirectUrl);
+      const hasAccess = window.RoleBasedAccess.hasPageAccess(
+        redirectTarget.pathname,
+      );
 
       if (hasAccess) {
         // User has access, redirect to requested URL
-        window.location.href = redirectUrl;
+        window.location.href = redirectTarget.targetHref;
         return;
       } else {
         // User doesn't have access, redirect based on role
         console.log(
-          `User role ${userData.role_name} doesn't have access to ${redirectUrl}, redirecting based on role`,
+          `User role ${userData.role_name} doesn't have access to ${redirectTarget.pathname}, redirecting based on role`,
         );
         if (redirectBasedOnRole) {
           redirectBasedOnRole(userData.role_name);
@@ -371,7 +465,7 @@ function redirectAfterLogin() {
       }
     } else {
       // Fallback to requested URL if role checking is not available
-      window.location.href = redirectUrl;
+      window.location.href = redirectTarget.targetHref;
       return;
     }
   }
@@ -475,10 +569,12 @@ const SigninHandler = {
   clearError,
   setLoadingState,
   handleLoginSubmit,
+  redirectAfterLogin,
 };
 
 // Export untuk penggunaan sebagai module
 export {
+  shouldAutoInitSigninHandler,
   initSigninHandler,
   showError,
   clearError,

@@ -1,28 +1,14 @@
-import axios from "axios";
 import { API_CONFIG } from "../config/env.js";
-
-/**
- * Mendapatkan token dari localStorage untuk header Authorization
- * @returns {string|null} - Bearer token atau null jika tidak ada
- */
-function getBearerToken() {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  return user.token || null;
-}
-
-/**
- * Membuat header Authorization dengan Bearer token
- * @returns {Object} - Headers object dengan Authorization atau empty object
- */
-function getAuthHeaders() {
-  const token = getBearerToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { authRequest } from "./authRequest.js";
 
 /**
  * Service untuk menangani API calls terkait laporan summary
  */
-class ReportService {
+export class ReportService {
+  constructor(requestExecutor = authRequest) {
+    this.requestExecutor = requestExecutor;
+  }
+
   /**
    * Mendapatkan summary report dari backend
    * @param {Object} params - Request parameters
@@ -30,26 +16,40 @@ class ReportService {
    * @param {number} params.page - Page number for pagination
    * @param {number} params.limit - Items per page
    * @param {string} params.search - Search query
+   * @param {string|null} params.sortBy - Backend sort field
+   * @param {string} params.sortOrder - Backend sort order ('asc' or 'desc')
    * @returns {Promise<Object>} Response data containing summary, report, and analytics
    */
   async getSummaryReport(params = {}) {
-    const { period = "all", page = 1, limit = 10, search = "" } = params;
+    const {
+      period = "all",
+      page = 1,
+      limit = 10,
+      search = "",
+      sortBy = null,
+      sortOrder = "asc",
+    } = params;
 
     try {
-      // Attempt to call the real API
       const queryParams = { period, page, limit };
-      if (search && String(search).trim() !== "") {
-        const s = String(search).trim();
-        // include common synonyms to maximize compatibility with backend
-        queryParams.search = s;
-        queryParams.q = s;
-        queryParams.query = s;
-        queryParams.keyword = s;
+      const normalizedSearch = String(search).trim();
+
+      if (normalizedSearch !== "") {
+        queryParams.search = normalizedSearch;
+        queryParams.q = normalizedSearch;
+        queryParams.query = normalizedSearch;
+        queryParams.keyword = normalizedSearch;
       }
 
-      const response = await axios.get(`${API_CONFIG.BASE_URL}/summary`, {
+      if (sortBy) {
+        queryParams.sortBy = sortBy;
+        queryParams.sortOrder = sortOrder;
+      }
+
+      const response = await this.requestExecutor({
+        method: "get",
+        url: `${API_CONFIG.BASE_URL}/summary`,
         params: queryParams,
-        headers: getAuthHeaders(),
       });
 
       console.log("API Response received:", response.data);
@@ -59,20 +59,7 @@ class ReportService {
     } catch (error) {
       console.error("Error fetching from API:", error.message);
 
-      // Check if we're in development mode
-      const isDevelopment =
-        process.env.NODE_ENV === "development" ||
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1";
-
-      if (isDevelopment) {
-        console.warn("Development mode: Using mock data as fallback");
-        return this.getMockSummaryData(params);
-      } else {
-        // In production, throw the error instead of using mock data
-        console.error("Production mode: API call failed, no fallback data");
-        throw new Error(`Failed to fetch summary report: ${error.message}`);
-      }
+      throw new Error(`Failed to fetch summary report: ${error.message}`);
     }
   }
 

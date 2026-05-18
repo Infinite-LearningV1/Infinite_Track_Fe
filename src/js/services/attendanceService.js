@@ -3,20 +3,8 @@
  * Mengenkapsulasi logika panggilan API untuk manajemen data absensi
  */
 
-import axios from "axios";
 import { API_CONFIG, envLog } from "../config/env.js";
-
-// Konfigurasi axios default
-axios.defaults.withCredentials = true; // Mengizinkan pengiriman cookie
-
-/**
- * Mendapatkan token dari localStorage untuk header Authorization
- * @returns {string|null} - Bearer token atau null jika tidak ada
- */
-function getBearerToken() {
-  const token = localStorage.getItem("auth_token");
-  return token ? `Bearer ${token}` : null;
-}
+import { authRequest } from "./authRequest.js";
 
 /**
  * Mengambil daftar log absensi dari API
@@ -53,18 +41,13 @@ export async function getAttendanceLog(params = {}) {
 
     envLog("info", "GET Attendance Log:", { url, params });
 
-    // Setup headers
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    // Tambahkan Authorization header jika ada token
-    const bearerToken = getBearerToken();
-    if (bearerToken) {
-      headers.Authorization = bearerToken;
-    }
-
-    const response = await axios.get(url, { headers });
+    const response = await authRequest({
+      method: "get",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     envLog("info", "Attendance Log Response:", response.data);
 
@@ -102,18 +85,13 @@ export async function deleteAttendance(attendanceId) {
 
     envLog("info", "DELETE Attendance:", { url, attendanceId });
 
-    // Setup headers
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    // Tambahkan Authorization header jika ada token
-    const bearerToken = getBearerToken();
-    if (bearerToken) {
-      headers.Authorization = bearerToken;
-    }
-
-    const response = await axios.delete(url, { headers });
+    const response = await authRequest({
+      method: "delete",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     envLog("info", "Delete Attendance Response:", response.data);
 

@@ -59,8 +59,6 @@ git clone https://github.com/InfiniteTrack/infinitetrack-free-tailwind-dashboard
    yarn install
    ```
 
-   > Untuk clean install yang reproducible seperti baseline CI repo ini, gunakan `npm ci`.
-
 2. Start the development server:
    ```bash
    npm run start
@@ -82,13 +80,6 @@ Other historical or auxiliary branches may still exist in the repository, but th
 In short:
 - `feature/*` / `fix/*` -> `develop` via PR review
 - `develop` -> `master` via controlled release promotion
-
-### CI Baseline
-
-- PRs to `develop` must pass the repo build workflow.
-- Pushes to `develop` run the same build workflow for integration verification.
-- PRs targeting `master`, including the normal promotion PR from `develop` to `master`, must also pass the build workflow before `master` is treated as release-ready.
-- GitHub branch protection / ruleset enforcement for required checks, direct-push restrictions, and source-branch restrictions for `master` remain `Needs Verification` unless confirmed in the GitHub UI.
 
 ## Components
 

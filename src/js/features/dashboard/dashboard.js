@@ -166,12 +166,12 @@ export function dashboard() {
 
       try {
         console.log(
-          `Loading dashboard data for page: ${this.filters.page}, search: ${this.searchQuery}, period: ${this.period}`,
+          `Loading dashboard data for page: ${this.filters.page}, search: ${this.searchQuery}, period: ${this.filters.period}`,
         );
 
         // Gunakan period filter dan search query pada jalur request server-driven yang sama
         const response = await getSummaryReport({
-          period: this.period,
+          period: this.filters.period,
           page: this.filters.page,
           limit: this.filters.limit,
           search: this.searchQuery,
@@ -179,7 +179,7 @@ export function dashboard() {
           sortOrder: this.filters.sortOrder,
         });
 
-        console.log(`Dashboard API call made with period='${this.period}'`);
+        console.log(`Dashboard API call made with period='${this.filters.period}'`);
 
         // Handle API response format dan mapping field names
         if (response && response.summary) {
@@ -196,7 +196,7 @@ export function dashboard() {
           // Update card summary data (terpengaruh period filter)
           this.cardSummaryData = { ...mappedSummary };
           console.log(
-            `✅ Card summary data updated for period '${this.period}':`,
+            `✅ Card summary data updated for period '${this.filters.period}':`,
             this.cardSummaryData,
           );
 
@@ -315,7 +315,7 @@ export function dashboard() {
           current_page: 1,
           total_pages: 1,
           total_records: 0,
-          per_page: 5,
+          per_page: this.pagination?.per_page || this.filters.limit,
           has_next_page: false,
           has_prev_page: false,
         };
@@ -336,10 +336,10 @@ export function dashboard() {
      */
     async loadExportData() {
       try {
-        console.log(`Loading export data with period: ${this.period}`);
+        console.log(`Loading export data with period: ${this.filters.period}`);
 
         const response = await getSummaryReport({
-          period: this.period, // Gunakan period yang dipilih user
+          period: this.filters.period, // Gunakan period yang dipilih user
           page: 1, // Ambil dari halaman pertama
           limit: 10000, // Ambil SEMUA data dengan limit besar
           search: "", // Tidak ada search filter untuk export
@@ -353,7 +353,7 @@ export function dashboard() {
           };
 
           console.log(`Export data loaded successfully:`, {
-            period: this.period,
+            period: this.filters.period,
             summaryStats: response.summary,
             recordCount: response.report?.data?.length || 0,
             totalRecords: response.report?.pagination?.total_records || 0,
@@ -394,7 +394,7 @@ export function dashboard() {
      * Handle period change - mempengaruhi semua tampilan dashboard
      */
     async onPeriodChange() {
-      console.log(`🔄 Period filter changed to: ${this.period}`);
+      console.log(`🔄 Period filter changed to: ${this.filters.period}`);
       console.log("📊 Reloading dashboard data dengan period filter baru");
 
       // Period filter mempengaruhi SEMUA tampilan dashboard (cards, table, export)
@@ -402,7 +402,7 @@ export function dashboard() {
       await this.loadSummaryData();
 
       this.showNotification(
-        `Dashboard updated untuk period: ${this.period}`,
+        `Dashboard updated untuk period: ${this.filters.period}`,
         "info",
       );
     },
@@ -431,7 +431,7 @@ export function dashboard() {
      */,
     async downloadPDF() {
       try {
-        console.log(`Generating PDF report with period filter: ${this.period}`);
+        console.log(`Generating PDF report with period filter: ${this.filters.period}`);
 
         // Load fresh export data dengan period filter
         const exportData = await this.loadExportData();
@@ -465,7 +465,7 @@ export function dashboard() {
           "Valid export data being sent to PDF generator:",
           exportData,
         );
-        generatePDFReport(exportData, this.period);
+        generatePDFReport(exportData, this.filters.period);
 
         // Show success notification
         this.showNotification("PDF report downloaded successfully!", "success");
@@ -480,7 +480,7 @@ export function dashboard() {
     async downloadExcel() {
       try {
         console.log(
-          `Generating Excel report with period filter: ${this.period}`,
+          `Generating Excel report with period filter: ${this.filters.period}`,
         );
 
         // Load fresh export data dengan period filter
@@ -515,7 +515,7 @@ export function dashboard() {
           "Valid export data being sent to Excel generator:",
           exportData,
         );
-        generateExcelReport(exportData, this.period);
+        generateExcelReport(exportData, this.filters.period);
 
         // Show success notification
         this.showNotification(
@@ -679,34 +679,8 @@ export function dashboard() {
           alert("Koordinat lokasi tidak tersedia");
         }
       }
-    } /**
-     * Sorting functionality
-     */,
-    currentSort: { field: null, direction: "asc" },
-
-    changeSort(field) {
-      if (this.currentSort.field === field) {
-        this.currentSort.direction =
-          this.currentSort.direction === "asc" ? "desc" : "asc";
-      } else {
-        this.currentSort.field = field;
-        this.currentSort.direction = "asc";
-      }
-
-      // Here you can implement actual sorting logic
-      console.log("Sorting by:", field, this.currentSort.direction);
     },
 
-    /**
-     * Get sort icon (exact same as attendance table)
-     */
-    getSortIcon(fieldName) {
-      if (this.currentSort.field !== fieldName) {
-        return ""; // No icon if field is not being sorted
-      }
-
-      return this.currentSort.direction === "asc" ? "↑" : "↓";
-    },
     /**
      * Get status badge CSS classes (using universal badge helper)
      */
@@ -798,7 +772,7 @@ export function dashboard() {
      * Handle empty API response
      */
     handleEmptyApiResponse() {
-      console.warn(`API returned empty response for period: ${this.period}`);
+      console.warn(`API returned empty response for period: ${this.filters.period}`);
 
       // Reset card summary data hanya jika benar-benar error API
       this.cardSummaryData = {
@@ -832,7 +806,7 @@ export function dashboard() {
         current_page: 1,
         total_pages: 1,
         total_records: 0,
-        per_page: 5,
+        per_page: this.filters.limit,
         has_next_page: false,
         has_prev_page: false,
       };

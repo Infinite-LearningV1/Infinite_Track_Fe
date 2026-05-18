@@ -43,8 +43,24 @@ export function bookingListAlpineData() {
       limit: 10,
     },
     isLoading: true,
-    errorMessage: "", // Search term untuk input
-    searchTerm: "",
+    errorMessage: "",
+    sortFieldMap: {
+      id: "id",
+      employee_name: "employee_name",
+      employee_position: "employee_position",
+      schedule_date: "schedule_date",
+      status: "status",
+      suitability_score: "suitability_score",
+    },
+
+    // Search input proxy -> single request state (filters.search)
+    get searchTerm() {
+      return this.filters.search;
+    },
+    set searchTerm(value) {
+      this.filters.search = value;
+    },
+
     statusFilter: "", // Modal states
     isDeleteModalOpen: false,
     deleteConfirmMessage: "",
@@ -177,6 +193,10 @@ export function bookingListAlpineData() {
           has_prev_page: (paginationData.current_page || 1) > 1,
         };
 
+        if (this.pagination.per_page) {
+          this.filters.limit = Number(this.pagination.per_page);
+        }
+
         // Log successful data fetch for debugging
         console.log("Bookings fetched successfully:", {
           count: this.bookings.length,
@@ -227,7 +247,6 @@ export function bookingListAlpineData() {
 
       // Set timer baru untuk debounce 500ms
       this.searchTimer = setTimeout(() => {
-        this.filters.search = this.searchTerm;
         this.filters.page = 1; // Reset ke halaman pertama
         this.fetchBookings();
       }, 500);
@@ -254,16 +273,37 @@ export function bookingListAlpineData() {
     },
 
     /**
+     * Change entries per page (server-driven)
+     * @param {number|string} newLimit - Jumlah data per halaman
+     */
+    changeLimit(newLimit) {
+      const parsedLimit = Number(newLimit);
+      this.filters.limit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
+      this.filters.page = 1;
+      this.fetchBookings();
+    },
+
+    /**
      * Change sorting
      * @param {string} newSortBy - Field untuk sorting
      */
     changeSort(newSortBy) {
+      if (!this.isSortFieldSupported(newSortBy)) {
+        return;
+      }
+
+      const backendSortField = this.sortFieldMap[newSortBy];
+      if (!backendSortField) {
+        return;
+      }
+
       // Jika field sama, toggle order
-      if (this.filters.sortBy === newSortBy) {
+      if (this.filters.sortBy === backendSortField) {
         this.filters.sortOrder =
           this.filters.sortOrder === "ASC" ? "DESC" : "ASC";
       } else {
-        this.filters.sortBy = newSortBy;
+        this.filters.sortBy = backendSortField;
         this.filters.sortOrder = "DESC"; // Default ke DESC untuk field baru
       }
 
@@ -277,10 +317,19 @@ export function bookingListAlpineData() {
      * @returns {string} - Icon class atau empty string
      */
     getSortIcon(fieldName) {
-      if (this.filters.sortBy !== fieldName) {
+      if (!this.isSortFieldSupported(fieldName)) {
+        return "";
+      }
+
+      const backendSortField = this.sortFieldMap[fieldName];
+      if (this.filters.sortBy !== backendSortField) {
         return ""; // Tidak ada icon jika field tidak sedang di-sort
       }
       return this.filters.sortOrder === "ASC" ? "↑" : "↓";
+    },
+
+    isSortFieldSupported(fieldName) {
+      return Object.hasOwn(this.sortFieldMap, fieldName);
     },
 
     /**
@@ -332,11 +381,8 @@ export function bookingListAlpineData() {
 
       // Initialize map setelah modal terbuka
       this.$nextTick(() => {
-        if (typeof window.bookingMapModal === "function") {
-          const mapModal = window.bookingMapModal();
-          if (typeof mapModal.initializeMap === "function") {
-            mapModal.initializeMap(locationData);
-          }
+        if (typeof window.initializeBookingMap === "function") {
+          window.initializeBookingMap(locationData);
         }
       });
     },
@@ -347,11 +393,8 @@ export function bookingListAlpineData() {
     closeMapDetailModal() {
       this.isBookingMapModalOpen = false;
       // Clean up booking map
-      if (typeof window.bookingMapModal === "function") {
-        const mapModal = window.bookingMapModal();
-        if (typeof mapModal.cleanup === "function") {
-          mapModal.cleanup();
-        }
+      if (typeof window.cleanupBookingMap === "function") {
+        window.cleanupBookingMap();
       }
 
       // Reset booking location data
@@ -372,9 +415,11 @@ export function bookingListAlpineData() {
         notes: "",
         phoneNumber: "",
       };
-    } /**
+    },
+
+    /**
      * Close booking map modal (alias for compatibility)
-     */,
+     */
     closeBookingMapModal() {
       this.closeMapDetailModal();
     },

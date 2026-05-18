@@ -3,7 +3,19 @@
  * Middleware untuk validasi hak akses berdasarkan role user
  */
 
-import { getCurrentUser, isAuthenticated } from "../services/authService.js";
+import {
+  forceReauthenticate,
+  getCurrentUser,
+  hasSessionHint,
+} from "../services/authService.js";
+
+function getAuthStore() {
+  if (typeof Alpine === "undefined" || !Alpine.store) {
+    return null;
+  }
+
+  return Alpine.store("auth");
+}
 
 /**
  * Role definitions
@@ -23,6 +35,7 @@ const PAGE_PERMISSIONS = {
   "/management-user.html": [ROLES.ADMIN],
   "/management-booking.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
   "/management-attendance.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
+  "/management-backend-settings.html": [ROLES.ADMIN],
   "/form-user.html": [ROLES.ADMIN],
   "/profile.html": [
     ROLES.ADMIN,
@@ -48,11 +61,17 @@ const PAGE_PERMISSIONS = {
  * @returns {boolean} - True if user has access
  */
 function hasPageAccess(page) {
-  if (!isAuthenticated()) {
+  const authStore = getAuthStore();
+
+  if (authStore?.sessionState === "verification_failed") {
     return false;
   }
 
-  const userData = getCurrentUser();
+  if (!hasSessionHint()) {
+    return false;
+  }
+
+  const userData = authStore?.user ?? getCurrentUser();
   if (!userData || !userData.role_name) {
     return false;
   }
@@ -82,11 +101,11 @@ function redirectBasedOnRole(userRole) {
     case ROLES.INTERNSHIP:
     case ROLES.EMPLOYEE:
       // Internship dan Employee diarahkan ke profile
-      window.location.href = "/signin.html";
+      window.location.href = "/profile.html";
       break;
     default:
       // Default ke profile untuk role yang tidak dikenal
-      window.location.href = "/signin.html";
+      window.location.href = "/profile.html";
       break;
   }
 }
@@ -281,40 +300,9 @@ function setupAccessDeniedEventListeners(modal, userRole) {
     } catch (error) {
       console.error("Logout error:", error);
 
-      // Force logout if API call fails
-      forceLogout();
+      closeModal();
+      await forceReauthenticate();
     }
-  };
-
-  // Force logout function (fallback)
-  const forceLogout = () => {
-    // Clear all localStorage items
-    localStorage.removeItem("userData");
-    localStorage.removeItem("currentUserData");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("rememberMe");
-    localStorage.removeItem("rememberedEmail");
-    localStorage.removeItem("redirectAfterLogin");
-
-    // Clear sessionStorage
-    sessionStorage.clear();
-
-    // Clear cookies manually
-    document.cookie.split(";").forEach((c) => {
-      document.cookie = c
-        .replace(/^ +/, "")
-        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-    });
-
-    // Update Alpine.js store if available
-    if (typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
-      Alpine.store("auth").clearAuth();
-    }
-
-    closeModal();
-    setTimeout(() => {
-      window.location.href = "/signin.html";
-    }, 300);
   };
 
   // Event listeners
@@ -349,19 +337,26 @@ function setupAccessDeniedEventListeners(modal, userRole) {
  * Initialize role-based access control
  */
 function initRoleBasedAccess() {
+  // Jalankan hanya saat dipanggil explicit dari startup boot path
   // Get current page
   const currentPath = window.location.pathname;
   const currentPage = currentPath === "/" ? "/index.html" : currentPath;
+  const authStore = getAuthStore();
 
   console.log("Checking role-based access for page:", currentPage);
 
+  if (authStore?.sessionState === "verification_failed") {
+    console.log("Auth verification failed at startup, skipping RBAC enforcement");
+    return;
+  }
+
   // Check if user is authenticated
-  if (!isAuthenticated()) {
+  if (!hasSessionHint()) {
     console.log("User not authenticated");
     return;
   }
 
-  const userData = getCurrentUser();
+  const userData = authStore?.user ?? getCurrentUser();
   if (!userData || !userData.role_name) {
     console.log("No user data or role found");
     return;
@@ -395,11 +390,17 @@ function initRoleBasedAccess() {
  * @returns {boolean} - True if user can access dashboard
  */
 function canAccessDashboard() {
-  if (!isAuthenticated()) {
+  const authStore = getAuthStore();
+
+  if (authStore?.sessionState === "verification_failed") {
     return false;
   }
 
-  const userData = getCurrentUser();
+  if (!hasSessionHint()) {
+    return false;
+  }
+
+  const userData = authStore?.user ?? getCurrentUser();
   if (!userData || !userData.role_name) {
     return false;
   }
@@ -429,15 +430,4 @@ if (typeof window !== "undefined") {
     initRoleBasedAccess,
     canAccessDashboard,
   };
-}
-
-// Auto-initialize on DOM ready
-if (typeof window !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      setTimeout(initRoleBasedAccess, 200);
-    });
-  } else {
-    setTimeout(initRoleBasedAccess, 200);
-  }
 }

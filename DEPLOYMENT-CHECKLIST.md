@@ -105,16 +105,17 @@ serve -s build -p 3000
 
 ### Docker Compose Verification
 
-- [ ] `BACKEND_REPO_PATH` diarahkan ke repo backend lokal yang benar sebelum menjalankan `docker compose up --build`
-- [ ] Tambahkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` saat smoke test Docker lokal karena backend saat ini membutuhkannya untuk startup sukses
-- [ ] Development gateway flow diverifikasi dengan stack Compose aktif dan trafik browser masuk lewat service `nginx`
-- [ ] Jika memakai mode staging-like, jalankan `npm run build` sebelum `NGINX_MODE=staging docker compose up --build`
+- [ ] `BACKEND_IMAGE` menunjuk ke image backend yang tersedia dan listen pada port container `3005`
+- [ ] Development profile diverifikasi dengan `docker compose --profile dev up --build`
+- [ ] Staging-like profile diverifikasi dengan `docker compose --profile staging up --build`
+- [ ] Staging-like mode memakai artifact container untuk membangun dan menyalin output frontend ke volume `frontend_dist`, bukan build manual host sebelum Compose
+- [ ] `nginx-staging` menunggu marker artifact dari `frontend-build` sebelum gateway dianggap siap menyajikan aset
 
 ### Docker Gateway Verification
 
-- [ ] Verifikasi gateway NGINX merespons pada port host yang dipakai, misalnya `curl -I http://localhost:8080`
-- [ ] Jika port gateway dioverride, verifikasi endpoint yang sesuai, misalnya `curl -I http://localhost:8081`
-- [ ] Pastikan `/api` diproxy lewat gateway ke backend container, bukan lagi asumsi lama `localhost:3005`
+- [ ] Verifikasi gateway NGINX merespons pada port host default, misalnya `curl -I http://localhost:8080`
+- [ ] Jika `GATEWAY_PORT` dioverride, verifikasi endpoint yang sesuai, misalnya `curl -I http://localhost:8081`
+- [ ] Pastikan `/api` diproxy lewat gateway ke backend container `backend:3005`
 - [ ] Gunakan `docker compose down` untuk stop stack, atau `docker compose down -v` bila juga ingin membersihkan volume lokal
 
 ### Post-Deployment
@@ -249,8 +250,10 @@ Jika ada masalah serius saat deployment:
 
 - ✅ Baseline CI sekarang mencakup build verification untuk PR ke `develop`, push ke `develop`, dan promotion PR ke `master`
 - ✅ `master` adalah branch final yang dimaksudkan menjadi release / deploy source dalam workflow repo ini
+- ✅ Docker gateway workflow lokal sekarang memakai `BACKEND_IMAGE`, profile `dev`, profile `staging`, dan NGINX sebagai browser entrypoint
 - ⚠️ `Needs Verification`: required status check, branch protection GitHub UI, direct-push restriction, dan source-branch restriction ke `master` benar-benar sudah enforced
 - ⚠️ `Needs Verification`: source branch, build command, dan output directory pada static hosting production sudah benar
+- ⚠️ `Needs Verification`: image backend lokal yang dipakai untuk Compose benar-benar listen pada port container `3005`
 - ⚠️ **TINGGAL:** Configure environment variables
 - ⚠️ **TINGGAL:** Deploy ke hosting pilihan Anda
 - ⚠️ **TINGGAL:** Jalankan post-deploy smoke checks sebelum menyebut snapshot ini production-ready

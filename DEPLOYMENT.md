@@ -325,7 +325,7 @@ firebase deploy
 
 ### Opsi 3: Docker Compose + NGINX Gateway
 
-Dokumentasi ini mengikuti setup aktual di repo: `compose.yaml` menjalankan empat service utama yaitu `db` (MySQL 8), `backend`, `frontend-dev`, dan `nginx`. Gateway NGINX menjadi entrypoint lokal, dan proxy `/api` diteruskan ke `backend:3000`.
+Workflow ini adalah tooling lokal/staging-like untuk memverifikasi frontend lewat satu browser entrypoint NGINX. `compose.yaml` menjalankan backend dari image yang sudah tersedia, frontend dev server untuk profile `dev`, builder artifact untuk profile `staging`, dan gateway NGINX sesuai profile yang dipilih. Browser tetap memakai boundary `/api`, lalu NGINX meneruskan request itu ke backend container pada port `3005`.
 
 #### Docker Compose Workflows
 
@@ -334,21 +334,17 @@ Dokumentasi ini mengikuti setup aktual di repo: `compose.yaml` menjalankan empat
 Gunakan mode ini saat ingin menjalankan frontend dev server di belakang gateway NGINX, dengan request browser tetap masuk lewat satu origin.
 
 ```bash
-BACKEND_REPO_PATH=/absolute/path/to/Infinit_Track_BE \
-CLOUDINARY_CLOUD_NAME=dummy \
-CLOUDINARY_API_KEY=dummy \
-CLOUDINARY_API_SECRET=dummy \
-NGINX_MODE=dev \
-docker compose up --build
+BACKEND_IMAGE=infinite-track-backend:latest \
+docker compose --profile dev up --build
 ```
 
 Catatan runtime truth:
 
-- `BACKEND_REPO_PATH` wajib menunjuk ke path repo backend lokal karena service `backend` dibuild dari repo backend, bukan dari placeholder image.
-- Pada smoke test lokal Docker saat ini, backend membutuhkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` agar startup berhasil. Nilai dummy cukup untuk smoke test lokal bila alur yang diuji tidak membutuhkan kredensial Cloudinary nyata.
-- Frontend dev menerima `WEBPACK_API_PROXY_TARGET=http://backend:3000` dari Compose, sehingga request API dari dev server diarahkan ke backend container.
-- Gateway NGINX melayani trafik browser dan mem-proxy `/api` ke `backend:3000`.
-- Jika perlu menghindari bentrok port host, override port gateway saat menjalankan Compose, misalnya `NGINX_PORT=8081 docker compose up --build`.
+- `BACKEND_IMAGE` harus menunjuk ke image backend yang sudah bisa berjalan dan listen pada port container `3005`.
+- `frontend-dev` menerima `WEBPACK_API_PROXY_TARGET=http://backend:3005` dari Compose, sehingga request API dari dev server tetap diarahkan ke backend container saat dibutuhkan.
+- Service `nginx-dev` otomatis memakai config NGINX development saat profile `dev` dipilih.
+- Gateway NGINX melayani trafik browser dan mem-proxy `/api` ke `backend:3005`.
+- Jika perlu menghindari bentrok port host, override port gateway saat menjalankan Compose, misalnya `GATEWAY_PORT=8081 docker compose --profile dev up --build`.
 
 Verifikasi cepat gateway:
 
@@ -360,23 +356,19 @@ Jika port di-override, sesuaikan URL verifikasi, misalnya `http://localhost:8081
 
 ##### B. Staging-like mode dengan NGINX serving built assets
 
-Gunakan mode ini untuk menjalankan alur yang lebih mendekati staging: frontend dibuild lebih dulu lalu NGINX menyajikan aset hasil build, sementara `/api` tetap lewat gateway yang sama.
+Gunakan mode ini untuk menjalankan alur yang lebih mendekati staging: frontend dibuild di container, hasil build disalin ke volume `frontend_dist`, lalu NGINX menyajikan aset tersebut sementara `/api` tetap lewat gateway yang sama.
 
 ```bash
-npm run build
-BACKEND_REPO_PATH=/absolute/path/to/Infinit_Track_BE \
-CLOUDINARY_CLOUD_NAME=dummy \
-CLOUDINARY_API_KEY=dummy \
-CLOUDINARY_API_SECRET=dummy \
-NGINX_MODE=staging \
-docker compose up --build
+BACKEND_IMAGE=infinite-track-backend:latest \
+docker compose --profile staging up --build
 ```
 
 Catatan staging-like mode:
 
-- `NGINX_MODE=staging` mengalihkan NGINX untuk menyajikan aset build frontend, bukan meneruskan trafik ke `frontend-dev`.
-- Pastikan `npm run build` selesai lebih dulu agar aset yang dilayani NGINX sesuai dengan source worktree saat ini.
-- Proxy `/api` tetap mengarah ke `backend:3000`, jadi verifikasi gateway tetap dilakukan dari endpoint NGINX yang sama.
+- `frontend-build` memakai target Dockerfile `artifacts`, menjalankan `npm ci` dan `npm run build`, lalu menyalin output `build/` ke volume `frontend_dist`.
+- Build staging-like di Docker menerima build args eksplisit `API_BASE_URL=/api`, `APP_ENVIRONMENT=staging`, `DEBUG_MODE=false`, dan `LOG_LEVEL=info`; workflow ini tidak bergantung pada `.env` lokal di build context.
+- Service `nginx-staging` menunggu marker artifact dari `frontend-build` sebelum menyajikan aset build frontend.
+- Proxy `/api` tetap mengarah ke `backend:3005`, jadi verifikasi gateway tetap dilakukan dari endpoint NGINX yang sama.
 
 ##### C. Stop commands
 
@@ -386,7 +378,7 @@ Untuk menghentikan stack:
 docker compose down
 ```
 
-Untuk menghentikan stack sekaligus menghapus volume database lokal:
+Untuk menghentikan stack sekaligus menghapus volume lokal Compose:
 
 ```bash
 docker compose down -v

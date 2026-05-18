@@ -25,4 +25,4 @@ WORKDIR /artifacts
 
 COPY --from=build /app/build ./build
 
-CMD ["sh", "-lc", "rm -rf /shared/* && cp -r /artifacts/build/. /shared && touch /shared/.ready && tail -f /dev/null"]
+CMD ["sh", "-lc", "rm -rf /shared/* /shared/.[!.]* /shared/..?* && cp -r /artifacts/build/. /shared && touch /shared/.ready && tail -f /dev/null"]

@@ -158,6 +158,9 @@ module.exports = {
       "process.env.REMEMBER_ME_DAYS": JSON.stringify(
         process.env.REMEMBER_ME_DAYS || "7",
       ),
+      "process.env.AUTH_CLIENT_TYPE": JSON.stringify(
+        process.env.AUTH_CLIENT_TYPE || "web",
+      ),
       "process.env.DEFAULT_LANGUAGE": JSON.stringify(
         process.env.DEFAULT_LANGUAGE || "id",
       ),

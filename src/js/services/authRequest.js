@@ -1,4 +1,5 @@
 import axios from "axios";
+import { AUTH_CONFIG } from "../config/env.js";
 import {
   createProtectedRequestExecutor,
   classifyAuthFailure,
@@ -12,19 +13,25 @@ import {
 const runProtectedRequest = createProtectedRequestExecutor({
   executeRefresh: refreshSession,
   classifyFailure: classifyAuthFailure,
-  onForcedReauth: forceReauthenticate,
+  onForcedReauth: (_error, options) => forceReauthenticate(options),
 });
 
+function omitAuthorizationHeader(headers = {}) {
+  return Object.fromEntries(
+    Object.entries(headers).filter(([key]) => key.toLowerCase() !== "authorization"),
+  );
+}
+
 export function buildAuthRequestConfig(config = {}, resolveAuthHeaders = buildAuthRequestHeaders) {
-  const callerHeaders = config?.headers || {};
-  const canonicalAuthHeaders = resolveAuthHeaders() || {};
+  const callerHeaders = omitAuthorizationHeader(config?.headers || {});
+  const canonicalAuthHeaders = omitAuthorizationHeader(resolveAuthHeaders() || {});
 
   return {
     ...config,
     withCredentials: true,
     headers: {
       ...callerHeaders,
-      "X-Client-Type": "web-fe",
+      ...AUTH_CONFIG.CLIENT_HEADERS,
       ...canonicalAuthHeaders,
     },
   };

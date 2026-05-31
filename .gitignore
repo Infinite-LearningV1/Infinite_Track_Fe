@@ -14,3 +14,4 @@ memory-bank
 .claude/
 .worktrees/
 .remember/
+.claude-dev-server.log

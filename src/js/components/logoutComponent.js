@@ -221,7 +221,14 @@ async function performLogout() {
     showLogoutLoading();
 
     // Call logout service
-    await logout(); // Update Alpine.js store
+    const storageCleared = await logout();
+    if (!storageCleared) {
+      const cleanupError = new Error("Data sesi di browser gagal dibersihkan.");
+      cleanupError.code = "AUTH_STORAGE_CLEANUP_FAILED";
+      throw cleanupError;
+    }
+
+    // Update Alpine.js store
     updateAlpineStoreOnLogout();
 
     // Close loading modal
@@ -237,7 +244,21 @@ async function performLogout() {
     console.error("Logout error:", error);
 
     // Show error message
-    showLogoutError(error.message);
+    showLogoutErrorSafely(error.message);
+
+    if (error.code === "AUTH_STORAGE_CLEANUP_FAILED") {
+      updateAlpineStoreOnLogout(error.message);
+      forceLogout({
+        redirectNotice: {
+          type: "warning",
+          title: "Logout perlu perhatian",
+          message: error.message,
+          timeoutMs: 6000,
+          reason: "storage_cleanup_failed",
+        },
+      });
+      return;
+    }
 
     // Force logout anyway (clear local data)
     forceLogout();
@@ -302,6 +323,14 @@ function showLogoutLoading() {
  * Show logout error message
  * @param {string} errorMessage - Error message to display
  */
+function showLogoutErrorSafely(errorMessage) {
+  try {
+    showLogoutError(errorMessage);
+  } catch (error) {
+    console.error("Logout error alert failed:", error);
+  }
+}
+
 function showLogoutError(errorMessage) {
   // Close loading modal terlebih dahulu
   const loadingModal = document.getElementById("logout-loading-modal");
@@ -331,18 +360,29 @@ function showLogoutError(errorMessage) {
 /**
  * Update Alpine.js store on logout
  */
-function updateAlpineStoreOnLogout() {
-  if (typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
-    Alpine.store("auth").clearAuth();
-    console.log("Alpine.js auth store cleared on logout");
+function updateAlpineStoreOnLogout(errorMessage = null) {
+  if (typeof Alpine === "undefined" || !Alpine.store) {
+    return;
   }
+
+  const authStore = Alpine.store("auth");
+  if (!authStore) {
+    return;
+  }
+
+  authStore.user = null;
+  authStore.isAuthenticated = false;
+  authStore.sessionState = "unauthenticated";
+  authStore.error = errorMessage;
+  authStore.isLoading = false;
+  console.log("Alpine.js auth store cleared on logout");
 }
 
 /**
  * Force logout (clear local data without API call)
  */
-function forceLogout() {
-  forceReauthenticate().catch((error) => {
+function forceLogout(options = {}) {
+  forceReauthenticate(options).catch((error) => {
     console.error("Force logout error:", error);
     window.location.href = "/signin.html";
   });

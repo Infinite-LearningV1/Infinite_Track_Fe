@@ -38,13 +38,16 @@ import {
   forceReauthenticate,
 } from "./services/authService.js";
 import {
+  buildForcedReauthRedirectNotice,
+  classifyAuthFailure,
   clearAuthRedirectNotice,
+  createAuthSessionSyncController,
   persistAuthRedirectNotice,
   readAuthRedirectNotice,
 } from "./services/authSessionRuntime.js";
 import { getUserFromStorage } from "./utils/storageManager.js";
 import { initAuthStore } from "./stores/authStore.js";
-import { initAuthGuard } from "./utils/authGuard.js";
+import { initAuthGuard, isProtectedPage as isAuthProtectedPage } from "./utils/authGuard.js";
 import { initRoleBasedAccess } from "./utils/roleBasedAccess.js";
 import { formatDate } from "./utils/dateTimeFormatter.js";
 import { userListAlpineData } from "./features/userManagement/userListSimple.js";
@@ -88,12 +91,18 @@ function showAuthRedirectNoticeOnSignin() {
     return;
   }
 
+  const requestedTimeout = Number(redirectNotice.timeoutMs) || 4000;
+  const timeoutMs =
+    redirectNotice.reason === "inactivity_expired"
+      ? Math.max(requestedTimeout, 6000)
+      : requestedTimeout;
+
   clearAuthRedirectNotice(window.sessionStorage);
   window.showInlineAlert({
     type: redirectNotice.type || "warning",
     title: redirectNotice.title || "Perlu Login",
     message: redirectNotice.message,
-    timeoutMs: 4000,
+    timeoutMs,
   });
 }
 
@@ -372,21 +381,8 @@ async function initializeAuthSession() {
 
   // Check if user is on a protected page
   const currentPath = window.location.pathname;
-  const protectedPages = [
-    "/index.html",
-    "/management-user.html",
-    "/management-booking.html",
-    "/management-attendance.html",
-    "/profile.html",
-    "/calendar.html",
-    "/form-user.html",
-  ];
-
-  // Get page name from path
   const pageName = currentPath.split("/").pop() || "index.html";
-  const isProtectedPage =
-    protectedPages.some((page) => page.includes(pageName)) ||
-    currentPath === "/";
+  const isProtectedPage = isAuthProtectedPage(currentPath);
 
   // If on protected page, check authentication
   if (isProtectedPage) {
@@ -411,6 +407,19 @@ async function initializeAuthSession() {
   }
 
   return "unauthenticated";
+}
+
+function buildSessionExpiredRedirectNotice(error) {
+  const failure = classifyAuthFailure(error);
+
+  return (
+    buildForcedReauthRedirectNotice(failure.reason) || {
+      type: "warning",
+      title: "Sesi Berakhir",
+      message: "Sesi telah berakhir. Silakan login kembali.",
+      timeoutMs: 6000,
+    }
+  );
 }
 
 // Validate user session and sync with Alpine store
@@ -438,22 +447,28 @@ async function validateUserSession() {
 
     sessionStorage.setItem("redirectAfterLogin", window.location.href);
     await forceReauthenticate({
-      redirectNotice: {
-        type: "warning",
-        title: "Sesi Berakhir",
-        message: "Sesi telah berakhir. Silakan login kembali.",
-      },
+      redirectNotice: buildSessionExpiredRedirectNotice(resolution.error),
     });
     return resolution.state;
   } catch (error) {
     console.error("Error validating session:", error);
+
+    const failure = classifyAuthFailure(error);
+    const authStore =
+      typeof Alpine !== "undefined" && Alpine.store ? Alpine.store("auth") : null;
+
+    if (failure.kind === "transport" || failure.kind === "server") {
+      authStore?.setVerificationFailed(getUserFromStorage());
+      window.showInlineAlert?.({
+        type: "warning",
+        message: "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
+      });
+      return "verification_failed";
+    }
+
     sessionStorage.setItem("redirectAfterLogin", window.location.href);
     await forceReauthenticate({
-      redirectNotice: {
-        type: "warning",
-        title: "Sesi Berakhir",
-        message: "Sesi telah berakhir. Silakan login kembali.",
-      },
+      redirectNotice: buildSessionExpiredRedirectNotice(error),
     });
     return "non_refreshable";
   }
@@ -484,9 +499,14 @@ async function validateSigninPageSession() {
   }
 }
 
+const authSessionSync = createAuthSessionSyncController({
+  isProtectedPage: isAuthProtectedPage,
+});
+
 async function bootAuthentication() {
   console.log("Alpine.js started, setting up authentication...");
 
+  authSessionSync.start();
   showAuthRedirectNoticeOnSignin();
   initAuthStore();
   const startupState = await initializeAuthSession();

@@ -7,6 +7,7 @@ import {
   fetchCurrentUser,
   login,
   refreshSession,
+  resolveBootstrapSession,
 } from "../src/js/services/authService.js";
 
 function createStorage(initialData = {}) {
@@ -123,6 +124,73 @@ test("fetchCurrentUser sends X-Client-Type web header without Authorization", as
     assertNoAuthorizationHeader(sentConfig.headers);
   } finally {
     axios.get = originalGet;
+    globalThis.localStorage = originalLocalStorage;
+  }
+});
+
+test("resolveBootstrapSession uses actual auth service refresh path after expired /auth/me", async () => {
+  const originalGet = axios.get;
+  const originalPost = axios.post;
+  const originalLocalStorage = globalThis.localStorage;
+  const sequence = [];
+  let authMeRequestCount = 0;
+
+  globalThis.localStorage = createStorage({
+    authToken: "session-hint",
+  });
+
+  axios.get = async (url, config) => {
+    sequence.push({ method: "GET", url, config });
+    authMeRequestCount += 1;
+
+    if (authMeRequestCount === 1) {
+      const error = new Error("Access token expired");
+      error.response = {
+        status: 401,
+        data: {
+          success: false,
+          code: "AUTH_ACCESS_TOKEN_EXPIRED",
+          message: "Access token expired",
+        },
+      };
+      throw error;
+    }
+
+    return {
+      status: 200,
+      data: {
+        success: true,
+        data: { user: { id: 1, email: "user@example.test" } },
+      },
+    };
+  };
+
+  axios.post = async (url, _payload, config) => {
+    sequence.push({ method: "POST", url, config });
+    return {
+      status: 200,
+      data: {
+        success: true,
+        data: { user: { id: 1, email: "user@example.test" } },
+      },
+    };
+  };
+
+  try {
+    const result = await resolveBootstrapSession();
+
+    assert.equal(result.state, "authenticated");
+    assert.deepEqual(
+      sequence.map(({ method, url }) => `${method} ${url}`),
+      ["GET /api/auth/me", "POST /api/auth/refresh", "GET /api/auth/me"],
+    );
+    sequence.forEach(({ config }) => {
+      assert.equal(config.headers["X-Client-Type"], "web");
+      assertNoAuthorizationHeader(config.headers);
+    });
+  } finally {
+    axios.get = originalGet;
+    axios.post = originalPost;
     globalThis.localStorage = originalLocalStorage;
   }
 });

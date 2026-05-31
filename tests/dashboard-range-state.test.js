@@ -1,0 +1,102 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  buildDashboardRangeRequestParams,
+  createDefaultDashboardRange,
+  validateDashboardRange,
+} from "../src/js/components/dashboardRange/dashboardRange.js";
+
+test("createDefaultDashboardRange returns 30d as default", () => {
+  assert.deepEqual(createDefaultDashboardRange(), {
+    period: "30d",
+    from: null,
+    to: null,
+  });
+});
+
+test("validateDashboardRange accepts current_month without dates", () => {
+  assert.deepEqual(
+    validateDashboardRange({ period: "current_month", from: null, to: null }),
+    {
+      isValid: true,
+      message: "",
+    },
+  );
+});
+
+test("validateDashboardRange rejects custom without from/to", () => {
+  assert.deepEqual(
+    validateDashboardRange({ period: "custom", from: null, to: null }),
+    {
+      isValid: false,
+      message: "Custom period requires both from and to dates",
+    },
+  );
+});
+
+test("validateDashboardRange rejects custom window longer than 31 days", () => {
+  assert.deepEqual(
+    validateDashboardRange({
+      period: "custom",
+      from: "2026-05-01",
+      to: "2026-06-01",
+    }),
+    {
+      isValid: false,
+      message: "Date range cannot exceed 31 days",
+    },
+  );
+});
+
+test("validateDashboardRange rejects invalid custom date format", () => {
+  assert.deepEqual(
+    validateDashboardRange({
+      period: "custom",
+      from: "2026/05/01",
+      to: "2026-05-30",
+    }),
+    {
+      isValid: false,
+      message: "Invalid date format",
+    },
+  );
+});
+
+test("validateDashboardRange rejects reversed custom range", () => {
+  assert.deepEqual(
+    validateDashboardRange({
+      period: "custom",
+      from: "2026-05-30",
+      to: "2026-05-01",
+    }),
+    {
+      isValid: false,
+      message: "To date must be on or after from date",
+    },
+  );
+});
+
+test("buildDashboardRangeRequestParams returns only period for 30d", () => {
+  assert.deepEqual(
+    buildDashboardRangeRequestParams({ period: "30d", from: null, to: null }),
+    {
+      period: "30d",
+    },
+  );
+});
+
+test("buildDashboardRangeRequestParams returns period with from/to for custom", () => {
+  assert.deepEqual(
+    buildDashboardRangeRequestParams({
+      period: "custom",
+      from: "2026-05-01",
+      to: "2026-05-30",
+    }),
+    {
+      period: "custom",
+      from: "2026-05-01",
+      to: "2026-05-30",
+    },
+  );
+});

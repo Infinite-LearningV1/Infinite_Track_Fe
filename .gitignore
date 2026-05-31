@@ -1,5 +1,4 @@
 node_modules
-package-lock.json
 /build
 memory-bank
 
@@ -12,6 +11,16 @@ memory-bank
 
 # Claude Code / worktrees
 .claude/
+!.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/codex-trigger-matrix/
+!.claude/skills/codex-trigger-matrix/SKILL.md
+!.claude/skills/codex-review-summary/
+!.claude/skills/codex-review-summary/SKILL.md
+!.claude/skills/codex-pr-readiness/
+!.claude/skills/codex-pr-readiness/SKILL.md
 .worktrees/
 .remember/
 .claude-dev-server.log

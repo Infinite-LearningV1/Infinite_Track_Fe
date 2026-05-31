@@ -131,7 +131,7 @@
               </label>
               <p
                 class="font-mono text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.latitude || '-'"
+                x-text="Number.isFinite(selectedUserLocation.latitude) ? selectedUserLocation.latitude : '-'"
               ></p>
             </div>
             <div>
@@ -142,7 +142,7 @@
               </label>
               <p
                 class="font-mono text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.longitude || '-'"
+                x-text="Number.isFinite(selectedUserLocation.longitude) ? selectedUserLocation.longitude : '-'"
               ></p>
             </div>
             <div>
@@ -153,7 +153,7 @@
               </label>
               <p
                 class="text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.radius ? selectedUserLocation.radius + ' m' : '-'"
+                x-text="Number.isFinite(selectedUserLocation.radius) ? selectedUserLocation.radius + ' m' : '-'"
               ></p>
             </div>
             <div x-show="selectedUserLocation.description">
@@ -180,13 +180,13 @@
             <div
               id="mapDetailContainer"
               class="h-full w-full bg-gray-100 dark:bg-gray-800"
-              x-show="selectedUserLocation.latitude && selectedUserLocation.longitude"
+              x-show="Number.isFinite(selectedUserLocation.latitude) && Number.isFinite(selectedUserLocation.longitude)"
             >
               <!-- Map will be rendered here -->
             </div>
             <div
               class="flex h-full w-full items-center justify-center bg-gray-100 dark:bg-gray-800"
-              x-show="!selectedUserLocation.latitude || !selectedUserLocation.longitude"
+              x-show="!Number.isFinite(selectedUserLocation.latitude) || !Number.isFinite(selectedUserLocation.longitude)"
             >
               <div class="text-center">
                 <svg

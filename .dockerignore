@@ -3,8 +3,12 @@ build
 .git
 .github
 .claude
+.worktrees
+.remember
 .vscode
 .env
 .env.*
 npm-debug.log*
 coverage
+testsprite_tests
+.testsprite

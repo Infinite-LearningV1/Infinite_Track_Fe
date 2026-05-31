@@ -39,7 +39,7 @@ InfiniteTrack provides essential UI components and layouts for building feature-
 
 To get started with InfiniteTrack, ensure you have the following prerequisites installed and set up:
 
-- Node.js 18.x or later
+- Node.js 20.x or later
 
 ### Cloning the Repository
 

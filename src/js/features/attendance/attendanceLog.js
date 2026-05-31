@@ -176,7 +176,8 @@ export function attendanceLogAlpineData() {
      */
     changeLimit(newLimit) {
       const parsedLimit = Number(newLimit);
-      this.filters.limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
+      this.filters.limit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
       this.filters.page = 1;
       this.fetchAttendance();
     },

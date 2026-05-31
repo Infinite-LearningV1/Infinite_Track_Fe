@@ -19,7 +19,7 @@
   ></div>
   <!-- Modal Content -->
   <div
-    class="modal-dialog modal-dialog-scrollable modal-lg no-scrollbar relative flex w-full max-w-6xl flex-col overflow-y-auto rounded-3xl bg-white p-6 lg:p-11 dark:bg-gray-900"
+    class="modal-dialog modal-dialog-scrollable modal-lg no-scrollbar relative flex max-h-[calc(100vh-2.5rem)] w-full max-w-7xl flex-col overflow-hidden rounded-3xl bg-white p-6 lg:p-8 dark:bg-gray-900"
     x-transition:enter="transition ease-out duration-300 transform"
     x-transition:enter-start="opacity-0 scale-95"
     x-transition:enter-end="opacity-100 scale-100"
@@ -61,9 +61,11 @@
       </p>
     </div>
     <!-- Modal Body -->
-    <div class="modal-body flex flex-1 flex-col gap-6 lg:flex-row">
+    <div
+      class="modal-body flex min-h-0 flex-1 flex-col gap-6 overflow-hidden lg:flex-row"
+    >
       <!-- Left Panel - User Information -->
-      <div class="flex-1 space-y-6 lg:w-1/2">
+      <div class="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1 lg:w-5/12">
         <!-- User Info -->
         <div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
           <h6 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">
@@ -78,7 +80,7 @@
               </label>
               <p
                 class="text-base font-semibold text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.fullName"
+                x-text="selectedUserLocation.fullName || 'Unavailable'"
               ></p>
             </div>
             <div>
@@ -89,7 +91,7 @@
               </label>
               <p
                 class="text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.email"
+                x-text="selectedUserLocation.email || 'Unavailable'"
               ></p>
             </div>
             <div>
@@ -100,7 +102,7 @@
               </label>
               <p
                 class="text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.position"
+                x-text="selectedUserLocation.roleName || selectedUserLocation.position || 'Unavailable'"
               ></p>
             </div>
             <div>
@@ -111,7 +113,40 @@
               </label>
               <p
                 class="text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.phoneNumber"
+                x-text="selectedUserLocation.phoneNumber || 'Unavailable'"
+              ></p>
+            </div>
+            <div>
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Status Kehadiran
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedUserLocation.status || 'Unavailable'"
+              ></p>
+            </div>
+            <div>
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Tanggal Absensi
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedUserLocation.attendanceDate || 'Unavailable'"
+              ></p>
+            </div>
+            <div>
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Work Mode
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedUserLocation.workMode || selectedUserLocation.mode || 'Unavailable'"
               ></p>
             </div>
           </div>
@@ -131,7 +166,7 @@
               </label>
               <p
                 class="font-mono text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.latitude || '-'"
+                x-text="Number.isFinite(selectedUserLocation.latitude) ? selectedUserLocation.latitude : '-'"
               ></p>
             </div>
             <div>
@@ -142,7 +177,7 @@
               </label>
               <p
                 class="font-mono text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.longitude || '-'"
+                x-text="Number.isFinite(selectedUserLocation.longitude) ? selectedUserLocation.longitude : '-'"
               ></p>
             </div>
             <div>
@@ -153,10 +188,10 @@
               </label>
               <p
                 class="text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.radius ? selectedUserLocation.radius + ' m' : '-'"
+                x-text="Number.isFinite(selectedUserLocation.radius) ? selectedUserLocation.radius + ' m' : '-'"
               ></p>
             </div>
-            <div x-show="selectedUserLocation.description">
+            <div>
               <label
                 class="text-sm font-medium text-gray-600 dark:text-gray-400"
               >
@@ -164,7 +199,29 @@
               </label>
               <p
                 class="text-base text-gray-900 dark:text-white"
-                x-text="selectedUserLocation.description"
+                x-text="selectedUserLocation.description || 'Unavailable'"
+              ></p>
+            </div>
+            <div>
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Sumber Data
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedUserLocation.sourceNote || 'Unavailable'"
+              ></p>
+            </div>
+            <div x-show="selectedUserLocation.trackingNote">
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Catatan Snapshot
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedUserLocation.trackingNote"
               ></p>
             </div>
           </div>
@@ -172,21 +229,21 @@
       </div>
 
       <!-- Right Panel - Map -->
-      <div class="flex-1 lg:w-1/2">
-        <div class="h-full">
+      <div class="flex min-h-0 flex-1 lg:w-7/12">
+        <div class="h-full min-h-[360px] w-full lg:min-h-[420px]">
           <div
-            class="h-full min-h-[500px] overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+            class="h-full min-h-[360px] overflow-hidden rounded-lg border border-gray-200 lg:min-h-[420px] dark:border-gray-700"
           >
             <div
               id="mapDetailContainer"
               class="h-full w-full bg-gray-100 dark:bg-gray-800"
-              x-show="selectedUserLocation.latitude && selectedUserLocation.longitude"
+              x-show="Number.isFinite(selectedUserLocation.latitude) && Number.isFinite(selectedUserLocation.longitude)"
             >
               <!-- Map will be rendered here -->
             </div>
             <div
               class="flex h-full w-full items-center justify-center bg-gray-100 dark:bg-gray-800"
-              x-show="!selectedUserLocation.latitude || !selectedUserLocation.longitude"
+              x-show="!Number.isFinite(selectedUserLocation.latitude) || !Number.isFinite(selectedUserLocation.longitude)"
             >
               <div class="text-center">
                 <svg

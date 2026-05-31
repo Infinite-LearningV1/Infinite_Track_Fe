@@ -94,8 +94,8 @@
           </li>
           <!-- Menu Item Summary Report -->
 
-                   <!-- Menu Item Management -->
-            <li>
+          <!-- Menu Item Management -->
+          <li>
             <a
               href="#"
               @click.prevent="selected = (selected === 'Management' ? '':'Management')"
@@ -103,74 +103,74 @@
               :class=" (selected === 'Management') || (page === 'managementUser' || page === 'managementAttendance' || page === 'managementBooking') ? 'menu-item-active' : 'menu-item-inactive'"
             >
               <svg
-              :class="(selected === 'Management') || (page === 'managementUser' || page === 'managementAttendance' || page === 'managementBooking') ? 'menu-item-icon-active'  :'menu-item-icon-inactive'"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+                :class="(selected === 'Management') || (page === 'managementUser' || page === 'managementAttendance' || page === 'managementBooking') ? 'menu-item-icon-active'  :'menu-item-icon-inactive'"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
               >
-              <path
-              d="M12 3.75C13.2426 3.75 14.25 4.75736 14.25 6C14.25 7.24264 13.2426 8.25 12 8.25C10.7574 8.25 9.75 7.24264 9.75 6C9.75 4.75736 10.7574 3.75 12 3.75Z"
-              stroke="currentColor"
-              stroke-width="1.5"
-              fill="none"
-              />
-              <path
-              d="M5.5 11.25C6.19036 11.25 6.75 11.8096 6.75 12.5C6.75 13.1904 6.19036 13.75 5.5 13.75C4.80964 13.75 4.25 13.1904 4.25 12.5C4.25 11.8096 4.80964 11.25 5.5 11.25Z"
-              stroke="currentColor"
-              stroke-width="1.5"
-              fill="none"
-              />
-              <path
-              d="M18.5 11.25C19.1904 11.25 19.75 11.8096 19.75 12.5C19.75 13.1904 19.1904 13.75 18.5 13.75C17.8096 13.75 17.25 13.1904 17.25 12.5C17.25 11.8096 17.8096 11.25 18.5 11.25Z"
-              stroke="currentColor"
-              stroke-width="1.5"
-              fill="none"
-              />
-              <path
-              d="M7.25 17.25C7.25 14.3505 9.60051 12 12.5 12H11.5C14.3995 12 16.75 14.3505 16.75 17.25V18.25C16.75 18.6642 16.4142 19 16 19H8C7.58579 19 7.25 18.6642 7.25 18.25V17.25Z"
-              stroke="currentColor"
-              stroke-width="1.5"
-              fill="none"
-              />
-              <path
-              d="M2.75 18.5C2.75 17.6716 3.42157 17 4.25 17H6.25"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              />
-              <path
-              d="M21.25 18.5C21.25 17.6716 20.5784 17 19.75 17H17.75"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              />
+                <path
+                  d="M12 3.75C13.2426 3.75 14.25 4.75736 14.25 6C14.25 7.24264 13.2426 8.25 12 8.25C10.7574 8.25 9.75 7.24264 9.75 6C9.75 4.75736 10.7574 3.75 12 3.75Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  fill="none"
+                />
+                <path
+                  d="M5.5 11.25C6.19036 11.25 6.75 11.8096 6.75 12.5C6.75 13.1904 6.19036 13.75 5.5 13.75C4.80964 13.75 4.25 13.1904 4.25 12.5C4.25 11.8096 4.80964 11.25 5.5 11.25Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  fill="none"
+                />
+                <path
+                  d="M18.5 11.25C19.1904 11.25 19.75 11.8096 19.75 12.5C19.75 13.1904 19.1904 13.75 18.5 13.75C17.8096 13.75 17.25 13.1904 17.25 12.5C17.25 11.8096 17.8096 11.25 18.5 11.25Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  fill="none"
+                />
+                <path
+                  d="M7.25 17.25C7.25 14.3505 9.60051 12 12.5 12H11.5C14.3995 12 16.75 14.3505 16.75 17.25V18.25C16.75 18.6642 16.4142 19 16 19H8C7.58579 19 7.25 18.6642 7.25 18.25V17.25Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  fill="none"
+                />
+                <path
+                  d="M2.75 18.5C2.75 17.6716 3.42157 17 4.25 17H6.25"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M21.25 18.5C21.25 17.6716 20.5784 17 19.75 17H17.75"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
               </svg>
 
               <span
-              class="menu-item-text"
-              :class="sidebarToggle ? 'lg:hidden' : ''"
+                class="menu-item-text"
+                :class="sidebarToggle ? 'lg:hidden' : ''"
               >
-              Management
+                Management
               </span>
 
               <svg
-              class="menu-item-arrow absolute top-1/2 right-2.5 -translate-y-1/2 stroke-current"
-              :class="[(selected === 'Management') ? 'menu-item-arrow-active' : 'menu-item-arrow-inactive', sidebarToggle ? 'lg:hidden' : '' ]"
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+                class="menu-item-arrow absolute top-1/2 right-2.5 -translate-y-1/2 stroke-current"
+                :class="[(selected === 'Management') ? 'menu-item-arrow-active' : 'menu-item-arrow-inactive', sidebarToggle ? 'lg:hidden' : '' ]"
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
               >
-              <path
-              d="M4.79175 7.39584L10.0001 12.6042L15.2084 7.39585"
-              stroke=""
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              />
+                <path
+                  d="M4.79175 7.39584L10.0001 12.6042L15.2084 7.39585"
+                  stroke=""
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </a>
 
@@ -215,11 +215,6 @@
             <!-- Dropdown Menu End -->
           </li>
           <!-- Menu Item Management -->
-
-
-        </ul>
-            </a>
-          </li>
         </ul>
       </div>
 
@@ -376,7 +371,8 @@
               </span>
             </a>
           </li>
-          <!-- Menu Item Calendar -->          <!-- Menu Item Profile - HIDDEN -->
+          <!-- Menu Item Calendar -->
+          <!-- Menu Item Profile - HIDDEN -->
           <!--
           <li>
             <a
@@ -412,7 +408,7 @@
           -->
           <!-- Menu Item Profile - HIDDEN -->
 
-            <!-- Menu Item Pages -->
+          <!-- Menu Item Pages -->
           <li>
             <a
               href="#"

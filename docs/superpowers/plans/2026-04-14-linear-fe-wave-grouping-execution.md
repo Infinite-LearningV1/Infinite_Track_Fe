@@ -37,11 +37,13 @@
 ## FE detection rule for execution
 
 Treat an issue as a **FE candidate** if at least one of these is true:
+
 - issue team name or key contains `fe`, `frontend`, `front-end`, `web`, or `ui`
 - any issue label contains `fe`, `frontend`, `front-end`, `web`, or `ui`
 - the issue title or description clearly describes browser UI behavior and does **not** read as backend-only, mobile-only, infra-only, or data-only work
 
 Treat an issue as **ambiguous** instead of force-including it if:
+
 - it lacks FE team/label markers
 - and the title/description does not make the FE surface obvious
 
@@ -50,6 +52,7 @@ Ambiguous issues must be tracked in the local report and the Linear document und
 ## Output contract
 
 The final report must contain all three layers from the design spec:
+
 1. **Wave summary**
 2. **Detailed wave breakdown**
 3. **Cross-wave issue ledger**
@@ -76,12 +79,14 @@ The Linear document title must use this exact format:
 ### Task 1: Discover the Linear workspace surfaces used for FE grouping
 
 **Files:**
+
 - Create: `docs/superpowers/reports/2026-04-14-linear-fe-wave-grouping-report.md`
 - Test: none
 
 - [ ] **Step 1: List Linear teams and capture FE-relevant candidates**
 
 Use this tool call:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__list_teams",
@@ -94,6 +99,7 @@ Use this tool call:
 ```
 
 Expected:
+
 - a complete team list for the active workspace
 - FE-likely teams are identifiable by `name` or `key`
 - no Linear data is modified
@@ -101,6 +107,7 @@ Expected:
 - [ ] **Step 2: List issue labels and capture FE-related label markers**
 
 Use this tool call:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__list_issue_labels",
@@ -112,6 +119,7 @@ Use this tool call:
 ```
 
 Expected:
+
 - the workspace label list is available
 - FE-relevant markers such as `frontend`, `fe`, `web`, or `ui` can be recorded if they exist
 - no Linear data is modified
@@ -124,13 +132,16 @@ Write this exact starter content into `docs/superpowers/reports/2026-04-14-linea
 # FE Wave Grouping Report — 2026-04-14
 
 ## Scope
+
 - Surface: Web FE only
 - Included states: backlog, todo, in progress
 - Grouping model: transaction-chain first, release-order second
 - Cross-chain rule: 1 primary wave, optional linked waves
 
 ## FE detection markers
+
 ### Team markers
+
 - fe
 - frontend
 - front-end
@@ -138,6 +149,7 @@ Write this exact starter content into `docs/superpowers/reports/2026-04-14-linea
 - ui
 
 ### Label markers
+
 - fe
 - frontend
 - front-end
@@ -145,23 +157,27 @@ Write this exact starter content into `docs/superpowers/reports/2026-04-14-linea
 - ui
 
 ## Raw issue pool
+
 | Issue | Team | State | FE Signal | Candidate Chain | Notes |
-|---|---|---|---|---|---|
+| ----- | ---- | ----- | --------- | --------------- | ----- |
 
 ## Wave summary
 
 ## Wave details
 
 ## Cross-wave issue ledger
+
 | Issue | Primary Wave | Linked Waves | Reason |
-|---|---|---|---|
+| ----- | ------------ | ------------ | ------ |
 
 ## Ambiguous issues for manual review
+
 | Issue | Team | State | Why ambiguous |
-|---|---|---|---|
+| ----- | ---- | ----- | ------------- |
 ```
 
 Expected:
+
 - the report file exists locally
 - the execution has a stable place to accumulate findings
 
@@ -174,12 +190,14 @@ Do not create a commit in this task. This task only creates the local execution 
 ### Task 2: Pull the active/open issue universe and isolate FE candidates
 
 **Files:**
+
 - Modify: `docs/superpowers/reports/2026-04-14-linear-fe-wave-grouping-report.md`
 - Test: none
 
 - [ ] **Step 1: Page through all non-archived issues in the workspace**
 
 Start with this tool call:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__list_issues",
@@ -192,6 +210,7 @@ Start with this tool call:
 ```
 
 If a cursor is returned, continue with:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__list_issues",
@@ -205,12 +224,14 @@ If a cursor is returned, continue with:
 ```
 
 Expected:
+
 - every active workspace issue is retrieved across all pages
 - no issue is skipped because of team-only assumptions
 
 - [ ] **Step 2: Filter the workspace issue pool down to active/open states only**
 
 Keep only issues whose normalized state name is one of:
+
 ```text
 backlog
 todo
@@ -218,17 +239,20 @@ in progress
 ```
 
 Normalize by:
+
 - lowercasing
 - trimming whitespace
 - converting repeated spaces to a single space
 
 Expected:
+
 - completed/canceled issues are fully excluded
 - the remaining set represents the active/open pool only
 
 - [ ] **Step 3: Apply the FE detection rule and separate candidates from ambiguous items**
 
 Use this exact decision order for each active/open issue:
+
 ```text
 1. If team marker matches FE keywords -> include as FE candidate
 2. Else if any label matches FE keywords -> include as FE candidate
@@ -238,12 +262,14 @@ Use this exact decision order for each active/open issue:
 ```
 
 Expected:
+
 - FE candidate set is deterministic
 - ambiguous issues are preserved for review instead of silently discarded
 
 - [ ] **Step 4: Fetch full details for every FE candidate and every ambiguous item**
 
 For each retained issue identifier, call:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__get_issue",
@@ -256,24 +282,30 @@ For each retained issue identifier, call:
 ```
 
 Expected:
+
 - each retained issue now has full description, labels, relations, and branch metadata if present
 - enough detail exists to classify transaction chains and dependencies
 
 - [ ] **Step 5: Populate the Raw issue pool and Ambiguous issues tables in the report**
 
 Append one row per FE candidate to:
+
 ```md
 ## Raw issue pool
+
 | Issue | Team | State | FE Signal | Candidate Chain | Notes |
 ```
 
 Append one row per ambiguous issue to:
+
 ```md
 ## Ambiguous issues for manual review
+
 | Issue | Team | State | Why ambiguous |
 ```
 
 Expected:
+
 - the local report contains the full candidate set before wave assignment begins
 
 - [ ] **Step 6: Commit**
@@ -285,12 +317,14 @@ Do not create a commit in this task. This task only records the fetched Linear d
 ### Task 3: Classify each FE issue into transaction-chain-first waves
 
 **Files:**
+
 - Modify: `docs/superpowers/reports/2026-04-14-linear-fe-wave-grouping-report.md`
 - Test: none
 
 - [ ] **Step 1: Derive the chain taxonomy from the retrieved issue set**
 
 Use this exact starter taxonomy and only keep entries that are actually needed by the fetched issues:
+
 ```text
 auth/session establishment
 profile/bootstrap
@@ -305,12 +339,14 @@ admin/operations UI support
 ```
 
 Expected:
+
 - every FE candidate can be mapped to one of the observed chains
 - unused starter chains can be omitted from the final report
 
 - [ ] **Step 2: Assign one candidate chain and one primary wave to every non-ambiguous issue**
 
 For each FE candidate, answer these questions in order:
+
 ```text
 1. What transaction outcome changes if this issue ships?
 2. Which API contract or transaction step is most directly affected?
@@ -319,12 +355,14 @@ For each FE candidate, answer these questions in order:
 ```
 
 Expected:
+
 - every classified issue has exactly one primary wave
 - no issue has two primary owners
 
 - [ ] **Step 3: Identify linked waves for cross-chain issues**
 
 If an issue materially affects more than one chain, record this exact structure:
+
 ```md
 - Primary Wave: FE Wave N — <wave name>
 - Linked Waves: FE Wave X — <wave name>, FE Wave Y — <wave name>
@@ -332,12 +370,14 @@ If an issue materially affects more than one chain, record this exact structure:
 ```
 
 Expected:
+
 - cross-chain visibility is preserved
 - ownership remains singular
 
 - [ ] **Step 4: Mark issues that still cannot be cleanly classified as manual-review items**
 
 Move any issue that fails the primary-wave decision to the ambiguous section with one exact reason from this list:
+
 ```text
 insufficient issue description
 conflicting multi-surface scope
@@ -346,15 +386,18 @@ unclear transaction-chain owner
 ```
 
 Expected:
+
 - no weak or guessed assignment is forced into the final waves
 
 - [ ] **Step 5: Update the Raw issue pool rows with candidate chain and wave notes**
 
 For each classified issue, fill in:
+
 - `Candidate Chain`
 - `Notes` with `Primary: FE Wave N` and any linked-wave note
 
 Expected:
+
 - the raw table becomes traceable back to the final wave output
 
 - [ ] **Step 6: Commit**
@@ -366,14 +409,17 @@ Do not create a commit in this task. This task only refines the local classifica
 ### Task 4: Build the final wave output and sequence it for delivery
 
 **Files:**
+
 - Modify: `docs/superpowers/reports/2026-04-14-linear-fe-wave-grouping-report.md`
 - Test: none
 
 - [ ] **Step 1: Collapse the classified issue set into concrete waves**
 
 Every final wave entry must use this exact structure:
+
 ```md
 ### FE Wave N — <wave name>
+
 - Objective: <one sentence>
 - Transaction Chain / API Contract: <primary chain>
 - Primary Issues:
@@ -390,13 +436,16 @@ Every final wave entry must use this exact structure:
 ```
 
 Expected:
+
 - every wave is readable without reopening each issue one-by-one
 
 - [ ] **Step 2: Write the top-level wave summary in release order**
 
 Use this exact section shape:
+
 ```md
 ## Wave summary
+
 1. **FE Wave 1 — <name>**
    - Objective: <one sentence>
    - Issue count: <number>
@@ -408,25 +457,30 @@ Use this exact section shape:
 ```
 
 Expected:
+
 - the release order is immediately visible
 - dependency sequencing is explicit
 
 - [ ] **Step 3: Write the cross-wave issue ledger**
 
 Use this exact table shape:
+
 ```md
 ## Cross-wave issue ledger
-| Issue | Primary Wave | Linked Waves | Reason |
-|---|---|---|---|
+
+| Issue   | Primary Wave                   | Linked Waves               | Reason                         |
+| ------- | ------------------------------ | -------------------------- | ------------------------------ |
 | LIN-123 | FE Wave 2 — Payment Submission | FE Wave 3 — Payment Result | Shared status polling contract |
 ```
 
 Expected:
+
 - every multi-chain issue is visible in one place
 
 - [ ] **Step 4: Run the definition-of-done QA pass against the report**
 
 Verify this exact checklist:
+
 ```text
 - all FE issues in backlog/todo/in progress are classified or explicitly marked ambiguous
 - every classified issue has exactly one primary wave
@@ -437,6 +491,7 @@ Verify this exact checklist:
 ```
 
 Expected:
+
 - the report is complete enough to publish back to Linear without hidden gaps
 
 - [ ] **Step 5: Commit**
@@ -448,12 +503,14 @@ Do not create a commit in this task. This task finalizes the local wave output o
 ### Task 5: Publish the grouped output into Linear as the canonical wave document
 
 **Files:**
+
 - Modify: `docs/superpowers/reports/2026-04-14-linear-fe-wave-grouping-report.md`
 - Test: Linear document retrieval
 
 - [ ] **Step 1: Check whether the canonical Linear document already exists**
 
 Use this tool call:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__list_documents",
@@ -467,12 +524,14 @@ Use this tool call:
 ```
 
 Expected:
+
 - either an exact-title match exists and can be updated
 - or no match exists and a new document must be created
 
 - [ ] **Step 2: Create or update the Linear document with the final report content**
 
 If no exact match exists, create it with:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__create_document",
@@ -484,6 +543,7 @@ If no exact match exists, create it with:
 ```
 
 If the document already exists, update it with:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__update_document",
@@ -496,20 +556,24 @@ If the document already exists, update it with:
 ```
 
 Expected:
+
 - Linear now contains a canonical FE wave-grouping document
 - the document content matches the local report exactly
 
 - [ ] **Step 3: Record the resulting document ID and URL in the local report footer**
 
 Append this exact section to the local report once the document exists:
+
 ```md
 ## Linear publication
+
 - Document title: 2026-04-14 FE Wave Grouping
 - Document ID: <document id>
 - Published: yes
 ```
 
 Expected:
+
 - the local report points back to the authoritative Linear document
 
 - [ ] **Step 4: Commit**
@@ -521,12 +585,14 @@ Do not create a commit in this task. This task publishes the output to Linear on
 ### Task 6: Write wave assignments back to each issue as comments
 
 **Files:**
+
 - Modify: none locally unless the report footer needs counts updated
 - Test: issue comment retrieval by re-listing comments
 
 - [ ] **Step 1: Build the exact comment body for each classified issue**
 
 For every classified issue, instantiate this exact template:
+
 ```md
 Wave assignment — 2026-04-14
 
@@ -537,11 +603,13 @@ Wave assignment — 2026-04-14
 ```
 
 Expected:
+
 - each issue has a deterministic, human-readable assignment payload
 
 - [ ] **Step 2: Post the assignment comment to every classified issue**
 
 Use this tool call per issue:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__save_comment",
@@ -553,30 +621,36 @@ Use this tool call per issue:
 ```
 
 Expected:
+
 - every classified issue now carries its primary wave assignment in Linear
 - no issue title, description, or state is mutated
 
 - [ ] **Step 3: Do not post assignment comments to ambiguous issues**
 
 For ambiguous issues, leave the issue unchanged and rely on the Linear document section:
+
 ```md
 ## Ambiguous issues for manual review
 ```
 
 Expected:
+
 - only confident classifications are written back to issues
 - ambiguous items remain reviewable without noisy or incorrect comments
 
 - [ ] **Step 4: Update the local report with publication counts**
 
 Append this exact section to the local report footer:
+
 ```md
 ## Publication counts
+
 - Classified issues commented: <number>
 - Ambiguous issues skipped: <number>
 ```
 
 Expected:
+
 - the local report and Linear output remain auditable
 
 - [ ] **Step 5: Commit**
@@ -588,12 +662,14 @@ Do not create a commit in this task. These are Linear-side execution records, no
 ### Task 7: Verify the published Linear state before declaring completion
 
 **Files:**
+
 - Modify: `docs/superpowers/reports/2026-04-14-linear-fe-wave-grouping-report.md` only if verification notes need to be appended
 - Test: Linear document and issue comment verification
 
 - [ ] **Step 1: Re-open the published Linear document and verify the content is present**
 
 Use this tool call:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__get_document",
@@ -604,12 +680,14 @@ Use this tool call:
 ```
 
 Expected:
+
 - the document title is `2026-04-14 FE Wave Grouping`
 - the published content contains wave summary, wave details, and cross-wave ledger
 
 - [ ] **Step 2: Sample at least one issue from each final wave and verify the comment exists**
 
 For each sampled issue, run:
+
 ```json
 {
   "tool": "mcp__plugin_linear_linear__list_comments",
@@ -622,20 +700,24 @@ For each sampled issue, run:
 ```
 
 Expected:
+
 - the latest comments include the `Wave assignment — 2026-04-14` body
 - the primary wave and release order match the published document
 
 - [ ] **Step 3: Append the verification note to the local report**
 
 Append this exact footer section:
+
 ```md
 ## Verification
+
 - Linear document re-opened: yes
 - Sample issue comments verified: yes
 - Completion status: ready for user review
 ```
 
 Expected:
+
 - the local report includes evidence that publication really happened
 
 - [ ] **Step 4: Commit**
@@ -647,6 +729,7 @@ Do not create a commit in this task unless the user explicitly requests repo per
 ## Spec coverage check
 
 This plan covers every requirement from `docs/superpowers/specs/2026-04-14-linear-fe-wave-grouping-design.md`:
+
 - FE-only scope -> Tasks 1-2
 - backlog/todo/in progress filtering -> Task 2
 - transaction-chain-first grouping -> Task 3
@@ -660,6 +743,7 @@ This plan covers every requirement from `docs/superpowers/specs/2026-04-14-linea
 ## Placeholder scan
 
 No `TODO`, `TBD`, or deferred implementation markers remain in this plan. Every step has:
+
 - exact tool calls or exact markdown shapes
 - expected outcomes
 - concrete stopping rules for ambiguity
@@ -667,6 +751,7 @@ No `TODO`, `TBD`, or deferred implementation markers remain in this plan. Every 
 ## Type consistency check
 
 The plan uses one consistent vocabulary throughout:
+
 - `Primary Wave`
 - `Linked Waves`
 - `Release Order`

@@ -1,0 +1,26 @@
+const OPERATIONAL_SETTING_KEYS = [
+  "GEOFENCE_RADIUS_DEFAULT_M",
+  "AUTO_CHECKOUT_IDLE_MIN",
+  "AUTO_CHECKOUT_TBUFFER_MIN",
+  "LATE_CHECKOUT_TOLERANCE_MIN",
+  "DEFAULT_SHIFT_END",
+];
+
+const INTEGER_OPERATIONAL_SETTING_KEYS = [
+  "GEOFENCE_RADIUS_DEFAULT_M",
+  "AUTO_CHECKOUT_IDLE_MIN",
+  "AUTO_CHECKOUT_TBUFFER_MIN",
+  "LATE_CHECKOUT_TOLERANCE_MIN",
+];
+
+function createEmptyBackendOperationalSettingsDraft() {
+  return Object.fromEntries(
+    OPERATIONAL_SETTING_KEYS.map((key) => [key, ""]),
+  );
+}
+
+export {
+  OPERATIONAL_SETTING_KEYS,
+  INTEGER_OPERATIONAL_SETTING_KEYS,
+  createEmptyBackendOperationalSettingsDraft,
+};

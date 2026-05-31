@@ -21,6 +21,7 @@
 ### Task 1: Make the runtime contract flexible at Node 20+
 
 **Files:**
+
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/package.json:1-66`
 - Delete: `E:/skrisi/clonefee/Infinite_Track_Fe/.nvmrc`
 - Test: runtime-contract inspection via Node and file reads
@@ -28,6 +29,7 @@
 - [ ] **Step 1: Capture the current pinned-20 state**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- package.json .nvmrc
 python - <<'PY'
@@ -41,7 +43,9 @@ if (root / ".nvmrc").exists():
     print("nvmrc value:", (root / ".nvmrc").read_text().strip())
 PY
 ```
+
 Expected:
+
 - Output shows the repo is currently pinned to `>=20 <21` and `.nvmrc` contains `20`.
 
 - [ ] **Step 2: Relax the engine contract to `>=20`**
@@ -67,6 +71,7 @@ with this block:
 Delete `E:/skrisi/clonefee/Infinite_Track_Fe/.nvmrc` entirely.
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -76,13 +81,16 @@ if path.exists():
 print("removed .nvmrc")
 PY
 ```
+
 Expected:
+
 - Script prints `removed .nvmrc`.
 - The file no longer exists.
 
 - [ ] **Step 4: Verify the flexible runtime contract reads back correctly**
 
 Run:
+
 ```bash
 python - <<'PY'
 import json
@@ -94,22 +102,28 @@ assert not (root / ".nvmrc").exists(), ".nvmrc should be removed"
 print("runtime contract ok: >=20 and no exact local pin")
 PY
 ```
+
 Expected:
+
 - Script prints `runtime contract ok: >=20 and no exact local pin`.
 
 - [ ] **Step 5: Commit the runtime-contract change**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add package.json .nvmrc
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "chore: relax runtime contract to node 20+"
 ```
+
 Expected:
+
 - One commit containing the `package.json` change and the `.nvmrc` removal.
 
 ### Task 2: Align repo-level runtime documentation to Node 20+
 
 **Files:**
+
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/README.md:36-67`
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/DEPLOYMENT.md:16-20`
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/DEPLOYMENT.md:312-320`
@@ -118,6 +132,7 @@ Expected:
 - [ ] **Step 1: Capture the current Node 20-only wording**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -132,7 +147,9 @@ for path in files:
             print(f"{i}: {line}")
 PY
 ```
+
 Expected:
+
 - Output shows the current exact wording that still implies Node 20 specifically.
 
 - [ ] **Step 2: Update the README prerequisite to Node 20 or later**
@@ -178,6 +195,7 @@ The example stays on Node 20 because it is the minimum supported baseline, even 
 - [ ] **Step 4: Verify repo-level docs now describe a 20+ policy**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -190,22 +208,28 @@ assert "node:20-alpine" in deploy
 print("repo-level runtime docs aligned to node 20+")
 PY
 ```
+
 Expected:
+
 - Script prints `repo-level runtime docs aligned to node 20+`.
 
 - [ ] **Step 5: Commit the runtime-doc alignment**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add README.md DEPLOYMENT.md
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "docs: describe node 20 plus runtime policy"
 ```
+
 Expected:
+
 - One commit containing only the repo-level runtime doc updates.
 
 ### Task 3: Run a smoke validation on the active Node 20+ runtime
 
 **Files:**
+
 - Modify if needed: `E:/skrisi/clonefee/Infinite_Track_Fe/package-lock.json`
 - Modify if a real compatibility issue is proven: `E:/skrisi/clonefee/Infinite_Track_Fe/package.json`
 - Test: `node -v`, `npm install`, and `npm run build`
@@ -213,6 +237,7 @@ Expected:
 - [ ] **Step 1: Require the active runtime to be Node 20 or newer**
 
 Run:
+
 ```bash
 node - <<'JS'
 const major = Number(process.versions.node.split('.')[0]);
@@ -223,37 +248,48 @@ if (major < 20) {
 console.log(`Using ${process.version}`);
 JS
 ```
+
 Expected:
+
 - Command prints `Using v20...`, `Using v22...`, `Using v24...`, or another `>=20` version.
 - If it prints a lower version, stop and switch the shell/session before going further.
 
 - [ ] **Step 2: Run a real install on the active runtime**
 
 Run:
+
 ```bash
 npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" install
 ```
+
 Expected:
+
 - Install completes successfully on the active Node 20+ runtime.
 - `package-lock.json` may change to reflect install metadata or dependency resolution.
 
 - [ ] **Step 3: Run the production build on the active runtime**
 
 Run:
+
 ```bash
 npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" run build
 ```
+
 Expected:
+
 - Build completes successfully.
 - If install/build exposes a real compatibility issue, fix only the package needed to resolve that issue.
 
 - [ ] **Step 4: Inspect whether the smoke validation changed only lock metadata or exposed a real compatibility issue**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- package.json package-lock.json
 ```
+
 Expected:
+
 - Best case: only `package-lock.json` changes, or no diff at all.
 - If `package.json` changes beyond the `engines` block from Task 1, there must be a clear install/build reason tied to compatibility.
 
@@ -267,6 +303,7 @@ git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "chore: smoke test node 
 ```
 
 Expected:
+
 - A commit is created only when verification produced a real repo change.
 - If there is no diff, do not create a commit just for the smoke check.
 

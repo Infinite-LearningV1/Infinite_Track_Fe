@@ -479,6 +479,56 @@ function createCleanupFailingStorage(seed = {}) {
   };
 }
 
+test("auth store initialization preserves signin redirect session artifacts", () => {
+  const originalAlpine = globalThis.Alpine;
+  const originalLocalStorage = globalThis.localStorage;
+  const originalWindow = globalThis.window;
+
+  const localStorageRef = createMemoryStorage({ authToken: "" });
+  const sessionStorageRef = createMemoryStorage({
+    redirectAfterLogin: "/reports.html#summary",
+    authRedirectNotice: JSON.stringify({ message: "Silakan login lagi" }),
+    sessionVerificationState: "pending",
+  });
+  const stores = {};
+
+  globalThis.Alpine = {
+    store(name, value) {
+      if (value !== undefined) {
+        stores[name] = value;
+      }
+
+      return stores[name];
+    },
+  };
+  globalThis.localStorage = localStorageRef;
+  globalThis.window = {
+    localStorage: localStorageRef,
+    sessionStorage: sessionStorageRef,
+  };
+
+  try {
+    initAuthStore();
+
+    assert.equal(stores.auth.user, null);
+    assert.equal(stores.auth.isAuthenticated, false);
+    assert.equal(stores.auth.sessionState, "unauthenticated");
+    assert.equal(
+      sessionStorageRef.getItem("redirectAfterLogin"),
+      "/reports.html#summary",
+    );
+    assert.equal(
+      sessionStorageRef.getItem("authRedirectNotice"),
+      JSON.stringify({ message: "Silakan login lagi" }),
+    );
+    assert.equal(sessionStorageRef.getItem("sessionVerificationState"), "pending");
+  } finally {
+    globalThis.Alpine = originalAlpine;
+    globalThis.localStorage = originalLocalStorage;
+    globalThis.window = originalWindow;
+  }
+});
+
 test("auth store keeps token-only session hint for backend bootstrap", () => {
   const originalAlpine = globalThis.Alpine;
   const originalLocalStorage = globalThis.localStorage;

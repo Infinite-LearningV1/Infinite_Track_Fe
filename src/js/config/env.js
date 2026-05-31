@@ -12,7 +12,6 @@ const ENV_VALUES = {
   APP_ENVIRONMENT: process.env.APP_ENVIRONMENT,
   SESSION_TIMEOUT: process.env.SESSION_TIMEOUT,
   REMEMBER_ME_DAYS: process.env.REMEMBER_ME_DAYS,
-  AUTH_CLIENT_TYPE: process.env.AUTH_CLIENT_TYPE,
   DEFAULT_LANGUAGE: process.env.DEFAULT_LANGUAGE,
   TIMEZONE: process.env.TIMEZONE,
   DEBUG_MODE: process.env.DEBUG_MODE,
@@ -38,6 +37,10 @@ export const API_CONFIG = {
 
   get LOGOUT_URL() {
     return `${this.AUTH_URL}/logout`;
+  },
+
+  get REFRESH_URL() {
+    return `${this.AUTH_URL}/refresh`;
   },
 
   get REGISTER_URL() {
@@ -66,7 +69,7 @@ export const AUTH_CONFIG = {
   SESSION_TIMEOUT: parseInt(readEnv("SESSION_TIMEOUT", "3600000"), 10) || 3600000, // 1 hour in ms
   REMEMBER_ME_DAYS: parseInt(readEnv("REMEMBER_ME_DAYS", "7"), 10) || 7,
   CLIENT_TYPE_HEADER: "X-Client-Type",
-  CLIENT_TYPE: readEnv("AUTH_CLIENT_TYPE", "web"),
+  CLIENT_TYPE: "web",
 
   get CLIENT_HEADERS() {
     return {

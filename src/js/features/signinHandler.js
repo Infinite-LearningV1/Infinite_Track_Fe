@@ -5,7 +5,6 @@
 
 import {
   login,
-  getCurrentUser,
   hasSessionHint,
   resolveBootstrapSession,
 } from "../services/authService.js";
@@ -17,11 +16,15 @@ import {
 function showAuthRedirectNotice() {
   const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
 
-  if (
-    !redirectNotice?.message ||
-    typeof window.showInlineAlert !== "function"
-  ) {
+  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
     return;
+  }
+
+  const requestedTimeout = Number(redirectNotice.timeoutMs) || 4000;
+  let timeoutMs = requestedTimeout;
+
+  if (redirectNotice.reason === "inactivity_expired") {
+    timeoutMs = Math.max(requestedTimeout, 6000);
   }
 
   clearAuthRedirectNotice(window.sessionStorage);
@@ -29,19 +32,8 @@ function showAuthRedirectNotice() {
     type: redirectNotice.type || "warning",
     title: redirectNotice.title || "Perlu Login",
     message: redirectNotice.message,
-    timeoutMs: 4000,
+    timeoutMs,
   });
-}
-
-function shouldAutoInitSigninHandler(doc = document) {
-  const form = doc.querySelector("form");
-  const emailInput = doc.getElementById("email");
-  const passwordInput = doc.querySelector("#password");
-  const submitButton = doc.querySelector(
-    'button[type="submit"], form button:last-of-type',
-  );
-
-  return Boolean(form && emailInput && passwordInput && submitButton);
 }
 
 /**
@@ -49,10 +41,6 @@ function shouldAutoInitSigninHandler(doc = document) {
  * Menginisialisasi event listeners dan validasi form
  */
 function initSigninHandler() {
-  if (!shouldAutoInitSigninHandler()) {
-    return;
-  }
-
   showAuthRedirectNotice();
 
   // Tunggu hingga DOM fully loaded
@@ -71,7 +59,9 @@ function setupSigninForm() {
 
   const form = document.querySelector("form");
   const emailInput = document.getElementById("email");
-  const passwordInput = document.querySelector("#password");
+  const passwordInput = document.querySelector(
+    'input[type="password"], input[x-bind\\:type]',
+  );
   const submitButton = document.querySelector(
     'button[type="submit"], form button:last-of-type',
   );
@@ -146,8 +136,10 @@ function setupSigninForm() {
       // Simpan preferensi remember me
       if (rememberMe) {
         localStorage.setItem("rememberMe", "true");
+        localStorage.setItem("rememberedEmail", email);
       } else {
         localStorage.removeItem("rememberMe");
+        localStorage.removeItem("rememberedEmail");
       }
 
       // Redirect ke dashboard atau halaman yang sesuai
@@ -394,10 +386,7 @@ function resolveStoredRedirectTarget(redirectValue) {
       pathname: parsedUrl.pathname,
     };
   } catch (error) {
-    console.warn(
-      "Invalid redirectAfterLogin value, ignoring redirect target",
-      error,
-    );
+    console.warn("Invalid redirectAfterLogin value, ignoring redirect target", error);
     return null;
   }
 }
@@ -419,30 +408,23 @@ async function redirectAfterLogin({
       const resolution = await resolveBootstrapSession();
       if (resolution.state === "authenticated") {
         verifiedUser = resolution.user || null;
-      } else if (
-        !(resolution.state === "verification_failed" && loginJustSucceeded)
-      ) {
+      } else if (!loginJustSucceeded) {
         return;
       }
     } catch (error) {
-      console.warn(
-        "Bootstrap session resolution failed before redirect",
-        error,
-      );
+      console.warn("Bootstrap session resolution failed before redirect", error);
       if (!loginJustSucceeded) {
         return;
       }
     }
   }
 
-  // Get current user data to determine role
-  const userData =
-    verifiedUser || loginUser || (getCurrentUser ? getCurrentUser() : null);
+  const userData = verifiedUser || loginUser || null;
 
   // Cek jika ada URL redirect yang disimpan
-  const redirectUrl =
-    localStorage.getItem("redirectAfterLogin") ||
-    sessionStorage.getItem("redirectAfterLogin");
+  const currentTabRedirectUrl = sessionStorage.getItem("redirectAfterLogin");
+  const sharedRedirectUrl = localStorage.getItem("redirectAfterLogin");
+  const redirectUrl = currentTabRedirectUrl || sharedRedirectUrl;
   const redirectTarget = resolveStoredRedirectTarget(redirectUrl);
 
   if (redirectTarget) {
@@ -450,29 +432,25 @@ async function redirectAfterLogin({
     localStorage.removeItem("redirectAfterLogin");
     sessionStorage.removeItem("redirectAfterLogin");
 
-    // Check if user has access to the requested page
-    if (userData && userData.role_name && window.RoleBasedAccess) {
-      const hasAccess = window.RoleBasedAccess.hasPageAccess(
-        redirectTarget.pathname,
-      );
+    const hasPageAccessForUser = window.RoleBasedAccess?.hasPageAccessForUser;
+
+    if (userData?.role_name && typeof hasPageAccessForUser === "function") {
+      const hasAccess = hasPageAccessForUser(redirectTarget.pathname, userData);
 
       if (hasAccess) {
-        // User has access, redirect to requested URL
         window.location.href = redirectTarget.targetHref;
         return;
-      } else {
-        // User doesn't have access, redirect based on role
-        console.log(
-          `User role ${userData.role_name} doesn't have access to ${redirectTarget.pathname}, redirecting based on role`,
-        );
-        if (redirectBasedOnRole) {
-          redirectBasedOnRole(userData.role_name);
-          return;
-        }
       }
+
+      console.log(
+        `User role ${userData.role_name} doesn't have access to ${redirectTarget.pathname}, redirecting based on role`,
+      );
     } else {
-      // Fallback to requested URL if role checking is not available
-      window.location.href = redirectTarget.targetHref;
+      console.warn("Skipping stored redirectAfterLogin target because RBAC user access check is unavailable");
+    }
+
+    if (userData?.role_name && redirectBasedOnRole) {
+      redirectBasedOnRole(userData.role_name);
       return;
     }
   }
@@ -581,7 +559,6 @@ const SigninHandler = {
 
 // Export untuk penggunaan sebagai module
 export {
-  shouldAutoInitSigninHandler,
   initSigninHandler,
   showError,
   clearError,

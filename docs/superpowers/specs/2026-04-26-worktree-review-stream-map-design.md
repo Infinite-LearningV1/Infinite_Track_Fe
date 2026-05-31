@@ -129,13 +129,13 @@ Fokus pada design-only artifacts, helper worktrees, atau branch yang belum cukup
 ## Readiness Model
 Setiap worktree/stream dinilai dengan empat status:
 
-- **R1 — Review-ready now**  
+- **R1 — Review-ready now**
   Scope jelas, diff koheren, blocker rendah.
-- **R2 — Review-ready after fold**  
+- **R2 — Review-ready after fold**
   Target stream sudah jelas, tetapi masih butuh menyerap atau membandingkan source lain.
-- **R3 — Needs cleanup before review**  
+- **R3 — Needs cleanup before review**
   Scope masih mixed atau verification gap terlalu besar.
-- **R4 — Support/parking only**  
+- **R4 — Support/parking only**
   Bukan kandidat PR final saat ini.
 
 ## Concrete Worktree Mapping

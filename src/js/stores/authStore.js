@@ -4,15 +4,19 @@
  */
 
 import {
+  clearAuthStorage,
   getUserFromStorage,
-  removeUserFromStorage,
 } from "../utils/storageManager.js";
 import {
   fetchCurrentUser,
+  forceReauthenticate,
   hasSessionHint,
   resolveBootstrapSession,
 } from "../services/authService.js";
-import { clearAuthArtifacts } from "../services/authSessionRuntime.js";
+import {
+  buildForcedReauthRedirectNotice,
+  classifyAuthFailure,
+} from "../services/authSessionRuntime.js";
 
 /**
  * Initialize Authentication Store untuk Alpine.js
@@ -69,6 +73,13 @@ function initAuthStore() {
           this.isAuthenticated = false;
           this.sessionState = "unauthenticated";
           console.log("User data loaded from storage:", userData);
+        } else if (hasSessionHint()) {
+          this.user = null;
+          this.isAuthenticated = false;
+          this.sessionState = "unauthenticated";
+          this.error = null;
+          this.isLoading = false;
+          console.log("Auth session hint loaded without cached user data");
         } else {
           this.clearAuth();
         }
@@ -109,9 +120,29 @@ function initAuthStore() {
       this.sessionState = "unauthenticated";
       this.error = null;
       this.isLoading = false;
-      clearAuthArtifacts(window.localStorage, window.sessionStorage);
-      removeUserFromStorage();
+
+      const storageCleared = clearAuthStorage();
+      if (!storageCleared) {
+        this.error = "Data sesi di browser gagal dibersihkan.";
+        console.error("Auth store storage cleanup failed");
+        return false;
+      }
+
       console.log("Auth store cleared");
+      return true;
+    },
+
+    buildSessionExpiredRedirectNotice(error) {
+      const failure = classifyAuthFailure(error);
+
+      return (
+        buildForcedReauthRedirectNotice(failure.reason) || {
+          type: "warning",
+          title: "Sesi Berakhir",
+          message: "Sesi telah berakhir. Silakan login kembali.",
+          timeoutMs: 6000,
+        }
+      );
     },
 
     async refreshUser() {
@@ -129,11 +160,22 @@ function initAuthStore() {
           return;
         }
 
-        this.clearAuth();
+        await forceReauthenticate({
+          redirectNotice: this.buildSessionExpiredRedirectNotice(resolution.error),
+        });
       } catch (error) {
         console.error("Error refreshing user:", error);
         this.setError(error.message);
-        this.clearAuth();
+
+        const failure = classifyAuthFailure(error);
+        if (failure.kind === "transport" || failure.kind === "server") {
+          this.setVerificationFailed(this.user || getUserFromStorage());
+          return;
+        }
+
+        await forceReauthenticate({
+          redirectNotice: this.buildSessionExpiredRedirectNotice(error),
+        });
       } finally {
         this.setLoading(false);
       }

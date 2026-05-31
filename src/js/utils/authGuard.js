@@ -3,7 +3,11 @@
  * Middleware untuk mengecek autentikasi dan redirect jika diperlukan
  */
 
-import { getCurrentUser, hasSessionHint } from "../services/authService.js";
+import { hasSessionHint } from "../services/authService.js";
+import {
+  isProtectedPage as isProtectedRolePage,
+  normalizePagePath,
+} from "./roleBasedAccess.js";
 
 function getAuthStore() {
   if (typeof Alpine === "undefined" || !Alpine.store) {
@@ -25,60 +29,25 @@ function initAuthGuard() {
  * Check authentication status dan redirect jika diperlukan
  */
 function checkAuthentication() {
-  const currentPath = window.location.pathname;
-  const currentPage = getCurrentPageFromPath(currentPath);
+  const currentPage = normalizePagePath(window.location.pathname);
   const authStore = getAuthStore();
 
   console.log("Auth guard checking page:", currentPage);
 
-  if (authStore?.sessionState === "verification_failed") {
-    console.log(
-      "Auth verification failed at startup, skipping auth guard enforcement",
-    );
-    return;
-  }
-
-  // Jika di halaman protected dan tidak ada indikasi sesi, redirect ke signin
   if (isProtectedPage(currentPage) && !hasSessionHint()) {
     console.log("Session hint missing, redirecting to signin");
-
-    // Simpan current URL untuk redirect setelah login
     sessionStorage.setItem("redirectAfterLogin", window.location.href);
-
     window.location.href = "/signin.html";
     return;
   }
 
-  // Sync Alpine store jika user tersedia
-  if (getCurrentUser()) {
-    updateAlpineAuthStore();
+  if (authStore?.sessionState === "verification_failed") {
+    console.log("Auth verification failed at startup, keeping protected UI in restricted mode");
   }
+
+  updateAlpineAuthStore();
 
   console.log("Auth guard check completed");
-}
-
-/**
- * Get current page from URL path
- * @param {string} path - URL path
- * @returns {string} - Normalized page path
- */
-function getCurrentPageFromPath(path) {
-  // Handle root path
-  if (path === "/" || path === "") {
-    return "/index.html";
-  }
-
-  // Handle paths without .html extension
-  if (!path.includes(".") && !path.endsWith("/")) {
-    return path + ".html";
-  }
-
-  // Handle paths ending with /
-  if (path.endsWith("/")) {
-    return path + "index.html";
-  }
-
-  return path;
 }
 
 /**
@@ -87,21 +56,7 @@ function getCurrentPageFromPath(path) {
  * @returns {boolean} - True if page is protected
  */
 function isProtectedPage(page) {
-  const protectedPages = [
-    "/index.html",
-    "/profile.html",
-    "/management-user.html",
-    "/management-booking.html",
-    "/management-attendance.html",
-    "/calendar.html",
-    "/form-user.html",
-    "/alerts.html",
-    "/badge.html",
-    "/buttons.html",
-    "/blank.html",
-  ];
-
-  return protectedPages.includes(page);
+  return isProtectedRolePage(page);
 }
 
 /**
@@ -114,9 +69,8 @@ function updateAlpineAuthStore() {
     return;
   }
 
-  const userData = getCurrentUser();
-  if (authStore && userData) {
-    authStore.setUser(userData);
+  if (authStore?.isAuthenticated !== true) {
+    return;
   }
 }
 
@@ -154,12 +108,11 @@ function hasPermission(permission) {
     return false;
   }
 
-  const userData = authStore?.user ?? getCurrentUser();
-  if (!userData || !userData.permissions) {
+  if (authStore?.isAuthenticated !== true || !authStore.user?.permissions) {
     return false;
   }
 
-  return userData.permissions.includes(permission);
+  return authStore.user.permissions.includes(permission);
 }
 
 /**
@@ -172,6 +125,11 @@ function requirePermission(permission, callback, onDenied = null) {
   const authStore = getAuthStore();
 
   if (authStore?.sessionState === "verification_failed") {
+    if (onDenied) {
+      onDenied();
+    } else {
+      alert("Sesi belum bisa diverifikasi. Coba lagi saat koneksi atau server sudah stabil.");
+    }
     return;
   }
 
@@ -219,3 +177,4 @@ export default AuthGuard;
 if (typeof window !== "undefined") {
   window.AuthGuard = AuthGuard;
 }
+

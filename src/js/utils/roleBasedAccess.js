@@ -3,11 +3,6 @@
  * Middleware untuk validasi hak akses berdasarkan role user
  */
 
-import {
-  forceReauthenticate,
-  getCurrentUser,
-  hasSessionHint,
-} from "../services/authService.js";
 
 function getAuthStore() {
   if (typeof Alpine === "undefined" || !Alpine.store) {
@@ -15,6 +10,16 @@ function getAuthStore() {
   }
 
   return Alpine.store("auth");
+}
+
+function getVerifiedUser() {
+  const authStore = getAuthStore();
+
+  if (authStore?.sessionState === "verification_failed") {
+    return null;
+  }
+
+  return authStore?.isAuthenticated === true ? authStore.user : null;
 }
 
 /**
@@ -54,36 +59,51 @@ const PAGE_PERMISSIONS = {
   "/blank.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
 };
 
+const PROTECTED_PAGES = Object.freeze(Object.keys(PAGE_PERMISSIONS));
+
+function normalizePagePath(path) {
+  if (path === "/" || path === "") {
+    return "/index.html";
+  }
+
+  const pathname = path.startsWith("/") ? path : `/${path}`;
+
+  if (pathname.endsWith("/")) {
+    return `${pathname}index.html`;
+  }
+
+  if (!pathname.includes(".")) {
+    return `${pathname}.html`;
+  }
+
+  return pathname;
+}
+
+function isProtectedPage(page) {
+  return PROTECTED_PAGES.includes(normalizePagePath(page));
+}
+
 /**
  * Check if user has access to specific page
  * @param {string} page - Page path
  * @returns {boolean} - True if user has access
  */
-function hasPageAccess(page) {
-  const authStore = getAuthStore();
-
-  if (authStore?.sessionState === "verification_failed") {
+function hasPageAccessForUser(page, userData) {
+  const normalizedPage = normalizePagePath(page);
+  if (!userData?.role_name) {
     return false;
   }
 
-  if (!hasSessionHint()) {
-    return false;
-  }
-
-  const userData = authStore?.user ?? getCurrentUser();
-  if (!userData || !userData.role_name) {
-    return false;
-  }
-
-  const userRole = userData.role_name;
-  const allowedRoles = PAGE_PERMISSIONS[page];
-
+  const allowedRoles = PAGE_PERMISSIONS[normalizedPage];
   if (!allowedRoles) {
-    // Jika page tidak terdefinisi, default allow untuk backward compatibility
-    return true;
+    return false;
   }
 
-  return allowedRoles.includes(userRole);
+  return allowedRoles.includes(userData.role_name);
+}
+
+function hasPageAccess(page) {
+  return hasPageAccessForUser(page, getVerifiedUser());
 }
 
 /**
@@ -267,21 +287,8 @@ function setupAccessDeniedEventListeners(modal, userRole) {
       // Import logout function from authService
       const { logout: authLogout } = await import("../services/authService.js");
 
-      // Call the proper logout function
       await authLogout();
 
-      // Clear additional session data
-      sessionStorage.clear();
-
-      // Clear remember me preferences
-      localStorage.removeItem("rememberMe");
-      localStorage.removeItem("rememberedEmail");
-
-      // Clear any redirect URLs
-      localStorage.removeItem("redirectAfterLogin");
-      sessionStorage.removeItem("redirectAfterLogin");
-
-      // Update Alpine.js store if available
       if (
         typeof Alpine !== "undefined" &&
         Alpine.store &&
@@ -298,6 +305,8 @@ function setupAccessDeniedEventListeners(modal, userRole) {
       }, 300);
     } catch (error) {
       console.error("Logout error:", error);
+
+      const { forceReauthenticate } = await import("../services/authService.js");
 
       closeModal();
       await forceReauthenticate();
@@ -336,41 +345,32 @@ function setupAccessDeniedEventListeners(modal, userRole) {
  * Initialize role-based access control
  */
 function initRoleBasedAccess() {
-  // Jalankan hanya saat dipanggil explicit dari startup boot path
-  // Get current page
-  const currentPath = window.location.pathname;
-  const currentPage = currentPath === "/" ? "/index.html" : currentPath;
+  const currentPage = normalizePagePath(window.location.pathname);
   const authStore = getAuthStore();
 
   console.log("Checking role-based access for page:", currentPage);
 
+  if (!isProtectedPage(currentPage)) {
+    return;
+  }
+
   if (authStore?.sessionState === "verification_failed") {
-    console.log(
-      "Auth verification failed at startup, skipping RBAC enforcement",
-    );
+    console.log("Auth verification failed at startup, deferring RBAC enforcement");
     return;
   }
 
-  // Check if user is authenticated
-  if (!hasSessionHint()) {
-    console.log("User not authenticated");
-    return;
-  }
-
-  const userData = authStore?.user ?? getCurrentUser();
-  if (!userData || !userData.role_name) {
-    console.log("No user data or role found");
+  const userData = getVerifiedUser();
+  if (!userData?.role_name) {
+    console.log("No backend-verified user data or role found");
     return;
   }
 
   const userRole = userData.role_name;
   console.log("User role:", userRole);
 
-  // Check page access
   if (!hasPageAccess(currentPage)) {
     console.log(`Access denied for role ${userRole} to page ${currentPage}`);
 
-    // Special handling for dashboard access
     if (currentPage === "/index.html") {
       if (userRole === ROLES.INTERNSHIP || userRole === ROLES.EMPLOYEE) {
         showAccessDenied(userRole);
@@ -378,7 +378,6 @@ function initRoleBasedAccess() {
       }
     }
 
-    // For other pages, redirect to appropriate page
     redirectBasedOnRole(userRole);
     return;
   }
@@ -391,18 +390,8 @@ function initRoleBasedAccess() {
  * @returns {boolean} - True if user can access dashboard
  */
 function canAccessDashboard() {
-  const authStore = getAuthStore();
-
-  if (authStore?.sessionState === "verification_failed") {
-    return false;
-  }
-
-  if (!hasSessionHint()) {
-    return false;
-  }
-
-  const userData = authStore?.user ?? getCurrentUser();
-  if (!userData || !userData.role_name) {
+  const userData = getVerifiedUser();
+  if (!userData?.role_name) {
     return false;
   }
 
@@ -414,7 +403,11 @@ function canAccessDashboard() {
 export {
   ROLES,
   PAGE_PERMISSIONS,
+  PROTECTED_PAGES,
+  normalizePagePath,
+  isProtectedPage,
   hasPageAccess,
+  hasPageAccessForUser,
   redirectBasedOnRole,
   showAccessDenied,
   initRoleBasedAccess,
@@ -425,10 +418,15 @@ export {
 if (typeof window !== "undefined") {
   window.RoleBasedAccess = {
     ROLES,
+    PROTECTED_PAGES,
+    normalizePagePath,
+    isProtectedPage,
     hasPageAccess,
+    hasPageAccessForUser,
     redirectBasedOnRole,
     showAccessDenied,
     initRoleBasedAccess,
     canAccessDashboard,
   };
 }
+

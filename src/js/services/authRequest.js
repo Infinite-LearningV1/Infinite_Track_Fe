@@ -1,38 +1,37 @@
 import axios from "axios";
+import { AUTH_CONFIG } from "../config/env.js";
 import {
   createProtectedRequestExecutor,
   classifyAuthFailure,
 } from "./authSessionRuntime.js";
-import { buildAuthRequestHeaders, forceReauthenticate } from "./authService.js";
-
-const SESSION_EXPIRED_NOTICE = {
-  type: "warning",
-  title: "Sesi Berakhir",
-  message: "Sesi telah berakhir. Silakan login kembali.",
-};
+import {
+  buildAuthRequestHeaders,
+  forceReauthenticate,
+  refreshSession,
+} from "./authService.js";
 
 const runProtectedRequest = createProtectedRequestExecutor({
+  executeRefresh: refreshSession,
   classifyFailure: classifyAuthFailure,
-  onForcedReauth: () =>
-    forceReauthenticate({
-      preserveRedirectAfterLogin: globalThis.location?.href ?? undefined,
-      redirectNotice: SESSION_EXPIRED_NOTICE,
-    }),
+  onForcedReauth: (_error, options) => forceReauthenticate(options),
 });
 
-export function buildAuthRequestConfig(
-  config = {},
-  resolveAuthHeaders = buildAuthRequestHeaders,
-) {
-  const callerHeaders = config?.headers || {};
-  const canonicalAuthHeaders = resolveAuthHeaders() || {};
+function omitAuthorizationHeader(headers = {}) {
+  return Object.fromEntries(
+    Object.entries(headers).filter(([key]) => key.toLowerCase() !== "authorization"),
+  );
+}
+
+export function buildAuthRequestConfig(config = {}, resolveAuthHeaders = buildAuthRequestHeaders) {
+  const callerHeaders = omitAuthorizationHeader(config?.headers || {});
+  const canonicalAuthHeaders = omitAuthorizationHeader(resolveAuthHeaders() || {});
 
   return {
     ...config,
     withCredentials: true,
     headers: {
       ...callerHeaders,
-      "X-Client-Type": "web-fe",
+      ...AUTH_CONFIG.CLIENT_HEADERS,
       ...canonicalAuthHeaders,
     },
   };

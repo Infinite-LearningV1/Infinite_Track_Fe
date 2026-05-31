@@ -38,19 +38,18 @@ import {
   forceReauthenticate,
 } from "./services/authService.js";
 import {
+  buildForcedReauthRedirectNotice,
+  classifyAuthFailure,
   clearAuthRedirectNotice,
+  createAuthSessionSyncController,
   persistAuthRedirectNotice,
   readAuthRedirectNotice,
 } from "./services/authSessionRuntime.js";
 import { getUserFromStorage } from "./utils/storageManager.js";
 import { initAuthStore } from "./stores/authStore.js";
-import { initAuthGuard } from "./utils/authGuard.js";
+import { initAuthGuard, isProtectedPage as isAuthProtectedPage } from "./utils/authGuard.js";
 import { initRoleBasedAccess } from "./utils/roleBasedAccess.js";
 import { formatDate } from "./utils/dateTimeFormatter.js";
-import {
-  firstFiniteMapNumber,
-  hasFiniteCoordinates,
-} from "./utils/mapLocationTruth.js";
 import { userListAlpineData } from "./features/userManagement/userListSimple.js";
 import { userFormAlpineData } from "./features/userManagement/userForm.js";
 import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
@@ -88,19 +87,22 @@ function showAuthRedirectNoticeOnSignin() {
 
   const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
 
-  if (
-    !redirectNotice?.message ||
-    typeof window.showInlineAlert !== "function"
-  ) {
+  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
     return;
   }
+
+  const requestedTimeout = Number(redirectNotice.timeoutMs) || 4000;
+  const timeoutMs =
+    redirectNotice.reason === "inactivity_expired"
+      ? Math.max(requestedTimeout, 6000)
+      : requestedTimeout;
 
   clearAuthRedirectNotice(window.sessionStorage);
   window.showInlineAlert({
     type: redirectNotice.type || "warning",
     title: redirectNotice.title || "Perlu Login",
     message: redirectNotice.message,
-    timeoutMs: 4000,
+    timeoutMs,
   });
 }
 
@@ -113,51 +115,44 @@ Alpine.data("mapDetailModalState", () => ({
     email: "",
     position: "",
     phoneNumber: "",
-    status: "",
-    attendanceDate: "",
-    workMode: "",
     latitude: null,
     longitude: null,
     radius: null,
     description: "",
-    sourceNote: "",
-    trackingNote: "",
   },
   openMapDetailModal(user) {
+    // Set user location data
     this.selectedUserLocation = {
       id: user.id,
       fullName: user.fullName || user.full_name || "",
       email: user.email || "",
       position: user.position || user.position_name || "",
       phoneNumber: user.phoneNumber || user.phone || user.phone_number || "",
-      status: user.status || "",
-      attendanceDate: user.attendanceDate || user.attendance_date || "",
-      workMode: user.workMode || user.information || "",
-      latitude: firstFiniteMapNumber(
-        user.latitude,
-        user.location?.latitude,
-        user.lat,
-      ),
-      longitude: firstFiniteMapNumber(
-        user.longitude,
-        user.location?.longitude,
-        user.lng,
-        user.lon,
-      ),
-      radius: firstFiniteMapNumber(user.radius, user.location?.radius),
+      latitude: user.latitude || user.location?.latitude || user.lat || null,
+      longitude:
+        user.longitude ||
+        user.location?.longitude ||
+        user.lng ||
+        user.lon ||
+        null,
+      radius: user.radius || user.location?.radius || null,
       description:
         user.description || user.location?.description || user.address || "",
-      sourceNote: user.sourceNote || user.source_note || "",
-      trackingNote: user.trackingNote || user.tracking_note || "",
     };
 
+    // Debug log untuk membantu troubleshooting
     console.log("Opening map detail modal for user:", user);
     console.log("Mapped location data:", this.selectedUserLocation);
 
+    // Open modal regardless of coordinates availability
     this.isMapDetailModalOpen = true;
 
+    // Initialize map only if coordinates are available
     this.$nextTick(() => {
-      if (hasFiniteCoordinates(this.selectedUserLocation)) {
+      if (
+        this.selectedUserLocation.latitude &&
+        this.selectedUserLocation.longitude
+      ) {
         window.mapDetailModal.initializeMap(this.selectedUserLocation);
       }
     });
@@ -174,15 +169,10 @@ Alpine.data("mapDetailModalState", () => ({
       email: "",
       position: "",
       phoneNumber: "",
-      status: "",
-      attendanceDate: "",
-      workMode: "",
       latitude: null,
       longitude: null,
       radius: null,
       description: "",
-      sourceNote: "",
-      trackingNote: "",
     };
   },
 }));
@@ -391,21 +381,8 @@ async function initializeAuthSession() {
 
   // Check if user is on a protected page
   const currentPath = window.location.pathname;
-  const protectedPages = [
-    "/index.html",
-    "/management-user.html",
-    "/management-booking.html",
-    "/management-attendance.html",
-    "/profile.html",
-    "/calendar.html",
-    "/form-user.html",
-  ];
-
-  // Get page name from path
   const pageName = currentPath.split("/").pop() || "index.html";
-  const isProtectedPage =
-    protectedPages.some((page) => page.includes(pageName)) ||
-    currentPath === "/";
+  const isProtectedPage = isAuthProtectedPage(currentPath);
 
   // If on protected page, check authentication
   if (isProtectedPage) {
@@ -432,15 +409,26 @@ async function initializeAuthSession() {
   return "unauthenticated";
 }
 
+function buildSessionExpiredRedirectNotice(error) {
+  const failure = classifyAuthFailure(error);
+
+  return (
+    buildForcedReauthRedirectNotice(failure.reason) || {
+      type: "warning",
+      title: "Sesi Berakhir",
+      message: "Sesi telah berakhir. Silakan login kembali.",
+      timeoutMs: 6000,
+    }
+  );
+}
+
 // Validate user session and sync with Alpine store
 async function validateUserSession() {
   try {
     const storedUser = getUserFromStorage();
     const resolution = await resolveBootstrapSession();
     const authStore =
-      typeof Alpine !== "undefined" && Alpine.store
-        ? Alpine.store("auth")
-        : null;
+      typeof Alpine !== "undefined" && Alpine.store ? Alpine.store("auth") : null;
 
     if (resolution.state === "authenticated") {
       authStore?.setUser(resolution.user);
@@ -452,30 +440,35 @@ async function validateUserSession() {
 
       window.showInlineAlert?.({
         type: "warning",
-        message:
-          "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
+        message: "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
       });
       return resolution.state;
     }
 
     sessionStorage.setItem("redirectAfterLogin", window.location.href);
     await forceReauthenticate({
-      redirectNotice: {
-        type: "warning",
-        title: "Sesi Berakhir",
-        message: "Sesi telah berakhir. Silakan login kembali.",
-      },
+      redirectNotice: buildSessionExpiredRedirectNotice(resolution.error),
     });
     return resolution.state;
   } catch (error) {
     console.error("Error validating session:", error);
+
+    const failure = classifyAuthFailure(error);
+    const authStore =
+      typeof Alpine !== "undefined" && Alpine.store ? Alpine.store("auth") : null;
+
+    if (failure.kind === "transport" || failure.kind === "server") {
+      authStore?.setVerificationFailed(getUserFromStorage());
+      window.showInlineAlert?.({
+        type: "warning",
+        message: "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
+      });
+      return "verification_failed";
+    }
+
     sessionStorage.setItem("redirectAfterLogin", window.location.href);
     await forceReauthenticate({
-      redirectNotice: {
-        type: "warning",
-        title: "Sesi Berakhir",
-        message: "Sesi telah berakhir. Silakan login kembali.",
-      },
+      redirectNotice: buildSessionExpiredRedirectNotice(error),
     });
     return "non_refreshable";
   }
@@ -506,23 +499,25 @@ async function validateSigninPageSession() {
   }
 }
 
+const authSessionSync = createAuthSessionSyncController({
+  isProtectedPage: isAuthProtectedPage,
+});
+
 async function bootAuthentication() {
   console.log("Alpine.js started, setting up authentication...");
 
+  authSessionSync.start();
   showAuthRedirectNoticeOnSignin();
+  initAuthStore();
   const startupState = await initializeAuthSession();
 
-  if (
-    startupState !== "verification_failed" &&
-    startupState !== "redirecting"
-  ) {
+  if (startupState !== "verification_failed" && startupState !== "redirecting") {
     initAuthGuard();
     initRoleBasedAccess();
   }
 }
 
 // Initialize Alpine.js with authentication
-initAuthStore();
 Alpine.start();
 bootAuthentication();
 

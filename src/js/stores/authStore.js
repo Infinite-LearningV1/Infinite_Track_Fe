@@ -21,6 +21,14 @@ import {
 /**
  * Initialize Authentication Store untuk Alpine.js
  */
+function resetUnauthenticatedState(authStore) {
+  authStore.user = null;
+  authStore.isAuthenticated = false;
+  authStore.sessionState = "unauthenticated";
+  authStore.error = null;
+  authStore.isLoading = false;
+}
+
 function initAuthStore() {
   // Pastikan Alpine.js tersedia
   if (typeof Alpine === "undefined") {
@@ -81,7 +89,9 @@ function initAuthStore() {
           this.isLoading = false;
           console.log("Auth session hint loaded without cached user data");
         } else {
-          this.clearAuth();
+          resetUnauthenticatedState(this);
+          clearAuthStorage({ includeSessionStorage: false });
+          console.log("Auth store initialized without session hint");
         }
       } catch (error) {
         console.error("Error loading user from storage:", error);
@@ -115,11 +125,7 @@ function initAuthStore() {
     },
 
     clearAuth() {
-      this.user = null;
-      this.isAuthenticated = false;
-      this.sessionState = "unauthenticated";
-      this.error = null;
-      this.isLoading = false;
+      resetUnauthenticatedState(this);
 
       const storageCleared = clearAuthStorage();
       if (!storageCleared) {

@@ -60,6 +60,7 @@ import { showInlineAlert } from "./utils/inlineAlert.js";
 
 Alpine.plugin(persist);
 window.Alpine = Alpine;
+initAuthStore();
 
 // Expose inline alert helper
 window.showInlineAlert = showInlineAlert;
@@ -508,7 +509,6 @@ async function bootAuthentication() {
 
   authSessionSync.start();
   showAuthRedirectNoticeOnSignin();
-  initAuthStore();
   const startupState = await initializeAuthSession();
 
   if (startupState !== "verification_failed" && startupState !== "redirecting") {

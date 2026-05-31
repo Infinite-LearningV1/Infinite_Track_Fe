@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import axios from "axios";
 
+import { AUTH_CONFIG } from "../src/js/config/env.js";
 import {
   fetchCurrentUser,
   login,
@@ -30,6 +31,11 @@ function assertNoAuthorizationHeader(headers) {
     false,
   );
 }
+
+test("auth client type is locked to web", () => {
+  assert.equal(AUTH_CONFIG.CLIENT_TYPE, "web");
+  assert.deepEqual(AUTH_CONFIG.CLIENT_HEADERS, { "X-Client-Type": "web" });
+});
 
 test("login sends X-Client-Type web header", async () => {
   const originalPost = axios.post;
@@ -60,13 +66,15 @@ test("login sends X-Client-Type web header", async () => {
 test("refreshSession sends X-Client-Type web header without Authorization", async () => {
   const originalPost = axios.post;
   const originalLocalStorage = globalThis.localStorage;
+  let sentUrl;
   let sentConfig;
 
   globalThis.localStorage = createStorage({
     authToken: "stored-token",
     userData: JSON.stringify({ token: "user-token" }),
   });
-  axios.post = async (_url, _payload, config) => {
+  axios.post = async (url, _payload, config) => {
+    sentUrl = url;
     sentConfig = config;
     return {
       data: {
@@ -79,6 +87,7 @@ test("refreshSession sends X-Client-Type web header without Authorization", asyn
   try {
     await refreshSession();
 
+    assert.equal(sentUrl, "/api/auth/refresh");
     assert.equal(sentConfig.headers["X-Client-Type"], "web");
     assertNoAuthorizationHeader(sentConfig.headers);
   } finally {

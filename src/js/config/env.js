@@ -3,10 +3,23 @@
  * Mengakses environment variables yang telah diinjeksi oleh webpack
  */
 
-const runtimeEnv =
-  typeof process !== "undefined" && process && process.env ? process.env : {};
+const ENV_VALUES = {
+  API_BASE_URL: process.env.API_BASE_URL,
+  API_AUTH_ENDPOINT: process.env.API_AUTH_ENDPOINT,
+  API_VERSION: process.env.API_VERSION,
+  APP_NAME: process.env.APP_NAME,
+  APP_VERSION: process.env.APP_VERSION,
+  APP_ENVIRONMENT: process.env.APP_ENVIRONMENT,
+  SESSION_TIMEOUT: process.env.SESSION_TIMEOUT,
+  REMEMBER_ME_DAYS: process.env.REMEMBER_ME_DAYS,
+  AUTH_CLIENT_TYPE: process.env.AUTH_CLIENT_TYPE,
+  DEFAULT_LANGUAGE: process.env.DEFAULT_LANGUAGE,
+  TIMEZONE: process.env.TIMEZONE,
+  DEBUG_MODE: process.env.DEBUG_MODE,
+  LOG_LEVEL: process.env.LOG_LEVEL,
+};
 
-const readEnv = (key, fallback) => runtimeEnv[key] || fallback;
+const readEnv = (key, fallback) => ENV_VALUES[key] || fallback;
 
 // API Configuration
 export const API_CONFIG = {

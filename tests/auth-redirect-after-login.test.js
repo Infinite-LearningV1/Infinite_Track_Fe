@@ -43,7 +43,8 @@ test("forceReauthenticate preserves the current same-origin path before signin r
     const location = {
       pathname: "/reports.html",
       search: "?range=weekly",
-      href: "/reports.html?range=weekly",
+      hash: "#summary",
+      href: "/reports.html?range=weekly#summary",
     };
 
     globalThis.localStorage = localStorage;
@@ -56,7 +57,7 @@ test("forceReauthenticate preserves the current same-origin path before signin r
 
     await forceReauthenticate();
 
-    assert.equal(sessionStorage.getItem("redirectAfterLogin"), "/reports.html?range=weekly");
+    assert.equal(sessionStorage.getItem("redirectAfterLogin"), "/reports.html?range=weekly#summary");
     assert.equal(localStorage.getItem("userData"), null);
     assert.equal(location.href, "/signin.html");
   });

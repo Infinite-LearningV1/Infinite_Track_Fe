@@ -172,13 +172,13 @@ function buildAuthRequestHeaders() {
 }
 
 function getCurrentRedirectTarget() {
-  const { pathname, search } = window.location || {};
+  const { pathname, search, hash } = window.location || {};
 
   if (!pathname || pathname === "/signin.html") {
     return null;
   }
 
-  return `${pathname}${search || ""}`;
+  return `${pathname}${search || ""}${hash || ""}`;
 }
 
 function broadcastAuthSessionClearSafely() {

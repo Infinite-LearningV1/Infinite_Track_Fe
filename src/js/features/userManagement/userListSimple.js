@@ -283,9 +283,9 @@ function userListAlpineData() {
           alert("Koordinat lokasi tidak tersedia");
         }
       }
-    }, /**
+    } /**
      * Menangani aksi edit pengguna
-     */
+     */,
     editUser(userId) {
       console.log("Edit user:", userId);
       // Navigate to form page with user ID for editing

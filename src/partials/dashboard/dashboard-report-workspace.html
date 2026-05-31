@@ -1,0 +1,225 @@
+<div
+  class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+>
+  <div
+    class="mb-6 flex flex-col gap-3 border-b border-gray-200 pb-6 lg:flex-row lg:items-end lg:justify-between dark:border-gray-800"
+  >
+    <div class="max-w-3xl">
+      <div class="flex flex-wrap items-center gap-2">
+        <span
+          class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+        >
+          Summary Report Workspace
+        </span>
+        <span
+          class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+        >
+          Report-derived management cues
+        </span>
+      </div>
+      <h3 class="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+        Interpretable report insights without replacing report authority
+      </h3>
+      <p class="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+        This workspace is not part of the active dashboard composition. If it is
+        intentionally rewired later, its cards and visuals may only summarize
+        backend report responses, while export must remain backed by
+        selected-period API data and fail closed when completeness cannot be
+        verified.
+      </p>
+    </div>
+    <div
+      class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+    >
+      Derived only from active summary counts, report rows, and report
+      pagination.
+    </div>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <template x-for="card in reportWorkspace.insights" :key="card.key">
+      <section
+        class="rounded-3xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p
+              class="text-sm font-medium text-gray-500 dark:text-gray-400"
+              x-text="card.title"
+            ></p>
+            <p
+              class="mt-1 text-xs tracking-[0.2em] text-gray-400 uppercase dark:text-gray-500"
+              x-text="card.source"
+            ></p>
+          </div>
+          <span
+            class="rounded-full px-2.5 py-1 text-xs font-medium"
+            :class="{
+              'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': card.state === 'loading',
+              'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': card.state === 'ready',
+              'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': card.state === 'empty',
+              'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': card.state === 'needsData',
+              'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': card.state === 'error'
+            }"
+            x-text="{
+              loading: 'Loading',
+              ready: 'Ready',
+              empty: 'Empty',
+              needsData: 'Needs Data',
+              error: 'Error'
+            }[card.state] || card.state"
+          ></span>
+        </div>
+
+        <div class="mt-6">
+          <h4
+            class="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white"
+            x-text="card.state === 'ready' ? card.value : '—'"
+          ></h4>
+          <p
+            class="mt-3 min-h-[72px] text-sm leading-6 text-gray-600 dark:text-gray-300"
+            x-text="card.state === 'ready' ? card.detail : card.message"
+          ></p>
+        </div>
+      </section>
+    </template>
+  </div>
+
+  <div class="mt-6 grid gap-4 xl:grid-cols-12">
+    <template x-for="chart in reportWorkspace.visuals" :key="chart.key">
+      <section
+        class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm xl:col-span-4 dark:border-gray-800 dark:bg-white/[0.03]"
+      >
+        <div class="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h4
+              class="text-base font-semibold text-gray-900 dark:text-white"
+              x-text="chart.title"
+            ></h4>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <span x-text="chart.source"></span>
+            </p>
+          </div>
+          <span
+            class="rounded-full px-2.5 py-1 text-xs font-medium"
+            :class="{
+              'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': chart.state === 'loading',
+              'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': chart.state === 'ready',
+              'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': chart.state === 'empty',
+              'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': chart.state === 'needsData',
+              'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': chart.state === 'error'
+            }"
+            x-text="{
+              loading: 'Loading',
+              ready: 'Ready',
+              empty: 'Empty',
+              needsData: 'Needs Data',
+              error: 'Error'
+            }[chart.state] || chart.state"
+          ></span>
+        </div>
+
+        <template
+          x-if="chart.state === 'ready' && chart.key === 'attendanceTrend'"
+        >
+          <div
+            class="space-y-4"
+            x-data="{ maxCount: Math.max(...chart.data.points.map((point) => point.count), 1) }"
+          >
+            <div
+              class="flex min-h-[220px] items-end gap-3 rounded-2xl bg-gray-50 p-4 dark:bg-gray-900"
+            >
+              <template x-for="point in chart.data.points" :key="point.date">
+                <div class="flex min-w-0 flex-1 flex-col items-center gap-2">
+                  <span
+                    class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                    x-text="point.count"
+                  ></span>
+                  <div class="flex w-full items-end justify-center">
+                    <div
+                      class="w-full rounded-t-2xl bg-blue-600/85 dark:bg-blue-500"
+                      :style="`height: ${maxCount ? Math.max(24, (point.count / maxCount) * 140) : 24}px`"
+                    ></div>
+                  </div>
+                  <span
+                    class="block w-full truncate text-center text-xs text-gray-500 dark:text-gray-400"
+                    x-text="point.date"
+                  ></span>
+                </div>
+              </template>
+            </div>
+            <p
+              class="text-sm leading-6 text-gray-500 dark:text-gray-400"
+              x-text="chart.detail"
+            ></p>
+          </div>
+        </template>
+
+        <template
+          x-if="chart.state === 'ready' && chart.key !== 'attendanceTrend'"
+        >
+          <div
+            class="space-y-3"
+            x-data="{ total: chart.data.segments.reduce((sum, segment) => sum + segment.value, 0) }"
+          >
+            <div class="space-y-3 rounded-2xl bg-gray-50 p-4 dark:bg-gray-900">
+              <template
+                x-for="segment in chart.data.segments"
+                :key="segment.key"
+              >
+                <div>
+                  <div
+                    class="mb-2 flex items-center justify-between gap-3 text-sm text-gray-600 dark:text-gray-300"
+                  >
+                    <span class="font-medium" x-text="segment.label"></span>
+                    <span
+                      x-text="`${segment.value} (${total ? Math.round((segment.value / total) * 100) : 0}%)`"
+                    ></span>
+                  </div>
+                  <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-800">
+                    <div
+                      class="h-2 rounded-full"
+                      :class="segment.key === 'wfo'
+                        ? 'bg-blue-600 dark:bg-blue-500'
+                        : segment.key === 'wfh'
+                          ? 'bg-emerald-600 dark:bg-emerald-500'
+                          : segment.key === 'wfa'
+                            ? 'bg-violet-600 dark:bg-violet-500'
+                            : segment.key === 'ontime'
+                              ? 'bg-emerald-600 dark:bg-emerald-500'
+                              : segment.key === 'late'
+                                ? 'bg-amber-500 dark:bg-amber-400'
+                                : segment.key === 'alpha'
+                                  ? 'bg-rose-600 dark:bg-rose-500'
+                                  : 'bg-gray-500 dark:bg-gray-400'"
+                      :style="`width: ${total ? ((segment.value / total) * 100).toFixed(2) : 0}%`"
+                    ></div>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <p
+              class="text-sm leading-6 text-gray-500 dark:text-gray-400"
+              x-text="chart.detail"
+            ></p>
+          </div>
+        </template>
+
+        <template x-if="chart.state !== 'ready'">
+          <div
+            class="flex min-h-[220px] flex-col justify-between rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+          >
+            <p
+              class="text-sm leading-6 text-gray-600 dark:text-gray-300"
+              x-text="chart.message"
+            ></p>
+            <p class="mt-4 text-xs text-gray-400 dark:text-gray-500">
+              The visual shell remains visible so the dashboard explains why a
+              chart is unavailable instead of implying zero activity.
+            </p>
+          </div>
+        </template>
+      </section>
+    </template>
+  </div>
+</div>

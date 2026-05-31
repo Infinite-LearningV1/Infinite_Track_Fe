@@ -26,10 +26,6 @@ export const API_CONFIG = {
     return `${this.AUTH_URL}/register`;
   },
 
-  get REFRESH_URL() {
-    return `${this.AUTH_URL}/refresh`;
-  },
-
   get PROFILE_URL() {
     return `${this.AUTH_URL}/profile`;
   },

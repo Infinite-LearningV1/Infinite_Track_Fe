@@ -1,4 +1,25 @@
 import { getSummaryReport } from "../../services/reportService.js";
+import { getDashboardAnalytics } from "../../services/dashboardAnalyticsService.js";
+import { getTodayLocations } from "../../services/todayLocationsService.js";
+import { getFuzzyAhpAnalysis } from "../../services/fuzzyAhpService.js";
+import {
+  createDashboardCockpitErrorState,
+  createDashboardCockpitLoadingState,
+  createDashboardCockpitStateFromSources,
+} from "../../services/dashboardCockpitService.js";
+import {
+  buildDashboardRangeRequestParams,
+  createDefaultDashboardRange,
+  validateDashboardRange,
+} from "../../components/dashboardRange/dashboardRange.js";
+import {
+  applyDashboardPageSize,
+  applyDashboardPeriod,
+  applyDashboardSearch,
+  buildDashboardRequestParams,
+  createEmptyDashboardPagination,
+  normalizeDashboardPagination,
+} from "./dashboardTableState.js";
 import {
   generatePDFReport,
   generateExcelReport,
@@ -16,27 +37,32 @@ import {
  * Alpine.js component untuk dashboard functionality
  */
 export function dashboard() {
+  const defaultDashboardRange = createDefaultDashboardRange();
+
   return {
     // State management
     loading: false,
     error: null,
-    period: "all",
+    period: "monthly",
+    dashboardRangeState: { ...defaultDashboardRange },
+    dashboardRange: defaultDashboardRange.period,
+    dashboardRangeOptions: [
+      { value: "30d", label: "Last 30 Days" },
+      { value: "current_month", label: "Current Month" },
+    ],
+    trendRange: "monthly",
 
     // Pagination state
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      total_records: 0,
-      has_prev_page: false,
-      has_next_page: false,
-      per_page: 5,
-    },
+    pagination: createEmptyDashboardPagination(5),
 
     // Filter state
     filters: {
-      period: "all",
+      period: "monthly",
+      from: null,
+      to: null,
       page: 1,
       limit: 5,
+      search: "",
       sortBy: null,
       sortOrder: "asc",
     },
@@ -57,32 +83,30 @@ export function dashboard() {
 
     // Raw API data untuk export
     rawApiData: null,
+    dashboardAnalyticsResponse: null,
+    dashboardAnalyticsError: null,
+    todayLocationsResponse: null,
+    todayLocationsError: null,
+    fuzzyAhpResponse: null,
+    fuzzyAhpError: null,
+    fetchSummaryReport: getSummaryReport,
+    fetchDashboardAnalytics: getDashboardAnalytics,
+    fetchTodayLocations: getTodayLocations,
+    fetchFuzzyAhpAnalysis: getFuzzyAhpAnalysis,
 
     // Export state
     isExporting: false,
+    isExportModalOpen: false,
 
     // Data properties
-    summaryData: {
-      summary: {
-        onTime: 0,
-        late: 0,
-        alpha: 0,
-        wfo: 0,
-        wfh: 0,
-        wfa: 0,
-      },
-      report: [],
-    },
-
-    // Summary data untuk card - terpengaruh period filter (cards update when period changes)
-    cardSummaryData: {
-      onTime: 1,
-      late: 15,
-      alpha: 0,
-      wfo: 13,
-      wfh: 1,
-      wfa: 2,
-    },
+    summaryData: null,
+    cockpit: createDashboardCockpitLoadingState(),
+    dashboardMap: null,
+    dashboardLeaflet: null,
+    dashboardMapTileLayer: null,
+    dashboardMapMarkerLayer: null,
+    dashboardMapRadiusLayer: null,
+    dashboardMapRenderToken: 0,
 
     // Summary statistics data untuk tabel - terpengaruh period filter
     summaryStatsData: {
@@ -94,22 +118,15 @@ export function dashboard() {
       total_wfa: 0,
     },
 
-    // Analytics data (new)
-    analyticsData: {
-      discipline_index: 0,
-      performance_trend: "stable",
-      avg_work_hours: 0,
-    },
-
     // Report data for table display
     reportData: [],
 
     // Available period options
     periodOptions: [
-      { value: "all", label: "All Time" },
       { value: "daily", label: "Daily" },
       { value: "weekly", label: "Weekly" },
       { value: "monthly", label: "Monthly" },
+      { value: "range", label: "Custom Range" },
     ],
 
     // Sorting functionality
@@ -119,208 +136,696 @@ export function dashboard() {
      * Initialize component
      */
     async init() {
-      console.log("Dashboard component initialized");
-
-      // Set some initial test data immediately
-      this.summaryData = {
-        summary: {
-          onTime: 1,
-          late: 15,
-          alpha: 0,
-          wfo: 13,
-          wfh: 1,
-          wfa: 2,
-        },
-        report: [],
-      };
-
-      // Initial card summary data (akan diupdate dari API)
-      this.cardSummaryData = {
-        onTime: 1,
-        late: 15,
-        alpha: 0,
-        wfo: 13,
-        wfh: 1,
-        wfa: 2,
-      };
-
-      this.analyticsData = {
-        discipline_index: 78.5,
-        performance_trend: "improving",
-        avg_work_hours: 8.2,
-      };
-
-      console.log("Initial test data set:", this.summaryData);
-
       await this.loadSummaryData();
     },
 
+    hasAvailableValue(value) {
+      if (value === null || value === undefined) {
+        return false;
+      }
+
+      return typeof value !== "string" || value.trim() !== "";
+    },
+
+    getOptionalBackendValue(value, fallback = null) {
+      return this.hasAvailableValue(value) ? value : fallback;
+    },
+
+    getSelectedTrendRange(panel) {
+      const ranges = Array.isArray(panel?.data?.ranges)
+        ? panel.data.ranges
+        : [];
+      const fallbackKey =
+        panel?.data?.defaultRangeKey || ranges[0]?.key || "monthly";
+      const selectedKey = this.trendRange || fallbackKey;
+
+      return (
+        ranges.find((range) => range.key === selectedKey) ||
+        ranges.find((range) => range.key === fallbackKey) ||
+        ranges[0] || {
+          metrics: [],
+          series: [],
+          xAxisLabels: [],
+          yAxisLabels: [],
+        }
+      );
+    },
+
+    applySummaryResponse(
+      response,
+      analyticsResponse = null,
+      analyticsError = null,
+      todayLocationsResponse = null,
+      todayLocationsError = null,
+      fuzzyAhpResponse = null,
+      fuzzyAhpError = null,
+    ) {
+      if (!response?.summary) {
+        this.handleEmptyApiResponse();
+        return;
+      }
+
+      const mappedSummary = {
+        onTime: response.summary.total_ontime,
+        late: response.summary.total_late,
+        alpha: response.summary.total_alpha,
+        wfo: response.summary.total_wfo,
+        wfh: response.summary.total_wfh,
+        wfa: response.summary.total_wfa,
+      };
+      const reportData = response.report?.data || response.report || [];
+      const reportPagination = response.report?.pagination || {};
+
+      this.cockpit = createDashboardCockpitStateFromSources({
+        reportResponse: response,
+        analyticsResponse,
+        analyticsError,
+        todayLocationsResponse,
+        todayLocationsError,
+        fuzzyAhpResponse,
+        fuzzyAhpError,
+      });
+      this.pagination = normalizeDashboardPagination(
+        reportPagination,
+        this.filters.limit,
+      );
+      this.attendanceData = reportData.map((item, index) => {
+        const latitude = this.getOptionalBackendValue(
+          item.location_details?.coordinates?.latitude,
+        );
+        const longitude = this.getOptionalBackendValue(
+          item.location_details?.coordinates?.longitude,
+        );
+        const radius = this.getOptionalBackendValue(
+          item.location_details?.radius,
+        );
+        const locationDescription = this.getOptionalBackendValue(
+          item.location_details?.description,
+        );
+
+        const attendanceId = this.getOptionalBackendValue(
+          item.attendance_id,
+          this.getOptionalBackendValue(item.id_attendance),
+        );
+        const rowKey =
+          attendanceId ||
+          this.getOptionalBackendValue(item.nip_nim) ||
+          this.getOptionalBackendValue(item.user_id) ||
+          `attendance_row_${index}`;
+
+        return {
+          ...item,
+          row_key: rowKey,
+          id_attendance: attendanceId,
+          id:
+            item.nip_nim ||
+            item.user_id ||
+            `EMP${String(index + 1).padStart(3, "0")}`,
+          full_name: this.getOptionalBackendValue(item.full_name),
+          role_name: this.getOptionalBackendValue(item.role),
+          time_in: this.getOptionalBackendValue(item.time_in),
+          time_out: this.getOptionalBackendValue(item.time_out),
+          work_hour: this.getOptionalBackendValue(item.work_hour),
+          status: this.getOptionalBackendValue(item.status),
+          information: this.getOptionalBackendValue(
+            item.location_details?.category,
+            this.getOptionalBackendValue(item.information),
+          ),
+          attendance_date: this.getOptionalBackendValue(item.attendance_date),
+          nip_nim: this.getOptionalBackendValue(item.nip_nim),
+          email: this.getOptionalBackendValue(item.email),
+          notes: this.getOptionalBackendValue(item.notes),
+          phone_number: this.getOptionalBackendValue(item.phone_number),
+          discipline_score: this.getOptionalBackendValue(item.discipline_score),
+          discipline_label: this.getOptionalBackendValue(item.discipline_label),
+          location: {
+            latitude,
+            longitude,
+            radius,
+            description: locationDescription,
+          },
+          location_description: locationDescription,
+          latitude,
+          longitude,
+        };
+      });
+      this.reportData = this.attendanceData;
+      this.summaryData = {
+        summary: mappedSummary,
+        report: reportData,
+      };
+      this.rawApiData = {
+        summary: response.summary,
+        report: response.report,
+        analytics: analyticsResponse,
+        todayLocations: todayLocationsResponse,
+        fuzzyAhp: fuzzyAhpResponse,
+      };
+      this.dashboardAnalyticsResponse = analyticsResponse;
+      this.dashboardAnalyticsError = analyticsError;
+      this.todayLocationsResponse = todayLocationsResponse;
+      this.todayLocationsError = todayLocationsError;
+      this.fuzzyAhpResponse = fuzzyAhpResponse;
+      this.fuzzyAhpError = fuzzyAhpError;
+      this.queueDashboardMapRender();
+    },
+
+    syncDashboardRangeState() {
+      const candidateRange = {
+        ...this.dashboardRangeState,
+        period: this.dashboardRange,
+      };
+      const validation = validateDashboardRange(candidateRange);
+
+      if (!validation.isValid) {
+        const fallbackRange = createDefaultDashboardRange();
+        this.dashboardRangeState = { ...fallbackRange };
+        this.dashboardRange = fallbackRange.period;
+        return fallbackRange;
+      }
+
+      this.dashboardRangeState = candidateRange;
+      return candidateRange;
+    },
+
+    getDashboardAnalyticsRequestParams() {
+      return buildDashboardRangeRequestParams(this.syncDashboardRangeState());
+    },
+
+    applyCockpitSurfaceState({
+      reportResponse,
+      analyticsResponse = this.dashboardAnalyticsResponse,
+      analyticsError = this.dashboardAnalyticsError,
+      todayLocationsResponse = this.todayLocationsResponse,
+      todayLocationsError = this.todayLocationsError,
+      fuzzyAhpResponse = this.fuzzyAhpResponse,
+      fuzzyAhpError = this.fuzzyAhpError,
+    } = {}) {
+      this.cockpit = createDashboardCockpitStateFromSources({
+        reportResponse,
+        analyticsResponse,
+        analyticsError,
+        todayLocationsResponse,
+        todayLocationsError,
+        fuzzyAhpResponse,
+        fuzzyAhpError,
+      });
+    },
+
+    applySummaryError(error) {
+      const message = error?.message || "Failed to load dashboard data.";
+      this.error = message;
+      this.errorMessage = message;
+      this.cockpit = createDashboardCockpitErrorState(message);
+      this.summaryData = null;
+      this.attendanceData = [];
+      this.rawApiData = null;
+      this.dashboardAnalyticsResponse = null;
+      this.dashboardAnalyticsError = error;
+      this.todayLocationsResponse = null;
+      this.todayLocationsError = null;
+      this.fuzzyAhpResponse = null;
+      this.fuzzyAhpError = null;
+      this.reportData = [];
+      this.pagination = createEmptyDashboardPagination(
+        this.pagination?.per_page || this.filters.limit,
+      );
+      this.queueDashboardMapRender();
+    },
+
+    validateSummaryReportFilters() {
+      if (this.filters.period !== "range") {
+        return { isValid: true, message: "" };
+      }
+
+      const from = String(this.filters.from ?? "").trim();
+      const to = String(this.filters.to ?? "").trim();
+
+      if (!from || !to) {
+        return {
+          isValid: false,
+          message: "range period requires from and to dates",
+        };
+      }
+
+      const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+      if (!datePattern.test(from) || !datePattern.test(to)) {
+        return {
+          isValid: false,
+          message:
+            "range period requires from and to dates in YYYY-MM-DD format",
+        };
+      }
+
+      const fromDate = new Date(`${from}T00:00:00.000Z`);
+      const toDate = new Date(`${to}T00:00:00.000Z`);
+
+      if (
+        Number.isNaN(fromDate.getTime()) ||
+        Number.isNaN(toDate.getTime()) ||
+        fromDate.toISOString().slice(0, 10) !== from ||
+        toDate.toISOString().slice(0, 10) !== to
+      ) {
+        return {
+          isValid: false,
+          message:
+            "range period requires from and to dates in YYYY-MM-DD format",
+        };
+      }
+
+      const rangeDays = (toDate.getTime() - fromDate.getTime()) / 86400000;
+      if (rangeDays < 0) {
+        return {
+          isValid: false,
+          message: "range period to date must be on or after from date",
+        };
+      }
+
+      if (rangeDays + 1 > 31) {
+        return {
+          isValid: false,
+          message: "range period cannot exceed 31 days",
+        };
+      }
+
+      this.filters.from = from;
+      this.filters.to = to;
+      return { isValid: true, message: "" };
+    },
+
+    applySummaryFilterValidationError(message) {
+      this.error = message;
+      this.errorMessage = message;
+      this.showNotification(message, "error");
+    },
+
+    getDashboardMapLocations() {
+      return Array.isArray(this.cockpit?.hero?.data?.locations)
+        ? this.cockpit.hero.data.locations
+        : [];
+    },
+
+    canRenderDashboardMap() {
+      return (
+        this.getDashboardMapLocations().length > 0 &&
+        this.cockpit?.hero?.state === "ready"
+      );
+    },
+
+    queueDashboardMapRender() {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      const renderToken = ++this.dashboardMapRenderToken;
+      const render = () => this.renderDashboardMap(renderToken);
+
+      if (typeof this.$nextTick === "function") {
+        this.$nextTick(render);
+        return;
+      }
+
+      window.setTimeout(render, 0);
+    },
+
+    async getDashboardLeaflet() {
+      if (this.dashboardLeaflet) {
+        return this.dashboardLeaflet;
+      }
+
+      if (typeof window !== "undefined" && window.L) {
+        this.dashboardLeaflet = window.L;
+        return this.dashboardLeaflet;
+      }
+
+      const leafletModule = await import("leaflet");
+      this.dashboardLeaflet = leafletModule.default || leafletModule;
+      return this.dashboardLeaflet;
+    },
+
+    isDashboardMapContainerConnected(container) {
+      if (!container) {
+        return false;
+      }
+
+      return container.isConnected !== false;
+    },
+
+    ensureDashboardMapLayers(L) {
+      if (!this.dashboardMapMarkerLayer) {
+        this.dashboardMapMarkerLayer = L.layerGroup().addTo(this.dashboardMap);
+      }
+
+      if (!this.dashboardMapRadiusLayer) {
+        this.dashboardMapRadiusLayer = L.layerGroup().addTo(this.dashboardMap);
+      }
+    },
+
+    clearDashboardMapLayers() {
+      this.dashboardMapMarkerLayer?.clearLayers?.();
+      this.dashboardMapRadiusLayer?.clearLayers?.();
+    },
+
+    ensureDashboardMap(L, container, firstLocation, defaultZoom) {
+      const activeContainer = this.dashboardMap?.getContainer?.();
+
+      if (
+        this.dashboardMap &&
+        activeContainer &&
+        activeContainer !== container
+      ) {
+        this.destroyDashboardMap();
+      }
+
+      if (!this.dashboardMap) {
+        this.dashboardMap = L.map(container, {
+          center: [firstLocation.latitude, firstLocation.longitude],
+          zoom: defaultZoom,
+          zoomControl: true,
+          attributionControl: true,
+        });
+
+        this.dashboardMapTileLayer = L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+          },
+        ).addTo(this.dashboardMap);
+      }
+
+      this.ensureDashboardMapLayers(L);
+      return this.dashboardMap;
+    },
+
+    destroyDashboardMap() {
+      if (!this.dashboardMap) {
+        this.dashboardMapTileLayer = null;
+        this.dashboardMapMarkerLayer = null;
+        this.dashboardMapRadiusLayer = null;
+        return;
+      }
+
+      this.dashboardMap.stop?.();
+      this.clearDashboardMapLayers();
+      this.dashboardMap.off?.();
+      this.dashboardMap.remove();
+      this.dashboardMap = null;
+      this.dashboardMapTileLayer = null;
+      this.dashboardMapMarkerLayer = null;
+      this.dashboardMapRadiusLayer = null;
+    },
+
+    createDashboardMapPopup(location) {
+      const content = document.createElement("div");
+      content.className = "space-y-2 text-sm";
+
+      const name = document.createElement("p");
+      name.className = "font-semibold text-gray-900";
+      name.textContent =
+        location.label || location.fullName || "Unknown Location";
+      content.appendChild(name);
+
+      const identity = document.createElement("p");
+      identity.className = "text-xs text-gray-600";
+      identity.textContent = `User: ${location.userName || location.fullName || "Unavailable"}`;
+      content.appendChild(identity);
+
+      const attendanceMeta = document.createElement("p");
+      attendanceMeta.className = "text-xs text-gray-600";
+      attendanceMeta.textContent = `Status: ${location.status || "Unavailable"} • Date: ${location.attendanceDate || "Unavailable"}`;
+      content.appendChild(attendanceMeta);
+
+      const workMode = document.createElement("p");
+      workMode.className = "text-xs text-gray-600";
+      workMode.textContent = `Mode: ${location.mode || location.information || "Unavailable"} • Time: ${location.timeIn || "-"} / ${location.timeOut || "-"}`;
+      content.appendChild(workMode);
+
+      const description = document.createElement("p");
+      description.className = "text-gray-600";
+      description.textContent = location.description || "Unavailable";
+      content.appendChild(description);
+
+      const coordinates = document.createElement("p");
+      coordinates.className = "text-xs text-gray-500";
+      coordinates.textContent = `Coordinates: ${location.latitude}, ${location.longitude}`;
+      content.appendChild(coordinates);
+
+      const sourceNote = document.createElement("p");
+      sourceNote.className = "text-xs text-gray-500";
+      sourceNote.textContent = location.sourceNote || "Unavailable";
+      content.appendChild(sourceNote);
+
+      if (location.trackingNote) {
+        const trackingNote = document.createElement("p");
+        trackingNote.className = "text-xs text-gray-500";
+        trackingNote.textContent = location.trackingNote;
+        content.appendChild(trackingNote);
+      }
+
+      const detailButton = document.createElement("button");
+      detailButton.type = "button";
+      detailButton.className =
+        "inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:border-blue-300 hover:text-blue-700";
+      detailButton.textContent = "View location details";
+      detailButton.addEventListener("click", () =>
+        this.openMapLocation(location),
+      );
+      content.appendChild(detailButton);
+
+      return content;
+    },
+
+    async renderDashboardMap(renderToken = this.dashboardMapRenderToken) {
+      if (typeof document === "undefined") {
+        return;
+      }
+
+      const container = document.getElementById("dashboardMapView");
+      const canRender = this.canRenderDashboardMap();
+      const locations = this.getDashboardMapLocations();
+
+      if (!container || !this.isDashboardMapContainerConnected(container)) {
+        this.destroyDashboardMap();
+        return;
+      }
+
+      if (!canRender) {
+        this.dashboardMap?.stop?.();
+        this.clearDashboardMapLayers();
+        return;
+      }
+
+      const L = await this.getDashboardLeaflet();
+
+      if (renderToken !== this.dashboardMapRenderToken) {
+        return;
+      }
+
+      if (
+        !this.canRenderDashboardMap() ||
+        !this.isDashboardMapContainerConnected(container)
+      ) {
+        return;
+      }
+
+      const firstLocation = locations[0];
+      const defaultZoom = locations.length === 1 ? 16 : 13;
+      const layers = [];
+      const map = this.ensureDashboardMap(
+        L,
+        container,
+        firstLocation,
+        defaultZoom,
+      );
+
+      if (!map) {
+        return;
+      }
+
+      map.stop?.();
+      this.clearDashboardMapLayers();
+
+      locations.forEach((location) => {
+        const marker = L.marker([location.latitude, location.longitude]).addTo(
+          this.dashboardMapMarkerLayer,
+        );
+        marker.bindPopup(this.createDashboardMapPopup(location));
+        layers.push(marker);
+
+        if (Number.isFinite(location.radius) && location.radius > 0) {
+          const radiusLayer = L.circle(
+            [location.latitude, location.longitude],
+            {
+              color: "#2563eb",
+              fillColor: "#2563eb",
+              fillOpacity: 0.1,
+              radius: location.radius,
+              weight: 2,
+            },
+          ).addTo(this.dashboardMapRadiusLayer);
+          layers.push(radiusLayer);
+        }
+      });
+
+      if (layers.length > 1) {
+        map.fitBounds(L.featureGroup(layers).getBounds(), {
+          padding: [32, 32],
+        });
+      } else {
+        map.setView(
+          [firstLocation.latitude, firstLocation.longitude],
+          defaultZoom,
+        );
+      }
+
+      window.setTimeout(() => {
+        if (
+          renderToken !== this.dashboardMapRenderToken ||
+          !this.dashboardMap
+        ) {
+          return;
+        }
+
+        const activeContainer = this.dashboardMap.getContainer?.();
+
+        if (!this.isDashboardMapContainerConnected(activeContainer)) {
+          return;
+        }
+
+        this.dashboardMap.invalidateSize();
+      }, 0);
+    },
+
+    openMapLocation(location) {
+      this.viewLocation({
+        full_name: location.userName || location.fullName || location.label,
+        email: location.email,
+        role_name: location.roleName,
+        phone_number: location.phoneNumber,
+        status: location.status,
+        information: location.mode || location.information,
+        attendance_date: location.attendanceDate,
+        time_in: location.timeIn,
+        time_out: location.timeOut,
+        source: location.source,
+        source_note: location.sourceNote,
+        tracking_note: location.trackingNote,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        radius: location.radius,
+        location_description: location.description,
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          radius: location.radius,
+          description: location.description,
+        },
+      });
+    },
+
     /**
-     * Load summary data dari API - menggunakan period filter untuk semua tampilan dashboard
+     * Load summary data dari API - report/export uses filters.period; dashboard analytics uses dashboardRange.
      */
-    async loadSummaryData() {
+    async loadSummaryData({ includeTodayLocations = true } = {}) {
       this.loading = true;
       this.isLoading = true;
       this.error = null;
       this.errorMessage = null;
+      this.filters.search = String(this.searchQuery ?? "").trim();
 
-      try {
-        console.log(
-          `Loading dashboard data for page: ${this.filters.page}, search: ${this.searchQuery}, period: ${this.filters.period}`,
-        );
-
-        // Gunakan period filter dan search query pada jalur request server-driven yang sama
-        const response = await getSummaryReport({
-          period: this.filters.period,
-          page: this.filters.page,
-          limit: this.filters.limit,
-          search: this.searchQuery,
-          sortBy: this.filters.sortBy,
-          sortOrder: this.filters.sortOrder,
-        });
-
-        console.log(`Dashboard API call made with period='${this.filters.period}'`);
-
-        // Handle API response format dan mapping field names
-        if (response && response.summary) {
-          // Map API field names ke component field names
-          const mappedSummary = {
-            onTime: response.summary.total_ontime || 0,
-            late: response.summary.total_late || 0,
-            alpha: response.summary.total_alpha || 0,
-            wfo: response.summary.total_wfo || 0,
-            wfh: response.summary.total_wfh || 0,
-            wfa: response.summary.total_wfa || 0,
-          };
-
-          // Update card summary data (terpengaruh period filter)
-          this.cardSummaryData = { ...mappedSummary };
-          console.log(
-            `✅ Card summary data updated for period '${this.filters.period}':`,
-            this.cardSummaryData,
-          );
-
-          // Extract analytics data
-          this.analyticsData = response.analytics || {
-            discipline_index: 0,
-            performance_trend: "stable",
-            avg_work_hours: 0,
-          };
-
-          // Extract report data dari nested structure
-          const reportData = response.report?.data || response.report || [];
-
-          // Update pagination data (dukung kedua skema penamaan dari backend)
-          const p = response.report?.pagination || {};
-          this.pagination = {
-            current_page: p.current_page || 1,
-            total_pages: p.total_pages || 1,
-            total_records:
-              typeof p.total_records !== "undefined"
-                ? p.total_records
-                : typeof p.total_items !== "undefined"
-                  ? p.total_items
-                  : 0,
-            has_prev_page:
-              typeof p.has_prev_page === "boolean"
-                ? p.has_prev_page
-                : p.current_page > 1,
-            has_next_page:
-              typeof p.has_next_page === "boolean"
-                ? p.has_next_page
-                : p.current_page < p.total_pages,
-            per_page:
-              typeof p.per_page !== "undefined"
-                ? p.per_page
-                : typeof p.items_per_page !== "undefined"
-                  ? p.items_per_page
-                  : this.filters.limit,
-          };
-          // Map report data to attendanceData format (matching exact API structure)
-          this.attendanceData = reportData.map((item, index) => ({
-            id_attendance: item.attendance_id || `attendance_${index}`,
-            id:
-              item.nip_nim ||
-              item.user_id ||
-              `EMP${String(index + 1).padStart(3, "0")}`,
-            full_name: item.full_name || "Unknown User",
-            role_name: item.role || "Employee",
-            time_in: item.time_in || null,
-            time_out: item.time_out || null,
-            work_hour:
-              item.work_hour ||
-              this.calculateWorkHours(item.time_in, item.time_out),
-            status: item.status || "Present",
-            information:
-              item.location_details?.category || item.information || "N/A",
-            attendance_date: item.attendance_date || null,
-            nip_nim: item.nip_nim || null,
-            email: item.email || null,
-            notes: item.notes || null,
-            phone_number: item.phone_number || null,
-            // Discipline data (new)
-            discipline_score: item.discipline_score || 0,
-            discipline_label: item.discipline_label || "Unknown",
-            // Location mapping - exact same structure as attendance table expects
-            location: {
-              latitude: item.location_details?.coordinates?.latitude || null,
-              longitude: item.location_details?.coordinates?.longitude || null,
-              radius: item.location_details?.radius || 100,
-              description:
-                item.location_details?.description || "Location not specified",
-            },
-            location_description:
-              item.location_details?.description || "Location not specified",
-            // Additional location details for compatibility
-            latitude: item.location_details?.coordinates?.latitude || null,
-            longitude: item.location_details?.coordinates?.longitude || null,
-            ...item, // spread any additional fields
-          }));
-
-          // Set reportData untuk tampilan tabel
-          this.reportData = this.attendanceData;
-          this.summaryData = {
-            summary: mappedSummary,
-            report: reportData,
-          };
-
-          // Simpan juga raw API response untuk export
-          this.rawApiData = {
-            summary: response.summary,
-            report: response.report,
-          };
-
-          console.log("Summary data loaded successfully:", this.summaryData);
-          console.log("Attendance data mapped:", this.attendanceData);
-        } else {
-          // No valid response data
-          console.warn("No valid data received from API");
-          this.handleEmptyApiResponse();
-        }
-      } catch (error) {
-        console.error("Error loading summary data:", error);
+      const filterValidation = this.validateSummaryReportFilters();
+      if (!filterValidation.isValid) {
         this.loading = false;
         this.isLoading = false;
-        this.errorMessage = error.message;
+        this.applySummaryFilterValidationError(filterValidation.message);
+        return false;
+      }
 
-        // Clear all data and show error state - no mock data fallback
-        this.summaryData = null;
-        this.attendanceData = [];
-        this.rawApiData = null; // Critical: No mock data for export
-        this.analyticsData = null;
-        this.reportData = [];
+      this.cockpit = createDashboardCockpitLoadingState();
 
-        // Reset pagination
-        this.pagination = {
-          current_page: 1,
-          total_pages: 1,
-          total_records: 0,
-          per_page: this.pagination?.per_page || this.filters.limit,
-          has_next_page: false,
-          has_prev_page: false,
+      try {
+        const dashboardRange = this.syncDashboardRangeState();
+
+        console.log(
+          `Loading dashboard data for page: ${this.filters.page}, search: ${this.filters.search}, report period: ${this.filters.period}, analytics range: ${dashboardRange.period}`,
+        );
+
+        const reportRequestParams = {
+          ...buildDashboardRequestParams(this.filters),
+          ...(this.filters.period === "range"
+            ? { from: this.filters.from, to: this.filters.to }
+            : {}),
+          sortBy: this.filters.sortBy,
+          sortOrder: this.filters.sortOrder,
         };
+        const analyticsRequestParams =
+          this.getDashboardAnalyticsRequestParams();
+        const requests = [
+          this.fetchSummaryReport(reportRequestParams),
+          this.fetchDashboardAnalytics(analyticsRequestParams),
+        ];
 
-        // Show user-friendly error message
+        if (includeTodayLocations) {
+          requests.push(this.fetchTodayLocations());
+        }
+
+        const [reportResult, analyticsResult, todayLocationsResult] =
+          await Promise.allSettled(requests);
+
+        if (reportResult.status !== "fulfilled") {
+          throw reportResult.reason;
+        }
+
+        const analyticsResponse =
+          analyticsResult.status === "fulfilled" ? analyticsResult.value : null;
+        const analyticsError =
+          analyticsResult.status === "fulfilled"
+            ? null
+            : analyticsResult.reason;
+        const todayLocationsResponse = includeTodayLocations
+          ? todayLocationsResult.status === "fulfilled"
+            ? todayLocationsResult.value
+            : null
+          : this.todayLocationsResponse;
+        const todayLocationsError = includeTodayLocations
+          ? todayLocationsResult.status === "fulfilled"
+            ? null
+            : todayLocationsResult.reason
+          : this.todayLocationsError;
+
+        if (analyticsError) {
+          console.warn(
+            "Dashboard analytics request failed; keeping report rows and conservative cockpit state:",
+            analyticsError,
+          );
+        }
+
+        if (todayLocationsError && includeTodayLocations) {
+          console.warn(
+            "Today locations request failed; live map will stay truthful to the missing backend feed:",
+            todayLocationsError,
+          );
+        }
+
+        console.log(
+          `Dashboard API calls made with report period='${this.filters.period}' and analytics range='${this.dashboardRange}'`,
+        );
+        this.applySummaryResponse(
+          reportResult.value,
+          analyticsResponse,
+          analyticsError,
+          todayLocationsResponse,
+          todayLocationsError,
+          this.fuzzyAhpResponse,
+          this.fuzzyAhpError,
+        );
+        console.log("Summary data loaded successfully:", this.summaryData);
+        console.log("Attendance data mapped:", this.attendanceData);
+      } catch (error) {
+        console.error("Error loading summary data:", error);
+        this.applySummaryError(error);
         this.showNotification(
           "Failed to load dashboard data. Please check your connection and try again.",
           "error",
@@ -331,75 +836,256 @@ export function dashboard() {
       }
     },
 
+    getExportTotalMetadata(pagination) {
+      if (Object.prototype.hasOwnProperty.call(pagination, "total_records")) {
+        return {
+          exists: true,
+          value: pagination.total_records,
+        };
+      }
+
+      if (Object.prototype.hasOwnProperty.call(pagination, "total_items")) {
+        return {
+          exists: true,
+          value: pagination.total_items,
+        };
+      }
+
+      return {
+        exists: false,
+        value: undefined,
+      };
+    },
+
+    extractExportReportRows(response) {
+      if (Array.isArray(response?.report)) {
+        return response.report;
+      }
+
+      if (Array.isArray(response?.report?.data)) {
+        return response.report.data;
+      }
+
+      return null;
+    },
+
+    getExportPagination(response) {
+      if (response?.report && !Array.isArray(response.report)) {
+        return response.report.pagination || {};
+      }
+
+      return response?.pagination || {};
+    },
+
     /**
-     * Load data khusus untuk export dengan period filter - ambil SEMUA data
+     * Check whether the fetched export dataset covers the reported total rows
+     * for the active period filter.
      */
+    ensureExportDatasetComplete(response) {
+      const reportRows = this.extractExportReportRows(response);
+      const fetchedRows = Array.isArray(reportRows) ? reportRows.length : 0;
+      const pagination = this.getExportPagination(response);
+      const totalMetadata = this.getExportTotalMetadata(pagination);
+      const totalRecordsRaw = totalMetadata.value;
+      const totalRecords = Number(totalRecordsRaw);
+
+      if (
+        !totalMetadata.exists ||
+        totalRecordsRaw === null ||
+        (typeof totalRecordsRaw === "string" &&
+          totalRecordsRaw.trim() === "") ||
+        !Number.isFinite(totalRecords) ||
+        totalRecords < 0 ||
+        !Number.isInteger(totalRecords)
+      ) {
+        throw new Error(
+          "Export data completeness could not be verified for the selected period.",
+        );
+      }
+
+      if (totalRecords !== fetchedRows) {
+        throw new Error(
+          "Export data is incomplete or inconsistent for the selected period. Please narrow the filter or use a backend export path that supports the full dataset.",
+        );
+      }
+    },
+
+    getCanonicalSummaryReportFiltersForExport() {
+      const validation = this.validateSummaryReportFilters();
+
+      if (!validation.isValid) {
+        throw new Error(
+          validation.message || "Invalid summary report period for export.",
+        );
+      }
+
+      return {
+        period: this.filters.period,
+        ...(this.filters.period === "range"
+          ? {
+              from: this.filters.from,
+              to: this.filters.to,
+            }
+          : {}),
+      };
+    },
+
     async loadExportData() {
       try {
-        console.log(`Loading export data with period: ${this.filters.period}`);
+        const reportFilters = this.getCanonicalSummaryReportFiltersForExport();
 
-        const response = await getSummaryReport({
-          period: this.filters.period, // Gunakan period yang dipilih user
-          page: 1, // Ambil dari halaman pertama
-          limit: 10000, // Ambil SEMUA data dengan limit besar
-          search: "", // Tidak ada search filter untuk export
+        console.log(
+          `Loading export payload for summary report period: ${reportFilters.period}`,
+        );
+
+        const response = await this.fetchSummaryReport({
+          ...reportFilters,
+          page: 1,
+          limit: 5000,
         });
 
         if (response && response.summary) {
-          // Update rawApiData untuk export
+          this.ensureExportDatasetComplete(response);
+
           const exportData = {
             summary: response.summary,
             report: response.report,
           };
+          const exportTotalMetadata = this.getExportTotalMetadata(
+            this.getExportPagination(response),
+          );
+          const exportRows = this.extractExportReportRows(response) || [];
 
-          console.log(`Export data loaded successfully:`, {
-            period: this.filters.period,
+          console.log(`Export payload loaded for selected summary report period:`, {
+            range: reportFilters,
             summaryStats: response.summary,
-            recordCount: response.report?.data?.length || 0,
-            totalRecords: response.report?.pagination?.total_records || 0,
+            recordCount: exportRows.length,
+            totalRecords: exportTotalMetadata.value || 0,
           });
 
           return exportData;
-        } else {
-          throw new Error("No valid export data received from API");
         }
+
+        throw new Error(
+          "Export payload is missing the required summary/report sections.",
+        );
       } catch (error) {
-        console.error("Error loading export data:", error);
+        console.error("Error loading export payload:", error);
         throw error;
       }
     },
 
-    /**
-     * Calculate work hours from check in and check out times
-     */
-    calculateWorkHours(checkIn, checkOut) {
-      if (!checkIn || !checkOut) return null;
+    hasRequiredExportStructure(exportData) {
+      return Boolean(
+        exportData?.summary &&
+        (exportData.report?.data || exportData.report) &&
+        typeof exportData.summary === "object",
+      );
+    },
+
+    async loadValidatedExportData(format) {
+      const exportData = await this.loadExportData();
+
+      if (!exportData || !exportData.summary || !exportData.report) {
+        console.error(
+          `Export payload is missing required sections for ${format}`,
+        );
+        this.showNotification(
+          "Failed to load the export payload. Please try again.",
+          "error",
+        );
+        return null;
+      }
+
+      if (!this.hasRequiredExportStructure(exportData)) {
+        console.error(`Export payload failed structural checks for ${format}`);
+        this.showNotification(
+          `The export payload is missing required summary/report structure for ${format} export.`,
+          "error",
+        );
+        return null;
+      }
+
+      console.log(
+        `Export payload passed structural checks for ${format} generation:`,
+        exportData,
+      );
+
+      return exportData;
+    },
+
+    async onDashboardRangeChange() {
+      console.log(
+        `Dashboard analytics range changed to: ${this.dashboardRange}`,
+      );
+
+      await this.loadSummaryData({ includeTodayLocations: false });
+
+      this.showNotification(
+        `Dashboard analytics updated untuk range: ${this.dashboardRange}`,
+        "info",
+      );
+    },
+
+    async loadFuzzyAhpDetail(
+      params = { type: "discipline", period: "monthly" },
+    ) {
+      const currentReportResponse = this.rawApiData
+        ? {
+            summary: this.rawApiData.summary,
+            report: this.rawApiData.report,
+          }
+        : {};
+
+      this.fuzzyAhpError = null;
+      this.applyCockpitSurfaceState({
+        reportResponse: currentReportResponse,
+        fuzzyAhpResponse: null,
+        fuzzyAhpError: null,
+      });
 
       try {
-        const timeIn = new Date(`2000-01-01T${checkIn}`);
-        const timeOut = new Date(`2000-01-01T${checkOut}`);
-        const diffMs = timeOut - timeIn;
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMinutes = Math.floor(
-          (diffMs % (1000 * 60 * 60)) / (1000 * 60),
-        );
-
-        return `${diffHours}h ${diffMinutes}m`;
+        const fuzzyAhpResponse = await this.fetchFuzzyAhpAnalysis(params);
+        this.fuzzyAhpResponse = fuzzyAhpResponse;
+        this.fuzzyAhpError = null;
+        this.applyCockpitSurfaceState({
+          reportResponse: currentReportResponse,
+          fuzzyAhpResponse,
+          fuzzyAhpError: null,
+        });
+        this.rawApiData = {
+          ...(this.rawApiData || {}),
+          fuzzyAhp: fuzzyAhpResponse,
+        };
       } catch (error) {
-        return null;
+        this.fuzzyAhpResponse = null;
+        this.fuzzyAhpError = error;
+        this.applyCockpitSurfaceState({
+          reportResponse: currentReportResponse,
+          fuzzyAhpResponse: null,
+          fuzzyAhpError: error,
+        });
+        console.warn(
+          "Fuzzy AHP request failed; decision panel will stay truthful to the missing backend feed:",
+          error,
+        );
       }
     },
 
     /**
-     * Handle period change - mempengaruhi semua tampilan dashboard
+     * Handle report/export period change - keeps filters.period as report/export owner.
      */
     async onPeriodChange() {
-      console.log(`🔄 Period filter changed to: ${this.filters.period}`);
-      console.log("📊 Reloading dashboard data dengan period filter baru");
+      console.log(`Period filter changed to: ${this.filters.period}`);
+      console.log("Reloading report/export data dengan period filter baru");
 
-      // Period filter mempengaruhi SEMUA tampilan dashboard (cards, table, export)
-      // Reload data dashboard dengan period filter baru
-      await this.loadSummaryData();
+      this.filters = applyDashboardPeriod(this.filters, this.filters.period);
+      this.period = this.filters.period;
+      const loaded = await this.loadSummaryData();
+
+      if (loaded === false) {
+        return;
+      }
 
       this.showNotification(
         `Dashboard updated untuk period: ${this.filters.period}`,
@@ -417,7 +1103,6 @@ export function dashboard() {
       }
     },
 
-
     /**
      * Get discipline score color class
      */
@@ -426,52 +1111,63 @@ export function dashboard() {
       if (score >= 70) return "bg-blue-500"; // Good - Blue
       if (score >= 55) return "bg-yellow-500"; // Needs Improvement - Yellow
       return "bg-red-500"; // Poor - Red
-    } /**
+    },
+
+    openExportModal() {
+      this.isExportModalOpen = true;
+    },
+
+    closeExportModal() {
+      this.isExportModalOpen = false;
+    },
+
+    async exportSelected(format) {
+      // TODO(INF-166): Redesign export UX after this single-entry export wiring is stable.
+      if (this.isExporting) {
+        return;
+      }
+
+      if (format === "pdf") {
+        if (await this.exportToPDF()) {
+          this.closeExportModal();
+        }
+        return;
+      }
+
+      if (format === "excel") {
+        if (await this.exportToExcel()) {
+          this.closeExportModal();
+        }
+        return;
+      }
+
+      this.showNotification("Unsupported export format selected.", "error");
+    },
+
+    /**
      * Download report as PDF
-     */,
+     */
     async downloadPDF() {
       try {
-        console.log(`Generating PDF report with period filter: ${this.filters.period}`);
-
-        // Load fresh export data dengan period filter
-        const exportData = await this.loadExportData();
-
-        // Validasi bahwa kita memiliki data export yang valid
-        if (!exportData || !exportData.summary || !exportData.report) {
-          console.error("No valid export data available for PDF");
-          this.showNotification(
-            "Failed to load export data. Please try again.",
-            "error",
-          );
-          return;
-        }
-
-        // Validasi struktur data
-        const isValidApiData =
-          exportData.summary &&
-          (exportData.report.data || exportData.report) &&
-          typeof exportData.summary === "object";
-
-        if (!isValidApiData) {
-          console.error("Invalid export data structure for PDF");
-          this.showNotification(
-            "Invalid data structure for PDF export",
-            "error",
-          );
-          return;
-        }
-
         console.log(
-          "Valid export data being sent to PDF generator:",
-          exportData,
+          `Generating PDF report with period filter: ${this.filters.period}`,
         );
-        generatePDFReport(exportData, this.filters.period);
 
-        // Show success notification
+        const exportData = await this.loadValidatedExportData("PDF");
+        if (!exportData) {
+          return false;
+        }
+
+        generatePDFReport(exportData, this.filters.period);
         this.showNotification("PDF report downloaded successfully!", "success");
+        return true;
       } catch (error) {
         console.error("Error generating PDF:", error);
-        this.showNotification("Failed to generate PDF report", "error");
+        this.showNotification(
+          error?.message || "Failed to generate PDF report",
+          "error",
+        );
+        return false;
       }
     },
     /**
@@ -483,48 +1179,24 @@ export function dashboard() {
           `Generating Excel report with period filter: ${this.filters.period}`,
         );
 
-        // Load fresh export data dengan period filter
-        const exportData = await this.loadExportData();
-
-        // Validasi bahwa kita memiliki data export yang valid
-        if (!exportData || !exportData.summary || !exportData.report) {
-          console.error("No valid export data available for Excel");
-          this.showNotification(
-            "Failed to load export data. Please try again.",
-            "error",
-          );
-          return;
+        const exportData = await this.loadValidatedExportData("Excel");
+        if (!exportData) {
+          return false;
         }
 
-        // Validasi struktur data
-        const isValidApiData =
-          exportData.summary &&
-          (exportData.report.data || exportData.report) &&
-          typeof exportData.summary === "object";
-
-        if (!isValidApiData) {
-          console.error("Invalid export data structure for Excel");
-          this.showNotification(
-            "Invalid data structure for Excel export",
-            "error",
-          );
-          return;
-        }
-
-        console.log(
-          "Valid export data being sent to Excel generator:",
-          exportData,
-        );
         generateExcelReport(exportData, this.filters.period);
-
-        // Show success notification
         this.showNotification(
           "Excel report downloaded successfully!",
           "success",
         );
+        return true;
       } catch (error) {
         console.error("Error generating Excel:", error);
-        this.showNotification("Failed to generate Excel report", "error");
+        this.showNotification(
+          error?.message || "Failed to generate Excel report",
+          "error",
+        );
+        return false;
       }
     },
 
@@ -534,7 +1206,7 @@ export function dashboard() {
     async exportToPDF() {
       this.isExporting = true;
       try {
-        await this.downloadPDF();
+        return await this.downloadPDF();
       } finally {
         this.isExporting = false;
       }
@@ -546,7 +1218,7 @@ export function dashboard() {
     async exportToExcel() {
       this.isExporting = true;
       try {
-        await this.downloadExcel();
+        return await this.downloadExcel();
       } finally {
         this.isExporting = false;
       }
@@ -648,18 +1320,50 @@ export function dashboard() {
 
       // Siapkan payload untuk modal peta - exactly same structure as attendance table
       const locationPayload = {
-        fullName: attendanceItem.full_name || "Unknown User",
-        email: attendanceItem.email || "-",
-        position: attendanceItem.role_name || "-",
-        phoneNumber: attendanceItem.phone_number || "-",
-        latitude: attendanceItem.location?.latitude || attendanceItem.latitude,
+        fullName: this.getOptionalBackendValue(
+          attendanceItem.full_name,
+          "Unavailable",
+        ),
+        email: this.getOptionalBackendValue(
+          attendanceItem.email,
+          "Unavailable",
+        ),
+        position: this.getOptionalBackendValue(
+          attendanceItem.role_name,
+          "Unavailable",
+        ),
+        phoneNumber: this.getOptionalBackendValue(
+          attendanceItem.phone_number,
+          "Unavailable",
+        ),
+        status: this.getOptionalBackendValue(
+          attendanceItem.status,
+          "Unavailable",
+        ),
+        attendanceDate: this.getOptionalBackendValue(
+          attendanceItem.attendance_date,
+          "Unavailable",
+        ),
+        workMode: this.getOptionalBackendValue(
+          attendanceItem.information,
+          "Unavailable",
+        ),
+        latitude: attendanceItem.location?.latitude ?? attendanceItem.latitude,
         longitude:
-          attendanceItem.location?.longitude || attendanceItem.longitude,
-        radius: attendanceItem.location?.radius || attendanceItem.radius || 100,
-        description:
-          attendanceItem.location?.description ||
-          attendanceItem.location_description ||
-          "Lokasi absensi karyawan",
+          attendanceItem.location?.longitude ?? attendanceItem.longitude,
+        radius:
+          attendanceItem.location?.radius ?? attendanceItem.radius ?? null,
+        description: this.getOptionalBackendValue(
+          attendanceItem.location?.description,
+          this.getOptionalBackendValue(attendanceItem.location_description),
+        ),
+        sourceNote: this.getOptionalBackendValue(
+          attendanceItem.source_note,
+          "Unavailable",
+        ),
+        trackingNote: this.getOptionalBackendValue(
+          attendanceItem.tracking_note,
+        ),
       };
 
       console.log("Prepared location payload:", locationPayload);
@@ -671,7 +1375,10 @@ export function dashboard() {
       } else {
         console.warn("openMapDetailModal function not found");
         // Fallback: tampilkan koordinat dalam alert - exactly same as attendance table
-        if (locationPayload.latitude && locationPayload.longitude) {
+        if (
+          Number.isFinite(locationPayload.latitude) &&
+          Number.isFinite(locationPayload.longitude)
+        ) {
           alert(
             `Koordinat: ${locationPayload.latitude}, ${locationPayload.longitude}`,
           );
@@ -772,50 +1479,24 @@ export function dashboard() {
      * Handle empty API response
      */
     handleEmptyApiResponse() {
-      console.warn(`API returned empty response for period: ${this.filters.period}`);
+      console.warn(
+        `API returned empty response for period: ${this.filters.period}`,
+      );
 
-      // Reset card summary data hanya jika benar-benar error API
-      this.cardSummaryData = {
-        onTime: 0,
-        late: 0,
-        alpha: 0,
-        wfo: 0,
-        wfh: 0,
-        wfa: 0,
-      };
-
-      this.summaryData = {
-        summary: {
-          onTime: 0,
-          late: 0,
-          alpha: 0,
-          wfo: 0,
-          wfh: 0,
-          wfa: 0,
-        },
-        report: [],
-      };
-
-      this.analyticsData = {
-        discipline_index: 0,
-        performance_trend: "stable",
-        avg_work_hours: 0,
-      };
-
-      this.pagination = {
-        current_page: 1,
-        total_pages: 1,
-        total_records: 0,
-        per_page: this.filters.limit,
-        has_next_page: false,
-        has_prev_page: false,
-      };
-
-      // Critical: No raw API data means no export capability
+      this.summaryData = null;
+      this.cockpit = createDashboardCockpitStateFromSources();
+      this.pagination = createEmptyDashboardPagination(this.filters.limit);
       this.rawApiData = null;
+      this.dashboardAnalyticsResponse = null;
+      this.dashboardAnalyticsError = null;
+      this.todayLocationsResponse = null;
+      this.todayLocationsError = null;
+      this.fuzzyAhpResponse = null;
+      this.fuzzyAhpError = null;
       this.attendanceData = [];
       this.reportData = [];
 
+      this.queueDashboardMapRender();
       this.showNotification("No data available from server", "info");
     },
 
@@ -823,8 +1504,7 @@ export function dashboard() {
     debouncedSearch() {
       clearTimeout(this.searchTimeout);
       this.searchTimeout = setTimeout(() => {
-        this.filters.page = 1;
-        // searchQuery sudah di-bind oleh input; cukup reload data agar reportData & pagination disesuaikan
+        this.filters = applyDashboardSearch(this.filters, this.searchQuery);
         this.loadSummaryData();
       }, 1000);
     },
@@ -861,8 +1541,7 @@ export function dashboard() {
 
     // Update filters limit and reload data
     changeEntriesPerPage(newLimit) {
-      this.filters.limit = Number(newLimit) || 5;
-      this.filters.page = 1; // Reset to first page
+      this.filters = applyDashboardPageSize(this.filters, newLimit);
       this.loadSummaryData();
     },
   };

@@ -1,5 +1,7 @@
 # Web FE Refresh Session Adoption Implementation Plan
 
+> **Status:** Superseded historical plan. The active Web FE auth contract no longer adopts `/auth/refresh`; source and ADR-002 now use `/auth/me` bootstrap plus forced re-authentication for protected-request auth failures. References to `refreshSession`, `REFRESH_URL`, or silent refresh below are retained as historical planning context only and are not current runtime truth.
+>
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implement truthful silent refresh for Web FE so protected requests and protected-page bootstrap can recover from normal access-token expiry, while invalid/revoked/inactivity-expired sessions force full re-auth and transport failures do not masquerade as auth invalidation.
@@ -36,6 +38,7 @@
 ### Task 1: Add the auth runtime test harness and core failure-classification primitives
 
 **Files:**
+
 - Create: `tests/auth-session-runtime.test.js`
 - Create: `src/js/services/authSessionRuntime.js`
 - Modify: `package.json`
@@ -112,10 +115,13 @@ test("createSingleFlightRefresh shares one in-flight refresh promise", async () 
 - [ ] **Step 2: Run the new test target and verify it fails because the runtime module does not exist yet**
 
 Run:
+
 ```bash
 npm run test:auth-runtime
 ```
+
 Expected:
+
 - FAIL with `ERR_MODULE_NOT_FOUND` for `src/js/services/authSessionRuntime.js`.
 
 - [ ] **Step 3: Write the minimal runtime module to satisfy the first tests**
@@ -144,14 +150,20 @@ export function classifyAuthFailure(error) {
 
   const status = error?.response?.status;
   const code = String(error?.response?.data?.code || "").toUpperCase();
-  const message = String(error?.response?.data?.message || error?.message || "");
+  const message = String(
+    error?.response?.data?.message || error?.message || "",
+  );
 
   if (status === 401 && NON_REFRESHABLE_CODES.has(code)) {
-    const reason = code === "INACTIVITY_EXPIRED" ? "inactivity_expired" : "refresh_invalid";
+    const reason =
+      code === "INACTIVITY_EXPIRED" ? "inactivity_expired" : "refresh_invalid";
     return { kind: "non_refreshable", reason };
   }
 
-  if (status === 401 && (REFRESHABLE_CODES.has(code) || /expired/i.test(message))) {
+  if (
+    status === 401 &&
+    (REFRESHABLE_CODES.has(code) || /expired/i.test(message))
+  ) {
     return { kind: "refreshable", reason: "access_token_expired" };
   }
 
@@ -178,25 +190,32 @@ export function createSingleFlightRefresh(refreshFn) {
 - [ ] **Step 4: Re-run the test target and verify the new runtime primitives pass**
 
 Run:
+
 ```bash
 npm run test:auth-runtime
 ```
+
 Expected:
+
 - PASS for all 4 tests in `tests/auth-session-runtime.test.js`.
 
 - [ ] **Step 5: Commit the initial runtime harness**
 
 Run:
+
 ```bash
 git add package.json tests/auth-session-runtime.test.js src/js/services/authSessionRuntime.js
 git commit -m "test: add auth session runtime harness"
 ```
+
 Expected:
+
 - One commit containing only the new test target and the minimal runtime primitives.
 
 ### Task 2: Normalize session-hint storage and centralize auth artifact cleanup
 
 **Files:**
+
 - Modify: `tests/auth-session-runtime.test.js`
 - Modify: `src/js/services/authSessionRuntime.js`
 - Modify: `src/js/services/authService.js`
@@ -248,7 +267,11 @@ test("readStoredSessionSnapshot prefers canonical userData and authToken", () =>
 
 test("readStoredSessionSnapshot falls back to legacy user token and auth_token", () => {
   const localStorage = createMemoryStorage({
-    user: JSON.stringify({ id: 9, role_name: "Management", token: "legacy-user-token" }),
+    user: JSON.stringify({
+      id: 9,
+      role_name: "Management",
+      token: "legacy-user-token",
+    }),
     auth_token: "legacy-header-token",
   });
 
@@ -285,10 +308,13 @@ test("clearAuthArtifacts removes canonical and legacy auth keys", () => {
 - [ ] **Step 2: Run the tests and verify they fail because snapshot/cleanup helpers are missing**
 
 Run:
+
 ```bash
 npm run test:auth-runtime
 ```
+
 Expected:
+
 - FAIL with missing exports or assertion failures for `readStoredSessionSnapshot` and `clearAuthArtifacts`.
 
 - [ ] **Step 3: Add snapshot and cleanup helpers, then route auth/storage consumers through them**
@@ -334,14 +360,20 @@ export function classifyAuthFailure(error) {
 
   const status = error?.response?.status;
   const code = String(error?.response?.data?.code || "").toUpperCase();
-  const message = String(error?.response?.data?.message || error?.message || "");
+  const message = String(
+    error?.response?.data?.message || error?.message || "",
+  );
 
   if (status === 401 && NON_REFRESHABLE_CODES.has(code)) {
-    const reason = code === "INACTIVITY_EXPIRED" ? "inactivity_expired" : "refresh_invalid";
+    const reason =
+      code === "INACTIVITY_EXPIRED" ? "inactivity_expired" : "refresh_invalid";
     return { kind: "non_refreshable", reason };
   }
 
-  if (status === 401 && (REFRESHABLE_CODES.has(code) || /expired/i.test(message))) {
+  if (
+    status === 401 &&
+    (REFRESHABLE_CODES.has(code) || /expired/i.test(message))
+  ) {
     return { kind: "refreshable", reason: "access_token_expired" };
   }
 
@@ -364,13 +396,17 @@ export function createSingleFlightRefresh(refreshFn) {
   };
 }
 
-export function readStoredSessionSnapshot(localStorageRef = globalThis.localStorage) {
+export function readStoredSessionSnapshot(
+  localStorageRef = globalThis.localStorage,
+) {
   if (!localStorageRef) {
     return null;
   }
 
   const canonicalUser = parseJson(localStorageRef.getItem("userData"));
-  const legacyUser = parseJson(localStorageRef.getItem("user")) || parseJson(localStorageRef.getItem("currentUserData"));
+  const legacyUser =
+    parseJson(localStorageRef.getItem("user")) ||
+    parseJson(localStorageRef.getItem("currentUserData"));
   const user = canonicalUser || legacyUser;
 
   const canonicalToken = localStorageRef.getItem("authToken");
@@ -463,52 +499,66 @@ async function logout() {
 Update the export block in `src/js/services/authService.js` to include `hasSessionHint`:
 
 ```js
-export { login, fetchCurrentUser, logout, isAuthenticated, getCurrentUser, hasSessionHint };
+export {
+  login,
+  fetchCurrentUser,
+  logout,
+  isAuthenticated,
+  getCurrentUser,
+  hasSessionHint,
+};
 ```
 
 Update the browser global in `src/js/services/authService.js` to include `hasSessionHint`:
 
 ```js
-  window.AuthService = {
-    login,
-    fetchCurrentUser,
-    logout,
-    isAuthenticated,
-    getCurrentUser,
-    hasSessionHint,
-  };
+window.AuthService = {
+  login,
+  fetchCurrentUser,
+  logout,
+  isAuthenticated,
+  getCurrentUser,
+  hasSessionHint,
+};
 ```
 
 Update `src/js/utils/storageManager.js` by extending the legacy cleanup list in `removeUserFromStorage()` to this exact block:
 
 ```js
-    localStorage.removeItem("currentUserData");
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user");
+localStorage.removeItem("currentUserData");
+localStorage.removeItem("auth_token");
+localStorage.removeItem("user");
 ```
 
 - [ ] **Step 4: Run the auth-runtime tests again and verify the storage/cleanup behavior passes**
 
 Run:
+
 ```bash
 npm run test:auth-runtime
 ```
+
 Expected:
+
 - PASS for the original tests plus the 3 new snapshot/cleanup tests.
 
 - [ ] **Step 5: Commit the normalized auth artifact behavior**
 
 Run:
+
 ```bash
 git add tests/auth-session-runtime.test.js src/js/services/authSessionRuntime.js src/js/services/authService.js src/js/utils/storageManager.js
 git commit -m "feat: normalize auth session artifacts"
 ```
+
 Expected:
+
 - One commit containing the new snapshot/cleanup behavior and its tests.
 
 ### Task 3: Add the centralized protected-request recovery path and migrate service consumers
 
 **Files:**
+
 - Modify: `tests/auth-session-runtime.test.js`
 - Modify: `src/js/services/authSessionRuntime.js`
 - Create: `src/js/services/authRequest.js`
@@ -621,10 +671,13 @@ test("createProtectedRequestExecutor does not force reauth on transport refresh 
 - [ ] **Step 2: Run the tests and verify they fail because the protected-request executor is missing**
 
 Run:
+
 ```bash
 npm run test:auth-runtime
 ```
+
 Expected:
+
 - FAIL with missing export or behavior failures for `createProtectedRequestExecutor`.
 
 - [ ] **Step 3: Implement the executor and route protected service calls through one auth-aware request helper**
@@ -717,7 +770,8 @@ async function refreshSession() {
     },
   );
 
-  const refreshedUser = response.data?.data?.user || response.data?.data || null;
+  const refreshedUser =
+    response.data?.data?.user || response.data?.data || null;
   const refreshedToken =
     response.data?.data?.access_token || response.data?.data?.token || null;
 
@@ -774,17 +828,17 @@ export {
 Update the browser global in `src/js/services/authService.js` to this exact version:
 
 ```js
-  window.AuthService = {
-    login,
-    fetchCurrentUser,
-    logout,
-    isAuthenticated,
-    getCurrentUser,
-    hasSessionHint,
-    refreshSession,
-    buildAuthRequestHeaders,
-    forceReauthenticate,
-  };
+window.AuthService = {
+  login,
+  fetchCurrentUser,
+  logout,
+  isAuthenticated,
+  getCurrentUser,
+  hasSessionHint,
+  refreshSession,
+  buildAuthRequestHeaders,
+  forceReauthenticate,
+};
 ```
 
 Now migrate the protected service files to `authRequest`.
@@ -985,26 +1039,33 @@ const response = await authRequest({
 - [ ] **Step 4: Run the runtime tests and the repo build to verify the centralized request path compiles cleanly**
 
 Run:
+
 ```bash
 npm run test:auth-runtime && npm run build
 ```
+
 Expected:
+
 - The auth-runtime test target passes.
 - Webpack production build succeeds.
 
 - [ ] **Step 5: Commit the centralized protected-request recovery path**
 
 Run:
+
 ```bash
 git add tests/auth-session-runtime.test.js src/js/services/authSessionRuntime.js src/js/services/authRequest.js src/js/services/authService.js src/js/services/userService.js src/js/services/bookingService.js src/js/services/attendanceService.js src/js/services/reportService.js
 git commit -m "feat: centralize auth request recovery"
 ```
+
 Expected:
+
 - One commit containing the new auth-aware request path and the service migrations.
 
 ### Task 4: Wire bootstrap, auth guard, auth store, signin redirect, and fallback cleanup to the runtime
 
 **Files:**
+
 - Modify: `tests/auth-session-runtime.test.js`
 - Modify: `src/js/services/authSessionRuntime.js`
 - Modify: `src/js/services/authService.js`
@@ -1086,10 +1147,13 @@ test("createBootstrapSessionResolver keeps verification_failed separate from non
 - [ ] **Step 2: Run the tests and verify they fail because the bootstrap resolver is still missing**
 
 Run:
+
 ```bash
 npm run test:auth-runtime
 ```
+
 Expected:
+
 - FAIL with missing export or behavior failures for `createBootstrapSessionResolver`.
 
 - [ ] **Step 3: Implement the bootstrap resolver and make startup/guard/store/logout consumers follow it**
@@ -1178,18 +1242,18 @@ export {
 Update the browser global in `src/js/services/authService.js` to include `resolveBootstrapSession`:
 
 ```js
-  window.AuthService = {
-    login,
-    fetchCurrentUser,
-    logout,
-    isAuthenticated,
-    getCurrentUser,
-    hasSessionHint,
-    refreshSession,
-    buildAuthRequestHeaders,
-    forceReauthenticate,
-    resolveBootstrapSession,
-  };
+window.AuthService = {
+  login,
+  fetchCurrentUser,
+  logout,
+  isAuthenticated,
+  getCurrentUser,
+  hasSessionHint,
+  refreshSession,
+  buildAuthRequestHeaders,
+  forceReauthenticate,
+  resolveBootstrapSession,
+};
 ```
 
 Update the auth imports at the top of `src/js/index.js` to this exact block:
@@ -1221,7 +1285,8 @@ function initializeAuthSession() {
 
   const pageName = currentPath.split("/").pop() || "index.html";
   const isProtectedPage =
-    protectedPages.some((page) => page.includes(pageName)) || currentPath === "/";
+    protectedPages.some((page) => page.includes(pageName)) ||
+    currentPath === "/";
 
   if (isProtectedPage) {
     if (!hasSessionHint()) {
@@ -1248,7 +1313,11 @@ async function validateUserSession() {
     const resolution = await resolveBootstrapSession();
 
     if (resolution.state === "authenticated") {
-      if (typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
+      if (
+        typeof Alpine !== "undefined" &&
+        Alpine.store &&
+        Alpine.store("auth")
+      ) {
         Alpine.store("auth").setUser(resolution.user);
       }
       return;
@@ -1256,7 +1325,12 @@ async function validateUserSession() {
 
     if (resolution.state === "verification_failed") {
       const storedUser = getUserFromStorage();
-      if (storedUser && typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
+      if (
+        storedUser &&
+        typeof Alpine !== "undefined" &&
+        Alpine.store &&
+        Alpine.store("auth")
+      ) {
         Alpine.store("auth").setUser(storedUser);
       }
       window.showInlineAlert?.(
@@ -1284,7 +1358,11 @@ async function validateSigninPageSession() {
     const resolution = await resolveBootstrapSession();
 
     if (resolution.state === "authenticated") {
-      if (typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
+      if (
+        typeof Alpine !== "undefined" &&
+        Alpine.store &&
+        Alpine.store("auth")
+      ) {
         Alpine.store("auth").setUser(resolution.user);
       }
       window.location.href = "/index.html";
@@ -1329,7 +1407,10 @@ function checkAuthentication() {
 Update the imports at the top of `src/js/stores/authStore.js` to this exact block:
 
 ```js
-import { getUserFromStorage, removeUserFromStorage } from "../utils/storageManager.js";
+import {
+  getUserFromStorage,
+  removeUserFromStorage,
+} from "../utils/storageManager.js";
 import {
   fetchCurrentUser,
   hasSessionHint,
@@ -1420,38 +1501,45 @@ Replace both `if (!isAuthenticated())` checks in `hasPageAccess()` and `canAcces
 Replace the fallback inside `logout()` in `src/js/utils/roleBasedAccess.js` from:
 
 ```js
-      forceLogout();
+forceLogout();
 ```
 
 to this exact line:
 
 ```js
-      await forceReauthenticate();
+await forceReauthenticate();
 ```
 
 - [ ] **Step 4: Run the runtime tests and build again to verify bootstrap wiring still compiles**
 
 Run:
+
 ```bash
 npm run test:auth-runtime && npm run build
 ```
+
 Expected:
+
 - The auth-runtime tests pass.
 - Webpack production build succeeds with the new bootstrap and consumer wiring.
 
 - [ ] **Step 5: Commit the bootstrap and consumer integration**
 
 Run:
+
 ```bash
 git add tests/auth-session-runtime.test.js src/js/services/authSessionRuntime.js src/js/services/authService.js src/js/index.js src/js/stores/authStore.js src/js/utils/authGuard.js src/js/features/signinHandler.js src/js/components/logoutComponent.js src/js/utils/roleBasedAccess.js
 git commit -m "feat: wire refresh session bootstrap flow"
 ```
+
 Expected:
+
 - One commit containing the startup, guard, store, and cleanup integration.
 
 ### Task 5: Update ADR-002 and capture the new truthful refresh-session semantics
 
 **Files:**
+
 - Modify: `docs/adr/ADR-002-auth-session-and-truthful-access-denial.md`
 - Test: `docs/adr/ADR-002-auth-session-and-truthful-access-denial.md`
 
@@ -1461,9 +1549,11 @@ Update the `## Decision` section in `docs/adr/ADR-002-auth-session-and-truthful-
 
 ```md
 ## Decision
+
 We will make Web FE authentication and session behavior truthful: expired, missing, invalid, and denied states must be presented as such, and the UI must not imply backend validation when only local state is available.
 
 For refresh-session adoption, Web FE will treat cached browser state only as a **session hint**, not as final session truth. Protected-page bootstrap and protected API recovery must use one centralized auth runtime that:
+
 - classifies auth failure as refreshable, non-refreshable, or transport-related,
 - runs refresh through a single-flight path,
 - replays a protected request at most once after refresh succeeds,
@@ -1475,6 +1565,7 @@ Then append this exact subsection under `## Trade-offs / Consequences`:
 
 ```md
 ### Refresh-session consequences
+
 - Positive: protected-page bootstrap and runtime request recovery now share the same session-truth path.
 - Positive: access-token expiry can recover without misleading logout if refresh still succeeds.
 - Positive: transport/server problems during refresh can be surfaced honestly instead of being mislabeled as invalid auth.
@@ -1485,6 +1576,7 @@ Then append this exact subsection under `## Trade-offs / Consequences`:
 - [ ] **Step 2: Verify the ADR now documents session hint vs session truth and single-flight refresh behavior**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -1503,16 +1595,21 @@ for item in required:
 print("adr refresh-session text verified")
 PY
 ```
+
 Expected:
+
 - Script prints `adr refresh-session text verified`.
 
 - [ ] **Step 3: Run the code verification suite again after the ADR update to capture the final implementation state**
 
 Run:
+
 ```bash
 npm run test:auth-runtime && npm run build
 ```
+
 Expected:
+
 - Tests pass.
 - Production build succeeds.
 
@@ -1522,7 +1619,9 @@ Add this exact note to the end of `docs/adr/ADR-002-auth-session-and-truthful-ac
 
 ```md
 ## Manual verification boundary
+
 REQUIRES REPO VERIFICATION for the live backend scenarios below because the repo does not lock an automated fixture path for them:
+
 - access token expired but refreshable while a protected dashboard page is open,
 - refresh invalid/revoked,
 - inactivity-expired refresh denial,
@@ -1533,16 +1632,20 @@ REQUIRES REPO VERIFICATION for the live backend scenarios below because the repo
 - [ ] **Step 5: Commit the ADR update and final verification state**
 
 Run:
+
 ```bash
 git add docs/adr/ADR-002-auth-session-and-truthful-access-denial.md
 git commit -m "docs: capture refresh session auth semantics"
 ```
+
 Expected:
+
 - One commit containing only the ADR update.
 
 ## Self-Review
 
 ### Spec coverage check
+
 - Centralized auth runtime: covered by Tasks 1-4.
 - Single refresh path and no refresh storm: covered by Task 3 tests and executor implementation.
 - Truthful bootstrap and protected-page behavior: covered by Task 4.
@@ -1551,11 +1654,13 @@ Expected:
 - Docs / ADR update requirement: covered by Task 5.
 
 ### Placeholder scan
+
 - No `TODO`, `TBD`, or “implement later” text remains.
 - Every code-changing step includes concrete code blocks.
 - Every run step includes exact commands and expected outcomes.
 
 ### Type consistency check
+
 - The plan uses one consistent runtime file name: `src/js/services/authSessionRuntime.js`.
 - The auth-aware request helper is consistently named `authRequest` in `src/js/services/authRequest.js`.
 - The forced full-login helper is consistently named `forceReauthenticate`.

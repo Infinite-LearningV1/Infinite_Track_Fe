@@ -7,6 +7,23 @@ export function buildDashboardRequestParams(filters) {
   };
 }
 
+import { buildDashboardRangeRequestParams } from "../../components/dashboardRange/dashboardRange.js";
+
+export function buildDashboardAnalyticsRequestParams(dashboardRange) {
+  const canonicalPeriod =
+    dashboardRange === "current_month" || dashboardRange === "monthly"
+      ? "current_month"
+      : dashboardRange === "30d"
+        ? "30d"
+        : "30d";
+
+  return buildDashboardRangeRequestParams({
+    period: canonicalPeriod,
+    from: null,
+    to: null,
+  });
+}
+
 export function applyDashboardSearch(filters, search) {
   return {
     ...filters,

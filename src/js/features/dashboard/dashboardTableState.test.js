@@ -5,6 +5,7 @@ import {
   applyDashboardSearch,
   applyDashboardPageSize,
   applyDashboardPeriod,
+  buildDashboardAnalyticsRequestParams,
   buildDashboardRequestParams,
   createEmptyDashboardPagination,
   normalizeDashboardPagination,
@@ -25,6 +26,38 @@ test("buildDashboardRequestParams returns only canonical server-driven request p
     page: 3,
     limit: 25,
     search: "andi",
+  });
+});
+
+test("buildDashboardAnalyticsRequestParams maps 30d dashboardRange to backend-native 30d analytics", () => {
+  const params = buildDashboardAnalyticsRequestParams("30d");
+
+  assert.deepEqual(params, {
+    period: "30d",
+  });
+});
+
+test("buildDashboardAnalyticsRequestParams maps monthly dashboardRange to current_month analytics", () => {
+  const params = buildDashboardAnalyticsRequestParams("monthly");
+
+  assert.deepEqual(params, {
+    period: "current_month",
+  });
+});
+
+test("buildDashboardAnalyticsRequestParams falls back unsupported daily dashboardRange to 30d analytics", () => {
+  const params = buildDashboardAnalyticsRequestParams("daily");
+
+  assert.deepEqual(params, {
+    period: "30d",
+  });
+});
+
+test("buildDashboardAnalyticsRequestParams falls back unsupported weekly dashboardRange to 30d analytics", () => {
+  const params = buildDashboardAnalyticsRequestParams("weekly");
+
+  assert.deepEqual(params, {
+    period: "30d",
   });
 });
 

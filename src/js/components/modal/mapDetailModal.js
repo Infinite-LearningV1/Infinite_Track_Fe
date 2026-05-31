@@ -4,6 +4,7 @@
  */
 
 import L from "leaflet";
+import { hasFiniteCoordinates } from "../../utils/mapLocationTruth.js";
 
 class MapDetailModal {
   constructor() {
@@ -23,7 +24,7 @@ class MapDetailModal {
    * @param {string} locationData.fullName - User's full name
    */
   initializeMap(locationData) {
-    if (!locationData.latitude || !locationData.longitude) {
+    if (!hasFiniteCoordinates(locationData)) {
       console.warn("Invalid coordinates provided for map initialization");
       return;
     }
@@ -88,7 +89,7 @@ class MapDetailModal {
               ${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}
             </p>
             ${
-              locationData.radius
+              Number.isFinite(locationData.radius)
                 ? `
               <p class="text-sm text-gray-600 mb-1">
                 <strong>Radius:</strong> ${locationData.radius} meter

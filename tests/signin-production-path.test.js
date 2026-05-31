@@ -17,7 +17,9 @@ test("production Alpine signin submit flow delegates redirect to SigninHandler.r
   );
 
   assert.ok(
-    !signinHtml.includes("window.RoleBasedAccess.hasPageAccess(savedRedirectUrl)"),
+    !signinHtml.includes(
+      "window.RoleBasedAccess.hasPageAccess(savedRedirectUrl)",
+    ),
     "Expected legacy inline redirect access check to be removed from production signin flow",
   );
 });

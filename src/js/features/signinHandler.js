@@ -17,7 +17,10 @@ import {
 function showAuthRedirectNotice() {
   const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
 
-  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
+  if (
+    !redirectNotice?.message ||
+    typeof window.showInlineAlert !== "function"
+  ) {
     return;
   }
 
@@ -33,9 +36,7 @@ function showAuthRedirectNotice() {
 function shouldAutoInitSigninHandler(doc = document) {
   const form = doc.querySelector("form");
   const emailInput = doc.getElementById("email");
-  const passwordInput = doc.querySelector(
-    "#password",
-  );
+  const passwordInput = doc.querySelector("#password");
   const submitButton = doc.querySelector(
     'button[type="submit"], form button:last-of-type',
   );
@@ -70,9 +71,7 @@ function setupSigninForm() {
 
   const form = document.querySelector("form");
   const emailInput = document.getElementById("email");
-  const passwordInput = document.querySelector(
-    "#password",
-  );
+  const passwordInput = document.querySelector("#password");
   const submitButton = document.querySelector(
     'button[type="submit"], form button:last-of-type',
   );
@@ -395,7 +394,10 @@ function resolveStoredRedirectTarget(redirectValue) {
       pathname: parsedUrl.pathname,
     };
   } catch (error) {
-    console.warn("Invalid redirectAfterLogin value, ignoring redirect target", error);
+    console.warn(
+      "Invalid redirectAfterLogin value, ignoring redirect target",
+      error,
+    );
     return null;
   }
 }
@@ -417,11 +419,16 @@ async function redirectAfterLogin({
       const resolution = await resolveBootstrapSession();
       if (resolution.state === "authenticated") {
         verifiedUser = resolution.user || null;
-      } else if (!(resolution.state === "verification_failed" && loginJustSucceeded)) {
+      } else if (
+        !(resolution.state === "verification_failed" && loginJustSucceeded)
+      ) {
         return;
       }
     } catch (error) {
-      console.warn("Bootstrap session resolution failed before redirect", error);
+      console.warn(
+        "Bootstrap session resolution failed before redirect",
+        error,
+      );
       if (!loginJustSucceeded) {
         return;
       }

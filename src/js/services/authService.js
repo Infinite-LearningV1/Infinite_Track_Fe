@@ -4,8 +4,11 @@
  */
 
 import axios from "axios";
-import { saveUserToStorage, removeUserFromStorage } from "../utils/storageManager.js";
-import { API_CONFIG, AUTH_CONFIG, envLog } from "../config/env.js";
+import {
+  saveUserToStorage,
+  removeUserFromStorage,
+} from "../utils/storageManager.js";
+import { API_CONFIG, envLog } from "../config/env.js";
 import {
   classifyAuthFailure,
   clearAuthArtifacts,
@@ -125,33 +128,6 @@ async function fetchCurrentUser() {
   }
 }
 
-async function refreshSession() {
-  const response = await axios.post(
-    API_CONFIG.REFRESH_URL,
-    {},
-    {
-      withCredentials: true,
-      headers: {
-        "X-Client-Type": "web-fe",
-        ...buildAuthRequestHeaders(),
-      },
-    },
-  );
-
-  const refreshedUser = response.data?.data?.user || response.data?.data || null;
-  if (refreshedUser) {
-    saveUserToStorage(refreshedUser);
-  }
-
-  const refreshedToken =
-    response.data?.data?.access_token || response.data?.data?.token || null;
-  if (refreshedToken) {
-    window.localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.AUTH_TOKEN, refreshedToken);
-  }
-
-  return response.data;
-}
-
 function buildAuthRequestHeaders() {
   const snapshot = readStoredSessionSnapshot(window.localStorage);
 
@@ -165,12 +141,13 @@ function buildAuthRequestHeaders() {
 }
 
 async function forceReauthenticate(options = {}) {
+  const authStore = window.Alpine?.store?.("auth") || null;
+  const preserveRedirectAfterLogin = options?.preserveRedirectAfterLogin;
   const redirectToPreserve =
-    typeof options?.preserveRedirectAfterLogin === "string" &&
-    options.preserveRedirectAfterLogin.length > 0
-      ? options.preserveRedirectAfterLogin
+    typeof preserveRedirectAfterLogin === "string" &&
+    preserveRedirectAfterLogin.length > 0
+      ? preserveRedirectAfterLogin
       : window.sessionStorage?.getItem("redirectAfterLogin") || null;
-
   const redirectNotice =
     options?.redirectNotice && typeof options.redirectNotice === "object"
       ? options.redirectNotice
@@ -186,15 +163,12 @@ async function forceReauthenticate(options = {}) {
 
   removeUserFromStorage();
 
-  if (window.Alpine?.store) {
-    const authStore = window.Alpine.store("auth");
-    if (authStore) {
-      authStore.user = null;
-      authStore.isAuthenticated = false;
-      authStore.sessionState = "unauthenticated";
-      authStore.error = null;
-      authStore.isLoading = false;
-    }
+  if (authStore) {
+    authStore.user = null;
+    authStore.isAuthenticated = false;
+    authStore.sessionState = "unauthenticated";
+    authStore.error = null;
+    authStore.isLoading = false;
   }
 
   window.location.href = "/signin.html";
@@ -253,7 +227,6 @@ const classifyFailure = classifyAuthFailure;
 const resolveBootstrapSession = createBootstrapSessionResolver({
   hasSessionHint,
   fetchCurrentUser,
-  refreshSession,
   classifyFailure,
 });
 
@@ -282,7 +255,6 @@ function getCurrentUser() {
 export {
   login,
   fetchCurrentUser,
-  refreshSession,
   buildAuthRequestHeaders,
   forceReauthenticate,
   logout,
@@ -297,7 +269,6 @@ if (typeof window !== "undefined") {
   window.AuthService = {
     login,
     fetchCurrentUser,
-    refreshSession,
     buildAuthRequestHeaders,
     forceReauthenticate,
     logout,

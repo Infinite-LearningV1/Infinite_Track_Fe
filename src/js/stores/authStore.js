@@ -192,4 +192,3 @@ export { initAuthStore };
 if (typeof window !== "undefined") {
   window.initAuthStore = initAuthStore;
 }
-

@@ -3,10 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-const INDEX_JS_PATH = path.resolve(
-  process.cwd(),
-  "src/js/index.js",
-);
+const INDEX_JS_PATH = path.resolve(process.cwd(), "src/js/index.js");
 
 test("auth store is initialized before Alpine.start during module bootstrap", () => {
   const indexSource = fs.readFileSync(INDEX_JS_PATH, "utf8");
@@ -21,7 +18,11 @@ test("auth store is initialized before Alpine.start during module bootstrap", ()
     -1,
     "Expected Alpine bootstrap marker in src/js/index.js",
   );
-  assert.notEqual(alpineStartIndex, -1, "Expected Alpine.start() in src/js/index.js");
+  assert.notEqual(
+    alpineStartIndex,
+    -1,
+    "Expected Alpine.start() in src/js/index.js",
+  );
 
   const topLevelBootstrapSection = indexSource.slice(
     bootstrapMarkerIndex,

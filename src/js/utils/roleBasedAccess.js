@@ -35,7 +35,6 @@ const PAGE_PERMISSIONS = {
   "/management-user.html": [ROLES.ADMIN],
   "/management-booking.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
   "/management-attendance.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
-  "/management-backend-settings.html": [ROLES.ADMIN],
   "/form-user.html": [ROLES.ADMIN],
   "/profile.html": [
     ROLES.ADMIN,
@@ -346,7 +345,9 @@ function initRoleBasedAccess() {
   console.log("Checking role-based access for page:", currentPage);
 
   if (authStore?.sessionState === "verification_failed") {
-    console.log("Auth verification failed at startup, skipping RBAC enforcement");
+    console.log(
+      "Auth verification failed at startup, skipping RBAC enforcement",
+    );
     return;
   }
 
@@ -431,4 +432,3 @@ if (typeof window !== "undefined") {
     canAccessDashboard,
   };
 }
-

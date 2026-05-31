@@ -20,6 +20,7 @@
 ### Task 1: Normalize deploy-bridge docs to the new promotion flow
 
 **Files:**
+
 - Modify: `docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md`
 - Modify: `docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md`
 - Test: search for removed `deploy`-bridge branch guidance
@@ -27,6 +28,7 @@
 - [ ] **Step 1: Locate all explicit `deploy`-bridge branch rules in the two historical docs**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -42,12 +44,15 @@ for path in files:
             print(f"{i}: {line}")
 PY
 ```
+
 Expected:
+
 - Output identifies the exact lines that still operationalize `deploy` as the bridge to `master`.
 
 - [ ] **Step 2: Replace the old deploy-bridge policy statements with the new primary flow**
 
 In both historical docs, replace any explicit workflow statements of the form:
+
 - `feature/* / fix/* -> deploy -> master`
 - references that `deploy` is the required PR base for release flow
 - command examples using `--base deploy` for the official release path
@@ -63,6 +68,7 @@ When adjusting prose, preserve the surrounding historical context, but remove an
 - [ ] **Step 3: Verify the old deploy-bridge declarations are gone**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -83,37 +89,47 @@ for path in files:
 print("deploy-bridge rules removed")
 PY
 ```
+
 Expected:
+
 - Script prints `deploy-bridge rules removed`.
 
 - [ ] **Step 4: Review the scoped diff for the two normalized docs**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md
 ```
+
 Expected:
+
 - Diff shows only branch-rule normalization, not unrelated content churn.
 
 - [ ] **Step 5: Commit the deploy-bridge cleanup**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "docs: remove deploy bridge branch guidance"
 ```
+
 Expected:
+
 - One commit containing only the deploy-bridge workflow cleanup.
 
 ### Task 2: Remove the legacy hotfix-direct-to-master rule from the lightweight git flow doc
 
 **Files:**
+
 - Modify: `docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md`
 - Test: search for `hotfix/* -> master` and equivalent phrasing
 
 - [ ] **Step 1: Locate the exact hotfix-to-master declarations in the lightweight git flow spec**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -124,7 +140,9 @@ for i, line in enumerate(path.read_text().splitlines(), start=1):
         print(f"{i}: {line}")
 PY
 ```
+
 Expected:
+
 - Output identifies the lines where direct `hotfix/* -> master` is declared or implied.
 
 - [ ] **Step 2: Rewrite the conflicting hotfix path so it no longer bypasses `develop` as the normal documented rule**
@@ -140,6 +158,7 @@ Preserve the historical document’s purpose, but remove the bypass path as an a
 - [ ] **Step 3: Verify the old hotfix bypass rule is gone**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -156,37 +175,47 @@ for item in forbidden:
 print("hotfix bypass rule removed")
 PY
 ```
+
 Expected:
+
 - Script prints `hotfix bypass rule removed`.
 
 - [ ] **Step 4: Review the scoped diff for the lightweight git flow doc**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md
 ```
+
 Expected:
+
 - Diff shows only the hotfix-rule normalization.
 
 - [ ] **Step 5: Commit the hotfix-rule cleanup**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "docs: remove direct hotfix path to master"
 ```
+
 Expected:
+
 - One commit containing only the historical hotfix-rule cleanup.
 
 ### Task 3: Cross-check that no historical docs still declare an alternate primary branch model
 
 **Files:**
+
 - Modify if needed: any of the three historical docs above only if the cross-check reveals missed contradictory text
 - Test: combined search across the targeted docs plus the new source-of-truth spec
 
 - [ ] **Step 1: Search the targeted historical docs for old branch models after cleanup**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -203,7 +232,9 @@ for path in files:
             print(f"{i}: {line}")
 PY
 ```
+
 Expected:
+
 - Historical docs should no longer declare `deploy` as the normal bridge branch or `hotfix/* -> master` as the recommended path.
 - The 2026-04-18 workflow spec remains the clear source of truth.
 
@@ -220,6 +251,7 @@ If no contradictions remain, do not change files in this step.
 - [ ] **Step 3: Verify the final workflow language converges on one primary model**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -237,16 +269,21 @@ for path in files:
 print("legacy branch workflow conflicts removed")
 PY
 ```
+
 Expected:
+
 - Script prints `legacy branch workflow conflicts removed`.
 
 - [ ] **Step 4: Review the final combined diff for historical-doc scope only**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- docs/superpowers/specs/2026-04-15-inf-138-deploy-branch-cicd-baseline-design.md docs/superpowers/plans/2026-04-15-inf-138-deploy-branch-cicd-baseline.md docs/superpowers/specs/2026-04-13-lightweight-git-flow-design.md
 ```
+
 Expected:
+
 - Diff is limited to branch-rule cleanup in the targeted historical docs.
 
 - [ ] **Step 5: Commit the final historical-doc cross-check only if Step 2 changed files**

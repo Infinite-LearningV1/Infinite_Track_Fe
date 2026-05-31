@@ -3,19 +3,27 @@ import {
   createProtectedRequestExecutor,
   classifyAuthFailure,
 } from "./authSessionRuntime.js";
-import {
-  buildAuthRequestHeaders,
-  forceReauthenticate,
-  refreshSession,
-} from "./authService.js";
+import { buildAuthRequestHeaders, forceReauthenticate } from "./authService.js";
+
+const SESSION_EXPIRED_NOTICE = {
+  type: "warning",
+  title: "Sesi Berakhir",
+  message: "Sesi telah berakhir. Silakan login kembali.",
+};
 
 const runProtectedRequest = createProtectedRequestExecutor({
-  executeRefresh: refreshSession,
   classifyFailure: classifyAuthFailure,
-  onForcedReauth: forceReauthenticate,
+  onForcedReauth: () =>
+    forceReauthenticate({
+      preserveRedirectAfterLogin: globalThis.location?.href ?? undefined,
+      redirectNotice: SESSION_EXPIRED_NOTICE,
+    }),
 });
 
-export function buildAuthRequestConfig(config = {}, resolveAuthHeaders = buildAuthRequestHeaders) {
+export function buildAuthRequestConfig(
+  config = {},
+  resolveAuthHeaders = buildAuthRequestHeaders,
+) {
   const callerHeaders = config?.headers || {};
   const canonicalAuthHeaders = resolveAuthHeaders() || {};
 

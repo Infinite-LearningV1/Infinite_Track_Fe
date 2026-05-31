@@ -22,6 +22,7 @@ Phase ini memperluas dashboard-first table standardization dengan mengunci dashb
 ## Current context
 
 Dashboard saat ini masih membawa jejak dua model state:
+
 - **server-driven path** melalui `filters`, `pagination`, `reportData`, dan `getSummaryReport()`
 - **legacy client-side path** melalui helper seperti `filteredAttendanceData`, `paginatedAttendanceData`, `currentPage`, `entriesPerPage`, dan helper page-number lokal
 
@@ -32,6 +33,7 @@ Partial dashboard table aktif sudah lebih dekat ke contract server-driven karena
 Dashboard report table harus memakai **satu server-driven table contract end-to-end**.
 
 ### Canonical request state
+
 - `filters.period`
 - `filters.page`
 - `filters.limit`
@@ -40,6 +42,7 @@ Dashboard report table harus memakai **satu server-driven table contract end-to-
 - `filters.sortOrder`
 
 ### Canonical response state
+
 - `pagination`
   - `current_page`
   - `total_pages`
@@ -50,6 +53,7 @@ Dashboard report table harus memakai **satu server-driven table contract end-to-
 - `reportData`
 
 ### Supporting UI state allowed
+
 - `searchQuery`
 - `searchTimeout`
 - `isLoading`
@@ -61,16 +65,19 @@ Dashboard report table harus memakai **satu server-driven table contract end-to-
 ## Sorting contract for this phase
 
 Sorting phase ini hanya berlaku untuk tiga field:
+
 - `full_name`
 - `status`
 - `attendance_date`
 
 ### Why only these three
+
 - ketiganya paling masuk akal secara user-facing di dashboard report table
 - membatasi scope menghindari spread ke semua header yang saat ini clickable tapi belum tentu punya dukungan backend
 - ini cukup untuk mengunci pola reusable tanpa menciptakan sort affordance palsu pada field lain
 
 ### Rule
+
 - Header untuk `full_name`, `status`, dan `attendance_date` boleh clickable dan harus mengubah `filters.sortBy` / `filters.sortOrder`, lalu memicu fetch ulang.
 - Header lain harus diperlakukan sebagai non-sortable dalam phase ini.
 - Jangan tampilkan affordance sort aktif untuk kolom di luar tiga field tersebut.
@@ -91,6 +98,7 @@ Sorting phase ini hanya berlaku untuk tiga field:
 Search harus server-driven.
 
 ### Required behavior
+
 - `searchQuery` tetap menjadi UI text state.
 - `debouncedSearch()` menyinkronkan `searchQuery` ke request path aktif.
 - Search reset `filters.page = 1`.
@@ -98,6 +106,7 @@ Search harus server-driven.
 - `reportData` tidak boleh lagi diganti ke hasil local filtering sebagai jalur aktif.
 
 ### Forbidden behavior
+
 - local filtering menjadi jalur search aktif
 - local pagination sementara search aktif
 - fake pagination result yang tidak datang dari backend response
@@ -107,11 +116,13 @@ Search harus server-driven.
 Pagination harus tetap server-driven.
 
 ### Required behavior
+
 - `changePage()` hanya mengubah `filters.page` lalu fetch ulang.
 - `changeEntriesPerPage()` hanya mengubah `filters.limit`, reset page ke `1`, lalu fetch ulang.
 - info text dan tombol pagination harus membaca `pagination` response object yang sama dengan rows aktif.
 
 ### Forbidden behavior
+
 - `currentPage` sebagai state kedua
 - `totalPages` lokal sebagai state kedua
 - page-number helper yang hidup di luar `pagination.total_pages`
@@ -119,6 +130,7 @@ Pagination harus tetap server-driven.
 ## Header / partial behavior
 
 ### `table-dashboard-report.html`
+
 - `full_name`, `status`, dan `attendance_date` adalah sortable headers.
 - Header lain menjadi label biasa.
 - `x-for` tetap merender dari `reportData`.
@@ -126,23 +138,28 @@ Pagination harus tetap server-driven.
 - button pagination tetap memakai `pagination.has_prev_page` dan `pagination.has_next_page`.
 
 ### If backend does not yet support one of the sortable fields
+
 - FE tidak boleh pura-pura support sorting untuk field itu.
 - Header field tersebut harus diturunkan menjadi non-clickable sampai contract backend tersedia.
 
 ## Expected file changes
 
 ### Primary file
+
 - `src/js/features/dashboard/dashboard.js`
 
 ### Supporting file
+
 - `src/partials/table/table-dashboard-report.html`
 
 ### Possible supporting service file only if needed
+
 - `src/js/services/reportService.js`
 
 ## Reuse guidance
 
 Gunakan pola yang sudah lebih sehat pada tabel Attendance / Booking sebagai referensi contract server-driven:
+
 - `filters` sebagai request state
 - `pagination` sebagai response state
 - data rows dari response backend
@@ -167,31 +184,37 @@ Gunakan pola yang sudah lebih sehat pada tabel Attendance / Booking sebagai refe
 Phase ini dianggap benar jika semua hal berikut terpenuhi:
 
 ### 1. Initial load
+
 - Dashboard load awal tetap merender rows dari `reportData`
 - Summary cards dan analytics tetap ter-update
 - Loading dan error state tetap benar
 
 ### 2. Search
+
 - Search mengirim request ulang ke backend
 - Search reset page ke `1`
 - `reportData` tetap berasal dari response backend, bukan local filtered array
 
 ### 3. Entries per page
+
 - Mengubah page size mengubah `filters.limit`
 - page reset ke `1`
 - fetch ulang terjadi
 - row count dan info text tetap sinkron dengan `pagination`
 
 ### 4. Page navigation
+
 - Previous / next / page-number flow tetap berbasis `pagination.current_page`, `has_prev_page`, dan `has_next_page`
 - tidak ada helper local page state aktif
 
 ### 5. Sorting
+
 - Hanya tiga field yang sortable
 - `filters.sortBy` dan `filters.sortOrder` menjadi request state aktif
 - jika backend belum mendukung salah satu field, header field itu tidak lagi clickable
 
 ### 6. Build safety
+
 - `npm run build` tetap lulus
 
 ## Out of scope follow-up

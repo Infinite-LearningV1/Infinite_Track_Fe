@@ -21,12 +21,14 @@ Phase ini menstandarkan user table dengan arah yang sejalan dengan dashboard tab
 ## Current context
 
 User table saat ini secara konsep sudah lebih konsisten dibanding dashboard sebelum distandarkan:
+
 - fetch user list sekali
 - filter lokal
 - pagination lokal
 - render dari data in-memory
 
 Namun ada tiga masalah utama:
+
 1. `src/js/features/userManagement/userListSimple.js` masih memiliki helper duplikat (`getInitials`, `getAvatarColor`) dalam source aktif.
 2. `src/js/components/userList.js` masih menyimpan implementasi user list lama / stale yang tidak lagi menjadi sumber aktif.
 3. `src/js/index.js` masih memiliki block wiring global yang terlihat seperti “user table modal handling” tetapi isinya residue/booking-like dan tidak lagi truthful terhadap partial user table aktif.
@@ -36,18 +38,21 @@ Namun ada tiga masalah utama:
 User table tetap **client-driven**, tetapi harus memiliki satu contract aktif dan satu source implementasi aktif yang jelas.
 
 ### Canonical active state
+
 - `users`
 - `searchQuery`
 - `entriesPerPage`
 - `currentPage`
 
 ### Canonical derived state
+
 - `filteredUsers`
 - `paginatedUsers`
 - `totalPages`
 - `showingInfo`
 
 ### Canonical action flow
+
 - `editUser(...)`
 - `showDeleteModal(...)`
 - `openMapDetailModal(...)`
@@ -57,10 +62,12 @@ Action yang dipakai partial harus benar-benar hidup di source aktif.
 ## Cleanup scope
 
 ### Active source to keep and clean
+
 - `src/js/features/userManagement/userListSimple.js`
 - `src/partials/table/table-user.html`
 
 ### Stale / residue to evaluate and remove
+
 - `src/js/components/userList.js`
 - residue user-table-related block di `src/js/index.js` yang tidak lagi sesuai partial aktif
 
@@ -77,11 +84,13 @@ Action yang dipakai partial harus benar-benar hidup di source aktif.
 Berbeda dari dashboard report table, user table saat ini belum menunjukkan kebutuhan kuat untuk dipaksa ke server-driven.
 
 ### Why not migrate now
+
 - fokus phase ini adalah efisiensi dan standardisasi code, bukan perubahan strategi data
 - user table sudah bekerja dengan pola local filter + local pagination
 - memaksa migrasi strategi sekarang akan memperbesar blast radius tanpa bukti kebutuhan langsung
 
 ### What “standardized” means for this phase
+
 - source aktif tunggal
 - naming lebih konsisten
 - helper tidak duplikatif
@@ -91,15 +100,19 @@ Berbeda dari dashboard report table, user table saat ini belum menunjukkan kebut
 ## Expected file changes
 
 ### Primary active file
+
 - `src/js/features/userManagement/userListSimple.js`
 
 ### UI partial
+
 - `src/partials/table/table-user.html`
 
 ### Stale implementation candidate
+
 - `src/js/components/userList.js`
 
 ### Stale global wiring candidate
+
 - `src/js/index.js`
 
 ## Reuse guidance
@@ -107,12 +120,14 @@ Berbeda dari dashboard report table, user table saat ini belum menunjukkan kebut
 Gunakan arah standardisasi dashboard sebagai prinsip, tetapi bukan menyalin strategi datanya secara mentah.
 
 ### Principles to reuse from dashboard work
+
 - satu source aktif
 - satu contract state aktif
 - partial truthful terhadap state/handler aktif
 - hilangkan duplicate/stale path
 
 ### Behavior model to keep for user table
+
 - data utama tetap berasal dari list lokal hasil fetch aktif
 - filter dan pagination tetap lokal
 - tidak perlu memaksa backend request contract baru dalam phase ini
@@ -134,31 +149,38 @@ Gunakan arah standardisasi dashboard sebagai prinsip, tetapi bukan menyalin stra
 ## Verification plan
 
 ### 1. Initial load
+
 - User list load normal
 - rows tetap muncul dari source aktif
 
 ### 2. Search
+
 - `searchQuery` tetap memfilter `filteredUsers`
 - pagination reset sesuai behavior yang sudah ada / diharapkan
 
 ### 3. Entries per page
+
 - `entriesPerPage` tetap mengontrol `paginatedUsers`
 - total info tetap truthful
 
 ### 4. Page navigation
+
 - next / prev / page selection tetap konsisten dengan `currentPage` dan `totalPages`
 
 ### 5. Action flow
+
 - edit action tetap jalan
 - delete modal path tetap jalan
 - map detail modal tetap jalan bila memang masih menjadi affordance aktif di partial
 
 ### 6. Residue cleanup
+
 - tidak ada helper duplikat tersisa di source aktif
 - stale implementation yang tidak dipakai benar-benar hilang atau jelas didekomisikan
 - residue user-table wiring di `index.js` yang misleading sudah dibuang bila memang tidak lagi aktif
 
 ### 7. Build safety
+
 - `npm run build` tetap lulus
 
 ## Out of scope follow-up

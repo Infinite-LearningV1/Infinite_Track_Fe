@@ -32,7 +32,9 @@ function checkAuthentication() {
   console.log("Auth guard checking page:", currentPage);
 
   if (authStore?.sessionState === "verification_failed") {
-    console.log("Auth verification failed at startup, skipping auth guard enforcement");
+    console.log(
+      "Auth verification failed at startup, skipping auth guard enforcement",
+    );
     return;
   }
 
@@ -91,7 +93,6 @@ function isProtectedPage(page) {
     "/management-user.html",
     "/management-booking.html",
     "/management-attendance.html",
-    "/management-backend-settings.html",
     "/calendar.html",
     "/form-user.html",
     "/alerts.html",

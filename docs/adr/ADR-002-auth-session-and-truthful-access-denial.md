@@ -1,43 +1,54 @@
 # ADR-002-auth-session-and-truthful-access-denial
 
 ## ADR ID
+
 ADR-002
 
 ## Title
+
 Auth, session, and truthful access denial
 
 ## Status
+
 Proposed
 
 ## Context
+
 ### Fact
+
 - Sign-in and redirect behavior is implemented in browser-side code.
 - Session checks and redirects currently depend on local storage and browser redirects.
 - The repo mixes cookie-oriented requests (`withCredentials`) with token/header retrieval patterns.
 - Current code includes cases where comments imply server validation while the executed helper reads local storage only.
 
 ### Assumption
+
 - Product intent prioritizes correctness and admin trust over masking uncertainty.
 - Users should receive explicit signals when a session is expired, invalid, or lacks permission.
 
 ### Needs Verification
+
 - The exact backend session model (cookie-only, bearer-only, or mixed) is not fully established from this repo alone.
 - The expected UX copy and redirect behavior for every auth failure mode is not centrally specified in this repo.
 
 ## Decision
+
 We will make Web FE authentication and session behavior truthful: expired, missing, invalid, and denied states must be presented as such, and the UI must not imply backend validation when only local state is available.
 
-For refresh-session adoption, Web FE will treat cached browser state only as a **session hint**, not as final session truth. Protected-page bootstrap and protected API recovery must use one centralized auth runtime that:
+For the active backend contract, Web FE will treat cached browser state only as a **session hint**, not as final session truth. Protected-page bootstrap and protected API recovery must use one centralized auth runtime that:
+
 - classifies auth failure as refreshable, non-refreshable, or transport-related,
-- runs refresh through a single-flight path,
-- replays a protected request at most once after refresh succeeds,
-- forces full re-auth when refresh is invalid, revoked, or blocked by inactivity expiry,
-- does **not** treat refresh transport failure as proof that the session is invalid.
+- treats `GET /auth/me` as the authoritative bootstrap session check,
+- does **not** call or depend on `/auth/refresh`,
+- forces full re-authentication for protected-request auth failures while preserving redirect intent and session-expiry notice,
+- does **not** treat transport failure during bootstrap verification as proof that the session is invalid.
 
 ## Rationale
+
 Auth confusion erodes operator trust quickly. This repo already contains multiple session mechanisms and storage paths, which raises the risk of misleading continuity. A truthful stance means Web FE may preserve UX continuity where appropriate, but it must not pretend that access is valid or server-confirmed when that has not happened.
 
 ## Considered Options
+
 1. **Recommended: truthful session and denial behavior**
    - Distinguish local continuity from backend-confirmed validity.
    - Make expiry and denial explicit.
@@ -49,19 +60,22 @@ Auth confusion erodes operator trust quickly. This repo already contains multipl
    - Not chosen yet because backend contract still needs confirmation.
 
 ## Trade-offs / Consequences
+
 - Positive: improves operator trust and reduces misleading auth states.
 - Positive: makes session expiry bugs easier to diagnose.
 - Negative: may expose more visible "please sign in again" flows.
 - Negative: truthful handling may surface backend inconsistencies sooner, which can feel less smooth until contracts are aligned.
 
-### Refresh-session consequences
-- Positive: protected-page bootstrap and runtime request recovery now share the same session-truth path.
-- Positive: access-token expiry can recover without misleading logout if refresh still succeeds.
-- Positive: transport/server problems during refresh can be surfaced honestly instead of being mislabeled as invalid auth.
-- Negative: Web FE must maintain a small centralized auth runtime instead of leaving session behavior fully distributed.
-- Negative: legacy token/header access paths need to be normalized to prevent partial refresh adoption.
+### Active auth-runtime consequences
+
+- Positive: protected-page bootstrap and protected-request auth recovery now share one centralized session-truth path.
+- Positive: Web FE no longer implies silent session recovery through a refresh endpoint the backend does not provide.
+- Positive: redirect intent and session-expiry notice can be preserved during forced re-authentication.
+- Negative: users may see more explicit re-login flows when auth state expires.
+- Negative: legacy token/header access paths still need normalization so auth hints do not drift across services.
 
 ## Evidence / References
+
 - User-provided context: auth/session behavior must be clear, honest, and not misleading.
 - `src/js/index.js:366-379` — protected page flow redirects in browser when not authenticated.
 - `src/js/index.js:401-405` — code comment says server validation, but helper called is `getCurrentUser()`.
@@ -73,14 +87,17 @@ Auth confusion erodes operator trust quickly. This repo already contains multipl
 - `src/js/utils/storageManager.js:19-21` — canonical stored user data uses `userData` key.
 
 ## Open Verification Points
+
 - Decide the canonical session authority path for Web FE: cookie session, bearer token, or explicit hybrid.
 - Decide which auth failures should redirect immediately and which should show an inline denial state first.
 - Confirm the exact user-facing language for session expiry versus permission denial.
 
 ## Manual verification boundary
+
 REQUIRES REPO VERIFICATION for the live backend scenarios below because the repo does not lock an automated fixture path for them:
-- access token expired but refreshable while a protected dashboard page is open,
-- refresh invalid/revoked,
-- inactivity-expired refresh denial,
-- offline/server-down during refresh,
-- multiple concurrent protected requests that hit refresh at the same time.
+
+- protected dashboard bootstrap hits `/auth/me` with only cached local auth hints present,
+- protected request receives `401` and forces re-authentication with redirect preservation,
+- inactivity-expired or revoked auth state redirects with a truthful session-expiry notice,
+- offline/server-down during bootstrap verification returns a non-auth transport failure state,
+- concurrent protected requests that fail auth do not leave the UI in a misleading partially authenticated state.

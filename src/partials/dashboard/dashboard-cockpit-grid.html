@@ -1,0 +1,853 @@
+<div class="space-y-6">
+  <section
+    class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+    x-data="{
+      heroBadgeText() {
+        if (cockpit.hero.state === 'ready') {
+          return 'Backend-backed';
+        }
+
+        return cockpit.hero.stateLabel;
+      }
+    }"
+  >
+    <div
+      class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+    >
+      <div>
+        <p
+          class="text-xs tracking-[0.2em] text-gray-400 uppercase dark:text-gray-500"
+        >
+          Hero Panel
+        </p>
+        <h3
+          class="mt-2 text-xl font-semibold text-gray-900 dark:text-white"
+          x-text="cockpit.hero.title"
+        ></h3>
+        <p
+          class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+          x-text="cockpit.hero.subtitle"
+        ></p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span
+          class="rounded-full px-2.5 py-1 text-xs font-medium"
+          :class="{
+            'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': cockpit.hero.state === 'loading',
+            'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': cockpit.hero.state === 'ready',
+            'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': cockpit.hero.state === 'empty',
+            'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': cockpit.hero.state === 'needsData',
+            'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300': cockpit.hero.state === 'backendRequired',
+            'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': cockpit.hero.state === 'error'
+          }"
+          x-text="cockpit.hero.stateLabel"
+        ></span>
+      </div>
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)]">
+      <div
+        class="relative min-h-[400px] overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 xl:min-h-[440px] dark:border-gray-800 dark:bg-gray-900"
+      >
+        <div
+          class="relative flex min-h-[400px] flex-col justify-between gap-4 p-5 xl:min-h-[440px]"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div class="max-w-md space-y-3">
+              <p
+                class="text-xs tracking-[0.2em] text-gray-400 uppercase dark:text-gray-500"
+              >
+                Today Locations / Live Map
+              </p>
+              <p
+                class="text-sm leading-6 text-gray-600 dark:text-gray-300"
+                x-text="cockpit.hero.message"
+              ></p>
+            </div>
+            <span
+              class="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300"
+              x-text="heroBadgeText()"
+            ></span>
+          </div>
+
+          <div class="relative">
+            <div
+              id="dashboardMapView"
+              class="h-[360px] w-full rounded-2xl border border-gray-200 bg-white shadow-sm xl:h-[400px] dark:border-gray-700 dark:bg-gray-950"
+              x-show="canRenderDashboardMap()"
+            ></div>
+
+            <template x-if="!canRenderDashboardMap()">
+              <div
+                class="flex h-[360px] w-full items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white/70 p-6 text-center text-sm font-medium text-gray-500 shadow-sm xl:h-[400px] dark:border-gray-700 dark:bg-gray-950/60 dark:text-gray-400"
+              >
+                <span x-text="cockpit.hero.message"></span>
+              </div>
+            </template>
+          </div>
+
+          <div
+            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/80 p-4 text-sm text-gray-600 shadow-sm dark:bg-gray-950/70 dark:text-gray-300"
+          >
+            <span>Map View</span>
+            <span x-text="cockpit.hero.note"></span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+      >
+        <p
+          class="text-xs tracking-[0.2em] text-gray-400 uppercase dark:text-gray-500"
+        >
+          Location Data Scope
+        </p>
+        <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+          Primary markers reflect explicit attendance.today-locations rows
+          returned for the active scope.
+        </p>
+
+        <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <div class="rounded-2xl bg-white p-3 shadow-sm dark:bg-gray-950/60">
+            <p class="text-xs text-gray-400 dark:text-gray-500">Markers</p>
+            <p
+              class="mt-1 font-semibold text-gray-800 dark:text-white/90"
+              x-text="cockpit.hero.data?.locations?.length || 0"
+            ></p>
+          </div>
+          <div class="rounded-2xl bg-white p-3 shadow-sm dark:bg-gray-950/60">
+            <p class="text-xs text-gray-400 dark:text-gray-500">
+              Rows without coordinates
+            </p>
+            <p
+              class="mt-1 font-semibold text-gray-800 dark:text-white/90"
+              x-text="cockpit.hero.data?.unavailableCount || 0"
+            ></p>
+          </div>
+        </div>
+
+        <template x-if="canRenderDashboardMap()">
+          <div class="mt-4 space-y-3">
+            <template
+              x-for="location in cockpit.hero.data.locations"
+              :key="location.key"
+            >
+              <button
+                type="button"
+                class="w-full rounded-2xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50 dark:border-gray-800 dark:bg-gray-950/60 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/10"
+                @click="openMapLocation(location)"
+              >
+                <span
+                  class="block text-sm font-semibold text-gray-800 dark:text-white/90"
+                  x-text="location.label || location.fullName"
+                ></span>
+                <span
+                  class="mt-1 block text-xs text-gray-500 dark:text-gray-400"
+                  x-text="location.userName || 'User unavailable'"
+                ></span>
+                <span
+                  class="mt-1 block text-xs text-gray-500 dark:text-gray-400"
+                  x-text="`${location.mode || 'Mode unavailable'} • ${location.status || 'Status unavailable'} • ${location.attendanceDate || 'Date unavailable'}`"
+                ></span>
+                <span
+                  class="mt-1 block text-xs text-gray-500 dark:text-gray-400"
+                  x-text="location.description"
+                ></span>
+                <span
+                  class="mt-2 block text-xs font-medium text-blue-600 dark:text-blue-400"
+                  x-text="`${location.latitude}, ${location.longitude}`"
+                ></span>
+              </button>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="!canRenderDashboardMap()">
+          <p
+            class="mt-4 rounded-2xl border border-dashed border-gray-200 bg-white p-3 text-sm leading-6 text-gray-500 dark:border-gray-800 dark:bg-gray-950/60 dark:text-gray-400"
+            x-text="cockpit.hero.note"
+          ></p>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid gap-6 xl:grid-cols-2">
+    <template x-for="panel in cockpit.middlePanels" :key="panel.key">
+      <section
+        class="border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+        x-data="{
+          get isModeMixReady() { return panel.key === 'modeMix' && panel.state === 'ready' },
+          get hasTrendRanges() { return panel.key === 'historicalTrend' && panel.data?.ranges?.length },
+          get usesDetailedLayout() { return this.isModeMixReady || this.hasTrendRanges },
+          metricToneClass(tone) {
+            if (tone === 'positive') return 'bg-green-50 text-green-600 dark:bg-green-500/15 dark:text-green-400';
+            if (tone === 'warning') return 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300';
+            return 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400';
+          }
+        }"
+        :class="{
+          'rounded-2xl p-5 sm:p-6': isModeMixReady,
+          'rounded-2xl px-5 pb-5 pt-5 sm:px-6 sm:pt-6': hasTrendRanges,
+          'rounded-3xl p-5': !usesDetailedLayout
+        }"
+      >
+        <template x-if="!usesDetailedLayout">
+          <div class="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h4
+                class="text-base font-semibold text-gray-900 dark:text-white"
+                x-text="panel.title"
+              ></h4>
+              <p
+                class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                x-text="panel.subtitle"
+              ></p>
+            </div>
+            <span
+              class="rounded-full px-2.5 py-1 text-xs font-medium"
+              :class="{
+                'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': panel.state === 'loading',
+                'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': panel.state === 'ready',
+                'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': panel.state === 'empty',
+                'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': panel.state === 'needsData',
+                'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300': panel.state === 'backendRequired',
+                'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': panel.state === 'error'
+              }"
+              x-text="panel.stateLabel"
+            ></span>
+          </div>
+        </template>
+
+        <template x-if="isModeMixReady">
+          <div class="mb-9 flex items-center justify-between">
+            <div>
+              <h4
+                class="text-lg font-semibold text-gray-800 dark:text-white/90"
+                x-text="panel.title"
+              ></h4>
+              <p
+                class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                x-text="panel.subtitle"
+              ></p>
+            </div>
+            <span
+              class="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-500/15 dark:text-green-300"
+            >
+              Backend-backed
+            </span>
+          </div>
+        </template>
+
+        <template
+          x-if="panel.key === 'historicalTrend' && panel.data?.ranges?.length"
+        >
+          <div
+            x-data="{
+              get selectedRange() {
+                return getSelectedTrendRange(panel);
+              },
+              findSeries(key) {
+                return (this.selectedRange.series || []).find((series) => series.key === key) || null;
+              },
+              lastSeriesPoint(series) {
+                return series?.points?.length ? series.points[series.points.length - 1] : null;
+              }
+            }"
+            class="space-y-5"
+          >
+            <div
+              class="mb-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between"
+            >
+              <div>
+                <h4
+                  class="text-lg font-semibold text-gray-800 dark:text-white/90"
+                  x-text="panel.title"
+                ></h4>
+                <p
+                  class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                  x-text="panel.subtitle"
+                ></p>
+                <p
+                  x-show="panel.detail"
+                  class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300"
+                  x-text="panel.detail"
+                ></p>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                <template x-if="!panel.data?.isPreview">
+                  <span
+                    class="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-500/15 dark:text-green-300"
+                  >
+                    Backend-backed
+                  </span>
+                </template>
+                <div
+                  class="inline-flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-900"
+                >
+                  <template x-for="range in panel.data.ranges" :key="range.key">
+                    <button
+                      type="button"
+                      @click="trendRange = range.key"
+                      class="rounded-md px-3 py-2 text-xs font-medium transition sm:px-4"
+                      :class="getSelectedTrendRange(panel).key === range.key ? 'bg-white text-gray-900 shadow-theme-xs dark:bg-gray-800 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
+                      x-text="range.label"
+                    ></button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-3">
+              <template
+                x-for="metric in selectedRange.metrics"
+                :key="metric.key"
+              >
+                <div
+                  class="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <p
+                    class="text-sm text-gray-500 dark:text-gray-400"
+                    x-text="metric.label"
+                  ></p>
+                  <div class="mt-3 flex items-end justify-between gap-3">
+                    <span
+                      class="text-2xl font-semibold text-gray-800 dark:text-white/90"
+                      x-text="metric.value"
+                    ></span>
+                    <span
+                      class="rounded-full px-2.5 py-1 text-xs font-medium"
+                      :class="metricToneClass(metric.tone)"
+                      x-text="metric.change"
+                    ></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="custom-scrollbar max-w-full overflow-x-auto">
+              <div
+                id="chartEleven"
+                class="-ml-4 min-w-[1000px] pl-2 xl:min-w-full"
+                style="min-height: 235px"
+              >
+                <div class="relative h-[235px] pt-2 pr-4 pl-10">
+                  <div
+                    class="absolute top-2 bottom-8 left-0 flex flex-col justify-between text-[11px] font-medium text-gray-400 dark:text-gray-500"
+                  >
+                    <template
+                      x-for="tick in selectedRange.yAxisLabels"
+                      :key="tick"
+                    >
+                      <span x-text="tick"></span>
+                    </template>
+                  </div>
+
+                  <svg
+                    viewBox="0 0 992 220"
+                    class="h-[220px] w-full overflow-visible"
+                    role="img"
+                    :aria-label="panel.data?.isPreview ? 'Preview-only On Time, Late, and Alpha historical attendance trend chart' : 'Historical attendance trend chart for On Time, Late, and Alpha'"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="historicalTrendOntimeGradient"
+                        x1="0"
+                        x2="0"
+                        y1="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stop-color="#465fff"
+                          stop-opacity="0.55"
+                        ></stop>
+                        <stop
+                          offset="95%"
+                          stop-color="#465fff"
+                          stop-opacity="0"
+                        ></stop>
+                      </linearGradient>
+                      <linearGradient
+                        id="historicalTrendLateGradient"
+                        x1="0"
+                        x2="0"
+                        y1="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stop-color="#f59e0b"
+                          stop-opacity="0.55"
+                        ></stop>
+                        <stop
+                          offset="95%"
+                          stop-color="#f59e0b"
+                          stop-opacity="0"
+                        ></stop>
+                      </linearGradient>
+                      <linearGradient
+                        id="historicalTrendAlphaGradient"
+                        x1="0"
+                        x2="0"
+                        y1="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stop-color="#ef4444"
+                          stop-opacity="0.55"
+                        ></stop>
+                        <stop
+                          offset="95%"
+                          stop-color="#ef4444"
+                          stop-opacity="0"
+                        ></stop>
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M 24 20 H 948"
+                      class="stroke-gray-100 dark:stroke-gray-800"
+                      stroke-width="1"
+                      fill="none"
+                    ></path>
+                    <path
+                      d="M 24 53 H 948"
+                      class="stroke-gray-100 dark:stroke-gray-800"
+                      stroke-width="1"
+                      fill="none"
+                    ></path>
+                    <path
+                      d="M 24 86 H 948"
+                      class="stroke-gray-100 dark:stroke-gray-800"
+                      stroke-width="1"
+                      fill="none"
+                    ></path>
+                    <path
+                      d="M 24 119 H 948"
+                      class="stroke-gray-100 dark:stroke-gray-800"
+                      stroke-width="1"
+                      fill="none"
+                    ></path>
+                    <path
+                      d="M 24 152 H 948"
+                      class="stroke-gray-100 dark:stroke-gray-800"
+                      stroke-width="1"
+                      fill="none"
+                    ></path>
+                    <path
+                      d="M 24 185 H 948"
+                      class="stroke-gray-200 dark:stroke-gray-700"
+                      stroke-width="1"
+                      fill="none"
+                    ></path>
+                    <path
+                      :d="findSeries('ontime')?.areaPath || ''"
+                      fill="url(#historicalTrendOntimeGradient)"
+                    ></path>
+                    <path
+                      :d="findSeries('late')?.areaPath || ''"
+                      fill="url(#historicalTrendLateGradient)"
+                    ></path>
+                    <path
+                      :d="findSeries('alpha')?.areaPath || ''"
+                      fill="url(#historicalTrendAlphaGradient)"
+                    ></path>
+                    <path
+                      :d="findSeries('ontime')?.chartPath || ''"
+                      :stroke="findSeries('ontime')?.color || '#465fff'"
+                      stroke-width="4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      fill="none"
+                    ></path>
+                    <path
+                      :d="findSeries('late')?.chartPath || ''"
+                      :stroke="findSeries('late')?.color || '#f59e0b'"
+                      stroke-width="4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      fill="none"
+                    ></path>
+                    <path
+                      :d="findSeries('alpha')?.chartPath || ''"
+                      :stroke="findSeries('alpha')?.color || '#ef4444'"
+                      stroke-width="4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      fill="none"
+                    ></path>
+                    <circle
+                      :cx="lastSeriesPoint(findSeries('ontime'))?.x || 0"
+                      :cy="lastSeriesPoint(findSeries('ontime'))?.y || 0"
+                      r="5"
+                      class="fill-white"
+                      :stroke="findSeries('ontime')?.color || '#465fff'"
+                      stroke-width="3"
+                    ></circle>
+                    <circle
+                      :cx="lastSeriesPoint(findSeries('late'))?.x || 0"
+                      :cy="lastSeriesPoint(findSeries('late'))?.y || 0"
+                      r="5"
+                      class="fill-white"
+                      :stroke="findSeries('late')?.color || '#f59e0b'"
+                      stroke-width="3"
+                    ></circle>
+                    <circle
+                      :cx="lastSeriesPoint(findSeries('alpha'))?.x || 0"
+                      :cy="lastSeriesPoint(findSeries('alpha'))?.y || 0"
+                      r="5"
+                      class="fill-white"
+                      :stroke="findSeries('alpha')?.color || '#ef4444'"
+                      stroke-width="3"
+                    ></circle>
+                  </svg>
+
+                  <div
+                    class="-mt-1 ml-6 grid text-center text-xs text-gray-500 dark:text-gray-400"
+                    :style="`grid-template-columns: repeat(${selectedRange.xAxisLabels.length || 1}, minmax(0, 1fr));`"
+                  >
+                    <template
+                      x-for="label in selectedRange.xAxisLabels"
+                      :key="`${selectedRange.key}-${label}`"
+                    >
+                      <span x-text="label"></span>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500 dark:text-gray-400"
+            >
+              <template
+                x-for="series in selectedRange.series"
+                :key="`${selectedRange.key}-${series.key}-legend`"
+              >
+                <span class="inline-flex items-center gap-2">
+                  <span
+                    class="h-2.5 w-2.5 rounded-full"
+                    :style="`background-color: ${series.color}`"
+                  ></span>
+                  <span x-text="series.label"></span>
+                </span>
+              </template>
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-medium">
+              <template x-if="panel.data?.isPreview">
+                <span
+                  class="rounded-full bg-blue-100 px-3 py-1 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                  >Preview data</span
+                >
+              </template>
+              <template x-if="panel.data?.isPreview">
+                <span
+                  class="rounded-full bg-violet-100 px-3 py-1 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
+                  >Backend trend feed pending</span
+                >
+              </template>
+              <template x-if="!panel.data?.isPreview">
+                <span
+                  class="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                  >Backend-backed trend</span
+                >
+              </template>
+            </div>
+            <p
+              x-show="panel.message"
+              class="text-sm leading-6 text-gray-600 dark:text-gray-300"
+              x-text="panel.message"
+            ></p>
+            <p
+              x-show="panel.note"
+              class="text-sm text-gray-500 dark:text-gray-400"
+              x-text="panel.note"
+            ></p>
+          </div>
+        </template>
+
+        <template x-if="isModeMixReady">
+          <div class="space-y-6">
+            <div
+              class="chartDarkStyle mx-auto flex justify-center"
+              style="min-height: 286px"
+            >
+              <div
+                class="relative flex h-[260px] w-[260px] items-center justify-center"
+              >
+                <div
+                  class="absolute inset-0 rounded-full p-8 shadow-[0_18px_45px_rgba(15,23,42,0.08)]"
+                  :style="panel.data.chartStyle"
+                >
+                  <div
+                    class="flex h-full w-full flex-col items-center justify-center rounded-full bg-white text-center shadow-sm dark:bg-gray-950"
+                  >
+                    <span
+                      class="text-3xl font-semibold text-gray-800 dark:text-white/90"
+                      x-text="panel.data.total"
+                    ></span>
+                    <span
+                      class="text-xs tracking-[0.2em] text-gray-400 uppercase dark:text-gray-500"
+                      >Total</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-3">
+              <template
+                x-for="segment in panel.data.segments"
+                :key="segment.key"
+              >
+                <div
+                  class="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <div class="mb-3 flex items-center gap-2">
+                    <span
+                      class="h-3 w-3 rounded-full"
+                      :style="`background-color: ${segment.color}`"
+                    ></span>
+                    <p
+                      class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                      x-text="segment.label"
+                    ></p>
+                  </div>
+                  <div class="flex items-end justify-between gap-3">
+                    <span
+                      class="text-xl font-semibold text-gray-800 dark:text-white/90"
+                      x-text="segment.value"
+                    ></span>
+                    <span
+                      class="text-sm font-medium text-gray-500 dark:text-gray-400"
+                      x-text="segment.percentageLabel"
+                    ></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <p
+              class="text-center text-sm leading-6 text-gray-500 dark:text-gray-400"
+              x-text="panel.detail"
+            ></p>
+          </div>
+        </template>
+
+        <template x-if="!usesDetailedLayout">
+          <div
+            class="flex min-h-[220px] flex-col justify-between rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+          >
+            <p
+              class="text-sm leading-6 text-gray-600 dark:text-gray-300"
+              x-text="panel.message"
+            ></p>
+            <p
+              class="text-sm text-gray-500 dark:text-gray-400"
+              x-text="panel.note || 'This panel remains visible while the backend contract catches up.'"
+            ></p>
+          </div>
+        </template>
+      </section>
+    </template>
+  </div>
+
+  <div class="grid gap-6 xl:grid-cols-2">
+    <template x-for="panel in cockpit.bottomPanels" :key="panel.key">
+      <section
+        class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+      >
+        <div class="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h4
+              class="text-base font-semibold text-gray-900 dark:text-white"
+              x-text="panel.title"
+            ></h4>
+            <p
+              class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+              x-text="panel.subtitle"
+            ></p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <template
+              x-if="panel.key === 'fuzzyAhp' && panel.state !== 'ready' && panel.state !== 'loading'"
+            >
+              <button
+                type="button"
+                class="rounded-full border border-violet-200 px-3 py-1 text-xs font-medium text-violet-700 transition hover:border-violet-300 hover:bg-violet-50 dark:border-violet-500/30 dark:text-violet-300 dark:hover:bg-violet-500/10"
+                @click="loadFuzzyAhpDetail({ type: 'discipline', period: 'monthly' })"
+              >
+                Load detail
+              </button>
+            </template>
+            <span
+              class="rounded-full px-2.5 py-1 text-xs font-medium"
+              :class="{
+                'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': panel.state === 'loading',
+                'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': panel.state === 'ready',
+                'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': panel.state === 'empty',
+                'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': panel.state === 'needsData',
+                'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300': panel.state === 'backendRequired',
+                'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': panel.state === 'error'
+              }"
+              x-text="panel.stateLabel"
+            ></span>
+          </div>
+        </div>
+
+        <template
+          x-if="panel.key === 'fuzzyAhp' && panel.state === 'ready' && Array.isArray(panel.data?.rankings) && panel.data.rankings.length"
+        >
+          <div class="space-y-5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="space-y-2">
+                <span
+                  class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-500/15 dark:text-green-300"
+                >
+                  Backend-backed
+                </span>
+                <p
+                  x-show="panel.detail"
+                  class="text-sm leading-6 text-gray-600 dark:text-gray-300"
+                  x-text="panel.detail"
+                ></p>
+              </div>
+              <span
+                class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300"
+                x-text="panel.data.source"
+              ></span>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div
+                class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+              >
+                <p class="text-sm text-emerald-700 dark:text-emerald-300">
+                  Top recommendation
+                </p>
+                <div class="mt-3 flex items-end justify-between gap-3">
+                  <div>
+                    <p
+                      class="text-xl font-semibold text-gray-900 dark:text-white"
+                      x-text="panel.data.topRanking?.label || 'Unavailable'"
+                    ></p>
+                    <p
+                      class="mt-1 text-xs tracking-[0.2em] text-emerald-700/80 uppercase dark:text-emerald-300/80"
+                    >
+                      Highest score
+                    </p>
+                  </div>
+                  <span
+                    class="text-2xl font-semibold text-emerald-700 dark:text-emerald-300"
+                    x-text="panel.data.topRanking?.score ?? '—'"
+                  ></span>
+                </div>
+              </div>
+
+              <div
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+              >
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  Consistency ratio
+                </p>
+                <div class="mt-3 flex items-end justify-between gap-3">
+                  <span
+                    class="text-2xl font-semibold text-gray-900 dark:text-white"
+                    x-text="panel.data.consistencyRatio === null ? 'Unavailable' : Number(panel.data.consistencyRatio).toFixed(2)"
+                  ></span>
+                  <span
+                    class="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
+                  >
+                    Explicit backend output
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+            >
+              <div class="mb-4 flex items-center justify-between gap-3">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Alternative ranking
+                </p>
+                <span
+                  class="text-xs text-gray-500 dark:text-gray-400"
+                  x-text="`${panel.data.rankings.length} alternative(s)`"
+                ></span>
+              </div>
+
+              <div class="space-y-3">
+                <template
+                  x-for="(ranking, index) in panel.data.rankings"
+                  :key="`${panel.key}-${ranking.label}-${index}`"
+                >
+                  <div
+                    class="flex items-center justify-between gap-4 rounded-2xl border px-4 py-3"
+                    :class="index === 0 ? 'border-emerald-200 bg-white dark:border-emerald-500/30 dark:bg-emerald-500/10' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950'"
+                  >
+                    <div class="flex min-w-0 items-center gap-3">
+                      <span
+                        class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                        :class="index === 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'"
+                        x-text="`#${index + 1}`"
+                      ></span>
+                      <p
+                        class="truncate text-sm font-medium text-gray-800 dark:text-white/90"
+                        x-text="ranking.label"
+                      ></p>
+                    </div>
+                    <span
+                      class="text-sm font-semibold text-gray-700 dark:text-gray-300"
+                      x-text="ranking.score"
+                    ></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <p
+              class="text-sm text-gray-500 dark:text-gray-400"
+              x-text="panel.note || 'This panel remains visible while the backend contract catches up.'"
+            ></p>
+          </div>
+        </template>
+
+        <template
+          x-if="!(panel.key === 'fuzzyAhp' && panel.state === 'ready' && Array.isArray(panel.data?.rankings) && panel.data.rankings.length)"
+        >
+          <div
+            class="flex min-h-[220px] flex-col justify-between rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+          >
+            <div class="space-y-4">
+              <p
+                class="text-sm leading-6 text-gray-600 dark:text-gray-300"
+                x-text="panel.message"
+              ></p>
+              <template
+                x-if="Array.isArray(panel.data?.chips) && panel.data.chips.length"
+              >
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="chip in panel.data.chips" :key="chip">
+                    <span
+                      class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300"
+                      x-text="chip"
+                    ></span>
+                  </template>
+                </div>
+              </template>
+            </div>
+            <p
+              class="text-sm text-gray-500 dark:text-gray-400"
+              x-text="panel.note || 'This panel remains visible while the backend contract catches up.'"
+            ></p>
+          </div>
+        </template>
+      </section>
+    </template>
+  </div>
+</div>

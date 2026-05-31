@@ -35,6 +35,7 @@
 ## Verification model for this repo
 
 This repository does not currently define an automated frontend test runner in `package.json`. For this phase, verification uses:
+
 - `npm run build` for syntax/module/bundling validation
 - manual browser verification on the Dashboard page for search, page-size changes, and pagination behavior
 
@@ -45,6 +46,7 @@ The implementation should stay small and local so these checks are sufficient fo
 ### Task 1: Declare explicit table strategy in code
 
 **Files:**
+
 - Modify: `src/js/features/dashboard/dashboard.js`
 - Modify: `src/js/features/attendance/attendanceLog.js`
 - Modify: `src/js/features/wfaBooking/bookingList.js`
@@ -108,6 +110,7 @@ git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "refactor: declare admin
 ### Task 2: Remove duplicate Dashboard table state and keep one canonical contract
 
 **Files:**
+
 - Modify: `src/js/features/dashboard/dashboard.js`
 
 - [ ] **Step 1: Remove duplicate Dashboard pagination declaration**
@@ -209,6 +212,7 @@ git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "refactor: remove duplic
 ### Task 3: Make Dashboard search explicitly server-driven
 
 **Files:**
+
 - Modify: `src/js/features/dashboard/dashboard.js`
 - Test: manual Dashboard browser verification
 
@@ -229,9 +233,7 @@ Remove special-case fetch-limit logic like this:
 
 ```js
 const effectiveLimit =
-  this.searchQuery && this.searchQuery.trim()
-    ? 100
-    : this.filters.limit;
+  this.searchQuery && this.searchQuery.trim() ? 100 : this.filters.limit;
 ```
 
 Use `this.filters.limit` directly unless the API contract itself requires something else. This phase declares Dashboard search as server-driven, not hybrid.
@@ -312,6 +314,7 @@ Run: `npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" start`
 Expected: local webpack dev server starts successfully.
 
 Manual checks in browser:
+
 - open the Dashboard page,
 - type a search term,
 - confirm rows update after debounce,
@@ -330,6 +333,7 @@ git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "refactor: make dashboar
 ### Task 4: Keep Dashboard pagination and template bindings aligned with the canonical contract
 
 **Files:**
+
 - Modify: `src/js/features/dashboard/dashboard.js`
 - Modify (only if needed): `src/partials/table/table-dashboard-report.html`
 - Test: manual Dashboard browser verification
@@ -366,7 +370,7 @@ changeEntriesPerPage(newLimit) {
 The active table partial should continue to use bindings like these:
 
 ```html
-<template x-for="log in reportData" :key="log.id_attendance">
+<template x-for="log in reportData" :key="log.id_attendance"></template>
 ```
 
 ```html
@@ -390,6 +394,7 @@ Run: `npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" start`
 Expected: local webpack dev server starts successfully.
 
 Manual checks in browser:
+
 - change page size from 5 to 10 to 25,
 - confirm rows reload and page resets to 1,
 - click next/previous page controls,
@@ -408,6 +413,7 @@ git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "refactor: align dashboa
 ### Task 5: Final verification and handoff note
 
 **Files:**
+
 - Modify: `docs/superpowers/specs/2026-04-15-admin-table-standardization-dashboard-first-design.md` (only if implementation reveals a real spec mismatch)
 - Test: manual Dashboard verification and build output
 
@@ -422,6 +428,7 @@ Run: `npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" start`
 Expected: dev server starts successfully.
 
 Manual checks:
+
 - initial Dashboard load works,
 - search works and remains server-driven,
 - page-size changes work and reset to page 1,
@@ -436,6 +443,7 @@ If implementation reveals a real mismatch, update the spec before continuing. Ex
 
 ```md
 ## Implementation note
+
 The API requires `search` plus `query` aliases for compatibility. The canonical contract remains server-driven, but request serialization includes both keys temporarily.
 ```
 
@@ -451,6 +459,7 @@ git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "chore: verify dashboard
 ---
 
 ## Spec coverage check
+
 - Explicit search/pagination strategy per table → Task 1
 - Dashboard canonical state contract → Task 2
 - Dashboard server-driven search flow → Task 3
@@ -459,11 +468,13 @@ git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "chore: verify dashboard
 - Out-of-scope boundaries (sorting/modal/residue cleanup) are preserved by not adding any tasks for them
 
 ## Placeholder scan
+
 - No `TODO`, `TBD`, or deferred placeholders remain in this plan.
 - All file paths are explicit.
 - All command steps include the exact command and expected outcome.
 
 ## Type and property consistency check
+
 - Canonical request state consistently uses `filters.page`, `filters.limit`, and `filters.search`.
 - Canonical response state consistently uses `pagination`.
 - Canonical rendered rows consistently use `reportData`.

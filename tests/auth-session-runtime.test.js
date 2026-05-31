@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 
 import {
   classifyAuthFailure,
-  createSingleFlightRefresh,
   createProtectedRequestExecutor,
   createBootstrapSessionResolver,
   clearAuthArtifacts,
+  readAuthRedirectNotice,
   readStoredSessionSnapshot,
 } from "../src/js/services/authSessionRuntime.js";
 import { buildAuthRequestConfig } from "../src/js/services/authRequest.js";
@@ -60,24 +60,8 @@ test("classifyAuthFailure marks network failures as transport", () => {
   });
 });
 
-test("createSingleFlightRefresh shares one in-flight refresh promise", async () => {
-  let calls = 0;
-
-  const refresh = createSingleFlightRefresh(async () => {
-    calls += 1;
-    return { ok: true };
-  });
-
-  const [first, second] = await Promise.all([refresh(), refresh()]);
-
-  assert.equal(calls, 1);
-  assert.deepEqual(first, { ok: true });
-  assert.deepEqual(second, { ok: true });
-});
-
-test("createProtectedRequestExecutor replays one protected request after refresh succeeds", async () => {
+test("createProtectedRequestExecutor triggers forced reauth on refreshable auth failure without replay", async () => {
   const calls = [];
-  let attempts = 0;
   const expiredError = {
     response: {
       status: 401,
@@ -86,41 +70,30 @@ test("createProtectedRequestExecutor replays one protected request after refresh
   };
 
   const runProtectedRequest = createProtectedRequestExecutor({
-    executeRefresh: async () => {
-      calls.push("refresh");
-      return { ok: true };
-    },
     classifyFailure: classifyAuthFailure,
     onForcedReauth: async () => {
       calls.push("forced-reauth");
     },
   });
 
-  const result = await runProtectedRequest(async ({ replayed }) => {
-    attempts += 1;
-    calls.push(`request-${attempts}-${replayed ? "replayed" : "initial"}`);
+  await assert.rejects(
+    () =>
+      runProtectedRequest(async ({ replayed }) => {
+        calls.push(`request-${replayed ? "replayed" : "initial"}`);
+        throw expiredError;
+      }),
+    (error) => {
+      assert.equal(error, expiredError);
+      return true;
+    },
+  );
 
-    if (!replayed) {
-      throw expiredError;
-    }
-
-    return { ok: true };
-  });
-
-  assert.deepEqual(result, { ok: true });
-  assert.equal(attempts, 2);
-  assert.deepEqual(calls, ["request-1-initial", "refresh", "request-2-replayed"]);
+  assert.deepEqual(calls, ["request-initial", "forced-reauth"]);
 });
 
-test("createProtectedRequestExecutor calls forced reauth when refresh becomes non-refreshable", async () => {
+test("createProtectedRequestExecutor triggers forced reauth on non-refreshable auth failure", async () => {
   const calls = [];
-  const expiredError = {
-    response: {
-      status: 401,
-      data: { code: "ACCESS_TOKEN_EXPIRED", message: "expired access token" },
-    },
-  };
-  const invalidRefreshError = {
+  const unauthorizedError = {
     response: {
       status: 401,
       data: { code: "REFRESH_TOKEN_INVALID", message: "invalid refresh token" },
@@ -128,10 +101,6 @@ test("createProtectedRequestExecutor calls forced reauth when refresh becomes no
   };
 
   const runProtectedRequest = createProtectedRequestExecutor({
-    executeRefresh: async () => {
-      calls.push("refresh");
-      throw invalidRefreshError;
-    },
     classifyFailure: classifyAuthFailure,
     onForcedReauth: async () => {
       calls.push("forced-reauth");
@@ -142,35 +111,25 @@ test("createProtectedRequestExecutor calls forced reauth when refresh becomes no
     () =>
       runProtectedRequest(async ({ replayed }) => {
         calls.push(`request-${replayed ? "replayed" : "initial"}`);
-        throw expiredError;
+        throw unauthorizedError;
       }),
     (error) => {
-      assert.equal(error, invalidRefreshError);
+      assert.equal(error, unauthorizedError);
       return true;
     },
   );
 
-  assert.deepEqual(calls, ["request-initial", "refresh", "forced-reauth"]);
+  assert.deepEqual(calls, ["request-initial", "forced-reauth"]);
 });
 
-test("createProtectedRequestExecutor does not force reauth on transport refresh failures", async () => {
+test("createProtectedRequestExecutor does not force reauth on transport failures", async () => {
   const calls = [];
-  const expiredError = {
-    response: {
-      status: 401,
-      data: { code: "ACCESS_TOKEN_EXPIRED", message: "expired access token" },
-    },
-  };
-  const transportRefreshError = {
+  const transportError = {
     request: { readyState: 4 },
     message: "Network Error",
   };
 
   const runProtectedRequest = createProtectedRequestExecutor({
-    executeRefresh: async () => {
-      calls.push("refresh");
-      throw transportRefreshError;
-    },
     classifyFailure: classifyAuthFailure,
     onForcedReauth: async () => {
       calls.push("forced-reauth");
@@ -181,15 +140,15 @@ test("createProtectedRequestExecutor does not force reauth on transport refresh 
     () =>
       runProtectedRequest(async ({ replayed }) => {
         calls.push(`request-${replayed ? "replayed" : "initial"}`);
-        throw expiredError;
+        throw transportError;
       }),
     (error) => {
-      assert.equal(error, transportRefreshError);
+      assert.equal(error, transportError);
       return true;
     },
   );
 
-  assert.deepEqual(calls, ["request-initial", "refresh"]);
+  assert.deepEqual(calls, ["request-initial"]);
 });
 
 test("createBootstrapSessionResolver returns unauthenticated without session hint", async () => {
@@ -200,9 +159,6 @@ test("createBootstrapSessionResolver returns unauthenticated without session hin
       calls.push("fetch");
       return { id: 1 };
     },
-    refreshSession: async () => {
-      calls.push("refresh");
-    },
     classifyFailure: classifyAuthFailure,
   });
 
@@ -212,8 +168,7 @@ test("createBootstrapSessionResolver returns unauthenticated without session hin
   assert.deepEqual(calls, []);
 });
 
-test("createBootstrapSessionResolver refreshes and re-fetches on refreshable failure", async () => {
-  let fetchAttempts = 0;
+test("createBootstrapSessionResolver returns non_refreshable on auth failure", async () => {
   const expiredError = {
     response: {
       status: 401,
@@ -224,23 +179,18 @@ test("createBootstrapSessionResolver refreshes and re-fetches on refreshable fai
   const resolveBootstrapSession = createBootstrapSessionResolver({
     hasSessionHint: () => true,
     fetchCurrentUser: async () => {
-      fetchAttempts += 1;
-      if (fetchAttempts === 1) {
-        throw expiredError;
-      }
-      return { id: 3, role_name: "Admin" };
+      throw expiredError;
     },
-    refreshSession: async () => ({ success: true }),
     classifyFailure: classifyAuthFailure,
   });
 
   const result = await resolveBootstrapSession();
 
   assert.deepEqual(result, {
-    state: "authenticated",
-    user: { id: 3, role_name: "Admin" },
+    state: "non_refreshable",
+    user: null,
+    error: expiredError,
   });
-  assert.equal(fetchAttempts, 2);
 });
 
 test("createBootstrapSessionResolver returns verification_failed on transport error", async () => {
@@ -254,7 +204,6 @@ test("createBootstrapSessionResolver returns verification_failed on transport er
     fetchCurrentUser: async () => {
       throw transportError;
     },
-    refreshSession: async () => ({ success: true }),
     classifyFailure: classifyAuthFailure,
   });
 
@@ -478,6 +427,57 @@ test("forceReauthenticate preserves redirect and avoids second storage cleanup h
     assert.deepEqual(sessionStorageRef.dump(), {
       redirectAfterLogin: "https://app.example/protected?tab=summary",
       untouchedSession: "keep",
+    });
+    assert.equal(globalThis.window.location.href, "/signin.html");
+  } finally {
+    globalThis.window = originalWindow;
+    globalThis.localStorage = originalLocalStorage;
+  }
+});
+
+test("forceReauthenticate persists redirect notice when provided", async () => {
+  const localStorageRef = createMemoryStorage({
+    userData: "x",
+    authToken: "x",
+  });
+  const sessionStorageRef = createMemoryStorage({
+    untouchedSession: "keep",
+  });
+
+  const authStore = {
+    user: { id: 1 },
+    isAuthenticated: true,
+    sessionState: "authenticated",
+    error: "old-error",
+    isLoading: true,
+  };
+
+  const originalWindow = globalThis.window;
+  const originalLocalStorage = globalThis.localStorage;
+  globalThis.localStorage = localStorageRef;
+  globalThis.window = {
+    localStorage: localStorageRef,
+    sessionStorage: sessionStorageRef,
+    Alpine: {
+      store: () => authStore,
+    },
+    location: { href: "/dashboard.html" },
+  };
+
+  try {
+    await forceReauthenticate({
+      preserveRedirectAfterLogin: "https://app.example/protected",
+      redirectNotice: {
+        type: "warning",
+        title: "Sesi Berakhir",
+        message: "Silakan login kembali.",
+      },
+    });
+
+    assert.deepEqual(readAuthRedirectNotice(sessionStorageRef), {
+      type: "warning",
+      title: "Sesi Berakhir",
+      message: "Silakan login kembali.",
     });
     assert.equal(globalThis.window.location.href, "/signin.html");
   } finally {

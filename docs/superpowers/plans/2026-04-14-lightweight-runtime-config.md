@@ -24,6 +24,7 @@
 ### Task 1: Make webpack the single source of truth for public runtime defaults
 
 **Files:**
+
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/webpack.config.js:1-186`
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/src/js/config/env.js:1-113`
 - Test: config-only verification via `npm run build`
@@ -31,6 +32,7 @@
 - [ ] **Step 1: Capture the current duplicated fallback behavior**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- webpack.config.js src/js/config/env.js
 python - <<'PY'
@@ -46,7 +48,9 @@ for file in files:
             print(f"{i}: {line}")
 PY
 ```
+
 Expected:
+
 - No diff before editing.
 - Output shows fallback defaults duplicated in both files, including `/api` in `webpack.config.js` and `src/js/config/env.js`.
 
@@ -143,26 +147,33 @@ export const DEBUG_CONFIG = {
 - [ ] **Step 4: Run the build to verify the refactor preserved existing behavior**
 
 Run:
+
 ```bash
 npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" run build
 ```
+
 Expected:
+
 - Build completes successfully.
 - `build/bundle.js` is regenerated without syntax errors.
 
 - [ ] **Step 5: Commit the source-of-truth refactor**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add webpack.config.js src/js/config/env.js
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "refactor: centralize public frontend runtime defaults"
 ```
+
 Expected:
+
 - One commit containing only the runtime source-of-truth cleanup.
 
 ### Task 2: Split local/dev and production/public env contracts
 
 **Files:**
+
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/.env.example:1-42`
 - Create: `E:/skrisi/clonefee/Infinite_Track_Fe/.env.production.example`
 - Test: env-template inspection plus build verification in Task 5
@@ -234,6 +245,7 @@ LOG_LEVEL=error
 - [ ] **Step 3: Verify drift keys were removed from the env contract surface**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -258,32 +270,41 @@ for name in [
     print(name, hits)
 PY
 ```
+
 Expected:
+
 - Every printed hit list is `[]`.
 
 - [ ] **Step 4: Review the env templates in a single diff**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- .env.example .env.production.example
 ```
+
 Expected:
+
 - `.env.example` is clearly local-first.
 - `.env.production.example` clearly points to `https://api.infinite-track.tech`.
 
 - [ ] **Step 5: Commit the env contract changes**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add .env.example .env.production.example
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "docs: split local and production frontend env templates"
 ```
+
 Expected:
+
 - One commit containing only env-template changes.
 
 ### Task 3: Align primary deployment docs with the real runtime contract
 
 **Files:**
+
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/DEPLOYMENT.md:66-88`
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/DEPLOYMENT-CHECKLIST.md:1-130`
 - Test: doc inspection with targeted search
@@ -292,7 +313,7 @@ Expected:
 
 In `E:/skrisi/clonefee/Infinite_Track_Fe/DEPLOYMENT.md`, replace the current config section that begins with `**Konfigurasi WAJIB yang harus diubah:**` with:
 
-```md
+````md
 **Contract yang perlu dipahami:**
 
 - **Aktif sekarang (local/dev):** frontend default ke `API_BASE_URL=/api` dan dev server mem-proxy request ke backend local.
@@ -306,7 +327,9 @@ APP_ENVIRONMENT=production
 DEBUG_MODE=false
 LOG_LEVEL=error
 ```
-```
+````
+
+````
 
 Then replace the table rows with:
 
@@ -317,8 +340,9 @@ Then replace the table rows with:
 | `APP_ENVIRONMENT` | `development`      | `production`                     | Menentukan mode aplikasi                        |
 | `DEBUG_MODE`      | `true` (template)  | `false`                          | Matikan debug di production                     |
 | `LOG_LEVEL`       | `debug`            | `error`                          | Minimalkan log di production                    |
-```
-```
+````
+
+````
 
 - [ ] **Step 2: Update the checklist doc to use the repo-specific production contract**
 
@@ -340,8 +364,9 @@ DEFAULT_LANGUAGE=id
 TIMEZONE=Asia/Jakarta
 DEBUG_MODE=false
 LOG_LEVEL=error
-```
-```
+````
+
+````
 
 Then replace the backend integration examples with:
 
@@ -351,8 +376,9 @@ Contoh konfigurasi Infinite Track:
 - Backend public target: `https://api.infinite-track.tech`
 - Frontend public target: `https://infinite-track.tech`
 - Local development aktif tetap memakai `/api` melalui webpack dev proxy
-```
-```
+````
+
+````
 
 - [ ] **Step 3: Search the primary docs for stale placeholder domains**
 
@@ -371,34 +397,43 @@ for file in files:
     for needle in needles:
         print(needle, text.count(needle))
 PY
-```
+````
+
 Expected:
+
 - `api.yourdomain.com` count is `0` in both files.
 - Generic `yourdomain.com` placeholders tied to the runtime contract are removed.
 
 - [ ] **Step 4: Review the doc diff before committing**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- DEPLOYMENT.md DEPLOYMENT-CHECKLIST.md
 ```
+
 Expected:
+
 - Docs clearly distinguish local-first active behavior from production contract.
 - Repo-specific domains match `https://infinite-track.tech` and `https://api.infinite-track.tech`.
 
 - [ ] **Step 5: Commit the primary documentation updates**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add DEPLOYMENT.md DEPLOYMENT-CHECKLIST.md
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "docs: align deployment guides with runtime config contract"
 ```
+
 Expected:
+
 - One commit containing only primary deployment doc fixes.
 
 ### Task 4: Clean secondary runtime-config drift in analysis artifacts
 
 **Files:**
+
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/ANALISIS-PROJECT.md:131-159`
 - Modify: `E:/skrisi/clonefee/repomix-output.md`
 - Test: targeted search for stale claims and stale production URLs
@@ -426,7 +461,8 @@ In `E:/skrisi/clonefee/Infinite_Track_Fe/ANALISIS-PROJECT.md`, replace the curre
 - Tambahkan `.env.production.example` sebagai contract deploy/public
 - Update docs agar target production memakai `https://api.infinite-track.tech` tanpa mengubah default aktif saat ini
 ```
-```
+
+````
 
 - [ ] **Step 2: Update the repomix snapshot only where it makes runtime-config claims**
 
@@ -444,11 +480,12 @@ With:    - `.env.example` ada, tetapi masih drift dari runtime local-first
 
 Replace: - Update `API_BASE_URL` sesuai backend production
 With:    - Gunakan `https://api.infinite-track.tech` untuk contract deploy/public, tanpa mengubah default lokal `/api`
-```
+````
 
 - [ ] **Step 3: Verify the secondary docs no longer advertise the old placeholder domain**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -468,54 +505,69 @@ for file in files:
         print(needle, text.count(needle))
 PY
 ```
+
 Expected:
+
 - Each stale runtime-config claim shows count `0`.
 
 - [ ] **Step 4: Review the secondary-doc diff**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- ANALISIS-PROJECT.md
 ```
+
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee" diff -- repomix-output.md
 ```
+
 Expected:
+
 - Only runtime-config drift is edited.
 - No unrelated generated content is reformatted.
 
 - [ ] **Step 5: Commit the secondary drift cleanup**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add ANALISIS-PROJECT.md
 git -C "E:/skrisi/clonefee" add repomix-output.md
 git -C "E:/skrisi/clonefee" commit -m "docs: clean runtime config drift in analysis artifacts"
 ```
+
 Expected:
+
 - One commit containing only the secondary runtime-config cleanup.
 
 ### Task 5: Verify local-first behavior, production contract, and public-only bundle inputs
 
 **Files:**
+
 - Modify temporarily during verification: `E:/skrisi/clonefee/Infinite_Track_Fe/.env` (backup/restore if present)
 - Test: `E:/skrisi/clonefee/Infinite_Track_Fe/build/bundle.js`
 
 - [ ] **Step 1: Back up any existing local `.env` before verification**
 
 Run:
+
 ```bash
 if [ -f "E:/skrisi/clonefee/Infinite_Track_Fe/.env" ]; then
   cp "E:/skrisi/clonefee/Infinite_Track_Fe/.env" "E:/skrisi/clonefee/Infinite_Track_Fe/.env.backup-runtime-config"
 fi
 ```
+
 Expected:
+
 - Existing local `.env` is preserved if present.
 
 - [ ] **Step 2: Verify the local-first contract using `.env.example`**
 
 Run:
+
 ```bash
 cp "E:/skrisi/clonefee/Infinite_Track_Fe/.env.example" "E:/skrisi/clonefee/Infinite_Track_Fe/.env"
 npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" run build
@@ -526,7 +578,9 @@ print("/api present:", "/api" in bundle)
 print("public API present:", "https://api.infinite-track.tech" in bundle)
 PY
 ```
+
 Expected:
+
 - Build succeeds.
 - `/api present: True`
 - `public API present: False`
@@ -534,6 +588,7 @@ Expected:
 - [ ] **Step 3: Verify the production/public contract using `.env.production.example`**
 
 Run:
+
 ```bash
 cp "E:/skrisi/clonefee/Infinite_Track_Fe/.env.production.example" "E:/skrisi/clonefee/Infinite_Track_Fe/.env"
 npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" run build
@@ -544,7 +599,9 @@ print("public API present:", "https://api.infinite-track.tech" in bundle)
 print("local proxy string present:", '"/api"' in bundle)
 PY
 ```
+
 Expected:
+
 - Build succeeds.
 - `public API present: True`
 - The compiled bundle reflects the explicit production contract.
@@ -552,6 +609,7 @@ Expected:
 - [ ] **Step 4: Restore the developer’s original `.env` and confirm no secret-like keys were introduced into public config**
 
 Run:
+
 ```bash
 rm -f "E:/skrisi/clonefee/Infinite_Track_Fe/.env"
 if [ -f "E:/skrisi/clonefee/Infinite_Track_Fe/.env.backup-runtime-config" ]; then
@@ -579,23 +637,30 @@ for file in files:
     print(file.name, hits)
 PY
 ```
+
 Expected:
+
 - The original `.env` is restored if it existed.
 - No new secret-like keys are introduced into the frontend public config surface.
 
 - [ ] **Step 5: Commit the final verified state**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee" status --short
 git -C "E:/skrisi/clonefee" commit -m "chore: lock local-first frontend runtime config contract"
 ```
+
 Expected:
+
 - Working tree shows only the planned runtime-config files.
 - Final commit lands only after all verification steps pass.
+
 ```
 
 ## Self-Review Notes
 - Spec coverage: covered runtime source of truth, local/dev template, production/public contract template, primary docs, secondary drift cleanup, and final verification.
 - Placeholder scan: removed TBD/TODO language; every task has exact file paths, snippets, and commands.
 - Type consistency: `publicFrontendEnv` keys match the `process.env.*` keys consumed in `src/js/config/env.js` and the env example files.
+```

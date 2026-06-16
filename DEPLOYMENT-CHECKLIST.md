@@ -7,8 +7,8 @@
 **File: `.env.production`** (Buat manual, tidak di-commit ke git)
 
 ```env
-# GANTI URL INI dengan backend Anda!
-API_BASE_URL=https://api.yourdomain.com
+# Production Infinite Track memakai prefix /api di backend public.
+API_BASE_URL=https://api.infinite-track.tech/api
 
 API_AUTH_ENDPOINT=/auth
 API_VERSION=v1
@@ -134,13 +134,15 @@ serve -s build -p 3000
 
 **CRITICAL:** Pastikan `API_BASE_URL` di `.env.production` atau env build-time production benar.
 
-Contoh konfigurasi yang direkomendasikan untuk static production:
+Contoh konfigurasi yang direkomendasikan untuk static production Infinite Track:
 
-- Backend di subdomain: `https://api.yourdomain.com`
+- Backend public dengan prefix API final: `API_BASE_URL=https://api.infinite-track.tech/api`
+- Jika memakai domain lain, pastikan nilai `API_BASE_URL` tetap mencakup prefix API final, misalnya `https://api.yourdomain.com/api`.
 
 Catatan:
-- Untuk production static site, gunakan backend public URL eksplisit.
+- Untuk production static site, gunakan backend public URL eksplisit yang sudah mencakup prefix API final.
 - Jangan mengandalkan local `/api` gateway sebagai production default kecuali memang ada reverse proxy production yang sengaja disiapkan.
+- Verifikasi cepat: `https://api.infinite-track.tech/api/settings/operational` boleh mengembalikan `401 Unauthorized` saat belum login, tetapi tidak boleh `404`. Route tanpa prefix seperti `https://api.infinite-track.tech/settings/operational` bukan contract production Web FE.
 
 ### 2. CORS Configuration
 

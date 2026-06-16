@@ -207,3 +207,19 @@ Promote to `master` only when:
   - runtime/config assumptions that should be made explicit
 - Help distinguish **fix now** vs **follow-up later**. Do not blur them.
 - If the PR is acceptable to merge but leaves an important review theme only partially resolved, say so explicitly and recommend the Linear follow-up instead of silently downgrading the concern.
+
+## North Star Context (Cross-Repo)
+
+- Web FE adalah admin/reporting surface, bukan sumber kebenaran akhir untuk attendance, auth authority, atau reporting authority.
+- Backend adalah source of truth final; Web FE adalah konsumen kontrak backend.
+- Gunakan source-of-truth hierarchy: repo+runtime > Linear > Vibe Kanban > docs.
+- Untuk kerja lintas-kontrak, baca shared context cockpit (`Deploy Infinite Track/Infinite Track/shared-context/`), terutama:
+  - `API_CONTRACT.md`
+  - `GLOBAL_STATUS.md`
+  - `ROUTING_POLICY.md`
+  - `QUALITY_GATE.md`
+  - `DECISIONS.md`
+  - `RISK_REGISTER.md`
+- Jika repo/runtime/Linear/docs berbeda, live repo/runtime adalah sumber fakta tertinggi.
+- `develop` adalah branch MVP QA/integration; `master` adalah branch deploy/release. Agent bekerja di branch/worktree terisolasi dari `develop`, bukan langsung di `develop` atau `master`.
+- Issue hasil manual QA di `develop` harus kembali ke Linear lalu dimirror ke Vibe Kanban sebelum diperbaiki.

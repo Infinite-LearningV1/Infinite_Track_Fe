@@ -87,3 +87,19 @@ Write `DOCS/ADR UPDATE REQUIRED` when work touches:
 - `docs/adr/ADR-006-env-build-and-deploy-runtime-truth.md`
 - `DEPLOYMENT.md`
 - `DEPLOYMENT-CHECKLIST.md`
+
+## Shared Context (cross-repo)
+- Before cross-contract work, read the cockpit shared context outside this repo (`Deploy Infinite Track/Infinite Track/shared-context/`):
+  - `API_CONTRACT.md`
+  - `GLOBAL_STATUS.md`
+  - `ROUTING_POLICY.md`
+  - `QUALITY_GATE.md`
+  - `DECISIONS.md`
+  - `RISK_REGISTER.md`
+- If repo/runtime/Linear/docs differ, live repo/runtime is the highest factual source.
+
+## Branch model (MVP)
+- `develop` = MVP QA and integration branch.
+- `master` = deploy/release branch.
+- Agents work on isolated worktrees/branches from `develop`, not directly on `develop` or `master`.
+- Manual QA findings on `develop` should return to Linear first, then be mirrored to Vibe Kanban before a fix starts.

@@ -87,3 +87,25 @@ Write `DOCS/ADR UPDATE REQUIRED` when work touches:
 - `docs/adr/ADR-006-env-build-and-deploy-runtime-truth.md`
 - `DEPLOYMENT.md`
 - `DEPLOYMENT-CHECKLIST.md`
+
+## Phase 5 Context Sync (MVP)
+
+### Shared Context (Cross-Repo)
+
+- Before cross-contract work, read the cockpit/orchestration `shared-context` files outside this Web FE repository (`Deploy Infinite Track/Infinite Track/shared-context/`):
+  - `API_CONTRACT.md`
+  - `GLOBAL_STATUS.md`
+  - `ROUTING_POLICY.md`
+  - `QUALITY_GATE.md`
+  - `DECISIONS.md`
+  - `RISK_REGISTER.md`
+- If repo/runtime/Linear/docs differ, live repo/runtime is the highest factual source.
+- Apply this file's Definition of Done together with the global MVP gate: diff/PR + fresh verification + review verdict.
+
+### Execution Model (MVP)
+
+- Agents always work on an isolated branch inside a worktree.
+- The main branch held by the human/operator in the terminal remains `develop`; it is a pull/test/human validation surface, not an agent implementation surface.
+- Agent output returns to `develop` through PR/merge; then the human pulls and tests on `develop`.
+- `master` only receives fix/no-bug/release-ready results from `develop`.
+- Web FE branch model: `develop` is the MVP QA/human validation branch; `master` is the deployment branch, so agents do not edit `develop` directly.

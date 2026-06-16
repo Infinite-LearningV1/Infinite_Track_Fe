@@ -92,20 +92,20 @@ Write `DOCS/ADR UPDATE REQUIRED` when work touches:
 
 ### Shared Context (Cross-Repo)
 
-- Sebelum kerja lintas-kontrak, baca `shared-context` di cockpit:
+- Before cross-contract work, read the cockpit/orchestration `shared-context` files outside this Web FE repository (`Deploy Infinite Track/Infinite Track/shared-context/`):
   - `API_CONTRACT.md`
   - `GLOBAL_STATUS.md`
   - `ROUTING_POLICY.md`
   - `QUALITY_GATE.md`
   - `DECISIONS.md`
   - `RISK_REGISTER.md`
-- Jika repo/runtime/Linear/docs berbeda, live repo/runtime adalah sumber fakta tertinggi.
-- Done = diff/PR + fresh verification + review verdict.
+- If repo/runtime/Linear/docs differ, live repo/runtime is the highest factual source.
+- Apply this file's Definition of Done together with the global MVP gate: diff/PR + fresh verification + review verdict.
 
 ### Execution Model (MVP)
 
-- Agent selalu kerja di isolated branch dalam worktree.
-- Branch utama yang dipegang manusia di terminal tetap `develop`.
-- Hasil kerja agent kembali ke `develop` lewat PR/merge, lalu manusia pull dan test di `develop`.
-- `master` hanya menerima hasil fix/no-bug/release-ready dari `develop`.
-- Web FE branch model: `develop` adalah MVP QA/human validation branch; `master` adalah deployment branch, sehingga agent tidak mengedit `develop` langsung.
+- Agents always work on an isolated branch inside a worktree.
+- The main branch held by the human/operator in the terminal remains `develop`; it is a pull/test/human validation surface, not an agent implementation surface.
+- Agent output returns to `develop` through PR/merge; then the human pulls and tests on `develop`.
+- `master` only receives fix/no-bug/release-ready results from `develop`.
+- Web FE branch model: `develop` is the MVP QA/human validation branch; `master` is the deployment branch, so agents do not edit `develop` directly.

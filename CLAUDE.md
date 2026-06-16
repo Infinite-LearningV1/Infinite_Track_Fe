@@ -87,3 +87,25 @@ Write `DOCS/ADR UPDATE REQUIRED` when work touches:
 - `docs/adr/ADR-006-env-build-and-deploy-runtime-truth.md`
 - `DEPLOYMENT.md`
 - `DEPLOYMENT-CHECKLIST.md`
+
+## Phase 5 Context Sync (MVP)
+
+### Shared Context (Cross-Repo)
+
+- Sebelum kerja lintas-kontrak, baca `shared-context` di cockpit:
+  - `API_CONTRACT.md`
+  - `GLOBAL_STATUS.md`
+  - `ROUTING_POLICY.md`
+  - `QUALITY_GATE.md`
+  - `DECISIONS.md`
+  - `RISK_REGISTER.md`
+- Jika repo/runtime/Linear/docs berbeda, live repo/runtime adalah sumber fakta tertinggi.
+- Done = diff/PR + fresh verification + review verdict.
+
+### Execution Model (MVP)
+
+- Agent selalu kerja di isolated branch dalam worktree.
+- Branch utama yang dipegang manusia di terminal tetap `develop`.
+- Hasil kerja agent kembali ke `develop` lewat PR/merge, lalu manusia pull dan test di `develop`.
+- `master` hanya menerima hasil fix/no-bug/release-ready dari `develop`.
+- Web FE branch model: `develop` adalah MVP QA/human validation branch; `master` adalah deployment branch, sehingga agent tidak mengedit `develop` langsung.

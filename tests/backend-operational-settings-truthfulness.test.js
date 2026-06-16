@@ -17,6 +17,14 @@ const FORM_PARTIAL_PATH = path.resolve(
   "../src/partials/form/form-backend-operational-settings.html",
 );
 
+const CANONICAL_SETTINGS = {
+  geofenceRadiusDefaultM: 100,
+  autoCheckoutIdleMin: 10,
+  autoCheckoutTBufferMin: 30,
+  lateCheckoutToleranceMin: 15,
+  defaultShiftEnd: "17:00:00",
+};
+
 function createMemoryStorage(seed = {}) {
   const map = new Map(Object.entries(seed));
 
@@ -61,75 +69,106 @@ function installBrowserGlobals(showInlineAlert = undefined) {
   };
 }
 
-test("truthful shell copy warns draft is temporary and not loaded from backend truth", () => {
+function createSettingsService(updatePayloads = []) {
+  return {
+    async getOperationalSettings() {
+      return CANONICAL_SETTINGS;
+    },
+    async updateOperationalSettings(payload) {
+      updatePayloads.push(payload);
+      return {
+        ...CANONICAL_SETTINGS,
+        ...payload,
+        defaultShiftEnd:
+          payload.defaultShiftEnd?.length === 5
+            ? `${payload.defaultShiftEnd}:00`
+            : payload.defaultShiftEnd,
+      };
+    },
+  };
+}
+
+test("truthful copy states canonical backend load/save and AHP threshold boundary", () => {
   const pageHtml = fs.readFileSync(PAGE_PATH, "utf8");
   const formPartial = fs.readFileSync(FORM_PARTIAL_PATH, "utf8");
 
   assert.match(
     pageHtml,
-    /temporaryDraftWarning|draftWarning|temporary draft/i,
-    "Expected page shell to expose a dedicated temporary draft warning area",
+    /canonicalOperationalSettingsNotice/,
+    "Expected page shell to expose a canonical backend notice area",
   );
 
   assert.match(
     formPartial,
-    /sementara|temporary|hilang saat refresh|akan hilang/i,
-    "Expected form copy to warn that shell-only draft is temporary",
+    /\/api\/settings\/operational/,
+    "Expected form copy to name the canonical operational settings endpoint",
   );
 
   assert.match(
     formPartial,
-    /tidak dimuat dari backend canonical|belum dimuat dari backend canonical|bukan backend canonical/i,
-    "Expected form copy to state the values are not loaded from canonical backend truth",
+    /AHP_CR_THRESHOLD.*tidak editable|AHP_CR_THRESHOLD.*not editable/i,
+    "Expected form copy to keep AHP_CR_THRESHOLD non-editable",
+  );
+
+  assert.doesNotMatch(
+    formPartial,
+    /x-model="form\.AHP_CR_THRESHOLD"/,
+    "AHP_CR_THRESHOLD must not be rendered as an editable form field",
   );
 });
 
-test("backendOperationalSettingsAlpineData starts with empty shell draft and a warning state", () => {
-  const state = backendOperationalSettingsAlpineData();
+test("backendOperationalSettingsAlpineData starts by loading canonical backend state", async () => {
+  const state = backendOperationalSettingsAlpineData(createSettingsService());
 
-  state.init();
+  await state.init();
 
   assert.deepEqual(state.form, {
-    GEOFENCE_RADIUS_DEFAULT_M: "",
-    AUTO_CHECKOUT_IDLE_MIN: "",
-    AUTO_CHECKOUT_TBUFFER_MIN: "",
-    LATE_CHECKOUT_TOLERANCE_MIN: "",
-    DEFAULT_SHIFT_END: "",
+    geofenceRadiusDefaultM: "100",
+    autoCheckoutIdleMin: "10",
+    autoCheckoutTBufferMin: "30",
+    lateCheckoutToleranceMin: "15",
+    defaultShiftEnd: "17:00",
   });
-  assert.deepEqual(state.originalForm, {
-    GEOFENCE_RADIUS_DEFAULT_M: "",
-    AUTO_CHECKOUT_IDLE_MIN: "",
-    AUTO_CHECKOUT_TBUFFER_MIN: "",
-    LATE_CHECKOUT_TOLERANCE_MIN: "",
-    DEFAULT_SHIFT_END: "",
-  });
+  assert.deepEqual(state.originalForm, state.form);
   assert.match(state.infoMessage, /backend canonical/i);
-  assert.match(state.infoMessage, /temporary|sementara/i);
-  assert.equal(state.lastSavedDraftAt, "");
+  assert.match(state.infoMessage, /AHP_CR_THRESHOLD/i);
+  assert.equal(state.hasLoadedCanonicalSettings, true);
 });
 
-test("backendOperationalSettingsAlpineData saveDraft announces in-memory temporary draft instead of durable save", async () => {
+test("backendOperationalSettingsAlpineData saveSettings announces durable backend save", async () => {
   const alerts = [];
+  const updatePayloads = [];
   const env = installBrowserGlobals((payload) => alerts.push(payload));
 
   try {
-    const state = backendOperationalSettingsAlpineData();
-    state.init();
+    const state = backendOperationalSettingsAlpineData(
+      createSettingsService(updatePayloads),
+    );
+    await state.init();
     state.form = {
-      GEOFENCE_RADIUS_DEFAULT_M: "100",
-      AUTO_CHECKOUT_IDLE_MIN: "20",
-      AUTO_CHECKOUT_TBUFFER_MIN: "10",
-      LATE_CHECKOUT_TOLERANCE_MIN: "120",
-      DEFAULT_SHIFT_END: "17:00",
+      geofenceRadiusDefaultM: "100",
+      autoCheckoutIdleMin: "20",
+      autoCheckoutTBufferMin: "10",
+      lateCheckoutToleranceMin: "120",
+      defaultShiftEnd: "18:00",
     };
 
-    await state.saveDraft();
+    await state.saveSettings();
 
+    assert.deepEqual(updatePayloads, [
+      {
+        geofenceRadiusDefaultM: 100,
+        autoCheckoutIdleMin: 20,
+        autoCheckoutTBufferMin: 10,
+        lateCheckoutToleranceMin: 120,
+        defaultShiftEnd: "18:00",
+      },
+    ]);
     assert.equal(alerts.length, 1);
-    assert.equal(alerts[0].type, "warning");
-    assert.match(alerts[0].title, /sementara|temporary/i);
-    assert.match(alerts[0].message, /memori halaman|in-memory|hilang saat refresh/i);
-    assert.equal(state.lastSavedDraftAt, "");
+    assert.equal(alerts[0].type, "success");
+    assert.match(alerts[0].title, /tersimpan/i);
+    assert.match(alerts[0].message, /backend canonical/i);
+    assert.notEqual(state.lastSavedAt, "");
   } finally {
     env.restore();
   }

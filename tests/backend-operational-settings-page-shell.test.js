@@ -15,11 +15,16 @@ const FORM_PARTIAL_PATH = path.resolve(
   "../src/partials/form/form-backend-operational-settings.html",
 );
 const INDEX_PATH = path.resolve(TEST_DIR, "../src/js/index.js");
+const ROLE_ACCESS_PATH = path.resolve(
+  TEST_DIR,
+  "../src/js/utils/roleBasedAccess.js",
+);
 
 test("backend operational settings page shell is registered and stays truthful", () => {
   const pageHtml = fs.readFileSync(PAGE_PATH, "utf8");
   const formPartial = fs.readFileSync(FORM_PARTIAL_PATH, "utf8");
   const indexJs = fs.readFileSync(INDEX_PATH, "utf8");
+  const roleBasedAccess = fs.readFileSync(ROLE_ACCESS_PATH, "utf8");
 
   assert.ok(
     pageHtml.includes("page: 'managementBackendSettings'"),
@@ -42,12 +47,13 @@ test("backend operational settings page shell is registered and stays truthful",
     "Expected index.js to expose backendOperationalSettingsAlpineData globally",
   );
 
-  assert.ok(
-    indexJs.includes('"/management-backend-settings.html"'),
-    "Expected startup protected pages to include /management-backend-settings.html",
+  assert.match(
+    roleBasedAccess,
+    /"\/management-backend-settings\.html": \[ROLES\.ADMIN, ROLES\.MANAGEMENT\]/,
+    "Expected role-based access map to protect /management-backend-settings.html for Admin/Management",
   );
 
-  for (const settingKey of [
+  for (const settingLabel of [
     "GEOFENCE_RADIUS_DEFAULT_M",
     "AUTO_CHECKOUT_IDLE_MIN",
     "AUTO_CHECKOUT_TBUFFER_MIN",
@@ -55,14 +61,27 @@ test("backend operational settings page shell is registered and stays truthful",
     "DEFAULT_SHIFT_END",
   ]) {
     assert.ok(
-      formPartial.includes(settingKey),
-      `Expected form partial to render ${settingKey}`,
+      formPartial.includes(settingLabel),
+      `Expected form partial to render ${settingLabel}`,
+    );
+  }
+
+  for (const backendField of [
+    "geofenceRadiusDefaultM",
+    "autoCheckoutIdleMin",
+    "autoCheckoutTBufferMin",
+    "lateCheckoutToleranceMin",
+    "defaultShiftEnd",
+  ]) {
+    assert.ok(
+      formPartial.includes(backendField),
+      `Expected form partial to render backend field ${backendField}`,
     );
   }
 
   assert.ok(
-    !formPartial.includes("AHP_CR_THRESHOLD"),
-    "Expected form partial to keep AHP_CR_THRESHOLD out of scope",
+    !formPartial.includes('x-model="form.AHP_CR_THRESHOLD"'),
+    "Expected form partial to keep AHP_CR_THRESHOLD non-editable",
   );
 
   assert.ok(

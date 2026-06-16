@@ -3,7 +3,6 @@
  * Middleware untuk validasi hak akses berdasarkan role user
  */
 
-
 function getAuthStore() {
   if (typeof Alpine === "undefined" || !Alpine.store) {
     return null;
@@ -40,6 +39,7 @@ const PAGE_PERMISSIONS = {
   "/management-user.html": [ROLES.ADMIN],
   "/management-booking.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
   "/management-attendance.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
+  "/management-backend-settings.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
   "/form-user.html": [ROLES.ADMIN],
   "/profile.html": [
     ROLES.ADMIN,
@@ -306,7 +306,8 @@ function setupAccessDeniedEventListeners(modal, userRole) {
     } catch (error) {
       console.error("Logout error:", error);
 
-      const { forceReauthenticate } = await import("../services/authService.js");
+      const { forceReauthenticate } =
+        await import("../services/authService.js");
 
       closeModal();
       await forceReauthenticate();
@@ -355,7 +356,9 @@ function initRoleBasedAccess() {
   }
 
   if (authStore?.sessionState === "verification_failed") {
-    console.log("Auth verification failed at startup, deferring RBAC enforcement");
+    console.log(
+      "Auth verification failed at startup, deferring RBAC enforcement",
+    );
     return;
   }
 
@@ -429,4 +432,3 @@ if (typeof window !== "undefined") {
     canAccessDashboard,
   };
 }
-

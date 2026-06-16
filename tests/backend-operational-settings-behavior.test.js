@@ -14,6 +14,22 @@ import {
   isProtectedPage,
 } from "../src/js/utils/authGuard.js";
 
+const CANONICAL_SETTINGS = {
+  geofenceRadiusDefaultM: 100,
+  autoCheckoutIdleMin: 10,
+  autoCheckoutTBufferMin: 30,
+  lateCheckoutToleranceMin: 15,
+  defaultShiftEnd: "17:00:00",
+};
+
+const CANONICAL_FORM = {
+  geofenceRadiusDefaultM: "100",
+  autoCheckoutIdleMin: "10",
+  autoCheckoutTBufferMin: "30",
+  lateCheckoutToleranceMin: "15",
+  defaultShiftEnd: "17:00",
+};
+
 function createMemoryStorage(seed = {}) {
   const map = new Map(Object.entries(seed));
 
@@ -86,13 +102,30 @@ function installBrowserGlobals({
   };
 }
 
-const EMPTY_DRAFT = {
-  GEOFENCE_RADIUS_DEFAULT_M: "",
-  AUTO_CHECKOUT_IDLE_MIN: "",
-  AUTO_CHECKOUT_TBUFFER_MIN: "",
-  LATE_CHECKOUT_TOLERANCE_MIN: "",
-  DEFAULT_SHIFT_END: "",
-};
+function createSettingsService({
+  initialSettings = CANONICAL_SETTINGS,
+  updatedSettings = null,
+  updatePayloads = [],
+} = {}) {
+  return {
+    async getOperationalSettings() {
+      return initialSettings;
+    },
+    async updateOperationalSettings(payload) {
+      updatePayloads.push(payload);
+      return (
+        updatedSettings || {
+          ...initialSettings,
+          ...payload,
+          defaultShiftEnd:
+            payload.defaultShiftEnd?.length === 5
+              ? `${payload.defaultShiftEnd}:00`
+              : payload.defaultShiftEnd,
+        }
+      );
+    },
+  };
+}
 
 test("auth guard treats backend settings page as protected and redirects unauthenticated users", () => {
   const env = installBrowserGlobals();
@@ -112,10 +145,12 @@ test("auth guard treats backend settings page as protected and redirects unauthe
   }
 });
 
-test("role-based access only allows Admin on backend settings page", () => {
+test("role-based access allows Admin and Management on backend settings page", () => {
   const adminEnv = installBrowserGlobals({
-    localStorageSeed: {
-      userData: JSON.stringify({ id: 1, role_name: "Admin" }),
+    authStore: {
+      isAuthenticated: true,
+      sessionState: "authenticated",
+      user: { id: 1, role_name: "Admin" },
     },
   });
 
@@ -126,46 +161,54 @@ test("role-based access only allows Admin on backend settings page", () => {
   }
 
   const managementEnv = installBrowserGlobals({
-    localStorageSeed: {
-      userData: JSON.stringify({ id: 2, role_name: "Management" }),
+    authStore: {
+      isAuthenticated: true,
+      sessionState: "authenticated",
+      user: { id: 2, role_name: "Management" },
     },
   });
 
   try {
-    assert.equal(hasPageAccess("/management-backend-settings.html"), false);
+    assert.equal(hasPageAccess("/management-backend-settings.html"), true);
   } finally {
     managementEnv.restore();
   }
 });
 
-test("initRoleBasedAccess redirects non-admin users away from backend settings page", () => {
+test("initRoleBasedAccess redirects roles outside Admin/Management to their allowed page", () => {
   const env = installBrowserGlobals({
-    localStorageSeed: {
-      userData: JSON.stringify({ id: 2, role_name: "Management" }),
+    authStore: {
+      isAuthenticated: true,
+      sessionState: "authenticated",
+      user: { id: 3, role_name: "Employee" },
     },
   });
 
   try {
     initRoleBasedAccess();
-    assert.equal(globalThis.window.location.href, "/index.html");
+    assert.equal(globalThis.window.location.href, "/profile.html");
   } finally {
     env.restore();
   }
 });
 
-test("backendOperationalSettingsAlpineData init starts from an empty shell draft and stays pristine", () => {
-  const state = backendOperationalSettingsAlpineData();
+test("backendOperationalSettingsAlpineData init loads canonical backend settings", async () => {
+  const state = backendOperationalSettingsAlpineData(createSettingsService());
 
-  state.init();
+  await state.init();
 
-  assert.deepEqual(state.form, EMPTY_DRAFT);
-  assert.deepEqual(state.originalForm, EMPTY_DRAFT);
+  assert.deepEqual(state.form, CANONICAL_FORM);
+  assert.deepEqual(state.originalForm, CANONICAL_FORM);
   assert.equal(state.hasChanges, false);
   assert.equal(state.canSave, false);
+  assert.equal(state.hasLoadedCanonicalSettings, true);
+  assert.equal(state.loadError, "");
+  assert.notEqual(state.lastLoadedAt, "");
 });
 
-test("backendOperationalSettingsAlpineData saveDraft normalizes valid input, updates baseline, and stays explicitly temporary", async () => {
+test("backendOperationalSettingsAlpineData saveSettings sends typed canonical payload and syncs response", async () => {
   const alerts = [];
+  const updatePayloads = [];
   const env = installBrowserGlobals({
     showInlineAlert(payload) {
       alerts.push(payload);
@@ -173,53 +216,69 @@ test("backendOperationalSettingsAlpineData saveDraft normalizes valid input, upd
   });
 
   try {
-    const state = backendOperationalSettingsAlpineData();
-    state.init();
+    const state = backendOperationalSettingsAlpineData(
+      createSettingsService({ updatePayloads }),
+    );
+    await state.init();
     state.form = {
-      GEOFENCE_RADIUS_DEFAULT_M: " 100 ",
-      AUTO_CHECKOUT_IDLE_MIN: " 20 ",
-      AUTO_CHECKOUT_TBUFFER_MIN: " 10 ",
-      LATE_CHECKOUT_TOLERANCE_MIN: " 120 ",
-      DEFAULT_SHIFT_END: "17:00",
+      geofenceRadiusDefaultM: " 100 ",
+      autoCheckoutIdleMin: " 20 ",
+      autoCheckoutTBufferMin: " 10 ",
+      lateCheckoutToleranceMin: " 120 ",
+      defaultShiftEnd: "18:00",
     };
 
-    await state.saveDraft();
+    await state.saveSettings();
 
-    assert.equal(state.form.AUTO_CHECKOUT_IDLE_MIN, "20");
-    assert.equal(state.originalForm.AUTO_CHECKOUT_IDLE_MIN, "20");
-    assert.equal(state.lastSavedDraftAt, "");
+    assert.deepEqual(updatePayloads, [
+      {
+        geofenceRadiusDefaultM: 100,
+        autoCheckoutIdleMin: 20,
+        autoCheckoutTBufferMin: 10,
+        lateCheckoutToleranceMin: 120,
+        defaultShiftEnd: "18:00",
+      },
+    ]);
+    assert.deepEqual(state.form, {
+      geofenceRadiusDefaultM: "100",
+      autoCheckoutIdleMin: "20",
+      autoCheckoutTBufferMin: "10",
+      lateCheckoutToleranceMin: "120",
+      defaultShiftEnd: "18:00",
+    });
     assert.equal(state.saveError, "");
     assert.equal(state.isSaving, false);
+    assert.notEqual(state.lastSavedAt, "");
     assert.equal(alerts.length, 1);
-    assert.equal(alerts[0].type, "warning");
-    assert.match(alerts[0].message, /memori halaman|in-memory|hilang saat refresh/i);
+    assert.equal(alerts[0].type, "success");
+    assert.match(alerts[0].message, /backend canonical/i);
   } finally {
     env.restore();
   }
 });
 
-test("backendOperationalSettingsAlpineData saveDraft keeps baseline on invalid input and resetForm restores it", async () => {
-  const state = backendOperationalSettingsAlpineData();
-  state.init();
+test("backendOperationalSettingsAlpineData saveSettings keeps baseline on invalid input and resetForm restores it", async () => {
+  const state = backendOperationalSettingsAlpineData(createSettingsService());
+  await state.init();
 
   const baseline = { ...state.originalForm };
-  state.form.AUTO_CHECKOUT_IDLE_MIN = "abc";
-  state.form.DEFAULT_SHIFT_END = "25:99";
+  state.form.autoCheckoutIdleMin = "abc";
+  state.form.defaultShiftEnd = "25:99";
 
-  await state.saveDraft();
+  await state.saveSettings();
 
   assert.deepEqual(state.originalForm, baseline);
-  assert.equal(state.lastSavedDraftAt, "");
+  assert.equal(state.lastSavedAt, "");
   assert.match(
     state.saveError,
-    /Periksa kembali field yang wajib diisi sebelum menyimpan draft shell INF-142\./,
+    /Periksa kembali field yang wajib diisi sebelum menyimpan operational settings\./,
   );
   assert.equal(
-    state.fieldErrors.AUTO_CHECKOUT_IDLE_MIN,
-    "AUTO_CHECKOUT_IDLE_MIN wajib diisi dengan bilangan bulat.",
+    state.fieldErrors.autoCheckoutIdleMin,
+    "AUTO_CHECKOUT_IDLE_MIN wajib diisi dengan bilangan bulat positif.",
   );
   assert.equal(
-    state.fieldErrors.DEFAULT_SHIFT_END,
+    state.fieldErrors.defaultShiftEnd,
     "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.",
   );
 
@@ -230,27 +289,20 @@ test("backendOperationalSettingsAlpineData saveDraft keeps baseline on invalid i
   assert.deepEqual(state.fieldErrors, {});
 });
 
-test("backendOperationalSettingsAlpineData saveDraft stays safe without a browser window shim", async () => {
+test("backendOperationalSettingsAlpineData saveSettings stays safe without a browser window shim", async () => {
   const previousWindow = globalThis.window;
   Reflect.deleteProperty(globalThis, "window");
 
   try {
-    const state = backendOperationalSettingsAlpineData();
-    state.init();
-    state.form = {
-      GEOFENCE_RADIUS_DEFAULT_M: "100",
-      AUTO_CHECKOUT_IDLE_MIN: "20",
-      AUTO_CHECKOUT_TBUFFER_MIN: "10",
-      LATE_CHECKOUT_TBUFFER_MIN: undefined,
-      LATE_CHECKOUT_TOLERANCE_MIN: "120",
-      DEFAULT_SHIFT_END: "17:00",
-    };
+    const state = backendOperationalSettingsAlpineData(createSettingsService());
+    await state.init();
+    state.form.autoCheckoutIdleMin = "20";
 
-    await state.saveDraft();
+    await state.saveSettings();
 
     assert.equal(state.saveError, "");
     assert.equal(state.isSaving, false);
-    assert.equal(state.originalForm.AUTO_CHECKOUT_IDLE_MIN, "20");
+    assert.equal(state.originalForm.autoCheckoutIdleMin, "20");
   } finally {
     if (typeof previousWindow === "undefined") {
       Reflect.deleteProperty(globalThis, "window");
@@ -262,22 +314,22 @@ test("backendOperationalSettingsAlpineData saveDraft stays safe without a browse
 
 test("validateBackendOperationalSettingsForm rejects malformed numeric and time values", () => {
   const errors = validateBackendOperationalSettingsForm({
-    GEOFENCE_RADIUS_DEFAULT_M: "-1",
-    AUTO_CHECKOUT_IDLE_MIN: "10.5",
-    AUTO_CHECKOUT_TBUFFER_MIN: "abc",
-    LATE_CHECKOUT_TOLERANCE_MIN: " ",
-    DEFAULT_SHIFT_END: "24:00",
+    geofenceRadiusDefaultM: "-1",
+    autoCheckoutIdleMin: "10.5",
+    autoCheckoutTBufferMin: "abc",
+    lateCheckoutToleranceMin: " ",
+    defaultShiftEnd: "24:00",
   });
 
   assert.deepEqual(errors, {
-    GEOFENCE_RADIUS_DEFAULT_M:
-      "GEOFENCE_RADIUS_DEFAULT_M wajib diisi dengan bilangan bulat.",
-    AUTO_CHECKOUT_IDLE_MIN:
-      "AUTO_CHECKOUT_IDLE_MIN wajib diisi dengan bilangan bulat.",
-    AUTO_CHECKOUT_TBUFFER_MIN:
-      "AUTO_CHECKOUT_TBUFFER_MIN wajib diisi dengan bilangan bulat.",
-    LATE_CHECKOUT_TOLERANCE_MIN:
-      "LATE_CHECKOUT_TOLERANCE_MIN wajib diisi dengan bilangan bulat.",
-    DEFAULT_SHIFT_END: "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.",
+    geofenceRadiusDefaultM:
+      "GEOFENCE_RADIUS_DEFAULT_M wajib diisi dengan bilangan bulat positif.",
+    autoCheckoutIdleMin:
+      "AUTO_CHECKOUT_IDLE_MIN wajib diisi dengan bilangan bulat positif.",
+    autoCheckoutTBufferMin:
+      "AUTO_CHECKOUT_TBUFFER_MIN wajib diisi dengan bilangan bulat positif.",
+    lateCheckoutToleranceMin:
+      "LATE_CHECKOUT_TOLERANCE_MIN wajib diisi dengan bilangan bulat positif.",
+    defaultShiftEnd: "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.",
   });
 });

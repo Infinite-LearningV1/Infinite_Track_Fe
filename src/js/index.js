@@ -47,7 +47,10 @@ import {
 } from "./services/authSessionRuntime.js";
 import { getUserFromStorage } from "./utils/storageManager.js";
 import { initAuthStore } from "./stores/authStore.js";
-import { initAuthGuard, isProtectedPage as isAuthProtectedPage } from "./utils/authGuard.js";
+import {
+  initAuthGuard,
+  isProtectedPage as isAuthProtectedPage,
+} from "./utils/authGuard.js";
 import { initRoleBasedAccess } from "./utils/roleBasedAccess.js";
 import { formatDate } from "./utils/dateTimeFormatter.js";
 import { userListAlpineData } from "./features/userManagement/userListSimple.js";
@@ -56,6 +59,7 @@ import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js"
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
 import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
+import { backendOperationalSettingsAlpineData } from "./features/backendOperationalSettings/backendOperationalSettings.js";
 import { showInlineAlert } from "./utils/inlineAlert.js";
 
 Alpine.plugin(persist);
@@ -75,6 +79,8 @@ window.userListAlpineData = userListAlpineData;
 window.userFormAlpineData = userFormAlpineData;
 window.attendanceLogAlpineData = attendanceLogAlpineData;
 window.bookingListAlpineData = bookingListAlpineData;
+window.backendOperationalSettingsAlpineData =
+  backendOperationalSettingsAlpineData;
 
 // Expose utility functions to window for use in HTML
 window.getUserPhotoUrl = getUserPhotoUrl;
@@ -88,7 +94,10 @@ function showAuthRedirectNoticeOnSignin() {
 
   const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
 
-  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
+  if (
+    !redirectNotice?.message ||
+    typeof window.showInlineAlert !== "function"
+  ) {
     return;
   }
 
@@ -429,7 +438,9 @@ async function validateUserSession() {
     const storedUser = getUserFromStorage();
     const resolution = await resolveBootstrapSession();
     const authStore =
-      typeof Alpine !== "undefined" && Alpine.store ? Alpine.store("auth") : null;
+      typeof Alpine !== "undefined" && Alpine.store
+        ? Alpine.store("auth")
+        : null;
 
     if (resolution.state === "authenticated") {
       authStore?.setUser(resolution.user);
@@ -441,7 +452,8 @@ async function validateUserSession() {
 
       window.showInlineAlert?.({
         type: "warning",
-        message: "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
+        message:
+          "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
       });
       return resolution.state;
     }
@@ -456,13 +468,16 @@ async function validateUserSession() {
 
     const failure = classifyAuthFailure(error);
     const authStore =
-      typeof Alpine !== "undefined" && Alpine.store ? Alpine.store("auth") : null;
+      typeof Alpine !== "undefined" && Alpine.store
+        ? Alpine.store("auth")
+        : null;
 
     if (failure.kind === "transport" || failure.kind === "server") {
       authStore?.setVerificationFailed(getUserFromStorage());
       window.showInlineAlert?.({
         type: "warning",
-        message: "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
+        message:
+          "Session belum bisa diverifikasi karena koneksi atau server bermasalah.",
       });
       return "verification_failed";
     }
@@ -511,7 +526,10 @@ async function bootAuthentication() {
   showAuthRedirectNoticeOnSignin();
   const startupState = await initializeAuthSession();
 
-  if (startupState !== "verification_failed" && startupState !== "redirecting") {
+  if (
+    startupState !== "verification_failed" &&
+    startupState !== "redirecting"
+  ) {
     initAuthGuard();
     initRoleBasedAccess();
   }

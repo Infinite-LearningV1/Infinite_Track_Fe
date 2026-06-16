@@ -3,33 +3,74 @@ import {
   INTEGER_OPERATIONAL_SETTING_KEYS,
   OPERATIONAL_SETTING_KEYS,
 } from "./backendOperationalSettings.constants.js";
+import {
+  getOperationalSettings,
+  updateOperationalSettings,
+} from "../../services/backendOperationalSettingsService.js";
 
 function createDefaultBackendOperationalSettingsForm() {
   return createEmptyBackendOperationalSettingsDraft();
 }
 
-function normalizeBackendOperationalSettingsForm(form = {}) {
+function normalizeTimeForInput(value) {
+  const normalizedValue = String(value ?? "").trim();
+  const match = normalizedValue.match(
+    /^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/,
+  );
+
+  if (!match) {
+    return normalizedValue;
+  }
+
+  return `${match[1]}:${match[2]}`;
+}
+
+function createBackendOperationalSettingsFormFromResponse(settings = {}) {
   return {
-    GEOFENCE_RADIUS_DEFAULT_M: String(
-      form.GEOFENCE_RADIUS_DEFAULT_M ?? "",
+    geofenceRadiusDefaultM: String(
+      settings.geofenceRadiusDefaultM ?? "",
     ).trim(),
-    AUTO_CHECKOUT_IDLE_MIN: String(form.AUTO_CHECKOUT_IDLE_MIN ?? "").trim(),
-    AUTO_CHECKOUT_TBUFFER_MIN: String(
-      form.AUTO_CHECKOUT_TBUFFER_MIN ?? "",
+    autoCheckoutIdleMin: String(settings.autoCheckoutIdleMin ?? "").trim(),
+    autoCheckoutTBufferMin: String(
+      settings.autoCheckoutTBufferMin ?? "",
     ).trim(),
-    LATE_CHECKOUT_TOLERANCE_MIN: String(
-      form.LATE_CHECKOUT_TOLERANCE_MIN ?? "",
+    lateCheckoutToleranceMin: String(
+      settings.lateCheckoutToleranceMin ?? "",
     ).trim(),
-    DEFAULT_SHIFT_END: String(form.DEFAULT_SHIFT_END ?? "").trim(),
+    defaultShiftEnd: normalizeTimeForInput(settings.defaultShiftEnd),
   };
 }
 
-function isIntegerString(value) {
-  return /^\d+$/.test(String(value ?? "").trim());
+function normalizeBackendOperationalSettingsForm(form = {}) {
+  return {
+    geofenceRadiusDefaultM: String(form.geofenceRadiusDefaultM ?? "").trim(),
+    autoCheckoutIdleMin: String(form.autoCheckoutIdleMin ?? "").trim(),
+    autoCheckoutTBufferMin: String(form.autoCheckoutTBufferMin ?? "").trim(),
+    lateCheckoutToleranceMin: String(
+      form.lateCheckoutToleranceMin ?? "",
+    ).trim(),
+    defaultShiftEnd: String(form.defaultShiftEnd ?? "").trim(),
+  };
+}
+
+function isPositiveIntegerString(value) {
+  return /^[1-9]\d*$/.test(String(value ?? "").trim());
 }
 
 function isTimeString(value) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value ?? "").trim());
+}
+
+function getFieldLabel(key) {
+  const labels = {
+    geofenceRadiusDefaultM: "GEOFENCE_RADIUS_DEFAULT_M",
+    autoCheckoutIdleMin: "AUTO_CHECKOUT_IDLE_MIN",
+    autoCheckoutTBufferMin: "AUTO_CHECKOUT_TBUFFER_MIN",
+    lateCheckoutToleranceMin: "LATE_CHECKOUT_TOLERANCE_MIN",
+    defaultShiftEnd: "DEFAULT_SHIFT_END",
+  };
+
+  return labels[key] || key;
 }
 
 function validateBackendOperationalSettingsForm(form = {}) {
@@ -37,13 +78,14 @@ function validateBackendOperationalSettingsForm(form = {}) {
   const errors = {};
 
   for (const key of INTEGER_OPERATIONAL_SETTING_KEYS) {
-    if (!isIntegerString(normalizedForm[key])) {
-      errors[key] = `${key} wajib diisi dengan bilangan bulat.`;
+    if (!isPositiveIntegerString(normalizedForm[key])) {
+      errors[key] =
+        `${getFieldLabel(key)} wajib diisi dengan bilangan bulat positif.`;
     }
   }
 
-  if (!isTimeString(normalizedForm.DEFAULT_SHIFT_END)) {
-    errors.DEFAULT_SHIFT_END =
+  if (!isTimeString(normalizedForm.defaultShiftEnd)) {
+    errors.defaultShiftEnd =
       "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.";
   }
 
@@ -59,38 +101,101 @@ function hasBackendOperationalSettingsChanges(form, baseline) {
   );
 }
 
-function backendOperationalSettingsAlpineData() {
+function toBackendOperationalSettingsPayload(form = {}) {
+  const normalizedForm = normalizeBackendOperationalSettingsForm(form);
+
   return {
+    geofenceRadiusDefaultM: Number(normalizedForm.geofenceRadiusDefaultM),
+    autoCheckoutIdleMin: Number(normalizedForm.autoCheckoutIdleMin),
+    autoCheckoutTBufferMin: Number(normalizedForm.autoCheckoutTBufferMin),
+    lateCheckoutToleranceMin: Number(normalizedForm.lateCheckoutToleranceMin),
+    defaultShiftEnd: normalizedForm.defaultShiftEnd,
+  };
+}
+
+function formatOperationalSettingsTimestamp() {
+  return new Date().toLocaleString("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function getOperationalSettingsErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || error?.message || fallbackMessage;
+}
+
+function reportInlineAlert(payload) {
+  globalThis.window?.showInlineAlert?.(payload);
+}
+
+function backendOperationalSettingsAlpineData(
+  service = {
+    getOperationalSettings,
+    updateOperationalSettings,
+  },
+) {
+  return {
+    settingsService: service,
     isLoading: false,
     isSaving: false,
+    hasLoadedCanonicalSettings: false,
     loadError: "",
     saveError: "",
-    loadMode: "shell_only",
     infoMessage:
-      "Backend canonical untuk load/save setting ini belum tersedia di repo ini. Nilai yang Anda isi di halaman ini hanya temporary draft sementara di memori halaman dan akan hilang saat refresh.",
+      "Operational settings dimuat dari backend canonical dan disimpan kembali melalui /api/settings/operational. AHP_CR_THRESHOLD adalah konstanta teoritis dan tidak editable di Web FE.",
     fieldErrors: {},
     form: createDefaultBackendOperationalSettingsForm(),
     originalForm: createDefaultBackendOperationalSettingsForm(),
-    lastSavedDraftAt: "",
+    lastLoadedAt: "",
+    lastSavedAt: "",
 
     get hasChanges() {
       return hasBackendOperationalSettingsChanges(this.form, this.originalForm);
     },
 
     get canSave() {
-      return !this.isLoading && !this.isSaving && this.hasChanges;
+      return (
+        this.hasLoadedCanonicalSettings &&
+        !this.isLoading &&
+        !this.isSaving &&
+        this.hasChanges
+      );
     },
 
-    init() {
-      this.resetToDefaultDraft();
+    async init() {
+      await this.loadSettings();
     },
 
-    resetToDefaultDraft() {
-      this.form = { ...createEmptyBackendOperationalSettingsDraft() };
-      this.originalForm = { ...createEmptyBackendOperationalSettingsDraft() };
+    applyCanonicalSettings(settings) {
+      const formState =
+        createBackendOperationalSettingsFormFromResponse(settings);
+
+      this.form = { ...formState };
+      this.originalForm = { ...formState };
       this.fieldErrors = {};
       this.loadError = "";
       this.saveError = "";
+      this.hasLoadedCanonicalSettings = true;
+    },
+
+    async loadSettings() {
+      this.isLoading = true;
+      this.loadError = "";
+      this.saveError = "";
+
+      try {
+        const settings = await this.settingsService.getOperationalSettings();
+        this.applyCanonicalSettings(settings);
+        this.lastLoadedAt = formatOperationalSettingsTimestamp();
+      } catch (error) {
+        this.hasLoadedCanonicalSettings = false;
+        this.loadError = getOperationalSettingsErrorMessage(
+          error,
+          "Gagal memuat operational settings dari backend.",
+        );
+      } finally {
+        this.isLoading = false;
+      }
     },
 
     validateForm() {
@@ -102,32 +207,36 @@ function backendOperationalSettingsAlpineData() {
       return this.fieldErrors[key] || "";
     },
 
-    async saveDraft() {
+    async saveSettings() {
       this.saveError = "";
 
       if (!this.validateForm()) {
         this.saveError =
-          "Periksa kembali field yang wajib diisi sebelum menyimpan draft shell INF-142.";
+          "Periksa kembali field yang wajib diisi sebelum menyimpan operational settings.";
         return;
       }
 
       this.isSaving = true;
 
       try {
-        const normalizedForm = normalizeBackendOperationalSettingsForm(this.form);
+        const payload = toBackendOperationalSettingsPayload(this.form);
+        const settings =
+          await this.settingsService.updateOperationalSettings(payload);
 
-        this.form = { ...normalizedForm };
-        this.originalForm = { ...normalizedForm };
-        this.lastSavedDraftAt = "";
+        this.applyCanonicalSettings(settings);
+        this.lastSavedAt = formatOperationalSettingsTimestamp();
 
-        globalThis.window?.showInlineAlert?.({
-          type: "warning",
-          title: "Draft hanya sementara",
+        reportInlineAlert({
+          type: "success",
+          title: "Operational settings tersimpan",
           message:
-            "Draft shell INF-142 hanya tersimpan di memori halaman ini, belum dikirim ke backend canonical, dan akan hilang saat refresh.",
+            "Lima setting operational berhasil disimpan ke backend canonical.",
         });
       } catch (error) {
-        this.saveError = error?.message || "Gagal menyimpan draft shell INF-142.";
+        this.saveError = getOperationalSettingsErrorMessage(
+          error,
+          "Gagal menyimpan operational settings ke backend.",
+        );
       } finally {
         this.isSaving = false;
       }
@@ -144,8 +253,10 @@ function backendOperationalSettingsAlpineData() {
 export {
   OPERATIONAL_SETTING_KEYS,
   createDefaultBackendOperationalSettingsForm,
+  createBackendOperationalSettingsFormFromResponse,
   normalizeBackendOperationalSettingsForm,
   validateBackendOperationalSettingsForm,
   hasBackendOperationalSettingsChanges,
+  toBackendOperationalSettingsPayload,
   backendOperationalSettingsAlpineData,
 };

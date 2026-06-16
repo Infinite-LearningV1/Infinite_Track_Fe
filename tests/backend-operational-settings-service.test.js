@@ -2,12 +2,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  BackendOperationalSettingsService,
+  OPERATIONAL_SETTINGS_URL,
   assertAllowedOperationalSettingsPayload,
-  getOperationalSettings,
-  updateOperationalSettings,
+  assertOperationalSettingsResponse,
 } from "../src/js/services/backendOperationalSettingsService.js";
 
-test("assertAllowedOperationalSettingsPayload rejects unknown setting keys", () => {
+const CANONICAL_SETTINGS = {
+  geofenceRadiusDefaultM: 100,
+  autoCheckoutIdleMin: 10,
+  autoCheckoutTBufferMin: 30,
+  lateCheckoutToleranceMin: 15,
+  defaultShiftEnd: "17:00:00",
+};
+
+test("assertAllowedOperationalSettingsPayload rejects AHP threshold and unknown keys", () => {
   assert.throws(
     () =>
       assertAllowedOperationalSettingsPayload({
@@ -15,21 +24,72 @@ test("assertAllowedOperationalSettingsPayload rejects unknown setting keys", () 
       }),
     /Unsupported operational setting key: AHP_CR_THRESHOLD/,
   );
-});
 
-test("getOperationalSettings is explicit about missing backend contract", async () => {
-  await assert.rejects(
-    () => getOperationalSettings(),
-    /contract belum tersedia/i,
+  assert.throws(
+    () =>
+      assertAllowedOperationalSettingsPayload({
+        ahpCrThreshold: 0.9,
+      }),
+    /Unsupported operational setting key: ahpCrThreshold/,
   );
 });
 
-test("updateOperationalSettings accepts INF-142 keys but stays shell-only", async () => {
-  await assert.rejects(
+test("getOperationalSettings reads the backend canonical raw typed object", async () => {
+  const seenConfigs = [];
+  const service = new BackendOperationalSettingsService(async (config) => {
+    seenConfigs.push(config);
+    return { data: CANONICAL_SETTINGS };
+  });
+
+  const settings = await service.getOperationalSettings();
+
+  assert.deepEqual(settings, CANONICAL_SETTINGS);
+  assert.deepEqual(seenConfigs, [
+    {
+      method: "get",
+      url: OPERATIONAL_SETTINGS_URL,
+    },
+  ]);
+});
+
+test("updateOperationalSettings patches canonical backend fields and returns latest state", async () => {
+  const seenConfigs = [];
+  const service = new BackendOperationalSettingsService(async (config) => {
+    seenConfigs.push(config);
+    return {
+      data: {
+        ...CANONICAL_SETTINGS,
+        autoCheckoutIdleMin: config.data.autoCheckoutIdleMin,
+        defaultShiftEnd: "18:00:00",
+      },
+    };
+  });
+
+  const settings = await service.updateOperationalSettings({
+    autoCheckoutIdleMin: 12,
+    defaultShiftEnd: "18:00",
+  });
+
+  assert.equal(settings.autoCheckoutIdleMin, 12);
+  assert.equal(settings.defaultShiftEnd, "18:00:00");
+  assert.deepEqual(seenConfigs, [
+    {
+      method: "patch",
+      url: OPERATIONAL_SETTINGS_URL,
+      data: {
+        autoCheckoutIdleMin: 12,
+        defaultShiftEnd: "18:00",
+      },
+    },
+  ]);
+});
+
+test("assertOperationalSettingsResponse rejects incomplete backend state", () => {
+  assert.throws(
     () =>
-      updateOperationalSettings({
-        GEOFENCE_RADIUS_DEFAULT_M: "100",
+      assertOperationalSettingsResponse({
+        geofenceRadiusDefaultM: 100,
       }),
-    /persist canonical settings/i,
+    /missing fields: autoCheckoutIdleMin, autoCheckoutTBufferMin, lateCheckoutToleranceMin, defaultShiftEnd/,
   );
 });

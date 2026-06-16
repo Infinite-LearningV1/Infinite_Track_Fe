@@ -70,14 +70,12 @@ nano .env.production
 **Konfigurasi WAJIB yang harus diubah:**
 
 ```env
-# ⚠️ GANTI dengan URL backend Anda yang sebenarnya!
-API_BASE_URL=https://api.yourdomain.com
+# Production Infinite Track saat ini memakai prefix /api di backend public.
+API_BASE_URL=https://api.infinite-track.tech/api
+API_AUTH_ENDPOINT=/auth
 
-# Atau jika backend di subdomain yang sama:
-# API_BASE_URL=https://yourdomain.com/api
-
-# Atau jika menggunakan IP dan port:
-# API_BASE_URL=http://192.168.1.100:3005
+# Jika domain backend berbeda, pakai URL public yang sudah mencakup prefix API final.
+# Contoh: API_BASE_URL=https://api.yourdomain.com/api
 ```
 
 ### 2. Verifikasi Konfigurasi
@@ -86,10 +84,12 @@ Pastikan konfigurasi berikut sesuai dengan kebutuhan:
 
 | Variable          | Development   | Production                   | Keterangan                    |
 | ----------------- | ------------- | ---------------------------- | ----------------------------- |
-| `API_BASE_URL`    | `/api`        | `https://api.yourdomain.com` | **WAJIB diubah!**             |
-| `APP_ENVIRONMENT` | `development` | `production`                 | Menentukan mode aplikasi      |
-| `DEBUG_MODE`      | `true`        | `false`                      | Matikan di production         |
-| `LOG_LEVEL`       | `info`        | `error`                      | Hanya log error di production |
+| `API_BASE_URL`    | `/api`        | `https://api.infinite-track.tech/api` | **WAJIB mencakup prefix API final!** |
+| `APP_ENVIRONMENT` | `development` | `production`                        | Menentukan mode aplikasi             |
+| `DEBUG_MODE`      | `true`        | `false`                             | Matikan di production                |
+| `LOG_LEVEL`       | `info`        | `error`                             | Hanya log error di production        |
+
+Verifikasi cepat prefix production: `https://api.infinite-track.tech/api/settings/operational` harus mencapai endpoint backend dan boleh mengembalikan `401 Unauthorized` saat belum login. Jika `https://api.infinite-track.tech/settings/operational` mengembalikan `404`, jangan gunakan base URL tanpa `/api` untuk static production.
 
 ---
 

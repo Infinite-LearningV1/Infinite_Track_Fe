@@ -88,11 +88,15 @@ Write `DOCS/ADR UPDATE REQUIRED` when work touches:
 - `DEPLOYMENT.md`
 - `DEPLOYMENT-CHECKLIST.md`
 
+## Shared Context (cross-repo)
+- Before cross-contract work, read the cockpit shared context outside this repo (`Deploy Infinite Track/Infinite Track/shared-context/`):
+=======
 ## Phase 5 Context Sync (MVP)
 
 ### Shared Context (Cross-Repo)
 
 - Before cross-contract work, read the cockpit/orchestration `shared-context` files outside this Web FE repository (`Deploy Infinite Track/Infinite Track/shared-context/`):
+
   - `API_CONTRACT.md`
   - `GLOBAL_STATUS.md`
   - `ROUTING_POLICY.md`
@@ -100,6 +104,13 @@ Write `DOCS/ADR UPDATE REQUIRED` when work touches:
   - `DECISIONS.md`
   - `RISK_REGISTER.md`
 - If repo/runtime/Linear/docs differ, live repo/runtime is the highest factual source.
+
+## Branch model (MVP)
+- `develop` = MVP QA and integration branch.
+- `master` = deploy/release branch.
+- Agents work on isolated worktrees/branches from `develop`, not directly on `develop` or `master`.
+- Manual QA findings on `develop` should return to Linear first, then be mirrored to Vibe Kanban before a fix starts.
+=======
 - Apply this file's Definition of Done together with the global MVP gate: diff/PR + fresh verification + review verdict.
 
 ### Execution Model (MVP)

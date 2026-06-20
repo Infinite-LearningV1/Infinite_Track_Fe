@@ -210,9 +210,14 @@ Promote to `master` only when:
 
 ## North Star Context (Cross-Repo)
 
+- Official operating model: `Cowork -> Claude Desktop Host -> Claude Code CLI -> GitHub + Linear`.
+- Cowork captures product collaboration and high-level intent.
+- Claude Desktop Host holds PM/cockpit context and decides routing.
+- Claude Code CLI executes repo work in isolated worktrees.
+- GitHub PRs and Linear issues are the active evidence/status systems.
 - Web FE adalah admin/reporting surface, bukan sumber kebenaran akhir untuk attendance, auth authority, atau reporting authority.
 - Backend adalah source of truth final; Web FE adalah konsumen kontrak backend.
-- Gunakan source-of-truth hierarchy: repo+runtime > Linear > Vibe Kanban > docs.
+- Gunakan source-of-truth hierarchy: live repo/runtime > GitHub PR/diff/checks > Linear issue context > active cockpit docs > archived docs.
 - Untuk kerja lintas-kontrak, baca shared context cockpit (`Deploy Infinite Track/Infinite Track/shared-context/`), terutama:
   - `API_CONTRACT.md`
   - `GLOBAL_STATUS.md`
@@ -221,5 +226,5 @@ Promote to `master` only when:
   - `DECISIONS.md`
   - `RISK_REGISTER.md`
 - Jika repo/runtime/Linear/docs berbeda, live repo/runtime adalah sumber fakta tertinggi.
-- `develop` adalah branch MVP QA/integration; `master` adalah branch deploy/release. Agent bekerja di branch/worktree terisolasi dari `develop`, bukan langsung di `develop` atau `master`.
-- Issue hasil manual QA di `develop` harus kembali ke Linear lalu dimirror ke Vibe Kanban sebelum diperbaiki.
+- `develop` adalah branch QA/integration dan human validation; `master` adalah branch deploy/release. Agent bekerja di branch/worktree terisolasi dari `develop`, bukan langsung di `develop` atau `master`.
+- Issue hasil manual QA di `develop` harus kembali ke Linear, lalu diperbaiki melalui branch/worktree terisolasi dan PR GitHub sebelum dianggap selesai.

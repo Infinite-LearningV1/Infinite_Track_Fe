@@ -16,7 +16,10 @@ import {
 function showAuthRedirectNotice() {
   const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
 
-  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
+  if (
+    !redirectNotice?.message ||
+    typeof window.showInlineAlert !== "function"
+  ) {
     return;
   }
 
@@ -368,6 +371,9 @@ function updateAlpineStore(userData) {
   }
 }
 
+const DASHBOARD_HOME_ROLES = new Set(["Admin", "Management"]);
+const HARD_DENY_DASHBOARD_ROLES = new Set(["Employee", "Internship"]);
+
 function resolveStoredRedirectTarget(redirectValue) {
   if (!redirectValue) {
     return null;
@@ -386,9 +392,34 @@ function resolveStoredRedirectTarget(redirectValue) {
       pathname: parsedUrl.pathname,
     };
   } catch (error) {
-    console.warn("Invalid redirectAfterLogin value, ignoring redirect target", error);
+    console.warn(
+      "Invalid redirectAfterLogin value, ignoring redirect target",
+      error,
+    );
     return null;
   }
+}
+
+function shouldSkipStoredRedirectForRole(redirectTarget, userData) {
+  if (!redirectTarget || !userData?.role_name) {
+    return false;
+  }
+
+  return (
+    DASHBOARD_HOME_ROLES.has(userData.role_name) &&
+    redirectTarget.pathname === "/profile.html"
+  );
+}
+
+function shouldHardDenyDashboardTarget(redirectTarget, userData) {
+  if (!redirectTarget || !userData?.role_name) {
+    return false;
+  }
+
+  return (
+    HARD_DENY_DASHBOARD_ROLES.has(userData.role_name) &&
+    redirectTarget.pathname === "/index.html"
+  );
 }
 
 /**
@@ -398,8 +429,8 @@ async function redirectAfterLogin({
   loginJustSucceeded = false,
   loginUser = null,
 } = {}) {
-  // Import role-based redirect function
-  const { redirectBasedOnRole } = window.RoleBasedAccess || {};
+  const { redirectBasedOnRole, showAccessDenied } =
+    window.RoleBasedAccess || {};
 
   let verifiedUser = null;
 
@@ -412,7 +443,10 @@ async function redirectAfterLogin({
         return;
       }
     } catch (error) {
-      console.warn("Bootstrap session resolution failed before redirect", error);
+      console.warn(
+        "Bootstrap session resolution failed before redirect",
+        error,
+      );
       if (!loginJustSucceeded) {
         return;
       }
@@ -420,24 +454,30 @@ async function redirectAfterLogin({
   }
 
   const userData = verifiedUser || loginUser || null;
-
-  // Cek jika ada URL redirect yang disimpan
   const currentTabRedirectUrl = sessionStorage.getItem("redirectAfterLogin");
   const sharedRedirectUrl = localStorage.getItem("redirectAfterLogin");
   const redirectUrl = currentTabRedirectUrl || sharedRedirectUrl;
   const redirectTarget = resolveStoredRedirectTarget(redirectUrl);
 
   if (redirectTarget) {
-    // Clear redirect URL
     localStorage.removeItem("redirectAfterLogin");
     sessionStorage.removeItem("redirectAfterLogin");
 
+    if (shouldHardDenyDashboardTarget(redirectTarget, userData)) {
+      showAccessDenied?.(userData.role_name, { keepCurrentLocation: true });
+      return;
+    }
+
     const hasPageAccessForUser = window.RoleBasedAccess?.hasPageAccessForUser;
+    const shouldSkipStoredRedirect = shouldSkipStoredRedirectForRole(
+      redirectTarget,
+      userData,
+    );
 
     if (userData?.role_name && typeof hasPageAccessForUser === "function") {
       const hasAccess = hasPageAccessForUser(redirectTarget.pathname, userData);
 
-      if (hasAccess) {
+      if (!shouldSkipStoredRedirect && hasAccess) {
         window.location.href = redirectTarget.targetHref;
         return;
       }
@@ -446,7 +486,9 @@ async function redirectAfterLogin({
         `User role ${userData.role_name} doesn't have access to ${redirectTarget.pathname}, redirecting based on role`,
       );
     } else {
-      console.warn("Skipping stored redirectAfterLogin target because RBAC user access check is unavailable");
+      console.warn(
+        "Skipping stored redirectAfterLogin target because RBAC user access check is unavailable",
+      );
     }
 
     if (userData?.role_name && redirectBasedOnRole) {
@@ -454,14 +496,13 @@ async function redirectAfterLogin({
       return;
     }
   }
-  // Default redirect berdasarkan role jika tidak ada URL redirect
-  if (userData && userData.role_name && redirectBasedOnRole) {
+
+  if (userData?.role_name && redirectBasedOnRole) {
     console.log(
       `Redirecting user with role ${userData.role_name} to appropriate page`,
     );
     redirectBasedOnRole(userData.role_name);
   } else {
-    // Fallback ke dashboard jika role checking tidak tersedia
     window.location.href = "/index.html";
   }
 }
@@ -555,6 +596,7 @@ const SigninHandler = {
   setLoadingState,
   handleLoginSubmit,
   redirectAfterLogin,
+  shouldSkipStoredRedirectForRole,
 };
 
 // Export untuk penggunaan sebagai module
@@ -564,6 +606,7 @@ export {
   clearError,
   setLoadingState,
   handleLoginSubmit,
+  shouldSkipStoredRedirectForRole,
 };
 export default SigninHandler;
 

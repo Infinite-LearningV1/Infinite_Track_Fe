@@ -145,7 +145,11 @@ test("createProtectedRequestExecutor replays one protected request after refresh
 
   assert.deepEqual(result, { ok: true });
   assert.equal(attempts, 2);
-  assert.deepEqual(calls, ["request-1-initial", "refresh", "request-2-replayed"]);
+  assert.deepEqual(calls, [
+    "request-1-initial",
+    "refresh",
+    "request-2-replayed",
+  ]);
 });
 
 test("createProtectedRequestExecutor calls forced reauth when refresh becomes non-refreshable", async () => {
@@ -194,13 +198,19 @@ test("createProtectedRequestExecutor calls forced reauth when replay is non-refr
   const expiredError = {
     response: {
       status: 401,
-      data: { code: "AUTH_ACCESS_TOKEN_EXPIRED", message: "expired access token" },
+      data: {
+        code: "AUTH_ACCESS_TOKEN_EXPIRED",
+        message: "expired access token",
+      },
     },
   };
   const revokedError = {
     response: {
       status: 401,
-      data: { code: "AUTH_REFRESH_TOKEN_REVOKED", message: "Refresh session revoked" },
+      data: {
+        code: "AUTH_REFRESH_TOKEN_REVOKED",
+        message: "Refresh session revoked",
+      },
     },
   };
 
@@ -249,7 +259,10 @@ test("createProtectedRequestExecutor calls forced reauth on direct non-refreshab
   const inactiveError = {
     response: {
       status: 401,
-      data: { code: "AUTH_SESSION_INACTIVE", message: "Sesi sudah tidak aktif" },
+      data: {
+        code: "AUTH_SESSION_INACTIVE",
+        message: "Sesi sudah tidak aktif",
+      },
     },
   };
 
@@ -426,7 +439,10 @@ test("createBootstrapSessionResolver treats unclassified refresh failures as ver
   const expiredError = {
     response: {
       status: 401,
-      data: { code: "AUTH_ACCESS_TOKEN_EXPIRED", message: "expired access token" },
+      data: {
+        code: "AUTH_ACCESS_TOKEN_EXPIRED",
+        message: "expired access token",
+      },
     },
   };
   const semanticRefreshError = new Error("Refresh session tidak valid");
@@ -521,7 +537,10 @@ test("auth store initialization preserves signin redirect session artifacts", ()
       sessionStorageRef.getItem("authRedirectNotice"),
       JSON.stringify({ message: "Silakan login lagi" }),
     );
-    assert.equal(sessionStorageRef.getItem("sessionVerificationState"), "pending");
+    assert.equal(
+      sessionStorageRef.getItem("sessionVerificationState"),
+      "pending",
+    );
   } finally {
     globalThis.Alpine = originalAlpine;
     globalThis.localStorage = originalLocalStorage;
@@ -878,7 +897,10 @@ test("forceReauthenticate preserves redirect and avoids second storage cleanup h
 });
 
 test("forceReauthenticate persists redirect notice when cross-tab broadcast fails", async () => {
-  const localStorageRef = createMemoryStorage({ userData: "x", authToken: "x" });
+  const localStorageRef = createMemoryStorage({
+    userData: "x",
+    authToken: "x",
+  });
   const sessionStorageRef = createMemoryStorage();
   const notice = {
     type: "warning",
@@ -917,7 +939,10 @@ test("forceReauthenticate persists redirect notice when cross-tab broadcast fail
 });
 
 test("forceReauthenticate redirects when redirect notice storage fails", async () => {
-  const localStorageRef = createMemoryStorage({ userData: "x", authToken: "x" });
+  const localStorageRef = createMemoryStorage({
+    userData: "x",
+    authToken: "x",
+  });
   const sessionStorageRef = {
     ...createMemoryStorage(),
     setItem() {
@@ -1170,7 +1195,10 @@ test("logout component redirects and clears runtime state when cleanup fails", a
     assert.equal(authStore.error, "Data sesi di browser gagal dibersihkan.");
     assert.equal(authStore.isLoading, false);
     assert.equal(globalThis.window.location.href, "/signin.html");
-    assert.equal(readAuthRedirectNotice(sessionStorageRef).reason, "storage_cleanup_failed");
+    assert.equal(
+      readAuthRedirectNotice(sessionStorageRef).reason,
+      "storage_cleanup_failed",
+    );
   } finally {
     axios.post = originalPost;
     globalThis.window = originalWindow;
@@ -1244,6 +1272,82 @@ test("redirectAfterLogin falls back to fresh login user when bootstrap session i
 
     assert.deepEqual(redirectCalls, ["Admin"]);
     assert.equal(globalThis.window.location.href, "/index.html");
+  } finally {
+    axios.get = originalGet;
+    globalThis.window = originalWindow;
+    globalThis.localStorage = originalLocalStorage;
+    globalThis.sessionStorage = originalSessionStorage;
+    globalThis.document = originalDocument;
+  }
+});
+
+test("redirectAfterLogin ignores stale profile redirect after non-refreshable bootstrap for Management", async () => {
+  const originalGet = axios.get;
+  const originalWindow = globalThis.window;
+  const originalLocalStorage = globalThis.localStorage;
+  const originalSessionStorage = globalThis.sessionStorage;
+  const originalDocument = globalThis.document;
+
+  const localStorageRef = createMemoryStorage({ authToken: "fresh-token" });
+  const sessionStorageRef = createMemoryStorage({
+    redirectAfterLogin: "/profile.html?from=stale-login",
+  });
+  const redirectCalls = [];
+
+  globalThis.localStorage = localStorageRef;
+  globalThis.sessionStorage = sessionStorageRef;
+  globalThis.document = {
+    readyState: "loading",
+    addEventListener() {},
+    querySelector() {
+      return null;
+    },
+    getElementById() {
+      return null;
+    },
+  };
+  globalThis.window = {
+    localStorage: localStorageRef,
+    sessionStorage: sessionStorageRef,
+    location: { href: "/signin.html", origin: "http://localhost" },
+    RoleBasedAccess: {
+      hasPageAccessForUser() {
+        return true;
+      },
+      redirectBasedOnRole(roleName) {
+        redirectCalls.push(roleName);
+        globalThis.window.location.href = "/index.html";
+      },
+    },
+  };
+
+  axios.get = async () => {
+    const error = new Error("AUTH_SESSION_INACTIVE");
+    error.response = {
+      status: 401,
+      data: {
+        code: "AUTH_SESSION_INACTIVE",
+        message: "Sesi sudah tidak aktif",
+      },
+    };
+    throw error;
+  };
+
+  try {
+    const moduleUrl = new URL(
+      `../src/js/features/signinHandler.js?test=${Date.now()}`,
+      import.meta.url,
+    );
+    const { default: SigninHandler } = await import(moduleUrl.href);
+
+    await SigninHandler.redirectAfterLogin({
+      loginJustSucceeded: true,
+      loginUser: { id: 11, role_name: "Management" },
+    });
+
+    assert.deepEqual(redirectCalls, ["Management"]);
+    assert.equal(globalThis.window.location.href, "/index.html");
+    assert.equal(globalThis.sessionStorage.getItem("redirectAfterLogin"), null);
   } finally {
     axios.get = originalGet;
     globalThis.window = originalWindow;

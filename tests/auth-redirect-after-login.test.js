@@ -38,7 +38,9 @@ function withBrowserGlobals(callback) {
 
 test("forceReauthenticate preserves the current same-origin path before signin redirect", async () => {
   await withBrowserGlobals(async () => {
-    const localStorage = createStorage([["userData", JSON.stringify({ id: 1 })]]);
+    const localStorage = createStorage([
+      ["userData", JSON.stringify({ id: 1 })],
+    ]);
     const sessionStorage = createStorage();
     const location = {
       pathname: "/reports.html",
@@ -57,7 +59,10 @@ test("forceReauthenticate preserves the current same-origin path before signin r
 
     await forceReauthenticate();
 
-    assert.equal(sessionStorage.getItem("redirectAfterLogin"), "/reports.html?range=weekly#summary");
+    assert.equal(
+      sessionStorage.getItem("redirectAfterLogin"),
+      "/reports.html?range=weekly#summary",
+    );
     assert.equal(localStorage.getItem("userData"), null);
     assert.equal(location.href, "/signin.html");
   });
@@ -66,7 +71,9 @@ test("forceReauthenticate preserves the current same-origin path before signin r
 test("redirectAfterLogin ignores cross-origin redirect targets", async () => {
   await withBrowserGlobals(async () => {
     const localStorage = createStorage();
-    const sessionStorage = createStorage([["redirectAfterLogin", "https://evil.example/reports.html"]]);
+    const sessionStorage = createStorage([
+      ["redirectAfterLogin", "https://evil.example/reports.html"],
+    ]);
     const location = {
       origin: "https://admin.example.test",
       href: "https://admin.example.test/signin.html",
@@ -92,15 +99,20 @@ test("redirectAfterLogin ignores cross-origin redirect targets", async () => {
   });
 });
 
-test("redirectAfterLogin prefers current-tab stored redirect target", async () => {
+test("redirectAfterLogin ignores stale /profile.html for Admin and falls back to dashboard", async () => {
   await withBrowserGlobals(async () => {
-    const localStorage = createStorage([["redirectAfterLogin", "/management-user.html?from=stale-tab"]]);
-    const sessionStorage = createStorage([["redirectAfterLogin", "/profile.html?from=current-tab"]]);
+    const localStorage = createStorage([
+      ["redirectAfterLogin", "/management-user.html?from=stale-tab"],
+    ]);
+    const sessionStorage = createStorage([
+      ["redirectAfterLogin", "/profile.html?from=current-tab"],
+    ]);
     const location = {
       origin: "https://admin.example.test",
       href: "https://admin.example.test/signin.html",
     };
     const accessChecks = [];
+    const roleRedirects = [];
 
     globalThis.localStorage = localStorage;
     globalThis.sessionStorage = sessionStorage;
@@ -111,7 +123,13 @@ test("redirectAfterLogin prefers current-tab stored redirect target", async () =
       RoleBasedAccess: {
         hasPageAccessForUser(pathname, userData) {
           accessChecks.push({ pathname, userData });
-          return pathname === "/profile.html" && userData?.role_name === "Admin";
+          return (
+            pathname === "/profile.html" && userData?.role_name === "Admin"
+          );
+        },
+        redirectBasedOnRole(userRole) {
+          roleRedirects.push(userRole);
+          location.href = "/index.html";
         },
       },
     };
@@ -127,7 +145,8 @@ test("redirectAfterLogin prefers current-tab stored redirect target", async () =
         userData: { id: 7, role_name: "Admin" },
       },
     ]);
-    assert.equal(location.href, "/profile.html?from=current-tab");
+    assert.deepEqual(roleRedirects, ["Admin"]);
+    assert.equal(location.href, "/index.html");
     assert.equal(localStorage.getItem("redirectAfterLogin"), null);
     assert.equal(sessionStorage.getItem("redirectAfterLogin"), null);
   });
@@ -135,7 +154,9 @@ test("redirectAfterLogin prefers current-tab stored redirect target", async () =
 
 test("redirectAfterLogin checks stored target access against fresh login user", async () => {
   await withBrowserGlobals(async () => {
-    const localStorage = createStorage([["redirectAfterLogin", "/management-user.html?from=signin"]]);
+    const localStorage = createStorage([
+      ["redirectAfterLogin", "/management-user.html?from=signin"],
+    ]);
     const sessionStorage = createStorage();
     const location = {
       origin: "https://admin.example.test",
@@ -152,7 +173,10 @@ test("redirectAfterLogin checks stored target access against fresh login user", 
       RoleBasedAccess: {
         hasPageAccessForUser(pathname, userData) {
           accessChecks.push({ pathname, userData });
-          return pathname === "/management-user.html" && userData?.role_name === "Admin";
+          return (
+            pathname === "/management-user.html" &&
+            userData?.role_name === "Admin"
+          );
         },
         hasPageAccess() {
           throw new Error("stale auth-store access check should not be used");
@@ -178,7 +202,9 @@ test("redirectAfterLogin checks stored target access against fresh login user", 
 
 test("redirectAfterLogin skips stored target when fresh RBAC check is unavailable", async () => {
   await withBrowserGlobals(async () => {
-    const localStorage = createStorage([["redirectAfterLogin", "/management-user.html?from=signin"]]);
+    const localStorage = createStorage([
+      ["redirectAfterLogin", "/management-user.html?from=signin"],
+    ]);
     const sessionStorage = createStorage();
     const location = {
       origin: "https://admin.example.test",
@@ -208,5 +234,52 @@ test("redirectAfterLogin skips stored target when fresh RBAC check is unavailabl
     assert.deepEqual(roleRedirects, ["Admin"]);
     assert.equal(location.href, "/index.html");
     assert.equal(localStorage.getItem("redirectAfterLogin"), null);
+  });
+});
+
+test("redirectAfterLogin shows access denied instead of navigating Employee to dashboard", async () => {
+  await withBrowserGlobals(async () => {
+    const localStorage = createStorage();
+    const sessionStorage = createStorage([
+      ["redirectAfterLogin", "/index.html"],
+    ]);
+    const location = {
+      origin: "https://admin.example.test",
+      href: "https://admin.example.test/signin.html",
+    };
+    const deniedRoles = [];
+    const roleRedirects = [];
+
+    globalThis.localStorage = localStorage;
+    globalThis.sessionStorage = sessionStorage;
+    globalThis.window = {
+      location,
+      localStorage,
+      sessionStorage,
+      RoleBasedAccess: {
+        hasPageAccessForUser(pathname, userData) {
+          return (
+            pathname === "/index.html" && userData?.role_name === "Employee"
+          );
+        },
+        showAccessDenied(userRole) {
+          deniedRoles.push(userRole);
+        },
+        redirectBasedOnRole(userRole) {
+          roleRedirects.push(userRole);
+          location.href = "/profile.html";
+        },
+      },
+    };
+
+    await SigninHandler.redirectAfterLogin({
+      loginJustSucceeded: true,
+      loginUser: { id: 8, role_name: "Employee" },
+    });
+
+    assert.deepEqual(deniedRoles, ["Employee"]);
+    assert.deepEqual(roleRedirects, []);
+    assert.equal(location.href, "https://admin.example.test/signin.html");
+    assert.equal(sessionStorage.getItem("redirectAfterLogin"), null);
   });
 });

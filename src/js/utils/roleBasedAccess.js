@@ -60,6 +60,8 @@ const PAGE_PERMISSIONS = {
 };
 
 const PROTECTED_PAGES = Object.freeze(Object.keys(PAGE_PERMISSIONS));
+const DASHBOARD_ALLOWED_ROLES = new Set([ROLES.ADMIN, ROLES.MANAGEMENT]);
+const DASHBOARD_DENIED_ROLES = new Set([ROLES.INTERNSHIP, ROLES.EMPLOYEE]);
 
 function normalizePagePath(path) {
   if (path === "/" || path === "") {
@@ -123,8 +125,8 @@ function redirectBasedOnRole(userRole) {
       window.location.href = "/profile.html";
       break;
     default:
-      // Default ke profile untuk role yang tidak dikenal
-      window.location.href = "/profile.html";
+      // Unknown roles must re-authenticate instead of being silently routed to profile.
+      window.location.href = "/signin.html";
       break;
   }
 }
@@ -132,8 +134,15 @@ function redirectBasedOnRole(userRole) {
 /**
  * Show access denied page/message
  * @param {string} userRole - User's role
+ * @param {{ keepCurrentLocation?: boolean, primaryAction?: string }} options - Denial behavior options
  */
-function showAccessDenied(userRole) {
+function showAccessDenied(userRole, options = {}) {
+  const { keepCurrentLocation = false, primaryAction = "redirect" } = options;
+  const primaryButtonLabel =
+    keepCurrentLocation || primaryAction === "close"
+      ? "Tutup"
+      : "Kembali ke Halaman Utama";
+
   // Create access denied modal with styling matching modalAlert danger theme
   const modalHTML = `
     <div id="access-denied-modal" class="fixed inset-0 z-99999 flex items-center justify-center p-5 overflow-y-auto transition-all duration-300 opacity-0">
@@ -219,7 +228,7 @@ function showAccessDenied(userRole) {
               id="modal-redirect-btn" 
               class="flex justify-center w-full px-4 py-3 text-sm font-medium text-white rounded-lg shadow-theme-xs sm:w-auto bg-blue-600 hover:bg-blue-700"
             >
-              Kembali ke Halaman Utama
+              ${primaryButtonLabel}
             </button>
             <button 
               id="modal-logout-btn" 
@@ -238,10 +247,18 @@ function showAccessDenied(userRole) {
   const modal = document.getElementById("access-denied-modal");
 
   // Setup event listeners
-  setupAccessDeniedEventListeners(modal, userRole);
+  setupAccessDeniedEventListeners(modal, userRole, {
+    keepCurrentLocation,
+    primaryAction,
+  });
 
   // Show modal with animation
-  requestAnimationFrame(() => {
+  const scheduleAnimation =
+    typeof requestAnimationFrame === "function"
+      ? requestAnimationFrame
+      : (callback) => callback();
+
+  scheduleAnimation(() => {
     modal.classList.remove("opacity-0");
     modal.querySelector(".relative").classList.remove("scale-95");
     modal.querySelector(".relative").classList.add("scale-100");
@@ -255,15 +272,26 @@ function showAccessDenied(userRole) {
  * Setup event listeners for access denied modal
  * @param {HTMLElement} modal - Modal element
  * @param {string} userRole - User's role
+ * @param {{ keepCurrentLocation?: boolean, primaryAction?: string }} options - Denial behavior options
  */
-function setupAccessDeniedEventListeners(modal, userRole) {
+function setupAccessDeniedEventListeners(modal, userRole, options = {}) {
+  const { keepCurrentLocation = false, primaryAction = "redirect" } = options;
+  const keepDeniedOverlay = keepCurrentLocation && primaryAction === "close";
   const closeBtn = modal.querySelector("#modal-close-btn");
   const redirectBtn = modal.querySelector("#modal-redirect-btn");
   const logoutBtn = modal.querySelector("#modal-logout-btn");
   const backdrop = modal.querySelector("#modal-backdrop");
 
+  if (keepDeniedOverlay) {
+    closeBtn?.classList?.add("hidden");
+  }
+
   // Close modal function
   const closeModal = () => {
+    if (keepDeniedOverlay) {
+      return;
+    }
+
     modal.classList.add("opacity-0");
     modal.querySelector(".relative").classList.add("scale-95");
     modal.querySelector(".relative").classList.remove("scale-100");
@@ -276,8 +304,16 @@ function setupAccessDeniedEventListeners(modal, userRole) {
 
   // Redirect function
   const redirectToAllowedPage = () => {
+    if (keepDeniedOverlay) {
+      return;
+    }
+
     closeModal();
     setTimeout(() => {
+      if (keepCurrentLocation || primaryAction === "close") {
+        return;
+      }
+
       redirectBasedOnRole(userRole);
     }, 300);
   };
@@ -342,6 +378,31 @@ function setupAccessDeniedEventListeners(modal, userRole) {
   document.addEventListener("keydown", handleEscKey);
 }
 
+function presentAccessDenied(userRole, options = {}) {
+  const externalShowAccessDenied =
+    typeof window !== "undefined"
+      ? window.RoleBasedAccess?.showAccessDenied
+      : null;
+
+  if (
+    typeof externalShowAccessDenied === "function" &&
+    externalShowAccessDenied !== showAccessDenied
+  ) {
+    externalShowAccessDenied(userRole, options);
+    return;
+  }
+
+  showAccessDenied(userRole, options);
+}
+
+function markAccessBoundaryDenied() {
+  if (typeof document === "undefined" || !document.body?.dataset) {
+    return;
+  }
+
+  document.body.dataset.accessBoundary = "denied";
+}
+
 /**
  * Initialize role-based access control
  */
@@ -374,11 +435,21 @@ function initRoleBasedAccess() {
   if (!hasPageAccess(currentPage)) {
     console.log(`Access denied for role ${userRole} to page ${currentPage}`);
 
-    if (currentPage === "/index.html") {
-      if (userRole === ROLES.INTERNSHIP || userRole === ROLES.EMPLOYEE) {
-        showAccessDenied(userRole);
-        return;
-      }
+    if (currentPage === "/index.html" && DASHBOARD_DENIED_ROLES.has(userRole)) {
+      markAccessBoundaryDenied();
+      presentAccessDenied(userRole, {
+        keepCurrentLocation: true,
+        primaryAction: "close",
+      });
+      return;
+    }
+
+    if (
+      currentPage === "/index.html" &&
+      !DASHBOARD_ALLOWED_ROLES.has(userRole)
+    ) {
+      redirectBasedOnRole(userRole);
+      return;
     }
 
     redirectBasedOnRole(userRole);

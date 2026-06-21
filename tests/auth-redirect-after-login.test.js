@@ -102,11 +102,9 @@ test("redirectAfterLogin ignores cross-origin redirect targets", async () => {
 test("redirectAfterLogin ignores stale /profile.html for Admin and falls back to dashboard", async () => {
   await withBrowserGlobals(async () => {
     const localStorage = createStorage([
-      ["redirectAfterLogin", "/management-user.html?from=stale-tab"],
+      ["redirectAfterLogin", "/profile.html?from=stale-login"],
     ]);
-    const sessionStorage = createStorage([
-      ["redirectAfterLogin", "/profile.html?from=current-tab"],
-    ]);
+    const sessionStorage = createStorage();
     const location = {
       origin: "https://admin.example.test",
       href: "https://admin.example.test/signin.html",
@@ -153,9 +151,11 @@ test("redirectAfterLogin ignores stale /profile.html for Admin and falls back to
 });
 
 for (const dashboardRole of ["Admin", "Management"]) {
-  test(`redirectAfterLogin keeps intentional profile return for ${dashboardRole}`, async () => {
+  test(`redirectAfterLogin keeps intentional profile return for ${dashboardRole} even with unrelated stale local redirect`, async () => {
     await withBrowserGlobals(async () => {
-      const localStorage = createStorage();
+      const localStorage = createStorage([
+        ["redirectAfterLogin", "/management-user.html?from=stale-tab"],
+      ]);
       const sessionStorage = createStorage([
         ["redirectAfterLogin", "/profile.html?tab=account"],
       ]);
@@ -200,6 +200,7 @@ for (const dashboardRole of ["Admin", "Management"]) {
       ]);
       assert.deepEqual(roleRedirects, []);
       assert.equal(location.href, "/profile.html?tab=account");
+      assert.equal(localStorage.getItem("redirectAfterLogin"), null);
       assert.equal(sessionStorage.getItem("redirectAfterLogin"), null);
     });
   });
@@ -290,49 +291,60 @@ test("redirectAfterLogin skips stored target when fresh RBAC check is unavailabl
   });
 });
 
-test("redirectAfterLogin shows access denied instead of navigating Employee to dashboard", async () => {
-  await withBrowserGlobals(async () => {
-    const localStorage = createStorage();
-    const sessionStorage = createStorage([
-      ["redirectAfterLogin", "/index.html"],
-    ]);
-    const location = {
-      origin: "https://admin.example.test",
-      href: "https://admin.example.test/signin.html",
-    };
-    const deniedRoles = [];
-    const roleRedirects = [];
+for (const dashboardTarget of ["/index.html", "/", "/index"]) {
+  test(`redirectAfterLogin shows access denied for Employee dashboard target ${dashboardTarget}`, async () => {
+    await withBrowserGlobals(async () => {
+      const localStorage = createStorage();
+      const sessionStorage = createStorage([
+        ["redirectAfterLogin", dashboardTarget],
+      ]);
+      const location = {
+        origin: "https://admin.example.test",
+        href: "https://admin.example.test/signin.html",
+      };
+      const deniedCalls = [];
+      const roleRedirects = [];
 
-    globalThis.localStorage = localStorage;
-    globalThis.sessionStorage = sessionStorage;
-    globalThis.window = {
-      location,
-      localStorage,
-      sessionStorage,
-      RoleBasedAccess: {
-        hasPageAccessForUser(pathname, userData) {
-          return (
-            pathname === "/index.html" && userData?.role_name === "Employee"
-          );
+      globalThis.localStorage = localStorage;
+      globalThis.sessionStorage = sessionStorage;
+      globalThis.window = {
+        location,
+        localStorage,
+        sessionStorage,
+        RoleBasedAccess: {
+          hasPageAccessForUser(pathname, userData) {
+            return (
+              ["/", "/index", "/index.html"].includes(pathname) &&
+              userData?.role_name === "Employee"
+            );
+          },
+          showAccessDenied(userRole, options) {
+            deniedCalls.push({ userRole, options });
+          },
+          redirectBasedOnRole(userRole) {
+            roleRedirects.push(userRole);
+            location.href = "/profile.html";
+          },
         },
-        showAccessDenied(userRole) {
-          deniedRoles.push(userRole);
-        },
-        redirectBasedOnRole(userRole) {
-          roleRedirects.push(userRole);
-          location.href = "/profile.html";
-        },
-      },
-    };
+      };
 
-    await SigninHandler.redirectAfterLogin({
-      loginJustSucceeded: true,
-      loginUser: { id: 8, role_name: "Employee" },
+      await SigninHandler.redirectAfterLogin({
+        loginJustSucceeded: true,
+        loginUser: { id: 8, role_name: "Employee" },
+      });
+
+      assert.deepEqual(deniedCalls, [
+        {
+          userRole: "Employee",
+          options: {
+            keepCurrentLocation: true,
+            primaryAction: "redirect",
+          },
+        },
+      ]);
+      assert.deepEqual(roleRedirects, []);
+      assert.equal(location.href, "https://admin.example.test/signin.html");
+      assert.equal(sessionStorage.getItem("redirectAfterLogin"), null);
     });
-
-    assert.deepEqual(deniedRoles, ["Employee"]);
-    assert.deepEqual(roleRedirects, []);
-    assert.equal(location.href, "https://admin.example.test/signin.html");
-    assert.equal(sessionStorage.getItem("redirectAfterLogin"), null);
   });
-});
+}

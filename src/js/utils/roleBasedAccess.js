@@ -60,6 +60,15 @@ const PAGE_PERMISSIONS = {
 };
 
 const PROTECTED_PAGES = Object.freeze(Object.keys(PAGE_PERMISSIONS));
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 const DASHBOARD_ALLOWED_ROLES = new Set([ROLES.ADMIN, ROLES.MANAGEMENT]);
 const DASHBOARD_DENIED_ROLES = new Set([ROLES.INTERNSHIP, ROLES.EMPLOYEE]);
 
@@ -125,8 +134,10 @@ function redirectBasedOnRole(userRole) {
       window.location.href = "/profile.html";
       break;
     default:
-      // Unknown roles must re-authenticate instead of being silently routed to profile.
-      window.location.href = "/signin.html";
+      presentAccessDenied(userRole, {
+        keepCurrentLocation: true,
+        primaryAction: "close",
+      });
       break;
   }
 }
@@ -140,6 +151,7 @@ function showAccessDenied(userRole, options = {}) {
   const { keepCurrentLocation = false, primaryAction = "close" } = options;
   const primaryButtonLabel =
     primaryAction === "close" ? "Tutup" : "Buka Halaman Sesuai Role";
+  const safeUserRole = escapeHtml(userRole || "Unknown");
 
   // Create access denied modal with styling matching modalAlert danger theme
   const modalHTML = `
@@ -215,7 +227,7 @@ function showAccessDenied(userRole, options = {}) {
 
           <!-- Message -->
           <p class="text-sm leading-6 text-gray-500 dark:text-gray-400 mb-7">
-            Maaf, role <strong>"${userRole}"</strong> tidak memiliki akses ke halaman dashboard.
+            Maaf, role <strong>"${safeUserRole}"</strong> tidak memiliki akses ke halaman dashboard.
             <br><br>
             Hanya <strong>Admin</strong> dan <strong>Management</strong> yang dapat mengakses dashboard.
           </p>
@@ -456,7 +468,7 @@ function initRoleBasedAccess() {
     return;
   }
 
-  console.log(`Access granted for role ${userRole} to page ${currentPage}`);
+  console.log(`Access granted for role ${safeUserRole} to page ${currentPage}`);
 }
 
 /**

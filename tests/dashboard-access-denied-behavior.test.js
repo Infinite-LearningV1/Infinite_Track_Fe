@@ -172,6 +172,64 @@ for (const deniedRole of ["Employee", "Internship"]) {
   });
 }
 
+test("showAccessDenied escapes role labels before inserting modal HTML", () => {
+  const inserted = [];
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousSessionStorage = globalThis.sessionStorage;
+
+  const localStorageRef = createMemoryStorage();
+  const sessionStorageRef = createMemoryStorage();
+
+  globalThis.localStorage = localStorageRef;
+  globalThis.sessionStorage = sessionStorageRef;
+  globalThis.window = {
+    localStorage: localStorageRef,
+    sessionStorage: sessionStorageRef,
+    location: {
+      pathname: "/index.html",
+      href: "http://127.0.0.1:3000/index.html",
+    },
+  };
+  globalThis.document = {
+    body: {
+      style: {},
+      insertAdjacentHTML(position, html) {
+        inserted.push({ position, html });
+      },
+    },
+    getElementById() {
+      return {
+        classList: { add() {}, remove() {} },
+        querySelector() {
+          return {
+            classList: { add() {}, remove() {} },
+            addEventListener() {},
+          };
+        },
+        addEventListener() {},
+      };
+    },
+    addEventListener() {},
+  };
+
+  try {
+    showAccessDenied("<img src=x onerror=alert(1)>", {
+      keepCurrentLocation: true,
+    });
+
+    assert.equal(inserted.length, 1);
+    assert.doesNotMatch(inserted[0].html, /<img src=x onerror=alert\(1\)>/);
+    assert.match(inserted[0].html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+    globalThis.localStorage = previousLocalStorage;
+    globalThis.sessionStorage = previousSessionStorage;
+  }
+});
+
 test("initRoleBasedAccess hard-denies unknown verified dashboard role without redirect", () => {
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;

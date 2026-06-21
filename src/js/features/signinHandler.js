@@ -401,39 +401,28 @@ function resolveStoredRedirectTarget(redirectValue) {
   }
 }
 
-function isKnownStaleProfileRedirect(
-  redirectTarget,
-  { currentTabRedirectUrl = null, sharedRedirectUrl = null } = {},
-) {
+function isKnownStaleProfileRedirect(redirectTarget) {
   if (redirectTarget?.pathname !== "/profile.html") {
     return false;
-  }
-
-  if (currentTabRedirectUrl && sharedRedirectUrl) {
-    const sharedRedirectTarget = resolveStoredRedirectTarget(sharedRedirectUrl);
-    if (
-      sharedRedirectTarget &&
-      sharedRedirectTarget.targetHref !== redirectTarget.targetHref
-    ) {
-      return true;
-    }
   }
 
   return redirectTarget.searchParams?.get("from") === "stale-login";
 }
 
-function shouldSkipStoredRedirectForRole(
-  redirectTarget,
-  userData,
-  redirectContext = {},
-) {
+function shouldSkipStoredRedirectForRole(redirectTarget, userData) {
   if (!redirectTarget || !userData?.role_name) {
     return false;
   }
 
   return (
     DASHBOARD_HOME_ROLES.has(userData.role_name) &&
-    isKnownStaleProfileRedirect(redirectTarget, redirectContext)
+    isKnownStaleProfileRedirect(redirectTarget)
+  );
+}
+
+function isDashboardRedirectPath(pathname) {
+  return (
+    pathname === "/" || pathname === "/index" || pathname === "/index.html"
   );
 }
 
@@ -444,7 +433,7 @@ function shouldHardDenyDashboardTarget(redirectTarget, userData) {
 
   return (
     HARD_DENY_DASHBOARD_ROLES.has(userData.role_name) &&
-    redirectTarget.pathname === "/index.html"
+    isDashboardRedirectPath(redirectTarget.pathname)
   );
 }
 
@@ -490,7 +479,10 @@ async function redirectAfterLogin({
     sessionStorage.removeItem("redirectAfterLogin");
 
     if (shouldHardDenyDashboardTarget(redirectTarget, userData)) {
-      showAccessDenied?.(userData.role_name, { keepCurrentLocation: true });
+      showAccessDenied?.(userData.role_name, {
+        keepCurrentLocation: true,
+        primaryAction: "redirect",
+      });
       return;
     }
 
@@ -498,7 +490,6 @@ async function redirectAfterLogin({
     const shouldSkipStoredRedirect = shouldSkipStoredRedirectForRole(
       redirectTarget,
       userData,
-      { currentTabRedirectUrl, sharedRedirectUrl },
     );
 
     if (userData?.role_name && typeof hasPageAccessForUser === "function") {

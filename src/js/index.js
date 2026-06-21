@@ -539,6 +539,16 @@ async function bootAuthentication() {
 }
 
 async function startApplication() {
+  const isSigninPage =
+    window.location.pathname === "/signin.html" ||
+    window.location.pathname.endsWith("/signin.html");
+
+  if (isSigninPage) {
+    Alpine.start();
+    await bootAuthentication();
+    return;
+  }
+
   await bootAuthentication();
 
   if (document.body.dataset.accessBoundary === "denied") {

@@ -420,7 +420,11 @@ function isKnownStaleProfileRedirect(
     currentTabRedirectTarget?.pathname === "/profile.html" &&
     currentTabRedirectTarget.targetHref === redirectTarget.targetHref;
 
-  return !isCurrentTabIntentionalProfileRedirect;
+  if (isCurrentTabIntentionalProfileRedirect) {
+    return false;
+  }
+
+  return !currentTabRedirectUrl && !redirectTarget.searchParams?.size;
 }
 
 function shouldSkipStoredRedirectForRole(

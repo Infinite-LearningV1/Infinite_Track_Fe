@@ -390,6 +390,7 @@ function resolveStoredRedirectTarget(redirectValue) {
     return {
       targetHref: `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`,
       pathname: parsedUrl.pathname,
+      searchParams: parsedUrl.searchParams,
     };
   } catch (error) {
     console.warn(
@@ -400,14 +401,39 @@ function resolveStoredRedirectTarget(redirectValue) {
   }
 }
 
-function shouldSkipStoredRedirectForRole(redirectTarget, userData) {
+function isKnownStaleProfileRedirect(
+  redirectTarget,
+  { currentTabRedirectUrl = null, sharedRedirectUrl = null } = {},
+) {
+  if (redirectTarget?.pathname !== "/profile.html") {
+    return false;
+  }
+
+  if (currentTabRedirectUrl && sharedRedirectUrl) {
+    const sharedRedirectTarget = resolveStoredRedirectTarget(sharedRedirectUrl);
+    if (
+      sharedRedirectTarget &&
+      sharedRedirectTarget.targetHref !== redirectTarget.targetHref
+    ) {
+      return true;
+    }
+  }
+
+  return redirectTarget.searchParams?.get("from") === "stale-login";
+}
+
+function shouldSkipStoredRedirectForRole(
+  redirectTarget,
+  userData,
+  redirectContext = {},
+) {
   if (!redirectTarget || !userData?.role_name) {
     return false;
   }
 
   return (
     DASHBOARD_HOME_ROLES.has(userData.role_name) &&
-    redirectTarget.pathname === "/profile.html"
+    isKnownStaleProfileRedirect(redirectTarget, redirectContext)
   );
 }
 
@@ -472,6 +498,7 @@ async function redirectAfterLogin({
     const shouldSkipStoredRedirect = shouldSkipStoredRedirectForRole(
       redirectTarget,
       userData,
+      { currentTabRedirectUrl, sharedRedirectUrl },
     );
 
     if (userData?.role_name && typeof hasPageAccessForUser === "function") {

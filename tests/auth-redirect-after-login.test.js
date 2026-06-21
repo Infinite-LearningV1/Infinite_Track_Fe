@@ -152,6 +152,59 @@ test("redirectAfterLogin ignores stale /profile.html for Admin and falls back to
   });
 });
 
+for (const dashboardRole of ["Admin", "Management"]) {
+  test(`redirectAfterLogin keeps intentional profile return for ${dashboardRole}`, async () => {
+    await withBrowserGlobals(async () => {
+      const localStorage = createStorage();
+      const sessionStorage = createStorage([
+        ["redirectAfterLogin", "/profile.html?tab=account"],
+      ]);
+      const location = {
+        origin: "https://admin.example.test",
+        href: "https://admin.example.test/signin.html",
+      };
+      const accessChecks = [];
+      const roleRedirects = [];
+
+      globalThis.localStorage = localStorage;
+      globalThis.sessionStorage = sessionStorage;
+      globalThis.window = {
+        location,
+        localStorage,
+        sessionStorage,
+        RoleBasedAccess: {
+          hasPageAccessForUser(pathname, userData) {
+            accessChecks.push({ pathname, userData });
+            return (
+              pathname === "/profile.html" &&
+              userData?.role_name === dashboardRole
+            );
+          },
+          redirectBasedOnRole(userRole) {
+            roleRedirects.push(userRole);
+            location.href = "/index.html";
+          },
+        },
+      };
+
+      await SigninHandler.redirectAfterLogin({
+        loginJustSucceeded: true,
+        loginUser: { id: 7, role_name: dashboardRole },
+      });
+
+      assert.deepEqual(accessChecks, [
+        {
+          pathname: "/profile.html",
+          userData: { id: 7, role_name: dashboardRole },
+        },
+      ]);
+      assert.deepEqual(roleRedirects, []);
+      assert.equal(location.href, "/profile.html?tab=account");
+      assert.equal(sessionStorage.getItem("redirectAfterLogin"), null);
+    });
+  });
+}
+
 test("redirectAfterLogin checks stored target access against fresh login user", async () => {
   await withBrowserGlobals(async () => {
     const localStorage = createStorage([

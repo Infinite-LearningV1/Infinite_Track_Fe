@@ -444,7 +444,11 @@ function initRoleBasedAccess() {
       currentPage === "/index.html" &&
       !DASHBOARD_ALLOWED_ROLES.has(userRole)
     ) {
-      redirectBasedOnRole(userRole);
+      markAccessBoundaryDenied();
+      presentAccessDenied(userRole, {
+        keepCurrentLocation: true,
+        primaryAction: "close",
+      });
       return;
     }
 

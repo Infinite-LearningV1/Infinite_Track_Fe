@@ -172,6 +172,80 @@ for (const deniedRole of ["Employee", "Internship"]) {
   });
 }
 
+test("initRoleBasedAccess hard-denies unknown verified dashboard role without redirect", () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const previousAlpine = globalThis.Alpine;
+  const previousRequestAnimationFrame = globalThis.requestAnimationFrame;
+  const inserted = [];
+  const localStorageRef = createMemoryStorage();
+  const sessionStorageRef = createMemoryStorage();
+
+  globalThis.localStorage = localStorageRef;
+  globalThis.sessionStorage = sessionStorageRef;
+  globalThis.window = {
+    localStorage: localStorageRef,
+    sessionStorage: sessionStorageRef,
+    location: {
+      pathname: "/index.html",
+      href: "http://127.0.0.1:3000/index.html",
+    },
+  };
+  globalThis.document = {
+    body: {
+      dataset: {},
+      style: {},
+      insertAdjacentHTML(position, html) {
+        inserted.push({ position, html });
+      },
+    },
+    getElementById() {
+      return {
+        classList: { add() {}, remove() {} },
+        querySelector() {
+          return {
+            classList: { add() {}, remove() {} },
+            addEventListener() {},
+          };
+        },
+        addEventListener() {},
+      };
+    },
+    addEventListener() {},
+  };
+  globalThis.requestAnimationFrame = (callback) => callback();
+  globalThis.Alpine = {
+    store(name) {
+      if (name === "auth") {
+        return {
+          isAuthenticated: true,
+          sessionState: "authenticated",
+          user: { id: 4, role_name: "Contractor" },
+        };
+      }
+      return null;
+    },
+  };
+
+  try {
+    initRoleBasedAccess();
+
+    assert.equal(globalThis.document.body.dataset.accessBoundary, "denied");
+    assert.equal(inserted.length, 1);
+    assert.match(inserted[0].html, /Akses Ditolak/);
+    assert.match(inserted[0].html, /Tutup/);
+    assert.equal(
+      globalThis.window.location.href,
+      "http://127.0.0.1:3000/index.html",
+    );
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+    globalThis.Alpine = previousAlpine;
+    globalThis.requestAnimationFrame = previousRequestAnimationFrame;
+  }
+});
+
 test("hard-deny primary action truthfully routes to the role landing page", () => {
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;

@@ -137,11 +137,9 @@ function redirectBasedOnRole(userRole) {
  * @param {{ keepCurrentLocation?: boolean, primaryAction?: string }} options - Denial behavior options
  */
 function showAccessDenied(userRole, options = {}) {
-  const { keepCurrentLocation = false, primaryAction = "redirect" } = options;
+  const { keepCurrentLocation = false, primaryAction = "close" } = options;
   const primaryButtonLabel =
-    keepCurrentLocation || primaryAction === "close"
-      ? "Tutup"
-      : "Kembali ke Halaman Utama";
+    primaryAction === "close" ? "Tutup" : "Buka Halaman Sesuai Role";
 
   // Create access denied modal with styling matching modalAlert danger theme
   const modalHTML = `
@@ -275,20 +273,22 @@ function showAccessDenied(userRole, options = {}) {
  * @param {{ keepCurrentLocation?: boolean, primaryAction?: string }} options - Denial behavior options
  */
 function setupAccessDeniedEventListeners(modal, userRole, options = {}) {
-  const { keepCurrentLocation = false, primaryAction = "redirect" } = options;
-  const keepDeniedOverlay = keepCurrentLocation && primaryAction === "close";
+  const { keepCurrentLocation = false, primaryAction = "close" } = options;
+  const preventPassiveDismissal =
+    keepCurrentLocation && primaryAction !== "close";
+  const shouldRedirectAfterPrimaryAction = primaryAction !== "close";
   const closeBtn = modal.querySelector("#modal-close-btn");
   const redirectBtn = modal.querySelector("#modal-redirect-btn");
   const logoutBtn = modal.querySelector("#modal-logout-btn");
   const backdrop = modal.querySelector("#modal-backdrop");
 
-  if (keepDeniedOverlay) {
+  if (preventPassiveDismissal) {
     closeBtn?.classList?.add("hidden");
   }
 
   // Close modal function
-  const closeModal = () => {
-    if (keepDeniedOverlay) {
+  const closeModal = ({ force = false } = {}) => {
+    if (preventPassiveDismissal && !force) {
       return;
     }
 
@@ -304,13 +304,9 @@ function setupAccessDeniedEventListeners(modal, userRole, options = {}) {
 
   // Redirect function
   const redirectToAllowedPage = () => {
-    if (keepDeniedOverlay) {
-      return;
-    }
-
-    closeModal();
+    closeModal({ force: true });
     setTimeout(() => {
-      if (keepCurrentLocation || primaryAction === "close") {
+      if (!shouldRedirectAfterPrimaryAction) {
         return;
       }
 
@@ -439,7 +435,7 @@ function initRoleBasedAccess() {
       markAccessBoundaryDenied();
       presentAccessDenied(userRole, {
         keepCurrentLocation: true,
-        primaryAction: "close",
+        primaryAction: "redirect",
       });
       return;
     }

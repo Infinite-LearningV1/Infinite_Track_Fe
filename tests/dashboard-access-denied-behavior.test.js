@@ -93,14 +93,95 @@ test("showAccessDenied keeps current location when keepCurrentLocation is true",
   }
 });
 
-test("initRoleBasedAccess marks dashboard boundary denied for Employee without redirect", () => {
+for (const deniedRole of ["Employee", "Internship"]) {
+  test(`initRoleBasedAccess marks dashboard boundary denied for ${deniedRole} without redirect`, () => {
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousAlpine = globalThis.Alpine;
+    const previousRequestAnimationFrame = globalThis.requestAnimationFrame;
+    const inserted = [];
+    const localStorageRef = createMemoryStorage();
+    const sessionStorageRef = createMemoryStorage();
+
+    globalThis.localStorage = localStorageRef;
+    globalThis.sessionStorage = sessionStorageRef;
+    globalThis.window = {
+      localStorage: localStorageRef,
+      sessionStorage: sessionStorageRef,
+      location: {
+        pathname: "/index.html",
+        href: "http://127.0.0.1:3000/index.html",
+      },
+    };
+    globalThis.document = {
+      body: {
+        dataset: {},
+        style: {},
+        insertAdjacentHTML(position, html) {
+          inserted.push({ position, html });
+        },
+      },
+      getElementById() {
+        return {
+          classList: { add() {}, remove() {} },
+          querySelector() {
+            return {
+              classList: { add() {}, remove() {} },
+              addEventListener() {},
+            };
+          },
+          addEventListener() {},
+        };
+      },
+      addEventListener() {},
+    };
+    globalThis.requestAnimationFrame = (callback) => callback();
+    globalThis.Alpine = {
+      store(name) {
+        if (name === "auth") {
+          return {
+            isAuthenticated: true,
+            sessionState: "authenticated",
+            user: { id: 3, role_name: deniedRole },
+          };
+        }
+        return null;
+      },
+    };
+
+    try {
+      initRoleBasedAccess();
+
+      assert.equal(globalThis.document.body.dataset.accessBoundary, "denied");
+      assert.equal(inserted.length, 1);
+      assert.match(inserted[0].html, /Buka Halaman Sesuai Role/);
+      assert.doesNotMatch(
+        inserted[0].html,
+        /<button[\s\S]*Tutup[\s\S]*<\/button>/,
+      );
+      assert.equal(
+        globalThis.window.location.href,
+        "http://127.0.0.1:3000/index.html",
+      );
+    } finally {
+      globalThis.window = previousWindow;
+      globalThis.document = previousDocument;
+      globalThis.Alpine = previousAlpine;
+      globalThis.requestAnimationFrame = previousRequestAnimationFrame;
+    }
+  });
+}
+
+test("hard-deny primary action truthfully routes to the role landing page", () => {
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const previousAlpine = globalThis.Alpine;
+  const previousSetTimeout = globalThis.setTimeout;
   const previousRequestAnimationFrame = globalThis.requestAnimationFrame;
-  const inserted = [];
   const localStorageRef = createMemoryStorage();
   const sessionStorageRef = createMemoryStorage();
+  const listeners = {};
+  const classList = { add() {}, remove() {} };
 
   globalThis.localStorage = localStorageRef;
   globalThis.sessionStorage = sessionStorageRef;
@@ -114,19 +195,23 @@ test("initRoleBasedAccess marks dashboard boundary denied for Employee without r
   };
   globalThis.document = {
     body: {
-      dataset: {},
       style: {},
-      insertAdjacentHTML(position, html) {
-        inserted.push({ position, html });
-      },
+      insertAdjacentHTML() {},
     },
     getElementById() {
       return {
-        classList: { add() {}, remove() {} },
-        querySelector() {
+        classList,
+        remove() {},
+        querySelector(selector) {
+          if (!listeners[selector]) {
+            listeners[selector] = {};
+          }
+
           return {
-            classList: { add() {}, remove() {} },
-            addEventListener() {},
+            classList,
+            addEventListener(eventName, callback) {
+              listeners[selector][eventName] = callback;
+            },
           };
         },
         addEventListener() {},
@@ -134,33 +219,32 @@ test("initRoleBasedAccess marks dashboard boundary denied for Employee without r
     },
     addEventListener() {},
   };
-  globalThis.requestAnimationFrame = (callback) => callback();
-  globalThis.Alpine = {
-    store(name) {
-      if (name === "auth") {
-        return {
-          isAuthenticated: true,
-          sessionState: "authenticated",
-          user: { id: 3, role_name: "Employee" },
-        };
-      }
-      return null;
-    },
+  globalThis.Alpine = undefined;
+  globalThis.setTimeout = (callback) => {
+    callback();
+    return 0;
   };
+  globalThis.requestAnimationFrame = (callback) => callback();
 
   try {
-    initRoleBasedAccess();
+    showAccessDenied("Employee", {
+      keepCurrentLocation: true,
+      primaryAction: "redirect",
+    });
 
-    assert.equal(globalThis.document.body.dataset.accessBoundary, "denied");
-    assert.equal(inserted.length, 1);
     assert.equal(
       globalThis.window.location.href,
       "http://127.0.0.1:3000/index.html",
     );
+
+    listeners["#modal-redirect-btn"].click();
+
+    assert.equal(globalThis.window.location.href, "/profile.html");
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;
     globalThis.Alpine = previousAlpine;
+    globalThis.setTimeout = previousSetTimeout;
     globalThis.requestAnimationFrame = previousRequestAnimationFrame;
   }
 });

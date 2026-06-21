@@ -192,44 +192,46 @@ test("initRoleBasedAccess redirects roles outside Admin/Management to their allo
   }
 });
 
-test("initRoleBasedAccess hard-denies dashboard access for Employee instead of redirecting to profile", () => {
-  const deniedRoles = [];
-  const env = installBrowserGlobals({
-    pathname: "/index.html",
-    href: "http://127.0.0.1:3000/index.html",
-    authStore: {
-      isAuthenticated: true,
-      sessionState: "authenticated",
-      user: { id: 3, role_name: "Employee" },
-    },
-  });
-
-  const originalShowAccessDenied =
-    globalThis.window.RoleBasedAccess?.showAccessDenied;
-
-  try {
-    globalThis.window.RoleBasedAccess = {
-      ...(globalThis.window.RoleBasedAccess || {}),
-      showAccessDenied(userRole) {
-        deniedRoles.push(userRole);
+for (const deniedRole of ["Employee", "Internship"]) {
+  test(`initRoleBasedAccess hard-denies dashboard access for ${deniedRole} instead of redirecting to profile`, () => {
+    const deniedRoles = [];
+    const env = installBrowserGlobals({
+      pathname: "/index.html",
+      href: "http://127.0.0.1:3000/index.html",
+      authStore: {
+        isAuthenticated: true,
+        sessionState: "authenticated",
+        user: { id: 3, role_name: deniedRole },
       },
-    };
+    });
 
-    initRoleBasedAccess();
+    const originalShowAccessDenied =
+      globalThis.window.RoleBasedAccess?.showAccessDenied;
 
-    assert.deepEqual(deniedRoles, ["Employee"]);
-    assert.equal(
-      globalThis.window.location.href,
-      "http://127.0.0.1:3000/index.html",
-    );
-  } finally {
-    if (originalShowAccessDenied) {
-      globalThis.window.RoleBasedAccess.showAccessDenied =
-        originalShowAccessDenied;
+    try {
+      globalThis.window.RoleBasedAccess = {
+        ...(globalThis.window.RoleBasedAccess || {}),
+        showAccessDenied(userRole) {
+          deniedRoles.push(userRole);
+        },
+      };
+
+      initRoleBasedAccess();
+
+      assert.deepEqual(deniedRoles, [deniedRole]);
+      assert.equal(
+        globalThis.window.location.href,
+        "http://127.0.0.1:3000/index.html",
+      );
+    } finally {
+      if (originalShowAccessDenied) {
+        globalThis.window.RoleBasedAccess.showAccessDenied =
+          originalShowAccessDenied;
+      }
+      env.restore();
     }
-    env.restore();
-  }
-});
+  });
+}
 
 test("backendOperationalSettingsAlpineData init loads canonical backend settings", async () => {
   const state = backendOperationalSettingsAlpineData(createSettingsService());

@@ -304,6 +304,7 @@ function setupAccessDeniedEventListeners(modal, userRole, options = {}) {
       return;
     }
 
+    document.removeEventListener?.("keydown", handleEscKey);
     modal.classList.add("opacity-0");
     modal.querySelector(".relative").classList.add("scale-95");
     modal.querySelector(".relative").classList.remove("scale-100");
@@ -468,7 +469,7 @@ function initRoleBasedAccess() {
     return;
   }
 
-  console.log(`Access granted for role ${safeUserRole} to page ${currentPage}`);
+  console.log(`Access granted for role ${userRole} to page ${currentPage}`);
 }
 
 /**

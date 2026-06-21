@@ -350,6 +350,7 @@ test("hard-deny primary action truthfully routes to the role landing page", () =
       };
     },
     addEventListener() {},
+    removeEventListener() {},
   };
   globalThis.Alpine = undefined;
   globalThis.setTimeout = (callback) => {

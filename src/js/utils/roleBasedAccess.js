@@ -134,10 +134,7 @@ function redirectBasedOnRole(userRole) {
       window.location.href = "/profile.html";
       break;
     default:
-      presentAccessDenied(userRole, {
-        keepCurrentLocation: true,
-        primaryAction: "close",
-      });
+      window.location.href = "/signin.html";
       break;
   }
 }

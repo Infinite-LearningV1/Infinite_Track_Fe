@@ -373,6 +373,10 @@ function updateAlpineStore(userData) {
 
 const DASHBOARD_HOME_ROLES = new Set(["Admin", "Management"]);
 const HARD_DENY_DASHBOARD_ROLES = new Set(["Employee", "Internship"]);
+const SUPPORTED_ROLE_REDIRECTS = new Set([
+  ...DASHBOARD_HOME_ROLES,
+  ...HARD_DENY_DASHBOARD_ROLES,
+]);
 
 function resolveStoredRedirectTarget(redirectValue) {
   if (!redirectValue) {
@@ -462,6 +466,10 @@ function shouldHardDenyDashboardTarget(redirectTarget, userData) {
 /**
  * Redirect user setelah login berhasil
  */
+function hasSupportedRoleRedirect(userRole) {
+  return SUPPORTED_ROLE_REDIRECTS.has(userRole);
+}
+
 async function redirectAfterLogin({
   loginJustSucceeded = false,
   loginUser = null,
@@ -501,10 +509,20 @@ async function redirectAfterLogin({
     sessionStorage.removeItem("redirectAfterLogin");
 
     if (shouldHardDenyDashboardTarget(redirectTarget, userData)) {
-      showAccessDenied?.(userData.role_name, {
-        keepCurrentLocation: true,
-        primaryAction: "redirect",
-      });
+      if (typeof showAccessDenied === "function") {
+        showAccessDenied(userData.role_name, {
+          keepCurrentLocation: true,
+          primaryAction: "redirect",
+        });
+        return;
+      }
+
+      if (userData?.role_name && redirectBasedOnRole) {
+        redirectBasedOnRole(userData.role_name);
+        return;
+      }
+
+      window.location.href = "/signin.html";
       return;
     }
 
@@ -532,20 +550,45 @@ async function redirectAfterLogin({
       );
     }
 
-    if (userData?.role_name && redirectBasedOnRole) {
+    if (
+      userData?.role_name &&
+      redirectBasedOnRole &&
+      hasSupportedRoleRedirect(userData.role_name)
+    ) {
       redirectBasedOnRole(userData.role_name);
+      return;
+    }
+
+    if (userData?.role_name && typeof showAccessDenied === "function") {
+      showAccessDenied(userData.role_name, {
+        keepCurrentLocation: true,
+        primaryAction: "close",
+      });
       return;
     }
   }
 
-  if (userData?.role_name && redirectBasedOnRole) {
+  if (
+    userData?.role_name &&
+    redirectBasedOnRole &&
+    hasSupportedRoleRedirect(userData.role_name)
+  ) {
     console.log(
       `Redirecting user with role ${userData.role_name} to appropriate page`,
     );
     redirectBasedOnRole(userData.role_name);
-  } else {
-    window.location.href = "/index.html";
+    return;
   }
+
+  if (userData?.role_name && typeof showAccessDenied === "function") {
+    showAccessDenied(userData.role_name, {
+      keepCurrentLocation: true,
+      primaryAction: "close",
+    });
+    return;
+  }
+
+  window.location.href = "/index.html";
 }
 
 /**

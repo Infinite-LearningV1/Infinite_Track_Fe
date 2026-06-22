@@ -549,9 +549,12 @@ async function startApplication() {
     return;
   }
 
-  await bootAuthentication();
+  const startupState = await bootAuthentication();
 
-  if (document.body.dataset.accessBoundary === "denied") {
+  if (
+    startupState === "redirecting" ||
+    document.body.dataset.accessBoundary === "denied"
+  ) {
     return;
   }
 

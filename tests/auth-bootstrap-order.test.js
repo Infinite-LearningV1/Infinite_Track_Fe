@@ -135,3 +135,39 @@ test("signin startup initializes Alpine before auth bootstrap finishes", async (
 
   assert.deepEqual(callOrder, ["alpine-start", "boot-auth"]);
 });
+
+test("protected-page startup skips Alpine when auth bootstrap is redirecting", async () => {
+  const indexSource = readIndexSource();
+  const startFunctionMatch = indexSource.match(
+    /async function startApplication\(\) \{([\s\S]*?)\n\}/,
+  );
+
+  assert.ok(
+    startFunctionMatch,
+    "Expected startApplication function in src/js/index.js",
+  );
+
+  let alpineStartCount = 0;
+  const context = {
+    document: { body: { dataset: {} } },
+    window: { location: { pathname: "/index.html" } },
+    Alpine: {
+      start() {
+        alpineStartCount += 1;
+      },
+    },
+    async bootAuthentication() {
+      return "redirecting";
+    },
+  };
+
+  vm.createContext(context);
+  vm.runInContext(
+    `async function startApplication() {${startFunctionMatch[1]}\n}`,
+    context,
+  );
+
+  await context.startApplication();
+
+  assert.equal(alpineStartCount, 0);
+});

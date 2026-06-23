@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   initRoleBasedAccess,
+  redirectBasedOnRole,
   showAccessDenied,
 } from "../src/js/utils/roleBasedAccess.js";
 
@@ -227,6 +228,20 @@ test("showAccessDenied escapes role labels before inserting modal HTML", () => {
     globalThis.document = previousDocument;
     globalThis.localStorage = previousLocalStorage;
     globalThis.sessionStorage = previousSessionStorage;
+  }
+});
+
+test("redirectBasedOnRole routes unsupported roles to safe signin", () => {
+  const previousWindow = globalThis.window;
+  globalThis.window = {
+    location: { href: "http://127.0.0.1:3000/form-user.html" },
+  };
+
+  try {
+    redirectBasedOnRole("Contractor");
+    assert.equal(globalThis.window.location.href, "/signin.html");
+  } finally {
+    globalThis.window = previousWindow;
   }
 });
 

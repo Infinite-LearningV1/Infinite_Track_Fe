@@ -36,6 +36,34 @@ function withBrowserGlobals(callback) {
   }
 }
 
+test("showError escapes HTML before rendering signin error content", async () => {
+  await withBrowserGlobals(async () => {
+    const originalDocument = globalThis.document;
+    const container = { innerHTML: "" };
+
+    globalThis.document = {
+      querySelector(selector) {
+        if (selector === ".signin-error-container") {
+          return container;
+        }
+
+        return null;
+      },
+    };
+
+    try {
+      SigninHandler.showError("<img src=x onerror=alert(1)>");
+      assert.doesNotMatch(
+        container.innerHTML,
+        /<img src=x onerror=alert\(1\)>/,
+      );
+      assert.match(container.innerHTML, /&lt;img src=x onerror=alert\(1\)&gt;/);
+    } finally {
+      globalThis.document = originalDocument;
+    }
+  });
+});
+
 test("forceReauthenticate preserves the current same-origin path before signin redirect", async () => {
   await withBrowserGlobals(async () => {
     const localStorage = createStorage([
@@ -87,12 +115,17 @@ test("redirectAfterLogin ignores cross-origin redirect targets", async () => {
       sessionStorage,
       RoleBasedAccess: {
         hasPageAccess: () => true,
+        redirectBasedOnRole(userRole) {
+          if (userRole === "Admin") {
+            location.href = "/index.html";
+          }
+        },
       },
     };
 
     await SigninHandler.redirectAfterLogin({
       loginJustSucceeded: true,
-      loginUser: { id: 1, role_name: "admin" },
+      loginUser: { id: 1, role_name: "Admin" },
     });
 
     assert.equal(location.href, "/index.html");
@@ -340,6 +373,33 @@ test("redirectAfterLogin skips stored target when fresh RBAC check is unavailabl
     assert.deepEqual(roleRedirects, ["Admin"]);
     assert.equal(location.href, "/index.html");
     assert.equal(localStorage.getItem("redirectAfterLogin"), null);
+  });
+});
+
+test("redirectAfterLogin routes unsupported roles to safe signin when no deny renderer is available", async () => {
+  await withBrowserGlobals(async () => {
+    const localStorage = createStorage();
+    const sessionStorage = createStorage();
+    const location = {
+      origin: "https://admin.example.test",
+      href: "https://admin.example.test/signin.html",
+    };
+
+    globalThis.localStorage = localStorage;
+    globalThis.sessionStorage = sessionStorage;
+    globalThis.window = {
+      location,
+      localStorage,
+      sessionStorage,
+      RoleBasedAccess: {},
+    };
+
+    await SigninHandler.redirectAfterLogin({
+      loginJustSucceeded: true,
+      loginUser: { id: 99, role_name: "Contractor" },
+    });
+
+    assert.equal(location.href, "/signin.html");
   });
 });
 

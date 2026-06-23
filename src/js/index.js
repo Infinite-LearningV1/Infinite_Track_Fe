@@ -520,7 +520,7 @@ const authSessionSync = createAuthSessionSyncController({
 });
 
 async function bootAuthentication() {
-  console.log("Alpine.js started, setting up authentication...");
+  console.log("Setting up authentication...");
 
   authSessionSync.start();
   showAuthRedirectNoticeOnSignin();
@@ -530,14 +530,39 @@ async function bootAuthentication() {
     startupState !== "verification_failed" &&
     startupState !== "redirecting"
   ) {
+    document.body.dataset.authBootstrap = startupState;
     initAuthGuard();
     initRoleBasedAccess();
   }
+
+  return startupState;
 }
 
-// Initialize Alpine.js with authentication
-Alpine.start();
-bootAuthentication();
+async function startApplication() {
+  const isSigninPage =
+    window.location.pathname === "/signin.html" ||
+    window.location.pathname.endsWith("/signin.html");
+
+  if (isSigninPage) {
+    Alpine.start();
+    await bootAuthentication();
+    return;
+  }
+
+  const startupState = await bootAuthentication();
+
+  if (
+    startupState === "redirecting" ||
+    document.body.dataset.accessBoundary === "denied"
+  ) {
+    return;
+  }
+
+  Alpine.start();
+}
+
+// Initialize Alpine.js after authentication and RBAC bootstrap.
+startApplication();
 
 // Function to show coordinates placeholder
 function showCoordinatesPlaceholder(latitude, longitude, mapElementId) {

@@ -16,7 +16,10 @@ import {
 function showAuthRedirectNotice() {
   const redirectNotice = readAuthRedirectNotice(window.sessionStorage);
 
-  if (!redirectNotice?.message || typeof window.showInlineAlert !== "function") {
+  if (
+    !redirectNotice?.message ||
+    typeof window.showInlineAlert !== "function"
+  ) {
     return;
   }
 
@@ -289,16 +292,26 @@ function validatePassword(password, skipDOMErrorDisplay = false) {
  * Tampilkan pesan error
  * @param {string} message - Pesan error
  */
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function showError(message) {
   const errorContainer = document.querySelector(".signin-error-container");
   if (errorContainer) {
+    const safeMessage = escapeHtml(message);
     errorContainer.innerHTML = `
       <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg" role="alert">
         <div class="flex items-center">
           <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
           </svg>
-          <span class="text-sm font-medium">${message}</span>
+          <span class="text-sm font-medium">${safeMessage}</span>
         </div>
       </div>
     `;
@@ -368,6 +381,13 @@ function updateAlpineStore(userData) {
   }
 }
 
+const DASHBOARD_HOME_ROLES = new Set(["Admin", "Management"]);
+const HARD_DENY_DASHBOARD_ROLES = new Set(["Employee", "Internship"]);
+const SUPPORTED_ROLE_REDIRECTS = new Set([
+  ...DASHBOARD_HOME_ROLES,
+  ...HARD_DENY_DASHBOARD_ROLES,
+]);
+
 function resolveStoredRedirectTarget(redirectValue) {
   if (!redirectValue) {
     return null;
@@ -384,22 +404,88 @@ function resolveStoredRedirectTarget(redirectValue) {
     return {
       targetHref: `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`,
       pathname: parsedUrl.pathname,
+      searchParams: parsedUrl.searchParams,
     };
   } catch (error) {
-    console.warn("Invalid redirectAfterLogin value, ignoring redirect target", error);
+    console.warn(
+      "Invalid redirectAfterLogin value, ignoring redirect target",
+      error,
+    );
     return null;
   }
+}
+
+function isKnownStaleProfileRedirect(
+  redirectTarget,
+  { currentTabRedirectUrl = null } = {},
+) {
+  if (redirectTarget?.pathname !== "/profile.html") {
+    return false;
+  }
+
+  if (redirectTarget.searchParams?.get("from") === "stale-login") {
+    return true;
+  }
+
+  const currentTabRedirectTarget = resolveStoredRedirectTarget(
+    currentTabRedirectUrl,
+  );
+  const isCurrentTabIntentionalProfileRedirect =
+    currentTabRedirectTarget?.pathname === "/profile.html" &&
+    currentTabRedirectTarget.targetHref === redirectTarget.targetHref;
+
+  if (isCurrentTabIntentionalProfileRedirect) {
+    return false;
+  }
+
+  return !currentTabRedirectUrl && !redirectTarget.searchParams?.size;
+}
+
+function shouldSkipStoredRedirectForRole(
+  redirectTarget,
+  userData,
+  redirectContext = {},
+) {
+  if (!redirectTarget || !userData?.role_name) {
+    return false;
+  }
+
+  return (
+    DASHBOARD_HOME_ROLES.has(userData.role_name) &&
+    isKnownStaleProfileRedirect(redirectTarget, redirectContext)
+  );
+}
+
+function isDashboardRedirectPath(pathname) {
+  return (
+    pathname === "/" || pathname === "/index" || pathname === "/index.html"
+  );
+}
+
+function shouldHardDenyDashboardTarget(redirectTarget, userData) {
+  if (!redirectTarget || !userData?.role_name) {
+    return false;
+  }
+
+  return (
+    HARD_DENY_DASHBOARD_ROLES.has(userData.role_name) &&
+    isDashboardRedirectPath(redirectTarget.pathname)
+  );
 }
 
 /**
  * Redirect user setelah login berhasil
  */
+function hasSupportedRoleRedirect(userRole) {
+  return SUPPORTED_ROLE_REDIRECTS.has(userRole);
+}
+
 async function redirectAfterLogin({
   loginJustSucceeded = false,
   loginUser = null,
 } = {}) {
-  // Import role-based redirect function
-  const { redirectBasedOnRole } = window.RoleBasedAccess || {};
+  const { redirectBasedOnRole, showAccessDenied } =
+    window.RoleBasedAccess || {};
 
   let verifiedUser = null;
 
@@ -412,7 +498,10 @@ async function redirectAfterLogin({
         return;
       }
     } catch (error) {
-      console.warn("Bootstrap session resolution failed before redirect", error);
+      console.warn(
+        "Bootstrap session resolution failed before redirect",
+        error,
+      );
       if (!loginJustSucceeded) {
         return;
       }
@@ -420,24 +509,44 @@ async function redirectAfterLogin({
   }
 
   const userData = verifiedUser || loginUser || null;
-
-  // Cek jika ada URL redirect yang disimpan
   const currentTabRedirectUrl = sessionStorage.getItem("redirectAfterLogin");
   const sharedRedirectUrl = localStorage.getItem("redirectAfterLogin");
   const redirectUrl = currentTabRedirectUrl || sharedRedirectUrl;
   const redirectTarget = resolveStoredRedirectTarget(redirectUrl);
 
   if (redirectTarget) {
-    // Clear redirect URL
     localStorage.removeItem("redirectAfterLogin");
     sessionStorage.removeItem("redirectAfterLogin");
 
+    if (shouldHardDenyDashboardTarget(redirectTarget, userData)) {
+      if (typeof showAccessDenied === "function") {
+        showAccessDenied(userData.role_name, {
+          keepCurrentLocation: true,
+          primaryAction: "redirect",
+        });
+        return;
+      }
+
+      if (userData?.role_name && redirectBasedOnRole) {
+        redirectBasedOnRole(userData.role_name);
+        return;
+      }
+
+      window.location.href = "/signin.html";
+      return;
+    }
+
     const hasPageAccessForUser = window.RoleBasedAccess?.hasPageAccessForUser;
+    const shouldSkipStoredRedirect = shouldSkipStoredRedirectForRole(
+      redirectTarget,
+      userData,
+      { currentTabRedirectUrl },
+    );
 
     if (userData?.role_name && typeof hasPageAccessForUser === "function") {
       const hasAccess = hasPageAccessForUser(redirectTarget.pathname, userData);
 
-      if (hasAccess) {
+      if (!shouldSkipStoredRedirect && hasAccess) {
         window.location.href = redirectTarget.targetHref;
         return;
       }
@@ -446,24 +555,55 @@ async function redirectAfterLogin({
         `User role ${userData.role_name} doesn't have access to ${redirectTarget.pathname}, redirecting based on role`,
       );
     } else {
-      console.warn("Skipping stored redirectAfterLogin target because RBAC user access check is unavailable");
+      console.warn(
+        "Skipping stored redirectAfterLogin target because RBAC user access check is unavailable",
+      );
     }
 
-    if (userData?.role_name && redirectBasedOnRole) {
+    if (
+      userData?.role_name &&
+      redirectBasedOnRole &&
+      hasSupportedRoleRedirect(userData.role_name)
+    ) {
       redirectBasedOnRole(userData.role_name);
       return;
     }
+
+    if (userData?.role_name && typeof showAccessDenied === "function") {
+      showAccessDenied(userData.role_name, {
+        keepCurrentLocation: true,
+        primaryAction: "close",
+      });
+      return;
+    }
+
+    if (userData?.role_name) {
+      window.location.href = "/signin.html";
+      return;
+    }
   }
-  // Default redirect berdasarkan role jika tidak ada URL redirect
-  if (userData && userData.role_name && redirectBasedOnRole) {
+
+  if (
+    userData?.role_name &&
+    redirectBasedOnRole &&
+    hasSupportedRoleRedirect(userData.role_name)
+  ) {
     console.log(
       `Redirecting user with role ${userData.role_name} to appropriate page`,
     );
     redirectBasedOnRole(userData.role_name);
-  } else {
-    // Fallback ke dashboard jika role checking tidak tersedia
-    window.location.href = "/index.html";
+    return;
   }
+
+  if (userData?.role_name && typeof showAccessDenied === "function") {
+    showAccessDenied(userData.role_name, {
+      keepCurrentLocation: true,
+      primaryAction: "close",
+    });
+    return;
+  }
+
+  window.location.href = userData?.role_name ? "/signin.html" : "/index.html";
 }
 
 /**
@@ -555,6 +695,7 @@ const SigninHandler = {
   setLoadingState,
   handleLoginSubmit,
   redirectAfterLogin,
+  shouldSkipStoredRedirectForRole,
 };
 
 // Export untuk penggunaan sebagai module
@@ -564,6 +705,7 @@ export {
   clearError,
   setLoadingState,
   handleLoginSubmit,
+  shouldSkipStoredRedirectForRole,
 };
 export default SigninHandler;
 

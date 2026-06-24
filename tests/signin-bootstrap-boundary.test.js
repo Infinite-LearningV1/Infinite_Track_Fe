@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { shouldAutoInitSigninHandler } from "../src/js/features/signinHandler.js";
+import SigninHandler from "../src/js/features/signinHandler.js";
 
 function createFakeDocument({
   hasForm = false,
@@ -44,13 +44,13 @@ function createFakeDocument({
   };
 }
 
-test("shouldAutoInitSigninHandler returns false outside signin form context", () => {
+test("SigninHandler.shouldAutoInitSigninHandler returns false outside signin form context", () => {
   const dashboardDocument = createFakeDocument();
 
-  assert.equal(shouldAutoInitSigninHandler(dashboardDocument), false);
+  assert.equal(SigninHandler.shouldAutoInitSigninHandler(dashboardDocument), false);
 });
 
-test("shouldAutoInitSigninHandler returns true for signin form context", () => {
+test("SigninHandler.shouldAutoInitSigninHandler returns true for signin form context", () => {
   const signinDocument = createFakeDocument({
     hasForm: true,
     hasEmailInput: true,
@@ -58,5 +58,5 @@ test("shouldAutoInitSigninHandler returns true for signin form context", () => {
     hasSubmitButton: true,
   });
 
-  assert.equal(shouldAutoInitSigninHandler(signinDocument), true);
+  assert.equal(SigninHandler.shouldAutoInitSigninHandler(signinDocument), true);
 });

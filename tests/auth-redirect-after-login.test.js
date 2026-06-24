@@ -404,6 +404,40 @@ test("redirectAfterLogin routes unsupported roles to safe signin when no deny re
 });
 
 for (const deniedRole of ["Employee", "Internship"]) {
+  test(`redirectAfterLogin routes ${deniedRole} clean login to dashboard deny boundary`, async () => {
+    await withBrowserGlobals(async () => {
+      const localStorage = createStorage();
+      const sessionStorage = createStorage();
+      const location = {
+        origin: "https://admin.example.test",
+        href: "https://admin.example.test/signin.html",
+      };
+      const roleRedirects = [];
+
+      globalThis.localStorage = localStorage;
+      globalThis.sessionStorage = sessionStorage;
+      globalThis.window = {
+        location,
+        localStorage,
+        sessionStorage,
+        RoleBasedAccess: {
+          redirectBasedOnRole(userRole) {
+            roleRedirects.push(userRole);
+            location.href = "/profile.html";
+          },
+        },
+      };
+
+      await SigninHandler.redirectAfterLogin({
+        loginJustSucceeded: true,
+        loginUser: { id: 8, role_name: deniedRole },
+      });
+
+      assert.deepEqual(roleRedirects, []);
+      assert.equal(location.href, "/index.html");
+    });
+  });
+
   for (const dashboardTarget of ["/index.html", "/", "/index"]) {
     test(`redirectAfterLogin shows access denied for ${deniedRole} dashboard target ${dashboardTarget}`, async () => {
       await withBrowserGlobals(async () => {

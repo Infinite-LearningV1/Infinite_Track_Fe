@@ -155,7 +155,7 @@ for (const deniedRole of ["Employee", "Internship"]) {
 
       assert.equal(globalThis.document.body.dataset.accessBoundary, "denied");
       assert.equal(inserted.length, 1);
-      assert.match(inserted[0].html, /Buka Halaman Sesuai Role/);
+      assert.match(inserted[0].html, /Kembali ke Sign In/);
       assert.doesNotMatch(
         inserted[0].html,
         /<button[\s\S]*Tutup[\s\S]*<\/button>/,
@@ -319,7 +319,7 @@ test("initRoleBasedAccess hard-denies unknown verified dashboard role without re
   }
 });
 
-test("hard-deny primary action truthfully routes to the role landing page", () => {
+test("hard-deny primary action truthfully routes to the role landing page", async () => {
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const previousAlpine = globalThis.Alpine;
@@ -338,6 +338,14 @@ test("hard-deny primary action truthfully routes to the role landing page", () =
     location: {
       pathname: "/index.html",
       href: "http://127.0.0.1:3000/index.html",
+    },
+    AuthService: {
+      async logout() {
+        return true;
+      },
+      async forceReauthenticate() {
+        globalThis.window.location.href = "/signin.html";
+      },
     },
   };
   globalThis.document = {
@@ -386,8 +394,9 @@ test("hard-deny primary action truthfully routes to the role landing page", () =
     );
 
     listeners["#modal-redirect-btn"].click();
+    await new Promise((resolve) => previousSetTimeout(resolve, 25));
 
-    assert.equal(globalThis.window.location.href, "/profile.html");
+    assert.equal(globalThis.window.location.href, "/signin.html");
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;

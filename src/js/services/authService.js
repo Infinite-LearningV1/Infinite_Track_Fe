@@ -189,6 +189,32 @@ function broadcastAuthSessionClearSafely() {
   }
 }
 
+function clearBrowserAuthCookies() {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return;
+  }
+
+  document.cookie.split(";").forEach((cookie) => {
+    const eqPos = cookie.indexOf("=");
+    const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+    document.cookie =
+      name +
+      "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" +
+      window.location.hostname;
+    document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+  });
+}
+
+function clearClientAuthState() {
+  const storageCleared = clearAuthStorage();
+  if (!storageCleared) {
+    envLog("warn", "Auth storage cleanup failed during logout");
+  }
+
+  broadcastAuthSessionClearSafely();
+  return storageCleared;
+}
+
 function persistAuthRedirectNoticeSafely(redirectNotice) {
   try {
     persistAuthRedirectNotice(redirectNotice, window.sessionStorage);
@@ -248,6 +274,8 @@ async function forceReauthenticate(options = {}) {
  * @returns {Promise<boolean>} - Promise yang resolve dengan true jika berhasil
  */
 async function logout() {
+  const storageCleared = clearClientAuthState();
+
   try {
     envLog("debug", "Attempting logout with URL:", API_CONFIG.LOGOUT_URL);
     await axios.post(
@@ -265,41 +293,17 @@ async function logout() {
   } catch (error) {
     envLog(
       "warn",
-      "Backend logout failed, proceeding with frontend logout:",
+      "Backend logout failed after local cleanup, proceeding with frontend logout:",
       error.message,
     );
   }
 
   try {
-    const storageCleared = clearAuthStorage();
-    if (!storageCleared) {
-      envLog("warn", "Auth storage cleanup failed during logout");
-    }
-
-    broadcastAuthSessionClearSafely();
-
-    // Clear cookies manually (fallback)
-    document.cookie.split(";").forEach((cookie) => {
-      const eqPos = cookie.indexOf("=");
-      const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-      document.cookie =
-        name +
-        "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" +
-        window.location.hostname;
-      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-    });
-
+    clearBrowserAuthCookies();
     return storageCleared;
   } catch (error) {
     console.error("Logout error:", error.message);
-
-    const storageCleared = clearAuthStorage();
-    if (!storageCleared) {
-      envLog("warn", "Auth storage cleanup failed during logout recovery");
-    }
-    broadcastAuthSessionClearSafely();
-
-    return storageCleared;
+    return false;
   }
 }
 

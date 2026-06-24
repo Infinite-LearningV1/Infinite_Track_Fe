@@ -39,11 +39,38 @@ function showAuthRedirectNotice() {
   });
 }
 
+function isSigninPage(locationRef = window.location) {
+  const pathname = locationRef?.pathname;
+
+  if (!pathname) {
+    return true;
+  }
+
+  return pathname === "/signin.html" || pathname.endsWith("/signin.html");
+}
+
+export function shouldAutoInitSigninHandler(documentRef = document) {
+  const form = documentRef?.querySelector?.("form");
+  const emailInput = documentRef?.getElementById?.("email");
+  const passwordInput =
+    documentRef?.getElementById?.("password") ||
+    documentRef?.querySelector?.('#password');
+  const submitButton = documentRef?.querySelector?.(
+    'button[type="submit"], form button:last-of-type',
+  );
+
+  return Boolean(form && emailInput && passwordInput && submitButton);
+}
+
 /**
  * Initialize signin form handler
  * Menginisialisasi event listeners dan validasi form
  */
 function initSigninHandler() {
+  if (!isSigninPage()) {
+    return;
+  }
+
   showAuthRedirectNotice();
 
   // Tunggu hingga DOM fully loaded
@@ -58,6 +85,10 @@ function initSigninHandler() {
  * Setup signin form dengan event listeners
  */
 function setupSigninForm() {
+  if (!isSigninPage()) {
+    return;
+  }
+
   showAuthRedirectNotice();
 
   const form = document.querySelector("form");
@@ -527,12 +558,7 @@ async function redirectAfterLogin({
         return;
       }
 
-      if (userData?.role_name && redirectBasedOnRole) {
-        redirectBasedOnRole(userData.role_name);
-        return;
-      }
-
-      window.location.href = "/signin.html";
+      window.location.href = "/index.html";
       return;
     }
 
@@ -560,6 +586,11 @@ async function redirectAfterLogin({
       );
     }
 
+    if (HARD_DENY_DASHBOARD_ROLES.has(userData?.role_name)) {
+      window.location.href = "/index.html";
+      return;
+    }
+
     if (
       userData?.role_name &&
       redirectBasedOnRole &&
@@ -581,6 +612,14 @@ async function redirectAfterLogin({
       window.location.href = "/signin.html";
       return;
     }
+  }
+
+  if (HARD_DENY_DASHBOARD_ROLES.has(userData?.role_name)) {
+    console.log(
+      `Redirecting user with role ${userData.role_name} to dashboard hard deny boundary`,
+    );
+    window.location.href = "/index.html";
+    return;
   }
 
   if (
@@ -695,6 +734,7 @@ const SigninHandler = {
   setLoadingState,
   handleLoginSubmit,
   redirectAfterLogin,
+  shouldAutoInitSigninHandler,
   shouldSkipStoredRedirectForRole,
 };
 
@@ -716,11 +756,17 @@ if (typeof window !== "undefined") {
 }
 
 // Auto-initialize jika script dimuat langsung
-if (typeof window !== "undefined" && document.readyState !== "loading") {
-  // Delay sedikit untuk memastikan Alpine.js sudah loaded
-  setTimeout(initSigninHandler, 100);
-} else if (typeof window !== "undefined") {
-  document.addEventListener("DOMContentLoaded", () => {
+if (
+  typeof window !== "undefined" &&
+  isSigninPage() &&
+  shouldAutoInitSigninHandler()
+) {
+  if (document.readyState !== "loading") {
+    // Delay sedikit untuk memastikan Alpine.js sudah loaded
     setTimeout(initSigninHandler, 100);
-  });
+  } else {
+    document.addEventListener("DOMContentLoaded", () => {
+      setTimeout(initSigninHandler, 100);
+    });
+  }
 }

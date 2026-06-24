@@ -1127,6 +1127,51 @@ test("logout reports frontend cleanup failure", async () => {
   }
 });
 
+test("logout clears local auth state before backend logout resolves", async () => {
+  const originalPost = axios.post;
+  const originalWindow = globalThis.window;
+  const originalDocument = globalThis.document;
+  const originalLocalStorage = globalThis.localStorage;
+
+  const localStorageRef = createMemoryStorage({
+    userData: JSON.stringify({ id: 3, role_name: "Employee" }),
+    authToken: "employee-token",
+  });
+  const sessionStorageRef = createMemoryStorage();
+
+  let releaseBackendLogout;
+  const backendLogoutPending = new Promise((resolve) => {
+    releaseBackendLogout = resolve;
+  });
+
+  axios.post = async () => {
+    await backendLogoutPending;
+    return { status: 200, data: { success: true } };
+  };
+  globalThis.localStorage = localStorageRef;
+  globalThis.document = { cookie: "stubRole=Employee; authToken=employee-token" };
+  globalThis.window = {
+    localStorage: localStorageRef,
+    sessionStorage: sessionStorageRef,
+    location: { hostname: "localhost" },
+  };
+
+  try {
+    const logoutPromise = logout();
+
+    assert.equal(localStorageRef.getItem("userData"), null);
+    assert.equal(localStorageRef.getItem("authToken"), null);
+
+    releaseBackendLogout();
+    assert.equal(await logoutPromise, true);
+  } finally {
+    axios.post = originalPost;
+    globalThis.window = originalWindow;
+    globalThis.document = originalDocument;
+    globalThis.localStorage = originalLocalStorage;
+  }
+});
+
 test("logout component redirects and clears runtime state when cleanup fails", async () => {
   const originalPost = axios.post;
   const originalWindow = globalThis.window;

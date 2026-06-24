@@ -146,8 +146,13 @@ function redirectBasedOnRole(userRole) {
  */
 function showAccessDenied(userRole, options = {}) {
   const { keepCurrentLocation = false, primaryAction = "close" } = options;
+  const isDashboardDeniedRole = DASHBOARD_DENIED_ROLES.has(userRole);
   const primaryButtonLabel =
-    primaryAction === "close" ? "Tutup" : "Buka Halaman Sesuai Role";
+    primaryAction === "close"
+      ? "Tutup"
+      : isDashboardDeniedRole
+        ? "Kembali ke Sign In"
+        : "Buka Halaman Sesuai Role";
   const safeUserRole = escapeHtml(userRole || "Unknown");
 
   // Create access denied modal with styling matching modalAlert danger theme
@@ -286,6 +291,7 @@ function setupAccessDeniedEventListeners(modal, userRole, options = {}) {
   const preventPassiveDismissal =
     keepCurrentLocation && primaryAction !== "close";
   const shouldRedirectAfterPrimaryAction = primaryAction !== "close";
+  const isDashboardDeniedRole = DASHBOARD_DENIED_ROLES.has(userRole);
   const closeBtn = modal.querySelector("#modal-close-btn");
   const redirectBtn = modal.querySelector("#modal-redirect-btn");
   const logoutBtn = modal.querySelector("#modal-logout-btn");
@@ -320,16 +326,21 @@ function setupAccessDeniedEventListeners(modal, userRole, options = {}) {
         return;
       }
 
+      if (isDashboardDeniedRole) {
+        logout();
+        return;
+      }
+
       redirectBasedOnRole(userRole);
     }, 300);
   };
   // Logout function
   const logout = async () => {
-    try {
-      // Import logout function from authService
-      const { logout: authLogout } = await import("../services/authService.js");
+    const authService =
+      window.AuthService || (await import("../services/authService.js"));
 
-      await authLogout();
+    try {
+      await authService.logout();
 
       if (
         typeof Alpine !== "undefined" &&
@@ -348,11 +359,8 @@ function setupAccessDeniedEventListeners(modal, userRole, options = {}) {
     } catch (error) {
       console.error("Logout error:", error);
 
-      const { forceReauthenticate } =
-        await import("../services/authService.js");
-
       closeModal();
-      await forceReauthenticate();
+      await authService.forceReauthenticate();
     }
   };
 

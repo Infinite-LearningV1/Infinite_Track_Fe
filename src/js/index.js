@@ -116,6 +116,17 @@ function showAuthRedirectNoticeOnSignin() {
   });
 }
 
+function hideGlobalPreloader() {
+  const preloader = document.querySelector("[data-global-preloader]");
+
+  if (!preloader) {
+    return;
+  }
+
+  preloader.classList.add("hidden", "pointer-events-none");
+  preloader.setAttribute("aria-hidden", "true");
+}
+
 // Global Alpine.js state for Map Detail Modal
 Alpine.data("mapDetailModalState", () => ({
   isMapDetailModalOpen: false,
@@ -490,6 +501,13 @@ async function validateUserSession() {
   }
 }
 
+const SUPPORTED_SIGNIN_REDIRECT_ROLES = new Set([
+  "Admin",
+  "Management",
+  "Employee",
+  "Internship",
+]);
+
 async function validateSigninPageSession() {
   try {
     const resolution = await resolveBootstrapSession();
@@ -503,9 +521,21 @@ async function validateSigninPageSession() {
         Alpine.store("auth").setUser(resolution.user);
       }
 
+      const roleName = resolution.user?.role_name;
       const roleBasedRedirect = window.RoleBasedAccess?.redirectBasedOnRole;
-      if (roleBasedRedirect && resolution.user?.role_name) {
-        roleBasedRedirect(resolution.user.role_name);
+      const showAccessDenied = window.RoleBasedAccess?.showAccessDenied;
+
+      if (
+        roleBasedRedirect &&
+        roleName &&
+        SUPPORTED_SIGNIN_REDIRECT_ROLES.has(roleName)
+      ) {
+        roleBasedRedirect(roleName);
+      } else if (roleName && typeof showAccessDenied === "function") {
+        showAccessDenied(roleName, {
+          keepCurrentLocation: true,
+          primaryAction: "close",
+        });
       } else {
         window.location.href = "/index.html";
       }
@@ -551,10 +581,12 @@ async function startApplication() {
 
   const startupState = await bootAuthentication();
 
-  if (
-    startupState === "redirecting" ||
-    document.body.dataset.accessBoundary === "denied"
-  ) {
+  if (startupState === "redirecting") {
+    return;
+  }
+
+  if (document.body.dataset.accessBoundary === "denied") {
+    hideGlobalPreloader();
     return;
   }
 

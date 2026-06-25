@@ -32,11 +32,23 @@ Results:
 ## Review follow-up
 - A code review flagged that unknown section keys should not silently fall back to an ad-hoc rendered section.
 - Updated `createDashboardSections()` to throw on unsupported section keys instead of silently rendering fallback output.
+- Updated this report so the commit status matches repository reality and the required summary fields are explicit.
+
+## Required summary fields
+- Status: DONE
+- Commits:
+  - `b147f7d` — `feat: organize dashboard into owner sections`
+- Tests:
+  - `componentReuseBoundary.test.js`: 1 test passed, 0 failed.
+  - `dashboardTemplateRegression.test.js`: 1 test passed, 0 failed.
+- Concerns: none
 
 ## Scope notes
 - Reporting migration remained untouched and out of scope.
 - No new dashboard section wrapper component files were added; existing components/markup were reused in sectioned layout form.
 - No cross-owner fallback or raw payload borrowing was introduced.
+- This report update is the only follow-up change in the task package for the remaining review finding.
 
-## Commit
-- Pending at time of writing this report; working tree contains only the Task 6 code/test changes plus pre-existing untracked task artifacts outside the commit scope.
+## Commit status
+- Required brief step 5 is already satisfied by existing commit `b147f7d` (`feat: organize dashboard into owner sections`).
+- This report correction is a separate follow-up change made after review to keep the task package accurate.

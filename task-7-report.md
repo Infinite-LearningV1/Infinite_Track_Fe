@@ -34,3 +34,18 @@
 ## Notes / concerns
 - Node emits an existing `MODULE_TYPELESS_PACKAGE_JSON` warning during the targeted test run because the repo uses ESM syntax without `"type": "module"` in `package.json`. This task did not change package/module configuration.
 - The runtime wiring was kept intentionally thin and limited to the briefed file plus the targeted test.
+
+## Fix wave — review findings addressed
+- Root cause for the critical finding: `createDashboardPageState().loadDashboard()` used `Promise.all(...)` directly over slice fetchers, so any rejected slice promise aborted the entire dashboard orchestration update before unrelated slices could publish their own states.
+- Root cause for the important finding: runtime `pageState` fetchers for historical/geofence/live-map/FAHP were only projecting already-cached component fields via `build*SliceState(...)`; the `refreshFahpRecap()` path was not a real fetch path and could not independently re-request FAHP data.
+- Narrow fix applied:
+  - wrapped page-state slice fetches with per-slice error resolution so rejected slice requests become local `{ status: "error" }` states instead of collapsing the whole dashboard update;
+  - rewired runtime `fetchFahpRecap` to call `fetchFuzzyAhpAnalysis(buildFahpRequestParams(...))`, persist the FAHP-only response back into owner-local state, and return the resulting FAHP slice;
+  - changed `loadFuzzyAhpDetail()` to use `pageState.refreshFahpRecap(requestParams)` so FAHP refresh now flows through its own isolated fetch path rather than a global dashboard reload or cached-state projection;
+  - removed runtime `syncPageState()` mirroring so cockpit projection no longer pretends to be independent slice orchestration.
+- Regression coverage added:
+  - `loadDashboard keeps a rejected geofence fetch local while other slices still update`
+  - `refreshFahpRecap refetches only the FAHP slice without reloading the dashboard`
+- Verification commands and output summary:
+  - `node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/dashboardPageOrchestration.test.js"` → `pass 2`, `fail 0`
+  - `node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/fahpRecapSlice.test.js"` → `pass 2`, `fail 0`

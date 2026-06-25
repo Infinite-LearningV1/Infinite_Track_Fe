@@ -49,6 +49,17 @@ export function createDashboardPageState({
   fetchLiveMap,
   fetchFahpRecap,
 }) {
+  const resolveSliceState = async (fetchSlice) => {
+    try {
+      return await fetchSlice();
+    } catch (error) {
+      return {
+        status: "error",
+        error: error?.message || "Dashboard slice failed to load.",
+      };
+    }
+  };
+
   return {
     historicalSlice: { status: "loading" },
     geofenceSlice: { status: "loading" },
@@ -57,10 +68,10 @@ export function createDashboardPageState({
     async loadDashboard() {
       const [historicalSlice, geofenceSlice, liveMapSlice, fahpSlice] =
         await Promise.all([
-          fetchHistorical(),
-          fetchGeofence(),
-          fetchLiveMap(),
-          fetchFahpRecap(),
+          resolveSliceState(fetchHistorical),
+          resolveSliceState(fetchGeofence),
+          resolveSliceState(fetchLiveMap),
+          resolveSliceState(fetchFahpRecap),
         ]);
 
       this.historicalSlice = historicalSlice;
@@ -68,8 +79,10 @@ export function createDashboardPageState({
       this.liveMapSlice = liveMapSlice;
       this.fahpSlice = fahpSlice;
     },
-    async refreshFahpRecap() {
-      this.fahpSlice = await fetchFahpRecap();
+    async refreshFahpRecap(params) {
+      this.fahpSlice = { status: "loading" };
+      this.fahpSlice = await resolveSliceState(() => fetchFahpRecap(params));
+      return this.fahpSlice;
     },
   };
 }
@@ -190,7 +203,24 @@ export function dashboard() {
         fetchGeofence: async () =>
           this.buildGeofenceSliceState(this.geofenceEvidenceResponse),
         fetchLiveMap: async () => this.buildLiveMapSliceState(this.todayLocations),
-        fetchFahpRecap: async () => this.buildFahpSliceState(this.fuzzyAhpResponse),
+        fetchFahpRecap: async (params = this.fahpFilterState) => {
+          const requestParams = buildFahpRequestParams(params);
+          const nextFilterState = {
+            ...createDefaultFahpFilterState(),
+            ...requestParams,
+          };
+          const response = await this.fetchFuzzyAhpAnalysis(requestParams);
+
+          this.fahpFilterState = nextFilterState;
+          this.fuzzyAhpResponse = response;
+          this.fuzzyAhpError = null;
+          this.rawApiData = {
+            ...(this.rawApiData || {}),
+            fahpRecap: createFahpRecapSliceState(response, requestParams),
+          };
+
+          return this.buildFahpSliceState(response);
+        },
       });
       await this.loadSummaryData();
     },
@@ -288,14 +318,6 @@ export function dashboard() {
       }
 
       return { status: "loading" };
-    },
-
-    async syncPageState() {
-      if (!this.pageState) {
-        return;
-      }
-
-      await this.pageState.loadDashboard();
     },
 
     applySummaryResponse(
@@ -465,7 +487,7 @@ export function dashboard() {
       return buildDashboardRangeRequestParams(this.syncDashboardRangeState());
     },
 
-    async applyCockpitSurfaceState({
+    applyCockpitSurfaceState({
       reportResponse,
       analyticsResponse = this.dashboardAnalyticsResponse,
       analyticsError = this.dashboardAnalyticsError,
@@ -487,8 +509,6 @@ export function dashboard() {
         geofenceEvidenceResponse,
         geofenceEvidenceError,
       });
-
-      await this.syncPageState();
     },
 
     applySummaryError(error) {
@@ -1221,6 +1241,21 @@ export function dashboard() {
           }
         : {};
 
+      const requestParams = buildFahpRequestParams(params);
+      if (!requestParams.category) {
+        const error = new Error(
+          "Invalid category: null. Allowed categories are discipline, wfa, smart_ac.",
+        );
+        this.fuzzyAhpResponse = null;
+        this.fuzzyAhpError = error;
+        await this.applyCockpitSurfaceState({
+          reportResponse: currentReportResponse,
+          fuzzyAhpResponse: null,
+          fuzzyAhpError: error,
+        });
+        throw error;
+      }
+
       this.fuzzyAhpError = null;
       await this.applyCockpitSurfaceState({
         reportResponse: currentReportResponse,
@@ -1228,36 +1263,18 @@ export function dashboard() {
         fuzzyAhpError: null,
       });
 
-      try {
-        const requestParams = buildFahpRequestParams(params);
-        if (!requestParams.category) {
-          throw new Error(
-            "Invalid category: null. Allowed categories are discipline, wfa, smart_ac.",
-          );
-        }
-        const nextFilterState = {
-          ...createDefaultFahpFilterState(),
-          ...requestParams,
-        };
-        const fuzzyAhpResponse = await this.fetchFuzzyAhpAnalysis(requestParams);
-        const fahpRecapSlice = createFahpRecapSliceState(
-          fuzzyAhpResponse,
-          requestParams,
-        );
+      const fahpSlice = await this.pageState?.refreshFahpRecap(requestParams);
 
-        this.fahpFilterState = nextFilterState;
-        this.fuzzyAhpResponse = fuzzyAhpResponse;
-        this.fuzzyAhpError = null;
-        await this.applyCockpitSurfaceState({
-          reportResponse: currentReportResponse,
-          fuzzyAhpResponse,
-          fuzzyAhpError: null,
-        });
-        this.rawApiData = {
-          ...(this.rawApiData || {}),
-          fahpRecap: fahpRecapSlice,
-        };
-      } catch (error) {
+      await this.applyCockpitSurfaceState({
+        reportResponse: currentReportResponse,
+        fuzzyAhpResponse: this.fuzzyAhpResponse,
+        fuzzyAhpError: this.fuzzyAhpError,
+      });
+
+      if (fahpSlice?.status === "error") {
+        const error = new Error(
+          fahpSlice.error || "fahp recap unavailable",
+        );
         this.fuzzyAhpResponse = null;
         this.fuzzyAhpError = error;
         await this.applyCockpitSurfaceState({

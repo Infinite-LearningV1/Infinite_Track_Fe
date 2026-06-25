@@ -598,6 +598,15 @@ function hasExplicitAnalytics(analytics = null) {
   );
 }
 
+function hasExplicitAnalyticsField(analytics = null, fieldName) {
+  return Boolean(
+    analytics &&
+      typeof analytics === "object" &&
+      !Array.isArray(analytics) &&
+      Object.prototype.hasOwnProperty.call(analytics, fieldName),
+  );
+}
+
 function getExecutiveKpis(analytics = null) {
   const executiveKpis = buildHistoricalAnalyticsViewModel(analytics).kpis;
 
@@ -887,6 +896,15 @@ function buildModeMixPanel(analytics = null, analyticsError = null) {
   }
 
   if (!hasExplicitAnalytics(analytics)) {
+    return createPanel({
+      ...getMiddlePanelDefinition("modeMix"),
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message:
+        "Attendance mode mix waits for explicit dashboard analytics mode_mix.",
+    });
+  }
+
+  if (!hasExplicitAnalyticsField(analytics, "mode_mix")) {
     return createPanel({
       ...getMiddlePanelDefinition("modeMix"),
       state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
@@ -1262,6 +1280,14 @@ function buildHistoricalTrendPanel(analytics = null, analyticsError = null) {
       message: `${getAnalyticsErrorMessage(analyticsError)} Historical attendance trend remains unavailable until the explicit analytics response succeeds.`,
       note: "Web FE will not derive trend from summary totals or split merged late/alpha risk series.",
     });
+  }
+
+  if (!hasExplicitAnalytics(analytics)) {
+    return buildPreviewHistoricalTrendPanel();
+  }
+
+  if (!hasExplicitAnalyticsField(analytics, "historical_trend")) {
+    return buildPreviewHistoricalTrendPanel();
   }
 
   const normalizedTrend = normalizeHistoricalTrend(analytics);

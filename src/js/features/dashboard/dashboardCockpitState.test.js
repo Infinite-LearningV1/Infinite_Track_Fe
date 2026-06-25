@@ -113,7 +113,7 @@ test("dashboard applies cockpit state from legacy report sources without trustin
     DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
   );
   assert.equal(averageDiscipline.value, null);
-  assert.equal(component.rawApiData.analytics, null);
+  assert.equal(Object.prototype.hasOwnProperty.call(component.rawApiData, "analytics"), false);
   assert.deepEqual(component.summaryData, {
     summary: {
       onTime: 2,
@@ -331,10 +331,26 @@ test("dashboard loadSummaryData uses the explicit analytics response for cockpit
   assert.equal(component.filters.search, "Rina");
   assert.equal(averageDiscipline.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(averageDiscipline.value, "78.5");
-  assert.deepEqual(component.rawApiData.analytics, {
-    data: {
-      executive_kpis: {
+  assert.equal(Object.prototype.hasOwnProperty.call(component.rawApiData, "analytics"), false);
+  assert.deepEqual(component.rawApiData.historicalAnalytics, {
+    request: { period: "current_month" },
+    response: {
+      data: {
+        executive_kpis: {
+          avg_discipline: 78.5,
+        },
+      },
+    },
+    viewModel: {
+      kpis: {
         avg_discipline: 78.5,
+      },
+      trend: { points: [] },
+      modeMix: { totals: {}, percentages: {} },
+      insights: { items: [] },
+      windowMeta: {
+        requestedWindow: null,
+        executedWindow: null,
       },
     },
   });
@@ -506,7 +522,7 @@ test("dashboard loadSummaryData keeps report rows when analytics fails but today
 
   assert.equal(component.attendanceData.length, 1);
   assert.equal(component.attendanceData[0].attendance_id, "att_002");
-  assert.equal(component.rawApiData.analytics, null);
+  assert.equal(Object.prototype.hasOwnProperty.call(component.rawApiData, "analytics"), false);
   assert.equal(component.error, null);
   assert.equal(hero.state, DASHBOARD_PANEL_STATES.EMPTY);
   assert.equal(hero.data.source, "attendance.today-locations");

@@ -283,7 +283,6 @@ export function dashboard() {
       this.rawApiData = {
         summary: response.summary,
         report: response.report,
-        analytics: historicalAnalyticsSlice.response,
         historicalAnalytics: historicalAnalyticsSlice,
         todayLocations: todayLocationsResponse,
         fuzzyAhp: fuzzyAhpResponse,

@@ -67,9 +67,23 @@ Task ini menyentuh dashboard/reporting responsibility dan code organization boun
 
 ### Fix wave verification
 Command:
-`node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/historicalAnalyticsSlice.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/services/dashboard/dashboardCockpitService.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/features/dashboard/dashboardCockpitState.test.js"`
+`node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/historicalAnalyticsSlice.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/services/dashboardCockpitService.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/features/dashboard/dashboardCockpitState.test.js"`
 
 Output summary:
 - 33 tests pass
+- 0 fail
+- Warning `MODULE_TYPELESS_PACKAGE_JSON` masih muncul dan tidak diubah karena di luar scope fix wave ini.
+
+## Fix wave 2 notes
+- Menindaklanjuti review finding terakhir pada `src/js/features/dashboard/dashboard.js` dengan menghapus duplikasi `rawApiData.analytics` agar raw payload analytics tidak lagi dipertahankan di page-level cross-domain blob; state FE sekarang hanya menyimpan `rawApiData.historicalAnalytics` untuk ownership historical analytics.
+- Menyesuaikan `src/js/features/dashboard/dashboardCockpitState.test.js` agar mengunci bahwa properti `rawApiData.analytics` memang tidak lagi ada, sekaligus memverifikasi bentuk `rawApiData.historicalAnalytics` yang tersimpan.
+- Mengetatkan `src/js/services/dashboardCockpitService.js` supaya panel historical trend dan mode mix tetap `BACKEND_REQUIRED` bila field owner (`historical_trend` / `mode_mix`) memang tidak ada, alih-alih turun menjadi `NEEDS_DATA` hanya karena slice view-model memberi safe default.
+
+### Fix wave 2 verification
+Command:
+`node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/historicalAnalyticsSlice.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/services/dashboardCockpitService.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/features/dashboard/dashboardCockpitState.test.js"`
+
+Output summary:
+- 64 tests pass
 - 0 fail
 - Warning `MODULE_TYPELESS_PACKAGE_JSON` masih muncul dan tidak diubah karena di luar scope fix wave ini.

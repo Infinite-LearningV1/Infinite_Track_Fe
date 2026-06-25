@@ -68,6 +68,10 @@ const KPI_DEFINITIONS = [
   }),
 ];
 
+import {
+  buildHistoricalAnalyticsViewModel,
+} from "./dashboard/historicalAnalyticsSlice.js";
+
 const MAP_VIEW_SOURCE_KEY = "dashboard-analytics.map_context";
 const MAP_VIEW_SOURCE_NOTE =
   "Map context is a backend analytics snapshot for dashboard context.";
@@ -595,7 +599,7 @@ function hasExplicitAnalytics(analytics = null) {
 }
 
 function getExecutiveKpis(analytics = null) {
-  const executiveKpis = analytics?.executive_kpis ?? analytics?.executiveKpis;
+  const executiveKpis = buildHistoricalAnalyticsViewModel(analytics).kpis;
 
   return executiveKpis &&
     typeof executiveKpis === "object" &&
@@ -614,7 +618,7 @@ function getExecutiveRawCounts(analytics = null) {
 }
 
 function getModeMix(analytics = null) {
-  const modeMix = analytics?.mode_mix ?? analytics?.modeMix;
+  const modeMix = buildHistoricalAnalyticsViewModel(analytics).modeMix;
 
   return modeMix && typeof modeMix === "object" && !Array.isArray(modeMix)
     ? modeMix
@@ -1188,8 +1192,7 @@ function createHistoricalTrendRangeFromPoints(points) {
 }
 
 function normalizeHistoricalTrend(analytics = null) {
-  const trendPayload =
-    analytics?.historical_trend ?? analytics?.historicalTrend;
+  const trendPayload = buildHistoricalAnalyticsViewModel(analytics).trend;
 
   if (!trendPayload) {
     return null;

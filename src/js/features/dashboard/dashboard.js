@@ -7,6 +7,7 @@ import {
   createDashboardCockpitLoadingState,
   createDashboardCockpitStateFromSources,
 } from "../../services/dashboardCockpitService.js";
+import { createHistoricalAnalyticsSliceState } from "../../services/dashboard/historicalAnalyticsSlice.js";
 import {
   buildDashboardRangeRequestParams,
   createDefaultDashboardRange,
@@ -274,14 +275,20 @@ export function dashboard() {
         summary: mappedSummary,
         report: reportData,
       };
+      const historicalAnalyticsSlice = createHistoricalAnalyticsSliceState(
+        analyticsResponse,
+        this.getDashboardAnalyticsRequestParams(),
+      );
+
       this.rawApiData = {
         summary: response.summary,
         report: response.report,
-        analytics: analyticsResponse,
+        analytics: historicalAnalyticsSlice.response,
+        historicalAnalytics: historicalAnalyticsSlice,
         todayLocations: todayLocationsResponse,
         fuzzyAhp: fuzzyAhpResponse,
       };
-      this.dashboardAnalyticsResponse = analyticsResponse;
+      this.dashboardAnalyticsResponse = historicalAnalyticsSlice.response;
       this.dashboardAnalyticsError = analyticsError;
       this.todayLocationsResponse = todayLocationsResponse;
       this.todayLocationsError = todayLocationsError;

@@ -43,6 +43,37 @@ import {
   getInfoBadgeText,
 } from "../../utils/badgeHelpers.js";
 
+export function createDashboardPageState({
+  fetchHistorical,
+  fetchGeofence,
+  fetchLiveMap,
+  fetchFahpRecap,
+}) {
+  return {
+    historicalSlice: { status: "loading" },
+    geofenceSlice: { status: "loading" },
+    liveMapSlice: { status: "loading" },
+    fahpSlice: { status: "loading" },
+    async loadDashboard() {
+      const [historicalSlice, geofenceSlice, liveMapSlice, fahpSlice] =
+        await Promise.all([
+          fetchHistorical(),
+          fetchGeofence(),
+          fetchLiveMap(),
+          fetchFahpRecap(),
+        ]);
+
+      this.historicalSlice = historicalSlice;
+      this.geofenceSlice = geofenceSlice;
+      this.liveMapSlice = liveMapSlice;
+      this.fahpSlice = fahpSlice;
+    },
+    async refreshFahpRecap() {
+      this.fahpSlice = await fetchFahpRecap();
+    },
+  };
+}
+
 /**
  * Alpine.js component untuk dashboard functionality
  */
@@ -103,6 +134,7 @@ export function dashboard() {
     fuzzyAhpError: null,
     geofenceEvidenceResponse: null,
     geofenceEvidenceError: null,
+    pageState: null,
     fetchSummaryReport: getSummaryReport,
     fetchDashboardAnalytics: getDashboardAnalytics,
     fetchTodayLocations: getTodayLocations,
@@ -152,6 +184,14 @@ export function dashboard() {
      * Initialize component
      */
     async init() {
+      this.pageState = createDashboardPageState({
+        fetchHistorical: async () =>
+          this.buildHistoricalSliceState(this.dashboardAnalyticsResponse),
+        fetchGeofence: async () =>
+          this.buildGeofenceSliceState(this.geofenceEvidenceResponse),
+        fetchLiveMap: async () => this.buildLiveMapSliceState(this.todayLocations),
+        fetchFahpRecap: async () => this.buildFahpSliceState(this.fuzzyAhpResponse),
+      });
       await this.loadSummaryData();
     },
 
@@ -185,6 +225,77 @@ export function dashboard() {
           yAxisLabels: [],
         }
       );
+    },
+
+    buildHistoricalSliceState(response = this.dashboardAnalyticsResponse) {
+      if (response) {
+        return { status: "ready", response };
+      }
+
+      if (this.dashboardAnalyticsError) {
+        return {
+          status: "error",
+          error:
+            this.dashboardAnalyticsError?.message ||
+            "historical analytics unavailable",
+        };
+      }
+
+      return { status: "loading" };
+    },
+
+    buildGeofenceSliceState(response = this.geofenceEvidenceResponse) {
+      if (response) {
+        return { status: "ready", response };
+      }
+
+      if (this.geofenceEvidenceError) {
+        return {
+          status: "error",
+          error:
+            this.geofenceEvidenceError?.message || "geofence evidence unavailable",
+        };
+      }
+
+      return { status: "loading" };
+    },
+
+    buildLiveMapSliceState(response = this.todayLocations) {
+      if (response) {
+        return { status: "ready", response };
+      }
+
+      if (this.todayLocationsError) {
+        return {
+          status: "error",
+          error: this.todayLocationsError?.message || "live map unavailable",
+        };
+      }
+
+      return { status: "loading" };
+    },
+
+    buildFahpSliceState(response = this.fuzzyAhpResponse) {
+      if (response) {
+        return { status: "ready", response };
+      }
+
+      if (this.fuzzyAhpError) {
+        return {
+          status: "error",
+          error: this.fuzzyAhpError?.message || "fahp recap unavailable",
+        };
+      }
+
+      return { status: "loading" };
+    },
+
+    async syncPageState() {
+      if (!this.pageState) {
+        return;
+      }
+
+      await this.pageState.loadDashboard();
     },
 
     applySummaryResponse(
@@ -354,7 +465,7 @@ export function dashboard() {
       return buildDashboardRangeRequestParams(this.syncDashboardRangeState());
     },
 
-    applyCockpitSurfaceState({
+    async applyCockpitSurfaceState({
       reportResponse,
       analyticsResponse = this.dashboardAnalyticsResponse,
       analyticsError = this.dashboardAnalyticsError,
@@ -376,6 +487,8 @@ export function dashboard() {
         geofenceEvidenceResponse,
         geofenceEvidenceError,
       });
+
+      await this.syncPageState();
     },
 
     applySummaryError(error) {
@@ -1109,7 +1222,7 @@ export function dashboard() {
         : {};
 
       this.fuzzyAhpError = null;
-      this.applyCockpitSurfaceState({
+      await this.applyCockpitSurfaceState({
         reportResponse: currentReportResponse,
         fuzzyAhpResponse: null,
         fuzzyAhpError: null,
@@ -1135,7 +1248,7 @@ export function dashboard() {
         this.fahpFilterState = nextFilterState;
         this.fuzzyAhpResponse = fuzzyAhpResponse;
         this.fuzzyAhpError = null;
-        this.applyCockpitSurfaceState({
+        await this.applyCockpitSurfaceState({
           reportResponse: currentReportResponse,
           fuzzyAhpResponse,
           fuzzyAhpError: null,
@@ -1147,7 +1260,7 @@ export function dashboard() {
       } catch (error) {
         this.fuzzyAhpResponse = null;
         this.fuzzyAhpError = error;
-        this.applyCockpitSurfaceState({
+        await this.applyCockpitSurfaceState({
           reportResponse: currentReportResponse,
           fuzzyAhpResponse: null,
           fuzzyAhpError: error,

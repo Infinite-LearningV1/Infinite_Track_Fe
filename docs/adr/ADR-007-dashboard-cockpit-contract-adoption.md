@@ -16,18 +16,19 @@ Proposed
 
 ### Fact
 
-- INF-160 contract adoption for cockpit flow is already approved on this branch workstream.
-- Cockpit runtime authority is split across three backend surfaces:
-  1. `GET /summary/dashboard-analytics` (analytics authority, including Fuzzy AHP snapshot)
-  2. `GET /attendance/today-locations` (today live-map authority)
-  3. `GET /summary` (report/export authority)
-- `GET /analysis/fuzzy-ahp` is used for lazy-loaded Fuzzy AHP detail.
-- `/api/summary` alias exists but is not canonical for this cockpit flow.
+- INF-160 dashboard migration on this branch was narrowed to dashboard-only scope; reporting migration remains out of scope for Phase 3 FE execution.
+- Cockpit runtime authority is split across four backend owner surfaces:
+  1. `GET /summary/dashboard-analytics` (historical analytics authority)
+  2. `GET /attendance/geofence-evidence` (geofence evidence authority)
+  3. `GET /attendance/today-locations` (today live-map authority)
+  4. `GET /analysis/fuzzy-ahp/dashboard-recap` (FAHP dashboard recap authority)
+- `GET /summary` remains the selected-period report/export path, but it is not part of the owner-driven cockpit authority model described by this ADR.
+- `/api/summary` alias is non-canonical for the migrated dashboard flow.
 - `/api/summary/dashboard-map` is not used by this flow.
 
 ### Assumption
 
-- Keeping one canonical contract map for cockpit surfaces reduces integration drift and avoids frontend-invented authority.
+- Keeping one canonical owner map for cockpit surfaces reduces integration drift and avoids frontend-invented authority.
 
 ### Needs Verification
 
@@ -35,34 +36,37 @@ Proposed
 
 ## Decision
 
-We will adopt and document the cockpit contract as a three-surface authority model:
+We will adopt and document the cockpit contract as a four-owner dashboard model:
 
-- Analytics authority: `GET /summary/dashboard-analytics`
+- Historical analytics authority: `GET /summary/dashboard-analytics`
+- Geofence evidence authority: `GET /attendance/geofence-evidence`
 - Today-locations authority: `GET /attendance/today-locations`
-- Reports/export authority: `GET /summary`
+- FAHP dashboard recap authority: `GET /analysis/fuzzy-ahp/dashboard-recap`
 
-We will treat `/api/summary` as non-canonical for this cockpit flow and will not treat `/api/summary/dashboard-map` as an active integration path.
+We will treat `/api/summary` as non-canonical for this dashboard flow and will not treat `/api/summary/dashboard-map` as an active integration path.
 
-We will source Fuzzy AHP snapshot data from analytics payloads and lazy-load detail from `GET /analysis/fuzzy-ahp`.
+We will not source FAHP dashboard recap from analytics payloads, the legacy combined FAHP endpoint, or the three detail-analysis endpoints.
 
 ## Rationale
 
-This keeps the dashboard truthful about source-of-truth boundaries, prevents duplicate or ambiguous endpoint usage, and aligns operational reporting/export responsibilities with the already-approved branch design.
+This keeps the dashboard truthful about owner boundaries, prevents cross-owner fallback, and matches the implemented runtime where historical analytics, geofence evidence, live map, and FAHP recap each fetch through their own owner path.
 
 ## Trade-offs / Consequences
 
 - Positive: clearer authority boundaries for cockpit features.
-- Positive: lower risk of endpoint drift (`/api/summary` alias confusion).
+- Positive: lower risk of endpoint drift and alias confusion.
+- Positive: FAHP dashboard recap stays on its dedicated independent filter model instead of borrowing dashboard date-window semantics.
 - Negative: non-canonical aliases cannot be treated as fallback truth for this cockpit path.
-- Negative: strict contract mapping can surface more `backendRequired` states when canonical feeds are incomplete.
+- Negative: strict contract mapping can surface more `backendRequired` or `error` states when canonical feeds are incomplete.
 
 ## Evidence / References
 
-- Approved INF-160 branch decisions for contract adoption (task context).
 - `docs/adr/ADR-004-dashboard-reporting-and-export-responsibility.md`
 - `docs/adr/ADR-005-service-and-api-integration-consistency-boundary.md`
+- `src/js/features/dashboard/dashboard.js`
+- `tests/dashboard/dashboardPageOrchestration.test.js`
 
 ## Open Verification Points
 
 - Validate canonical endpoint responses in target runtime environments.
-- Validate analytics snapshot and lazy-detail consistency for Fuzzy AHP (`/summary/dashboard-analytics` vs `/analysis/fuzzy-ahp`).
+- Validate that the deployed FE/runtime keeps owner failures local without cross-owner fallback.

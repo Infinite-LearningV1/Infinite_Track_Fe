@@ -3,7 +3,7 @@ function isDashboardRecapFilter(filter) {
     filter &&
     typeof filter === "object" &&
     typeof filter.category === "string" &&
-    typeof filter.analysis_type === "string"
+    (typeof filter.analysis_type === "string" || filter.analysis_type === null)
   );
 }
 
@@ -50,5 +50,17 @@ export function buildFahpDashboardRecapViewModel(response) {
     status: response.data.status,
     sections: response.data.sections,
     filter: response.filter,
+  };
+}
+
+export function createFahpRecapSliceState(response, request) {
+  const data = buildFahpDashboardRecapViewModel(response);
+
+  return {
+    status: data.status,
+    data,
+    error: null,
+    request,
+    meta: {},
   };
 }

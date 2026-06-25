@@ -25,6 +25,10 @@ import {
   normalizeDashboardPagination,
 } from "./dashboardTableState.js";
 import {
+  buildFahpRequestParams,
+  createDefaultFahpFilterState,
+} from "./fahpFilterState.js";
+import {
   generatePDFReport,
   generateExcelReport,
 } from "../../utils/reportGenerator.js";
@@ -42,6 +46,7 @@ import {
  */
 export function dashboard() {
   const defaultDashboardRange = createDefaultDashboardRange();
+  const defaultFahpFilterState = createDefaultFahpFilterState();
 
   return {
     // State management
@@ -55,6 +60,7 @@ export function dashboard() {
       { value: "current_month", label: "Current Month" },
     ],
     trendRange: "monthly",
+    fahpFilterState: { ...defaultFahpFilterState },
 
     // Pagination state
     pagination: createEmptyDashboardPagination(5),
@@ -1085,9 +1091,7 @@ export function dashboard() {
       );
     },
 
-    async loadFuzzyAhpDetail(
-      params = { type: "discipline", period: "monthly" },
-    ) {
+    async loadFuzzyAhpDetail(params = this.fahpFilterState) {
       const currentReportResponse = this.rawApiData
         ? {
             summary: this.rawApiData.summary,
@@ -1103,7 +1107,18 @@ export function dashboard() {
       });
 
       try {
-        const fuzzyAhpResponse = await this.fetchFuzzyAhpAnalysis(params);
+        const requestParams = buildFahpRequestParams({
+          ...params,
+          category: params?.category ?? params?.type ?? null,
+        });
+        this.fahpFilterState = {
+          ...createDefaultFahpFilterState(),
+          ...requestParams,
+        };
+        const fuzzyAhpResponse = await this.fetchFuzzyAhpAnalysis({
+          ...requestParams,
+          type: requestParams.category,
+        });
         this.fuzzyAhpResponse = fuzzyAhpResponse;
         this.fuzzyAhpError = null;
         this.applyCockpitSurfaceState({

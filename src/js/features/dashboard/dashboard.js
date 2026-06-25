@@ -4,6 +4,7 @@ import { getTodayLocations } from "../../services/todayLocationsService.js";
 import { getFuzzyAhpAnalysis } from "../../services/fuzzyAhpService.js";
 import { getGeofenceEvidence } from "../../services/geofenceEvidenceService.js";
 import {
+  buildDashboardSectionOrder,
   createDashboardCockpitErrorState,
   createDashboardCockpitLoadingState,
   createDashboardCockpitStateFromSources,
@@ -115,6 +116,7 @@ export function dashboard() {
     // Data properties
     summaryData: null,
     cockpit: createDashboardCockpitLoadingState(),
+    dashboardSectionOrder: buildDashboardSectionOrder(),
     dashboardMap: null,
     dashboardLeaflet: null,
     dashboardMapTileLayer: null,

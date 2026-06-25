@@ -134,6 +134,25 @@ const BOTTOM_PANEL_DEFINITIONS = [
   },
 ];
 
+const DASHBOARD_SECTION_DEFINITIONS = Object.freeze({
+  historicalOverview: {
+    key: "historicalOverview",
+    title: "Historical Overview",
+  },
+  geofenceEvidence: {
+    key: "geofenceEvidence",
+    title: "Geofence Evidence",
+  },
+  fahpRecap: {
+    key: "fahpRecap",
+    title: "FAHP Analysis Recap",
+  },
+  liveOperationsMap: {
+    key: "liveOperationsMap",
+    title: "Live Operations Map",
+  },
+});
+
 const HISTORICAL_TREND_CHART = Object.freeze({
   baselineY: 185,
   leftX: 24,
@@ -1760,6 +1779,66 @@ function buildGeofenceEvidencePanel(
   });
 }
 
+export function buildDashboardSectionOrder() {
+  return [
+    "historicalOverview",
+    "geofenceEvidence",
+    "fahpRecap",
+    "liveOperationsMap",
+  ];
+}
+
+function createDashboardSections({ hero, middlePanels, bottomPanels }) {
+  const historicalOverviewPanels = [];
+  const historicalTrendPanel = getMiddlePanelDefinition("historicalTrend")
+    ? middlePanels.find((panel) => panel.key === "historicalTrend")
+    : null;
+  const modeMixPanel = getMiddlePanelDefinition("modeMix")
+    ? middlePanels.find((panel) => panel.key === "modeMix")
+    : null;
+  const geofenceEvidencePanel = getBottomPanelDefinition("geofenceEvidence")
+    ? bottomPanels.find((panel) => panel.key === "geofenceEvidence")
+    : null;
+  const fuzzyAhpPanel = getBottomPanelDefinition("fuzzyAhp")
+    ? bottomPanels.find((panel) => panel.key === "fuzzyAhp")
+    : null;
+
+  if (historicalTrendPanel) {
+    historicalOverviewPanels.push(historicalTrendPanel);
+  }
+
+  if (modeMixPanel) {
+    historicalOverviewPanels.push(modeMixPanel);
+  }
+
+  return buildDashboardSectionOrder().map((sectionKey) => {
+    switch (sectionKey) {
+      case "historicalOverview":
+        return {
+          ...DASHBOARD_SECTION_DEFINITIONS.historicalOverview,
+          panels: historicalOverviewPanels,
+        };
+      case "geofenceEvidence":
+        return {
+          ...DASHBOARD_SECTION_DEFINITIONS.geofenceEvidence,
+          panels: geofenceEvidencePanel ? [geofenceEvidencePanel] : [],
+        };
+      case "fahpRecap":
+        return {
+          ...DASHBOARD_SECTION_DEFINITIONS.fahpRecap,
+          panels: fuzzyAhpPanel ? [fuzzyAhpPanel] : [],
+        };
+      case "liveOperationsMap":
+        return {
+          ...DASHBOARD_SECTION_DEFINITIONS.liveOperationsMap,
+          panels: hero ? [hero] : [],
+        };
+      default:
+        throw new Error(`Unsupported dashboard owner section: ${sectionKey}`);
+    }
+  });
+}
+
 function composeCockpit({ kpis, hero, middlePanels, bottomPanels }) {
   return {
     kpis,
@@ -1767,6 +1846,7 @@ function composeCockpit({ kpis, hero, middlePanels, bottomPanels }) {
     middlePanels,
     bottomPanels,
     panels: [hero, ...middlePanels, ...bottomPanels],
+    sections: createDashboardSections({ hero, middlePanels, bottomPanels }),
   };
 }
 

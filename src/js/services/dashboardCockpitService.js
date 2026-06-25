@@ -74,6 +74,7 @@ import {
 import {
   buildGeofenceEvidenceViewModel,
 } from "./dashboard/geofenceEvidenceSlice.js";
+import { buildLiveMapViewModel } from "./dashboard/liveMapSlice.js";
 
 const MAP_VIEW_SOURCE_KEY = "dashboard-analytics.map_context";
 const MAP_VIEW_SOURCE_NOTE =
@@ -1525,7 +1526,7 @@ function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
 }
 
 function buildTodayLocationsHeroPanel(
-  todayLocations = null,
+  todayLocationsResponse = null,
   todayLocationsError = null,
 ) {
   if (todayLocationsError) {
@@ -1537,7 +1538,7 @@ function buildTodayLocationsHeroPanel(
     });
   }
 
-  if (todayLocations === null) {
+  if (todayLocationsResponse === null) {
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
@@ -1547,7 +1548,7 @@ function buildTodayLocationsHeroPanel(
     });
   }
 
-  if (todayLocations === false) {
+  if (todayLocationsResponse === false) {
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
@@ -1557,27 +1558,28 @@ function buildTodayLocationsHeroPanel(
     });
   }
 
+  const liveMap = buildLiveMapViewModel(todayLocationsResponse);
   const locations = ensureUniqueMapLocationKeys(
-    todayLocations
+    liveMap.locations
       .map((point, index) =>
         createMapLocation(point, index, {
-          source: TODAY_LOCATIONS_SOURCE_KEY,
+          source: liveMap.authority,
           sourceNote: TODAY_LOCATIONS_SOURCE_NOTE,
           trackingNote: TODAY_LOCATIONS_TRACKING_NOTE,
         }),
       )
       .filter(Boolean),
   );
-  const unavailableCount = todayLocations.length - locations.length;
+  const unavailableCount = liveMap.locations.length - locations.length;
   const sharedData = {
     locations,
     unavailableCount,
-    totalRows: todayLocations.length,
-    source: TODAY_LOCATIONS_SOURCE_KEY,
+    totalRows: liveMap.locations.length,
+    source: liveMap.authority,
     tileProvider: "OpenStreetMap",
   };
 
-  if (todayLocations.length === 0) {
+  if (liveMap.locations.length === 0) {
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.EMPTY,
@@ -1592,7 +1594,7 @@ function buildTodayLocationsHeroPanel(
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
-      message: `Today locations backend feed returned ${todayLocations.length} row${todayLocations.length === 1 ? "" : "s"}, but none included valid coordinates.`,
+      message: `Today locations backend feed returned ${liveMap.locations.length} row${liveMap.locations.length === 1 ? "" : "s"}, but none included valid coordinates.`,
       note: "Live map will not invent coordinates from dashboard analytics or historical report rows.",
       data: sharedData,
     });

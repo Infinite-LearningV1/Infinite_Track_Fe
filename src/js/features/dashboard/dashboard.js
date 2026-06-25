@@ -10,6 +10,7 @@ import {
 } from "../../services/dashboardCockpitService.js";
 import { createHistoricalAnalyticsSliceState } from "../../services/dashboard/historicalAnalyticsSlice.js";
 import { createGeofenceEvidenceSliceState } from "../../services/dashboard/geofenceEvidenceSlice.js";
+import { createLiveMapSliceState } from "../../services/dashboard/liveMapSlice.js";
 import {
   buildDashboardRangeRequestParams,
   createDefaultDashboardRange,
@@ -289,12 +290,16 @@ export function dashboard() {
         analyticsResponse,
         analyticsRequestParams,
       );
+      const liveMapSlice = createLiveMapSliceState(
+        todayLocationsResponse,
+        analyticsRequestParams,
+      );
 
       this.rawApiData = {
         summary: response.summary,
         report: response.report,
         historicalAnalytics: historicalAnalyticsSlice,
-        todayLocations: todayLocationsResponse,
+        todayLocations: liveMapSlice,
         fuzzyAhp: fuzzyAhpResponse,
         geofenceEvidence: createGeofenceEvidenceSliceState(
           geofenceEvidenceResponse,

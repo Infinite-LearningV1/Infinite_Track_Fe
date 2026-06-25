@@ -56,3 +56,30 @@ test("cockpit hero consumes the dedicated live-map slice instead of rebuilding f
   assert.equal(cockpit.hero.data.locations.length, 1);
   assert.equal(cockpit.hero.data.locations[0].latitude, -0.9);
 });
+
+test("liveMapSlice preserves valid empty payloads while marking malformed payloads invalid", () => {
+  const validEmpty = buildLiveMapViewModel({ data: [] });
+  const malformed = buildLiveMapViewModel({ data: {} });
+
+  assert.deepEqual(validEmpty, {
+    locations: [],
+    authority: "attendance.today-locations",
+  });
+  assert.equal(malformed.locations, false);
+  assert.equal(malformed.authority, "attendance.today-locations");
+});
+
+test("cockpit hero does not collapse malformed today-locations payloads into the normal empty state", () => {
+  const validEmptyCockpit = createDashboardCockpitStateFromSources({
+    analyticsResponse: { data: {} },
+    todayLocations: createLiveMapSliceState({ data: [] }),
+  });
+  const malformedCockpit = createDashboardCockpitStateFromSources({
+    analyticsResponse: { data: {} },
+    todayLocations: createLiveMapSliceState({ data: {} }),
+  });
+
+  assert.equal(validEmptyCockpit.hero.state, "empty");
+  assert.equal(malformedCockpit.hero.state, "needsData");
+  assert.match(malformedCockpit.hero.message, /payload is invalid/i);
+});

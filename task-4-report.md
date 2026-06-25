@@ -76,3 +76,15 @@ DOCS/ADR UPDATE REQUIRED
 - Fresh verification summary:
   - `64` tests passed, `0` failed.
   - Node emitted existing `MODULE_TYPELESS_PACKAGE_JSON` warnings and existing test-log noise from mocked dashboard flows, but the command exited successfully.
+
+## Fix-wave 2 notes
+- Root cause: `buildLiveMapViewModel(response)` normalized unsupported payloads like `{ data: {} }` to `locations: []`, so malformed backend data became indistinguishable from a valid empty today-locations feed.
+- Narrow fix applied in `src/js/services/dashboard/liveMapSlice.js`: preserve supported shapes (raw array, `{ data: [] }`, `{ data: { data: [] } }`) but mark other non-null payload shapes as invalid with `locations: false`.
+- Added targeted regression coverage in `tests/dashboard/liveMapSlice.test.js` proving both behaviors:
+  - valid empty payloads still produce the normal empty-state path
+  - malformed payloads now produce the invalid-payload path instead of collapsing into empty
+- Fresh verification command:
+  - `node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/liveMapSlice.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/services/dashboardCockpitService.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/features/dashboard/dashboardCockpitState.test.js"`
+- Fresh verification summary:
+  - `66` tests passed, `0` failed.
+  - Node emitted the existing `MODULE_TYPELESS_PACKAGE_JSON` warnings plus existing mocked-flow console noise and geofence invalid-URL test noise, but the command exited successfully.

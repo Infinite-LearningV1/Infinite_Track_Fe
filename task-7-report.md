@@ -37,15 +37,17 @@
 
 ## Fix wave — review findings addressed
 - Root cause for the critical finding: `createDashboardPageState().loadDashboard()` used `Promise.all(...)` directly over slice fetchers, so any rejected slice promise aborted the entire dashboard orchestration update before unrelated slices could publish their own states.
-- Root cause for the important finding: runtime `pageState` fetchers for historical/geofence/live-map/FAHP were only projecting already-cached component fields via `build*SliceState(...)`; the `refreshFahpRecap()` path was not a real fetch path and could not independently re-request FAHP data.
+- Root cause for the important finding: runtime `pageState` fetchers for historical/geofence/live-map` in `src/js/features/dashboard/dashboard.js` were only projecting already-cached component fields via `build*SliceState(...)`; only the FAHP path performed a real owner fetch, so the runtime orchestration model was still mostly a projection layer.
 - Narrow fix applied:
-  - wrapped page-state slice fetches with per-slice error resolution so rejected slice requests become local `{ status: "error" }` states instead of collapsing the whole dashboard update;
-  - rewired runtime `fetchFahpRecap` to call `fetchFuzzyAhpAnalysis(buildFahpRequestParams(...))`, persist the FAHP-only response back into owner-local state, and return the resulting FAHP slice;
-  - changed `loadFuzzyAhpDetail()` to use `pageState.refreshFahpRecap(requestParams)` so FAHP refresh now flows through its own isolated fetch path rather than a global dashboard reload or cached-state projection;
-  - removed runtime `syncPageState()` mirroring so cockpit projection no longer pretends to be independent slice orchestration.
+  - kept per-slice error resolution around `Promise.all(...)` so rejected slice requests become local `{ status: "error" }` states instead of collapsing the whole dashboard update;
+  - rewired runtime `fetchHistorical`, `fetchGeofence`, and `fetchLiveMap` in `dashboard.js:init()` to call their real owner fetch paths, persist owner-local raw state, and return fresh slice states instead of mirroring existing component cache;
+  - kept `fetchFahpRecap` as the independent FAHP owner fetch path, persisting `rawApiData.fahpRecap` and returning the refreshed FAHP slice;
+  - kept `loadFuzzyAhpDetail()` on `pageState.refreshFahpRecap(requestParams)` so FAHP refresh stays isolated from global dashboard reload.
 - Regression coverage added:
   - `loadDashboard keeps a rejected geofence fetch local while other slices still update`
   - `refreshFahpRecap refetches only the FAHP slice without reloading the dashboard`
+  - `dashboard init wires pageState to real owner fetch paths instead of cached projections`
 - Verification commands and output summary:
   - `node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/dashboardPageOrchestration.test.js"` → `pass 2`, `fail 0`
   - `node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/fahpRecapSlice.test.js"` → `pass 2`, `fail 0`
+  - `node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard-period-state.test.js"` → `pass 4`, `fail 0`

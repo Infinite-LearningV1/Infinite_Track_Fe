@@ -25,8 +25,30 @@ function createDashboardComponent() {
       },
     };
   };
-  component.fetchDashboardAnalytics = async () => ({ analytics: {} });
-  component.fetchTodayLocations = async () => ({ locations: [] });
+  component.fetchDashboardAnalytics = async () => ({
+    data: {
+      executive_kpis: {},
+      historical_trend: { points: [] },
+      mode_mix: { totals: {}, percentages: {} },
+      insights: { items: [] },
+    },
+  });
+  component.fetchGeofenceEvidence = async () => ({
+    data: {
+      status: "empty",
+      raw_counts: {
+        total_events: 0,
+        enter_events: 0,
+        exit_events: 0,
+        unique_users: 0,
+      },
+      authority: "attendance.geofence-evidence",
+      final_attendance_authority: "attendance.summary-report",
+      reason: null,
+      needs_data: false,
+    },
+  });
+  component.fetchTodayLocations = async () => ({ data: [] });
   component.showNotification = (message, type = "info") => {
     notifications.push({ message, type });
   };
@@ -87,4 +109,77 @@ test("dashboard searchQuery is trimmed and passed to summary report service path
   assert.equal(summaryCalls.length, 1);
   assert.equal(summaryCalls[0].search, "Alice Admin");
   assert.equal(Object.hasOwn(summaryCalls[0], "q"), false);
+});
+
+test("dashboard init wires pageState to real owner fetch paths instead of cached projections", async () => {
+  const { component } = createDashboardComponent();
+  const calls = [];
+
+  component.fetchSummaryReport = async () => ({
+    summary: {
+      total_ontime: 0,
+      total_late: 0,
+      total_alpha: 0,
+      total_wfo: 0,
+      total_wfh: 0,
+      total_wfa: 0,
+    },
+    report: {
+      data: [],
+      pagination: {},
+    },
+  });
+  component.fetchDashboardAnalytics = async () => {
+    calls.push("historical");
+    return {
+      data: {
+        executive_kpis: {},
+        historical_trend: { points: [] },
+        mode_mix: { totals: {}, percentages: {} },
+        insights: { items: [] },
+      },
+    };
+  };
+  component.fetchGeofenceEvidence = async () => {
+    calls.push("geofence");
+    return {
+      data: {
+        status: "empty",
+        raw_counts: {
+          total_events: 0,
+          enter_events: 0,
+          exit_events: 0,
+          unique_users: 0,
+        },
+        authority: "attendance.geofence-evidence",
+        final_attendance_authority: "attendance.summary-report",
+        reason: null,
+        needs_data: false,
+      },
+    };
+  };
+  component.fetchTodayLocations = async () => {
+    calls.push("liveMap");
+    return { data: [] };
+  };
+  component.fetchFuzzyAhpAnalysis = async () => {
+    calls.push("fahp");
+    return {
+      filter: {
+        category: "discipline",
+        analysis_type: null,
+      },
+      data: {
+        status: "ready",
+        sections: [],
+      },
+    };
+  };
+
+  await component.init();
+  calls.length = 0;
+
+  await component.pageState.loadDashboard();
+
+  assert.deepEqual(calls, ["historical", "geofence", "liveMap", "fahp"]);
 });

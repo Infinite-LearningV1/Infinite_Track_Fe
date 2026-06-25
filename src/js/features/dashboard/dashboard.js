@@ -198,11 +198,54 @@ export function dashboard() {
      */
     async init() {
       this.pageState = createDashboardPageState({
-        fetchHistorical: async () =>
-          this.buildHistoricalSliceState(this.dashboardAnalyticsResponse),
-        fetchGeofence: async () =>
-          this.buildGeofenceSliceState(this.geofenceEvidenceResponse),
-        fetchLiveMap: async () => this.buildLiveMapSliceState(this.todayLocations),
+        fetchHistorical: async () => {
+          const requestParams = this.getDashboardAnalyticsRequestParams();
+          const response = await this.fetchDashboardAnalytics(requestParams);
+          const sliceState = createHistoricalAnalyticsSliceState(
+            response,
+            requestParams,
+          );
+
+          this.dashboardAnalyticsResponse = sliceState.response;
+          this.dashboardAnalyticsError = null;
+          this.rawApiData = {
+            ...(this.rawApiData || {}),
+            historicalAnalytics: sliceState,
+          };
+
+          return this.buildHistoricalSliceState(sliceState.response);
+        },
+        fetchGeofence: async () => {
+          const requestParams = this.getDashboardAnalyticsRequestParams();
+          const response = await this.fetchGeofenceEvidence(requestParams);
+          const sliceState = createGeofenceEvidenceSliceState(
+            response,
+            requestParams,
+          );
+
+          this.geofenceEvidenceResponse = sliceState.response;
+          this.geofenceEvidenceError = null;
+          this.rawApiData = {
+            ...(this.rawApiData || {}),
+            geofenceEvidence: sliceState,
+          };
+
+          return this.buildGeofenceSliceState(sliceState.response);
+        },
+        fetchLiveMap: async () => {
+          const requestParams = this.getDashboardAnalyticsRequestParams();
+          const response = await this.fetchTodayLocations();
+          const sliceState = createLiveMapSliceState(response, requestParams);
+
+          this.todayLocations = sliceState;
+          this.todayLocationsError = null;
+          this.rawApiData = {
+            ...(this.rawApiData || {}),
+            todayLocations: sliceState,
+          };
+
+          return this.buildLiveMapSliceState(sliceState);
+        },
         fetchFahpRecap: async (params = this.fahpFilterState) => {
           const requestParams = buildFahpRequestParams(params);
           const nextFilterState = {

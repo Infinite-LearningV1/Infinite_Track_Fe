@@ -71,6 +71,9 @@ const KPI_DEFINITIONS = [
 import {
   buildHistoricalAnalyticsViewModel,
 } from "./dashboard/historicalAnalyticsSlice.js";
+import {
+  buildGeofenceEvidenceViewModel,
+} from "./dashboard/geofenceEvidenceSlice.js";
 
 const MAP_VIEW_SOURCE_KEY = "dashboard-analytics.map_context";
 const MAP_VIEW_SOURCE_NOTE =
@@ -1697,12 +1700,60 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
   });
 }
 
-function buildGeofenceEvidencePanel() {
+function buildGeofenceEvidencePanel(
+  geofenceEvidenceResponse = null,
+  geofenceEvidenceError = null,
+) {
+  if (geofenceEvidenceError) {
+    return createPanel({
+      ...getBottomPanelDefinition("geofenceEvidence"),
+      state: DASHBOARD_PANEL_STATES.ERROR,
+      message: `${getAnalyticsErrorMessage(geofenceEvidenceError)} Geofence evidence remains unavailable until the explicit backend feed succeeds.`,
+      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+    });
+  }
+
+  if (geofenceEvidenceResponse === null) {
+    return createPanel({
+      ...getBottomPanelDefinition("geofenceEvidence"),
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message: "Geofence evidence backend feed is not available for the active period.",
+      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+    });
+  }
+
+  const geofenceEvidence = buildGeofenceEvidenceViewModel(geofenceEvidenceResponse);
+
+  if (geofenceEvidence.needsData) {
+    return createPanel({
+      ...getBottomPanelDefinition("geofenceEvidence"),
+      state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
+      message:
+        geofenceEvidence.reason ||
+        "Geofence evidence backend payload requires more data for this period.",
+      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+      data: geofenceEvidence,
+    });
+  }
+
+  if (geofenceEvidence.status === "empty") {
+    return createPanel({
+      ...getBottomPanelDefinition("geofenceEvidence"),
+      state: DASHBOARD_PANEL_STATES.EMPTY,
+      message:
+        geofenceEvidence.reason ||
+        "Geofence evidence backend feed returned no supporting events for the active period.",
+      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+      data: geofenceEvidence,
+    });
+  }
+
   return createPanel({
     ...getBottomPanelDefinition("geofenceEvidence"),
-    state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
-    message: "Geofence evidence data is not available for the active period.",
-    note: "Geofence events are supporting evidence, not final attendance validation.",
+    state: DASHBOARD_PANEL_STATES.READY,
+    detail: `${geofenceEvidence.rawCounts.total_events} supporting geofence events for the active period. Final attendance authority remains ${geofenceEvidence.finalAttendanceAuthority || "unavailable"}.`,
+    note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+    data: geofenceEvidence,
   });
 }
 
@@ -1743,6 +1794,8 @@ export function createDashboardCockpitStateFromSources({
   todayLocationsError = null,
   fuzzyAhpResponse = null,
   fuzzyAhpError = null,
+  geofenceEvidenceResponse = null,
+  geofenceEvidenceError = null,
 } = {}) {
   const analytics = normalizeCockpitAnalyticsResponse(analyticsResponse);
   const todayLocations = normalizeTodayLocationsResponse(
@@ -1764,7 +1817,10 @@ export function createDashboardCockpitStateFromSources({
     ],
     bottomPanels: [
       buildExplicitFuzzyAhpPanel(fuzzyAhp, fuzzyAhpError),
-      buildGeofenceEvidencePanel(),
+      buildGeofenceEvidencePanel(
+        geofenceEvidenceResponse,
+        geofenceEvidenceError,
+      ),
     ],
   });
 }
@@ -1777,6 +1833,8 @@ export async function loadDashboardCockpitState({
   todayLocationsError = null,
   fuzzyAhpResponse = null,
   fuzzyAhpError = null,
+  geofenceEvidenceResponse = null,
+  geofenceEvidenceError = null,
 } = {}) {
   return createDashboardCockpitStateFromSources({
     reportResponse,
@@ -1786,6 +1844,8 @@ export async function loadDashboardCockpitState({
     todayLocationsError,
     fuzzyAhpResponse,
     fuzzyAhpError,
+    geofenceEvidenceResponse,
+    geofenceEvidenceError,
   });
 }
 

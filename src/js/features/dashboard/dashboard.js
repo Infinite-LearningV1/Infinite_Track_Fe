@@ -2,12 +2,14 @@ import { getSummaryReport } from "../../services/reportService.js";
 import { getDashboardAnalytics } from "../../services/dashboardAnalyticsService.js";
 import { getTodayLocations } from "../../services/todayLocationsService.js";
 import { getFuzzyAhpAnalysis } from "../../services/fuzzyAhpService.js";
+import { getGeofenceEvidence } from "../../services/geofenceEvidenceService.js";
 import {
   createDashboardCockpitErrorState,
   createDashboardCockpitLoadingState,
   createDashboardCockpitStateFromSources,
 } from "../../services/dashboardCockpitService.js";
 import { createHistoricalAnalyticsSliceState } from "../../services/dashboard/historicalAnalyticsSlice.js";
+import { createGeofenceEvidenceSliceState } from "../../services/dashboard/geofenceEvidenceSlice.js";
 import {
   buildDashboardRangeRequestParams,
   createDefaultDashboardRange,
@@ -90,10 +92,13 @@ export function dashboard() {
     todayLocationsError: null,
     fuzzyAhpResponse: null,
     fuzzyAhpError: null,
+    geofenceEvidenceResponse: null,
+    geofenceEvidenceError: null,
     fetchSummaryReport: getSummaryReport,
     fetchDashboardAnalytics: getDashboardAnalytics,
     fetchTodayLocations: getTodayLocations,
     fetchFuzzyAhpAnalysis: getFuzzyAhpAnalysis,
+    fetchGeofenceEvidence: getGeofenceEvidence,
 
     // Export state
     isExporting: false,
@@ -180,6 +185,8 @@ export function dashboard() {
       todayLocationsError = null,
       fuzzyAhpResponse = null,
       fuzzyAhpError = null,
+      geofenceEvidenceResponse = null,
+      geofenceEvidenceError = null,
     ) {
       if (!response?.summary) {
         this.handleEmptyApiResponse();
@@ -196,6 +203,7 @@ export function dashboard() {
       };
       const reportData = response.report?.data || response.report || [];
       const reportPagination = response.report?.pagination || {};
+      const analyticsRequestParams = this.getDashboardAnalyticsRequestParams();
 
       this.cockpit = createDashboardCockpitStateFromSources({
         reportResponse: response,
@@ -205,6 +213,8 @@ export function dashboard() {
         todayLocationsError,
         fuzzyAhpResponse,
         fuzzyAhpError,
+        geofenceEvidenceResponse,
+        geofenceEvidenceError,
       });
       this.pagination = normalizeDashboardPagination(
         reportPagination,
@@ -277,7 +287,7 @@ export function dashboard() {
       };
       const historicalAnalyticsSlice = createHistoricalAnalyticsSliceState(
         analyticsResponse,
-        this.getDashboardAnalyticsRequestParams(),
+        analyticsRequestParams,
       );
 
       this.rawApiData = {
@@ -286,6 +296,10 @@ export function dashboard() {
         historicalAnalytics: historicalAnalyticsSlice,
         todayLocations: todayLocationsResponse,
         fuzzyAhp: fuzzyAhpResponse,
+        geofenceEvidence: createGeofenceEvidenceSliceState(
+          geofenceEvidenceResponse,
+          analyticsRequestParams,
+        ),
       };
       this.dashboardAnalyticsResponse = historicalAnalyticsSlice.response;
       this.dashboardAnalyticsError = analyticsError;
@@ -293,6 +307,8 @@ export function dashboard() {
       this.todayLocationsError = todayLocationsError;
       this.fuzzyAhpResponse = fuzzyAhpResponse;
       this.fuzzyAhpError = fuzzyAhpError;
+      this.geofenceEvidenceResponse = geofenceEvidenceResponse;
+      this.geofenceEvidenceError = geofenceEvidenceError;
       this.queueDashboardMapRender();
     },
 
@@ -326,6 +342,8 @@ export function dashboard() {
       todayLocationsError = this.todayLocationsError,
       fuzzyAhpResponse = this.fuzzyAhpResponse,
       fuzzyAhpError = this.fuzzyAhpError,
+      geofenceEvidenceResponse = this.geofenceEvidenceResponse,
+      geofenceEvidenceError = this.geofenceEvidenceError,
     } = {}) {
       this.cockpit = createDashboardCockpitStateFromSources({
         reportResponse,
@@ -335,6 +353,8 @@ export function dashboard() {
         todayLocationsError,
         fuzzyAhpResponse,
         fuzzyAhpError,
+        geofenceEvidenceResponse,
+        geofenceEvidenceError,
       });
     },
 
@@ -352,6 +372,8 @@ export function dashboard() {
       this.todayLocationsError = null;
       this.fuzzyAhpResponse = null;
       this.fuzzyAhpError = null;
+      this.geofenceEvidenceResponse = null;
+      this.geofenceEvidenceError = null;
       this.reportData = [];
       this.pagination = createEmptyDashboardPagination(
         this.pagination?.per_page || this.filters.limit,
@@ -771,14 +793,19 @@ export function dashboard() {
         const requests = [
           this.fetchSummaryReport(reportRequestParams),
           this.fetchDashboardAnalytics(analyticsRequestParams),
+          this.fetchGeofenceEvidence(analyticsRequestParams),
         ];
 
         if (includeTodayLocations) {
           requests.push(this.fetchTodayLocations());
         }
 
-        const [reportResult, analyticsResult, todayLocationsResult] =
-          await Promise.allSettled(requests);
+        const [
+          reportResult,
+          analyticsResult,
+          geofenceEvidenceResult,
+          todayLocationsResult,
+        ] = await Promise.allSettled(requests);
 
         if (reportResult.status !== "fulfilled") {
           throw reportResult.reason;
@@ -790,6 +817,14 @@ export function dashboard() {
           analyticsResult.status === "fulfilled"
             ? null
             : analyticsResult.reason;
+        const geofenceEvidenceResponse =
+          geofenceEvidenceResult.status === "fulfilled"
+            ? geofenceEvidenceResult.value
+            : null;
+        const geofenceEvidenceError =
+          geofenceEvidenceResult.status === "fulfilled"
+            ? null
+            : geofenceEvidenceResult.reason;
         const todayLocationsResponse = includeTodayLocations
           ? todayLocationsResult.status === "fulfilled"
             ? todayLocationsResult.value
@@ -815,6 +850,13 @@ export function dashboard() {
           );
         }
 
+        if (geofenceEvidenceError) {
+          console.warn(
+            "Geofence evidence request failed; evidence panel will stay truthful to the missing backend feed:",
+            geofenceEvidenceError,
+          );
+        }
+
         console.log(
           `Dashboard API calls made with report period='${this.filters.period}' and analytics range='${this.dashboardRange}'`,
         );
@@ -826,6 +868,8 @@ export function dashboard() {
           todayLocationsError,
           this.fuzzyAhpResponse,
           this.fuzzyAhpError,
+          geofenceEvidenceResponse,
+          geofenceEvidenceError,
         );
         console.log("Summary data loaded successfully:", this.summaryData);
         console.log("Attendance data mapped:", this.attendanceData);
@@ -1499,6 +1543,8 @@ export function dashboard() {
       this.todayLocationsError = null;
       this.fuzzyAhpResponse = null;
       this.fuzzyAhpError = null;
+      this.geofenceEvidenceResponse = null;
+      this.geofenceEvidenceError = null;
       this.attendanceData = [];
       this.reportData = [];
 

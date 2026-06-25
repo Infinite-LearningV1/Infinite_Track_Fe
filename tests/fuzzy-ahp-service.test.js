@@ -7,7 +7,7 @@ import {
   getFuzzyAhpAnalysis,
 } from "../src/js/services/fuzzyAhpService.js";
 
-test("FuzzyAhpService#getFuzzyAhpAnalysis requests canonical endpoint with type/period params", async () => {
+test("FuzzyAhpService#getFuzzyAhpAnalysis requests dashboard recap endpoint with independent filter params", async () => {
   const seenConfigs = [];
   const service = new FuzzyAhpService(async (config) => {
     seenConfigs.push(config);
@@ -15,17 +15,17 @@ test("FuzzyAhpService#getFuzzyAhpAnalysis requests canonical endpoint with type/
   });
 
   const response = await service.getFuzzyAhpAnalysis({
-    type: "discipline",
-    period: "weekly",
+    category: "discipline",
+    analysis_type: null,
   });
 
   assert.deepEqual(seenConfigs, [
     {
       method: "get",
-      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp`,
+      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/dashboard-recap`,
       params: {
-        type: "discipline",
-        period: "weekly",
+        category: "discipline",
+        analysis_type: null,
       },
     },
   ]);
@@ -34,21 +34,21 @@ test("FuzzyAhpService#getFuzzyAhpAnalysis requests canonical endpoint with type/
   });
 });
 
-test("FuzzyAhpService#getFuzzyAhpAnalysis rejects invalid type", async () => {
+test("FuzzyAhpService#getFuzzyAhpAnalysis rejects invalid category", async () => {
   const service = new FuzzyAhpService(async () => ({ data: {} }));
 
   await assert.rejects(
-    service.getFuzzyAhpAnalysis({ type: "invalid-type" }),
-    /invalid type/i,
+    service.getFuzzyAhpAnalysis({ category: "invalid-type" }),
+    /invalid category/i,
   );
 });
 
-test("FuzzyAhpService#getFuzzyAhpAnalysis rejects invalid period", async () => {
+test("FuzzyAhpService#getFuzzyAhpAnalysis rejects invalid analysis_type", async () => {
   const service = new FuzzyAhpService(async () => ({ data: {} }));
 
   await assert.rejects(
-    service.getFuzzyAhpAnalysis({ type: "wfa", period: "daily" }),
-    /invalid period/i,
+    service.getFuzzyAhpAnalysis({ category: "wfa", analysis_type: "daily" }),
+    /invalid analysis_type/i,
   );
 });
 
@@ -59,11 +59,23 @@ test("FuzzyAhpService#getFuzzyAhpAnalysis propagates request errors", async () =
   });
 
   await assert.rejects(
-    service.getFuzzyAhpAnalysis({ type: "smart_ac", period: "monthly" }),
+    service.getFuzzyAhpAnalysis({
+      category: "smart_ac",
+      analysis_type: "summary",
+    }),
     (error) => {
       assert.equal(error, requestError);
       return true;
     },
+  );
+});
+
+test("FuzzyAhpService#getFuzzyAhpAnalysis rejects legacy type semantics without category", async () => {
+  const service = new FuzzyAhpService(async () => ({ data: {} }));
+
+  await assert.rejects(
+    service.getFuzzyAhpAnalysis({ type: "discipline" }),
+    /invalid category/i,
   );
 });
 

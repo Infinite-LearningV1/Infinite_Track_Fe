@@ -68,6 +68,14 @@ const KPI_DEFINITIONS = [
   }),
 ];
 
+import {
+  buildHistoricalAnalyticsViewModel,
+} from "./dashboard/historicalAnalyticsSlice.js";
+import {
+  buildGeofenceEvidenceViewModel,
+} from "./dashboard/geofenceEvidenceSlice.js";
+import { buildLiveMapViewModel } from "./dashboard/liveMapSlice.js";
+
 const MAP_VIEW_SOURCE_KEY = "dashboard-analytics.map_context";
 const MAP_VIEW_SOURCE_NOTE =
   "Map context is a backend analytics snapshot for dashboard context.";
@@ -125,6 +133,25 @@ const BOTTOM_PANEL_DEFINITIONS = [
     subtitle: "ENTER / EXIT + attendance evidence",
   },
 ];
+
+const DASHBOARD_SECTION_DEFINITIONS = Object.freeze({
+  historicalOverview: {
+    key: "historicalOverview",
+    title: "Historical Overview",
+  },
+  geofenceEvidence: {
+    key: "geofenceEvidence",
+    title: "Geofence Evidence",
+  },
+  fahpRecap: {
+    key: "fahpRecap",
+    title: "FAHP Analysis Recap",
+  },
+  liveOperationsMap: {
+    key: "liveOperationsMap",
+    title: "Live Operations Map",
+  },
+});
 
 const HISTORICAL_TREND_CHART = Object.freeze({
   baselineY: 185,
@@ -594,8 +621,17 @@ function hasExplicitAnalytics(analytics = null) {
   );
 }
 
+function hasExplicitAnalyticsField(analytics = null, fieldName) {
+  return Boolean(
+    analytics &&
+      typeof analytics === "object" &&
+      !Array.isArray(analytics) &&
+      Object.prototype.hasOwnProperty.call(analytics, fieldName),
+  );
+}
+
 function getExecutiveKpis(analytics = null) {
-  const executiveKpis = analytics?.executive_kpis ?? analytics?.executiveKpis;
+  const executiveKpis = buildHistoricalAnalyticsViewModel(analytics).kpis;
 
   return executiveKpis &&
     typeof executiveKpis === "object" &&
@@ -614,7 +650,7 @@ function getExecutiveRawCounts(analytics = null) {
 }
 
 function getModeMix(analytics = null) {
-  const modeMix = analytics?.mode_mix ?? analytics?.modeMix;
+  const modeMix = buildHistoricalAnalyticsViewModel(analytics).modeMix;
 
   return modeMix && typeof modeMix === "object" && !Array.isArray(modeMix)
     ? modeMix
@@ -883,6 +919,15 @@ function buildModeMixPanel(analytics = null, analyticsError = null) {
   }
 
   if (!hasExplicitAnalytics(analytics)) {
+    return createPanel({
+      ...getMiddlePanelDefinition("modeMix"),
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message:
+        "Attendance mode mix waits for explicit dashboard analytics mode_mix.",
+    });
+  }
+
+  if (!hasExplicitAnalyticsField(analytics, "mode_mix")) {
     return createPanel({
       ...getMiddlePanelDefinition("modeMix"),
       state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
@@ -1188,8 +1233,7 @@ function createHistoricalTrendRangeFromPoints(points) {
 }
 
 function normalizeHistoricalTrend(analytics = null) {
-  const trendPayload =
-    analytics?.historical_trend ?? analytics?.historicalTrend;
+  const trendPayload = buildHistoricalAnalyticsViewModel(analytics).trend;
 
   if (!trendPayload) {
     return null;
@@ -1259,6 +1303,14 @@ function buildHistoricalTrendPanel(analytics = null, analyticsError = null) {
       message: `${getAnalyticsErrorMessage(analyticsError)} Historical attendance trend remains unavailable until the explicit analytics response succeeds.`,
       note: "Web FE will not derive trend from summary totals or split merged late/alpha risk series.",
     });
+  }
+
+  if (!hasExplicitAnalytics(analytics)) {
+    return buildPreviewHistoricalTrendPanel();
+  }
+
+  if (!hasExplicitAnalyticsField(analytics, "historical_trend")) {
+    return buildPreviewHistoricalTrendPanel();
   }
 
   const normalizedTrend = normalizeHistoricalTrend(analytics);
@@ -1434,40 +1486,6 @@ function buildFuzzyAhpPanel() {
   });
 }
 
-function normalizeTodayLocationsResponse(todayLocationsResponse = null) {
-  if (
-    todayLocationsResponse === null ||
-    typeof todayLocationsResponse === "undefined"
-  ) {
-    return null;
-  }
-
-  if (Array.isArray(todayLocationsResponse)) {
-    return todayLocationsResponse;
-  }
-
-  if (
-    typeof todayLocationsResponse !== "object" ||
-    Array.isArray(todayLocationsResponse)
-  ) {
-    return false;
-  }
-
-  if (Array.isArray(todayLocationsResponse.data)) {
-    return todayLocationsResponse.data;
-  }
-
-  if (
-    todayLocationsResponse.data &&
-    typeof todayLocationsResponse.data === "object" &&
-    !Array.isArray(todayLocationsResponse.data) &&
-    Array.isArray(todayLocationsResponse.data.data)
-  ) {
-    return todayLocationsResponse.data.data;
-  }
-
-  return false;
-}
 
 function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
   if (fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined") {
@@ -1484,6 +1502,41 @@ function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
     !Array.isArray(fuzzyAhpResponse.data)
       ? fuzzyAhpResponse.data
       : fuzzyAhpResponse;
+
+  if (
+    responsePayload &&
+    typeof responsePayload === "object" &&
+    !Array.isArray(responsePayload) &&
+    Array.isArray(responsePayload.sections)
+  ) {
+    const section = responsePayload.sections[0] ?? null;
+    const distribution =
+      section?.distribution &&
+      typeof section.distribution === "object" &&
+      !Array.isArray(section.distribution)
+        ? section.distribution
+        : null;
+    const rankings = distribution
+      ? Object.entries(distribution)
+          .map(([label, score]) =>
+            typeof score === "number" && Number.isFinite(score)
+              ? { label, score }
+              : null,
+          )
+          .filter(Boolean)
+      : null;
+
+    return rankings && rankings.length > 0
+      ? {
+          consistency_ratio:
+            typeof section?.consistency === "number" &&
+            Number.isFinite(section.consistency)
+              ? section.consistency
+              : null,
+          rankings,
+        }
+      : false;
+  }
 
   return responsePayload &&
     typeof responsePayload === "object" &&
@@ -1515,7 +1568,8 @@ function buildTodayLocationsHeroPanel(
     });
   }
 
-  if (todayLocations === false) {
+  const liveMap = buildLiveMapViewModel(todayLocations);
+  if (!Array.isArray(liveMap.locations)) {
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
@@ -1526,26 +1580,26 @@ function buildTodayLocationsHeroPanel(
   }
 
   const locations = ensureUniqueMapLocationKeys(
-    todayLocations
+    liveMap.locations
       .map((point, index) =>
         createMapLocation(point, index, {
-          source: TODAY_LOCATIONS_SOURCE_KEY,
+          source: liveMap.authority,
           sourceNote: TODAY_LOCATIONS_SOURCE_NOTE,
           trackingNote: TODAY_LOCATIONS_TRACKING_NOTE,
         }),
       )
       .filter(Boolean),
   );
-  const unavailableCount = todayLocations.length - locations.length;
+  const unavailableCount = liveMap.locations.length - locations.length;
   const sharedData = {
     locations,
     unavailableCount,
-    totalRows: todayLocations.length,
-    source: TODAY_LOCATIONS_SOURCE_KEY,
+    totalRows: liveMap.locations.length,
+    source: liveMap.authority,
     tileProvider: "OpenStreetMap",
   };
 
-  if (todayLocations.length === 0) {
+  if (liveMap.locations.length === 0) {
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.EMPTY,
@@ -1560,7 +1614,7 @@ function buildTodayLocationsHeroPanel(
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
-      message: `Today locations backend feed returned ${todayLocations.length} row${todayLocations.length === 1 ? "" : "s"}, but none included valid coordinates.`,
+      message: `Today locations backend feed returned ${liveMap.locations.length} row${liveMap.locations.length === 1 ? "" : "s"}, but none included valid coordinates.`,
       note: "Live map will not invent coordinates from dashboard analytics or historical report rows.",
       data: sharedData,
     });
@@ -1668,12 +1722,120 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
   });
 }
 
-function buildGeofenceEvidencePanel() {
+function buildGeofenceEvidencePanel(
+  geofenceEvidenceResponse = null,
+  geofenceEvidenceError = null,
+) {
+  if (geofenceEvidenceError) {
+    return createPanel({
+      ...getBottomPanelDefinition("geofenceEvidence"),
+      state: DASHBOARD_PANEL_STATES.ERROR,
+      message: `${getAnalyticsErrorMessage(geofenceEvidenceError)} Geofence evidence remains unavailable until the explicit backend feed succeeds.`,
+      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+    });
+  }
+
+  if (geofenceEvidenceResponse === null) {
+    return createPanel({
+      ...getBottomPanelDefinition("geofenceEvidence"),
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message: "Geofence evidence backend feed is not available for the active period.",
+      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+    });
+  }
+
+  const geofenceEvidence = buildGeofenceEvidenceViewModel(geofenceEvidenceResponse);
+
+  if (geofenceEvidence.needsData) {
+    return createPanel({
+      ...getBottomPanelDefinition("geofenceEvidence"),
+      state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
+      message:
+        geofenceEvidence.reason ||
+        "Geofence evidence backend payload requires more data for this period.",
+      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+      data: geofenceEvidence,
+    });
+  }
+
+  if (geofenceEvidence.status === "empty") {
+    return createPanel({
+      ...getBottomPanelDefinition("geofenceEvidence"),
+      state: DASHBOARD_PANEL_STATES.EMPTY,
+      message:
+        geofenceEvidence.reason ||
+        "Geofence evidence backend feed returned no supporting events for the active period.",
+      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+      data: geofenceEvidence,
+    });
+  }
+
   return createPanel({
     ...getBottomPanelDefinition("geofenceEvidence"),
-    state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
-    message: "Geofence evidence data is not available for the active period.",
-    note: "Geofence events are supporting evidence, not final attendance validation.",
+    state: DASHBOARD_PANEL_STATES.READY,
+    detail: `${geofenceEvidence.rawCounts.total_events} supporting geofence events for the active period. Final attendance authority remains ${geofenceEvidence.finalAttendanceAuthority || "unavailable"}.`,
+    note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+    data: geofenceEvidence,
+  });
+}
+
+export function buildDashboardSectionOrder() {
+  return [
+    "historicalOverview",
+    "geofenceEvidence",
+    "fahpRecap",
+    "liveOperationsMap",
+  ];
+}
+
+function createDashboardSections({ hero, middlePanels, bottomPanels }) {
+  const historicalOverviewPanels = [];
+  const historicalTrendPanel = getMiddlePanelDefinition("historicalTrend")
+    ? middlePanels.find((panel) => panel.key === "historicalTrend")
+    : null;
+  const modeMixPanel = getMiddlePanelDefinition("modeMix")
+    ? middlePanels.find((panel) => panel.key === "modeMix")
+    : null;
+  const geofenceEvidencePanel = getBottomPanelDefinition("geofenceEvidence")
+    ? bottomPanels.find((panel) => panel.key === "geofenceEvidence")
+    : null;
+  const fuzzyAhpPanel = getBottomPanelDefinition("fuzzyAhp")
+    ? bottomPanels.find((panel) => panel.key === "fuzzyAhp")
+    : null;
+
+  if (historicalTrendPanel) {
+    historicalOverviewPanels.push(historicalTrendPanel);
+  }
+
+  if (modeMixPanel) {
+    historicalOverviewPanels.push(modeMixPanel);
+  }
+
+  return buildDashboardSectionOrder().map((sectionKey) => {
+    switch (sectionKey) {
+      case "historicalOverview":
+        return {
+          ...DASHBOARD_SECTION_DEFINITIONS.historicalOverview,
+          panels: historicalOverviewPanels,
+        };
+      case "geofenceEvidence":
+        return {
+          ...DASHBOARD_SECTION_DEFINITIONS.geofenceEvidence,
+          panels: geofenceEvidencePanel ? [geofenceEvidencePanel] : [],
+        };
+      case "fahpRecap":
+        return {
+          ...DASHBOARD_SECTION_DEFINITIONS.fahpRecap,
+          panels: fuzzyAhpPanel ? [fuzzyAhpPanel] : [],
+        };
+      case "liveOperationsMap":
+        return {
+          ...DASHBOARD_SECTION_DEFINITIONS.liveOperationsMap,
+          panels: hero ? [hero] : [],
+        };
+      default:
+        throw new Error(`Unsupported dashboard owner section: ${sectionKey}`);
+    }
   });
 }
 
@@ -1684,6 +1846,7 @@ function composeCockpit({ kpis, hero, middlePanels, bottomPanels }) {
     middlePanels,
     bottomPanels,
     panels: [hero, ...middlePanels, ...bottomPanels],
+    sections: createDashboardSections({ hero, middlePanels, bottomPanels }),
   };
 }
 
@@ -1710,15 +1873,14 @@ export function createDashboardCockpitStateFromSources({
   reportResponse = {},
   analyticsResponse = null,
   analyticsError = null,
-  todayLocationsResponse = null,
+  todayLocations = null,
   todayLocationsError = null,
   fuzzyAhpResponse = null,
   fuzzyAhpError = null,
+  geofenceEvidenceResponse = null,
+  geofenceEvidenceError = null,
 } = {}) {
   const analytics = normalizeCockpitAnalyticsResponse(analyticsResponse);
-  const todayLocations = normalizeTodayLocationsResponse(
-    todayLocationsResponse,
-  );
   const fuzzyAhp = normalizeFuzzyAhpResponse(fuzzyAhpResponse);
 
   const hero =
@@ -1735,7 +1897,10 @@ export function createDashboardCockpitStateFromSources({
     ],
     bottomPanels: [
       buildExplicitFuzzyAhpPanel(fuzzyAhp, fuzzyAhpError),
-      buildGeofenceEvidencePanel(),
+      buildGeofenceEvidencePanel(
+        geofenceEvidenceResponse,
+        geofenceEvidenceError,
+      ),
     ],
   });
 }
@@ -1744,19 +1909,23 @@ export async function loadDashboardCockpitState({
   reportResponse = {},
   analyticsResponse = null,
   analyticsError = null,
-  todayLocationsResponse = null,
+  todayLocations = null,
   todayLocationsError = null,
   fuzzyAhpResponse = null,
   fuzzyAhpError = null,
+  geofenceEvidenceResponse = null,
+  geofenceEvidenceError = null,
 } = {}) {
   return createDashboardCockpitStateFromSources({
     reportResponse,
     analyticsResponse,
     analyticsError,
-    todayLocationsResponse,
+    todayLocations,
     todayLocationsError,
     fuzzyAhpResponse,
     fuzzyAhpError,
+    geofenceEvidenceResponse,
+    geofenceEvidenceError,
   });
 }
 

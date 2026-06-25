@@ -1101,20 +1101,23 @@ test("cockpit hero uses explicit today locations feed as live map source when av
         },
       },
     },
-    todayLocationsResponse: {
-      data: [
-        {
-          attendance_id: "att_001",
-          full_name: "Andi Wijaya",
-          status: "ontime",
-          work_mode: "WFO",
-          attendance_date: "2026-05-03",
-          latitude: -0.9,
-          longitude: 119.8,
-          radius: 100,
-          location_description: "Kantor Palu",
-        },
-      ],
+    todayLocations: {
+      viewModel: {
+        locations: [
+          {
+            attendance_id: "att_001",
+            full_name: "Andi Wijaya",
+            status: "ontime",
+            work_mode: "WFO",
+            attendance_date: "2026-05-03",
+            latitude: -0.9,
+            longitude: 119.8,
+            radius: 100,
+            location_description: "Kantor Palu",
+          },
+        ],
+        authority: "attendance.today-locations",
+      },
     },
   });
 
@@ -1159,6 +1162,48 @@ test("cockpit fuzzy ahp becomes ready only with explicit fuzzy ahp backend respo
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(fuzzyAhp.data.source, "analysis.fuzzy-ahp");
+});
+
+test("cockpit fuzzy ahp adapts dashboard recap sections into explicit fuzzy ahp rankings", () => {
+  const cockpit = createDashboardCockpitStateFromSources({
+    fuzzyAhpResponse: {
+      success: true,
+      filter: {
+        category: "discipline",
+        analysis_type: "summary",
+      },
+      data: {
+        status: "ready",
+        sections: [
+          {
+            key: "discipline",
+            title: "Discipline",
+            summary: "Top category available",
+            topRank: "WFH",
+            distribution: {
+              WFH: 0.41,
+              WFO: 0.34,
+              WFA: 0.25,
+            },
+            consistency: 0.06,
+            generatedAt: "2026-06-25T10:00:00.000Z",
+          },
+        ],
+      },
+    },
+  });
+
+  const fuzzyAhp = cockpit.bottomPanels.find(
+    (panel) => panel.key === "fuzzyAhp",
+  );
+
+  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
+  assert.deepEqual(fuzzyAhp.data.rankings, [
+    { label: "WFH", score: 0.41 },
+    { label: "WFO", score: 0.34 },
+    { label: "WFA", score: 0.25 },
+  ]);
+  assert.equal(fuzzyAhp.data.topRanking.label, "WFH");
 });
 
 test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", () => {

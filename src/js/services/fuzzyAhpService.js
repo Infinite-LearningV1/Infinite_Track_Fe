@@ -1,34 +1,36 @@
 import { API_CONFIG } from "../config/env.js";
 import { authRequest } from "./authRequest.js";
 
-const ALLOWED_TYPES = ["discipline", "wfa", "smart_ac"];
-const ALLOWED_PERIODS = ["weekly", "monthly"];
+const ALLOWED_CATEGORIES = ["discipline", "wfa", "smart_ac"];
+const ALLOWED_ANALYSIS_TYPES = ["summary", null, undefined, ""];
 
 export class FuzzyAhpService {
   constructor(requestExecutor = authRequest) {
     this.requestExecutor = requestExecutor;
   }
 
-  async getFuzzyAhpAnalysis({ type, period = "monthly" } = {}) {
-    if (!ALLOWED_TYPES.includes(type)) {
+  async getFuzzyAhpAnalysis({ category = null, analysis_type = null } = {}) {
+    const normalizedCategory = category ?? null;
+    const normalizedAnalysisType = analysis_type ?? null;
+
+    if (!ALLOWED_CATEGORIES.includes(normalizedCategory)) {
       throw new Error(
-        `Invalid type: ${type}. Allowed types are ${ALLOWED_TYPES.join(", ")}.`,
+        `Invalid category: ${normalizedCategory}. Allowed categories are ${ALLOWED_CATEGORIES.join(", ")}.`,
       );
     }
 
-    if (!ALLOWED_PERIODS.includes(period)) {
+    if (!ALLOWED_ANALYSIS_TYPES.includes(normalizedAnalysisType)) {
       throw new Error(
-        `Invalid period: ${period}. Allowed periods are ${ALLOWED_PERIODS.join(", ")}.`,
+        "Invalid analysis_type. Allowed values are summary or null.",
       );
     }
 
-    // TODO(INF-170): remove this service surface once INF-170 analytics flow supersedes it.
     const response = await this.requestExecutor({
       method: "get",
-      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp`,
+      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/dashboard-recap`,
       params: {
-        type,
-        period,
+        category: normalizedCategory,
+        analysis_type: normalizedAnalysisType || null,
       },
     });
 

@@ -1101,20 +1101,23 @@ test("cockpit hero uses explicit today locations feed as live map source when av
         },
       },
     },
-    todayLocationsResponse: {
-      data: [
-        {
-          attendance_id: "att_001",
-          full_name: "Andi Wijaya",
-          status: "ontime",
-          work_mode: "WFO",
-          attendance_date: "2026-05-03",
-          latitude: -0.9,
-          longitude: 119.8,
-          radius: 100,
-          location_description: "Kantor Palu",
-        },
-      ],
+    todayLocations: {
+      viewModel: {
+        locations: [
+          {
+            attendance_id: "att_001",
+            full_name: "Andi Wijaya",
+            status: "ontime",
+            work_mode: "WFO",
+            attendance_date: "2026-05-03",
+            latitude: -0.9,
+            longitude: 119.8,
+            radius: 100,
+            location_description: "Kantor Palu",
+          },
+        ],
+        authority: "attendance.today-locations",
+      },
     },
   });
 

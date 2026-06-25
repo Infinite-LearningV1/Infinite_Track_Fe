@@ -1467,40 +1467,6 @@ function buildFuzzyAhpPanel() {
   });
 }
 
-function normalizeTodayLocationsResponse(todayLocationsResponse = null) {
-  if (
-    todayLocationsResponse === null ||
-    typeof todayLocationsResponse === "undefined"
-  ) {
-    return null;
-  }
-
-  if (Array.isArray(todayLocationsResponse)) {
-    return todayLocationsResponse;
-  }
-
-  if (
-    typeof todayLocationsResponse !== "object" ||
-    Array.isArray(todayLocationsResponse)
-  ) {
-    return false;
-  }
-
-  if (Array.isArray(todayLocationsResponse.data)) {
-    return todayLocationsResponse.data;
-  }
-
-  if (
-    todayLocationsResponse.data &&
-    typeof todayLocationsResponse.data === "object" &&
-    !Array.isArray(todayLocationsResponse.data) &&
-    Array.isArray(todayLocationsResponse.data.data)
-  ) {
-    return todayLocationsResponse.data.data;
-  }
-
-  return false;
-}
 
 function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
   if (fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined") {
@@ -1526,7 +1492,7 @@ function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
 }
 
 function buildTodayLocationsHeroPanel(
-  todayLocationsResponse = null,
+  todayLocations = null,
   todayLocationsError = null,
 ) {
   if (todayLocationsError) {
@@ -1538,7 +1504,7 @@ function buildTodayLocationsHeroPanel(
     });
   }
 
-  if (todayLocationsResponse === null) {
+  if (todayLocations === null) {
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
@@ -1548,7 +1514,8 @@ function buildTodayLocationsHeroPanel(
     });
   }
 
-  if (todayLocationsResponse === false) {
+  const liveMap = buildLiveMapViewModel(todayLocations);
+  if (!Array.isArray(liveMap.locations)) {
     return createPanel({
       ...LIVE_MAP_PANEL_DEFINITION,
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
@@ -1558,7 +1525,6 @@ function buildTodayLocationsHeroPanel(
     });
   }
 
-  const liveMap = buildLiveMapViewModel(todayLocationsResponse);
   const locations = ensureUniqueMapLocationKeys(
     liveMap.locations
       .map((point, index) =>
@@ -1792,7 +1758,7 @@ export function createDashboardCockpitStateFromSources({
   reportResponse = {},
   analyticsResponse = null,
   analyticsError = null,
-  todayLocationsResponse = null,
+  todayLocations = null,
   todayLocationsError = null,
   fuzzyAhpResponse = null,
   fuzzyAhpError = null,
@@ -1800,9 +1766,6 @@ export function createDashboardCockpitStateFromSources({
   geofenceEvidenceError = null,
 } = {}) {
   const analytics = normalizeCockpitAnalyticsResponse(analyticsResponse);
-  const todayLocations = normalizeTodayLocationsResponse(
-    todayLocationsResponse,
-  );
   const fuzzyAhp = normalizeFuzzyAhpResponse(fuzzyAhpResponse);
 
   const hero =
@@ -1831,7 +1794,7 @@ export async function loadDashboardCockpitState({
   reportResponse = {},
   analyticsResponse = null,
   analyticsError = null,
-  todayLocationsResponse = null,
+  todayLocations = null,
   todayLocationsError = null,
   fuzzyAhpResponse = null,
   fuzzyAhpError = null,
@@ -1842,7 +1805,7 @@ export async function loadDashboardCockpitState({
     reportResponse,
     analyticsResponse,
     analyticsError,
-    todayLocationsResponse,
+    todayLocations,
     todayLocationsError,
     fuzzyAhpResponse,
     fuzzyAhpError,

@@ -89,7 +89,7 @@ export function dashboard() {
     rawApiData: null,
     dashboardAnalyticsResponse: null,
     dashboardAnalyticsError: null,
-    todayLocationsResponse: null,
+    todayLocations: null,
     todayLocationsError: null,
     fuzzyAhpResponse: null,
     fuzzyAhpError: null,
@@ -205,12 +205,16 @@ export function dashboard() {
       const reportData = response.report?.data || response.report || [];
       const reportPagination = response.report?.pagination || {};
       const analyticsRequestParams = this.getDashboardAnalyticsRequestParams();
+      const liveMapSlice =
+        todayLocationsResponse === null || typeof todayLocationsResponse === "undefined"
+          ? null
+          : createLiveMapSliceState(todayLocationsResponse, analyticsRequestParams);
 
       this.cockpit = createDashboardCockpitStateFromSources({
         reportResponse: response,
         analyticsResponse,
         analyticsError,
-        todayLocationsResponse,
+        todayLocations: liveMapSlice,
         todayLocationsError,
         fuzzyAhpResponse,
         fuzzyAhpError,
@@ -290,10 +294,6 @@ export function dashboard() {
         analyticsResponse,
         analyticsRequestParams,
       );
-      const liveMapSlice = createLiveMapSliceState(
-        todayLocationsResponse,
-        analyticsRequestParams,
-      );
 
       this.rawApiData = {
         summary: response.summary,
@@ -308,7 +308,7 @@ export function dashboard() {
       };
       this.dashboardAnalyticsResponse = historicalAnalyticsSlice.response;
       this.dashboardAnalyticsError = analyticsError;
-      this.todayLocationsResponse = todayLocationsResponse;
+      this.todayLocations = liveMapSlice;
       this.todayLocationsError = todayLocationsError;
       this.fuzzyAhpResponse = fuzzyAhpResponse;
       this.fuzzyAhpError = fuzzyAhpError;
@@ -343,7 +343,7 @@ export function dashboard() {
       reportResponse,
       analyticsResponse = this.dashboardAnalyticsResponse,
       analyticsError = this.dashboardAnalyticsError,
-      todayLocationsResponse = this.todayLocationsResponse,
+      todayLocations = this.todayLocations,
       todayLocationsError = this.todayLocationsError,
       fuzzyAhpResponse = this.fuzzyAhpResponse,
       fuzzyAhpError = this.fuzzyAhpError,
@@ -354,7 +354,7 @@ export function dashboard() {
         reportResponse,
         analyticsResponse,
         analyticsError,
-        todayLocationsResponse,
+        todayLocations,
         todayLocationsError,
         fuzzyAhpResponse,
         fuzzyAhpError,
@@ -373,7 +373,7 @@ export function dashboard() {
       this.rawApiData = null;
       this.dashboardAnalyticsResponse = null;
       this.dashboardAnalyticsError = error;
-      this.todayLocationsResponse = null;
+      this.todayLocations = null;
       this.todayLocationsError = null;
       this.fuzzyAhpResponse = null;
       this.fuzzyAhpError = null;
@@ -830,11 +830,14 @@ export function dashboard() {
           geofenceEvidenceResult.status === "fulfilled"
             ? null
             : geofenceEvidenceResult.reason;
-        const todayLocationsResponse = includeTodayLocations
+        const todayLocations = includeTodayLocations
           ? todayLocationsResult.status === "fulfilled"
-            ? todayLocationsResult.value
+            ? createLiveMapSliceState(
+                todayLocationsResult.value,
+                analyticsRequestParams,
+              )
             : null
-          : this.todayLocationsResponse;
+          : this.todayLocations;
         const todayLocationsError = includeTodayLocations
           ? todayLocationsResult.status === "fulfilled"
             ? null
@@ -869,7 +872,7 @@ export function dashboard() {
           reportResult.value,
           analyticsResponse,
           analyticsError,
-          todayLocationsResponse,
+          todayLocations?.response ?? null,
           todayLocationsError,
           this.fuzzyAhpResponse,
           this.fuzzyAhpError,
@@ -1544,7 +1547,7 @@ export function dashboard() {
       this.rawApiData = null;
       this.dashboardAnalyticsResponse = null;
       this.dashboardAnalyticsError = null;
-      this.todayLocationsResponse = null;
+      this.todayLocations = null;
       this.todayLocationsError = null;
       this.fuzzyAhpResponse = null;
       this.fuzzyAhpError = null;

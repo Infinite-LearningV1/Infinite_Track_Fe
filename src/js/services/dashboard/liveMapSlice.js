@@ -1,4 +1,20 @@
 export function buildLiveMapViewModel(response) {
+  const sliceViewModel = response?.viewModel;
+
+  if (
+    sliceViewModel &&
+    typeof sliceViewModel === "object" &&
+    Array.isArray(sliceViewModel.locations)
+  ) {
+    return {
+      locations: sliceViewModel.locations,
+      authority:
+        sliceViewModel.authority ||
+        response?.authority ||
+        "attendance.today-locations",
+    };
+  }
+
   const data = Array.isArray(response)
     ? response
     : Array.isArray(response?.data)
@@ -9,14 +25,17 @@ export function buildLiveMapViewModel(response) {
 
   return {
     locations: data,
-    authority: "attendance.today-locations",
+    authority: response?.authority || "attendance.today-locations",
   };
 }
 
 export function createLiveMapSliceState(response, request = null) {
+  const viewModel = buildLiveMapViewModel(response);
+
   return {
     request,
     response,
-    viewModel: buildLiveMapViewModel(response),
+    viewModel,
+    authority: viewModel.authority,
   };
 }

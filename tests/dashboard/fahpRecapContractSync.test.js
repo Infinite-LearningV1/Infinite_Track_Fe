@@ -64,3 +64,79 @@ test("FAHP dashboard recap contract sync rejects malformed or incomplete recap p
     /Invalid FAHP dashboard recap contract/,
   );
 });
+
+test("FAHP dashboard recap contract sync rejects malformed recap section entries", () => {
+  assert.throws(
+    () =>
+      buildFahpDashboardRecapViewModel({
+        success: true,
+        filter: {
+          category: "discipline",
+          analysis_type: "summary",
+        },
+        data: {
+          status: "ready",
+          sections: [
+            {
+              key: "discipline",
+              title: "Discipline",
+              summary: "Top category available",
+              topRank: "Tepat Waktu",
+              distribution: ["Tepat Waktu"],
+              consistency: 0.04,
+              generatedAt: "2026-06-25T10:00:00.000Z",
+            },
+          ],
+        },
+      }),
+    /Invalid FAHP dashboard recap contract/,
+  );
+
+  assert.throws(
+    () =>
+      buildFahpDashboardRecapViewModel({
+        success: true,
+        filter: {
+          category: "discipline",
+          analysis_type: "summary",
+        },
+        data: {
+          status: "ready",
+          sections: [
+            {
+              key: "discipline",
+              title: "Discipline",
+              distribution: { "Tepat Waktu": 0.82 },
+              consistency: 0.04,
+              generatedAt: "2026-06-25T10:00:00.000Z",
+            },
+          ],
+        },
+      }),
+    /Invalid FAHP dashboard recap contract/,
+  );
+});
+
+test("FAHP dashboard recap contract sync rejects legacy-style payload content wrapped as a recap section", () => {
+  assert.throws(
+    () =>
+      buildFahpDashboardRecapViewModel({
+        success: true,
+        filter: {
+          category: "discipline",
+          analysis_type: "summary",
+        },
+        data: {
+          status: "ready",
+          sections: [
+            {
+              status: "success",
+              consistency_ratio: 0.04,
+              rankings: [{ label: "Tepat Waktu", value: 0.82 }],
+            },
+          ],
+        },
+      }),
+    /Invalid FAHP dashboard recap contract/,
+  );
+});

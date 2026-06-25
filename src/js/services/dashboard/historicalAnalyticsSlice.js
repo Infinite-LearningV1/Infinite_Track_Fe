@@ -1,19 +1,15 @@
 export function buildHistoricalAnalyticsViewModel(response) {
-  const payload =
+  const data =
     response?.data && typeof response.data === "object" && !Array.isArray(response.data)
       ? response.data
-      : response;
-  const data = payload && typeof payload === "object" && !Array.isArray(payload)
-    ? payload
-    : {};
-
-  const trend = data.historical_trend || data.historicalTrend || null;
-  const modeMix = data.mode_mix || data.modeMix || null;
+      : response && typeof response === "object" && !Array.isArray(response)
+        ? response
+        : {};
 
   return {
-    kpis: data.executive_kpis || data.executiveKpis || {},
-    trend,
-    modeMix,
+    kpis: data.executive_kpis || {},
+    trend: data.historical_trend || { points: [] },
+    modeMix: data.mode_mix || { totals: {}, percentages: {} },
     insights: data.insights || { items: [] },
     windowMeta: {
       requestedWindow: response?.requested_window || null,

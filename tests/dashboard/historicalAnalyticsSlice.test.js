@@ -27,3 +27,18 @@ test("historicalAnalyticsSlice maps only historical analytics fields and ignores
     false,
   );
 });
+
+test("historicalAnalyticsSlice provides safe defaults for absent trend and mode mix fields", () => {
+  const response = {
+    requested_window: { period: "7d", from: null, to: null },
+    executed_window: { from: "2026-05-24", to: "2026-05-30" },
+    data: {
+      executive_kpis: { attendance_rate: 95 },
+    },
+  };
+
+  const result = buildHistoricalAnalyticsViewModel(response);
+
+  assert.deepEqual(result.trend, { points: [] });
+  assert.deepEqual(result.modeMix, { totals: {}, percentages: {} });
+});

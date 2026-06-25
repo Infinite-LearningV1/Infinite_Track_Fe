@@ -169,6 +169,7 @@ test("dashboard analytics range change refetches analytics and reports without r
 test("fuzzy ahp detail lazy-loads on demand only", async () => {
   const component = dashboard();
   let fuzzyAhpCalls = 0;
+  let seenParams = null;
 
   component.queueDashboardMapRender = () => {};
   component.showNotification = () => {};
@@ -198,12 +199,26 @@ test("fuzzy ahp detail lazy-loads on demand only", async () => {
     },
   });
   component.fetchTodayLocations = async () => ({ data: [] });
+  component.fetchGeofenceEvidence = async () => ({ data: { status: "empty", events: [] } });
   component.fetchFuzzyAhpAnalysis = async (params) => {
     fuzzyAhpCalls += 1;
+    seenParams = params;
     return {
+      success: true,
+      filter: params,
       data: {
-        consistency_ratio: 0.04,
-        rankings: [{ label: params.type, score: 0.75 }],
+        status: "ready",
+        sections: [
+          {
+            key: params.category,
+            title: "Discipline",
+            summary: "Top category",
+            topRank: "Tepat Waktu",
+            distribution: { "Tepat Waktu": 0.75 },
+            consistency: 0.04,
+            generatedAt: "2026-06-25T10:00:00.000Z",
+          },
+        ],
       },
     };
   };
@@ -212,14 +227,75 @@ test("fuzzy ahp detail lazy-loads on demand only", async () => {
 
   assert.equal(fuzzyAhpCalls, 0);
 
-  await component.loadFuzzyAhpDetail({ type: "discipline", period: "monthly" });
+  await component.loadFuzzyAhpDetail({
+    category: "discipline",
+    analysis_type: "summary",
+  });
 
   const fuzzyAhp = component.cockpit.bottomPanels.find(
     (panel) => panel.key === "fuzzyAhp",
   );
   assert.equal(fuzzyAhpCalls, 1);
+  assert.deepEqual(seenParams, {
+    category: "discipline",
+    analysis_type: "summary",
+  });
   assert.equal(fuzzyAhp.state, "ready");
-  assert.equal(fuzzyAhp.data.topRanking.label, "discipline");
+  assert.equal(fuzzyAhp.data.topRanking.label, "Tepat Waktu");
+  assert.equal(Object.prototype.hasOwnProperty.call(component.rawApiData, "fuzzyAhp"), false);
+  assert.deepEqual(component.rawApiData.fahpRecap, {
+    status: "ready",
+    data: {
+      status: "ready",
+      sections: [
+        {
+          key: "discipline",
+          title: "Discipline",
+          summary: "Top category",
+          topRank: "Tepat Waktu",
+          distribution: { "Tepat Waktu": 0.75 },
+          consistency: 0.04,
+          generatedAt: "2026-06-25T10:00:00.000Z",
+        },
+      ],
+      filter: {
+        category: "discipline",
+        analysis_type: "summary",
+      },
+    },
+    error: null,
+    request: {
+      category: "discipline",
+      analysis_type: "summary",
+    },
+    meta: {},
+  });
+});
+
+test("dashboard rejects legacy FAHP detail type semantics", async () => {
+  const component = dashboard();
+
+  component.queueDashboardMapRender = () => {};
+  component.showNotification = () => {};
+  component.rawApiData = {
+    summary: { total_ontime: 1 },
+    report: { data: [] },
+  };
+  component.fuzzyAhpResponse = { stale: true };
+  component.cockpit = { bottomPanels: [] };
+  component.fetchFuzzyAhpAnalysis = async () => {
+    throw new Error("legacy request should not be forwarded");
+  };
+
+  await component.loadFuzzyAhpDetail({ type: "discipline" });
+
+  assert.match(component.fuzzyAhpError?.message || "", /invalid category/i);
+  assert.equal(component.fuzzyAhpResponse, null);
+  assert.deepEqual(component.fahpFilterState, {
+    category: null,
+    analysis_type: null,
+  });
+  assert.equal(component.rawApiData.fahpRecap, undefined);
 });
 
 test("report period change remains scoped to filters.period and resets report pagination", async () => {

@@ -59,11 +59,23 @@ test("FuzzyAhpService#getFuzzyAhpAnalysis propagates request errors", async () =
   });
 
   await assert.rejects(
-    service.getFuzzyAhpAnalysis({ type: "smart_ac", period: "monthly" }),
+    service.getFuzzyAhpAnalysis({
+      category: "smart_ac",
+      analysis_type: "summary",
+    }),
     (error) => {
       assert.equal(error, requestError);
       return true;
     },
+  );
+});
+
+test("FuzzyAhpService#getFuzzyAhpAnalysis rejects legacy type semantics without category", async () => {
+  const service = new FuzzyAhpService(async () => ({ data: {} }));
+
+  await assert.rejects(
+    service.getFuzzyAhpAnalysis({ type: "discipline" }),
+    /invalid category/i,
   );
 });
 

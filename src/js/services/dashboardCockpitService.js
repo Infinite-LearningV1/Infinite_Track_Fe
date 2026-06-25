@@ -1484,6 +1484,41 @@ function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
       ? fuzzyAhpResponse.data
       : fuzzyAhpResponse;
 
+  if (
+    responsePayload &&
+    typeof responsePayload === "object" &&
+    !Array.isArray(responsePayload) &&
+    Array.isArray(responsePayload.sections)
+  ) {
+    const section = responsePayload.sections[0] ?? null;
+    const distribution =
+      section?.distribution &&
+      typeof section.distribution === "object" &&
+      !Array.isArray(section.distribution)
+        ? section.distribution
+        : null;
+    const rankings = distribution
+      ? Object.entries(distribution)
+          .map(([label, score]) =>
+            typeof score === "number" && Number.isFinite(score)
+              ? { label, score }
+              : null,
+          )
+          .filter(Boolean)
+      : null;
+
+    return rankings && rankings.length > 0
+      ? {
+          consistency_ratio:
+            typeof section?.consistency === "number" &&
+            Number.isFinite(section.consistency)
+              ? section.consistency
+              : null,
+          rankings,
+        }
+      : false;
+  }
+
   return responsePayload &&
     typeof responsePayload === "object" &&
     !Array.isArray(responsePayload)

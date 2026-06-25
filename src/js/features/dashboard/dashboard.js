@@ -9,6 +9,7 @@ import {
   createDashboardCockpitStateFromSources,
 } from "../../services/dashboardCockpitService.js";
 import { createHistoricalAnalyticsSliceState } from "../../services/dashboard/historicalAnalyticsSlice.js";
+import { createFahpRecapSliceState } from "../../services/dashboard/fahpRecapSlice.js";
 import { createGeofenceEvidenceSliceState } from "../../services/dashboard/geofenceEvidenceSlice.js";
 import { createLiveMapSliceState } from "../../services/dashboard/liveMapSlice.js";
 import {
@@ -306,7 +307,13 @@ export function dashboard() {
         report: response.report,
         historicalAnalytics: historicalAnalyticsSlice,
         todayLocations: liveMapSlice,
-        fuzzyAhp: fuzzyAhpResponse,
+        fahpRecap:
+          fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined"
+            ? null
+            : createFahpRecapSliceState(
+                fuzzyAhpResponse,
+                this.fahpFilterState,
+              ),
         geofenceEvidence: createGeofenceEvidenceSliceState(
           geofenceEvidenceResponse,
           analyticsRequestParams,
@@ -1107,18 +1114,23 @@ export function dashboard() {
       });
 
       try {
-        const requestParams = buildFahpRequestParams({
-          ...params,
-          category: params?.category ?? params?.type ?? null,
-        });
-        this.fahpFilterState = {
+        const requestParams = buildFahpRequestParams(params);
+        if (!requestParams.category) {
+          throw new Error(
+            "Invalid category: null. Allowed categories are discipline, wfa, smart_ac.",
+          );
+        }
+        const nextFilterState = {
           ...createDefaultFahpFilterState(),
           ...requestParams,
         };
-        const fuzzyAhpResponse = await this.fetchFuzzyAhpAnalysis({
-          ...requestParams,
-          type: requestParams.category,
-        });
+        const fuzzyAhpResponse = await this.fetchFuzzyAhpAnalysis(requestParams);
+        const fahpRecapSlice = createFahpRecapSliceState(
+          fuzzyAhpResponse,
+          requestParams,
+        );
+
+        this.fahpFilterState = nextFilterState;
         this.fuzzyAhpResponse = fuzzyAhpResponse;
         this.fuzzyAhpError = null;
         this.applyCockpitSurfaceState({
@@ -1128,7 +1140,7 @@ export function dashboard() {
         });
         this.rawApiData = {
           ...(this.rawApiData || {}),
-          fuzzyAhp: fuzzyAhpResponse,
+          fahpRecap: fahpRecapSlice,
         };
       } catch (error) {
         this.fuzzyAhpResponse = null;

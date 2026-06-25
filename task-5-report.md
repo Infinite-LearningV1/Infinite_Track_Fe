@@ -35,4 +35,26 @@ Result:
 A focused review flagged one architectural concern still present at branch HEAD: the cockpit FAHP panel logic still renders the older rankings-oriented shape, while this task moves the fetch path to the recap endpoint. This task intentionally stayed scoped to the briefed files and minimal migration surface, so the panel rendering adapter itself was not redesigned here.
 
 ## Concerns
-- Cockpit FAHP rendering still expects the existing panel shape; a follow-up may be needed to fully adapt recap `sections` into the dashboard display model if/when the UI starts consuming the recap payload directly.
+- Cockpit FAHP rendering still expects the existing panel shape; this fix wave adds a narrow dashboard-side adapter in `src/js/services/dashboardCockpitService.js` so Task 5 can consume the recap contract without leaving the half-migrated `rawApiData.fuzzyAhp` path behind.
+
+## Fix Wave 2
+### Summary
+- Removed the remaining legacy dashboard `type` adaptation so `loadFuzzyAhpDetail()` now accepts only independent `{ category, analysis_type }` request params.
+- Replaced the dashboard-side raw FAHP storage path with `rawApiData.fahpRecap`, populated from `createFahpRecapSliceState(response, request)`.
+- Added targeted regressions covering legacy-type rejection, recap-slice-only storage, and the cockpit adapter that derives rankings from recap `sections`.
+
+### Verification
+Command:
+- `node --test "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/fahpRecapSlice.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/dashboard/fahpRecapContractSync.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/tests/fuzzy-ahp-service.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/features/dashboard/dashboard-period.test.js" "E:/skrisi/clonefee/Infinite_Track_Fe/.worktrees/phase3-dashboard-owner-driven/src/js/services/dashboardCockpitService.test.js"`
+
+Output summary:
+- Exit code: 0
+- Result: 51 tests passed, 0 failed.
+- Note: Node emitted existing `MODULE_TYPELESS_PACKAGE_JSON` warnings, and unrelated dashboard-period tests still log expected geofence invalid-URL warnings from unstubbed scenarios while remaining green.
+
+## Required Summary Fields
+- status: DONE_WITH_CONCERNS
+- commits: pending new fix-wave commit
+- tests: node --test targeted Task 5 dashboard/FAHP suite -> 51 passed, 0 failed
+- concerns:
+  - Existing dashboard-period tests still emit expected geofence invalid-URL console warnings in scenarios outside this Task 5 fix scope.

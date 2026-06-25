@@ -9,8 +9,8 @@ export class FuzzyAhpService {
     this.requestExecutor = requestExecutor;
   }
 
-  async getFuzzyAhpAnalysis({ category = null, analysis_type = null, type, period } = {}) {
-    const normalizedCategory = category ?? type ?? null;
+  async getFuzzyAhpAnalysis({ category = null, analysis_type = null } = {}) {
+    const normalizedCategory = category ?? null;
     const normalizedAnalysisType = analysis_type ?? null;
 
     if (!ALLOWED_CATEGORIES.includes(normalizedCategory)) {

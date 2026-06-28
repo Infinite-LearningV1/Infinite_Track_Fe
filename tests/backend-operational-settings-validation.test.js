@@ -15,14 +15,15 @@ test("validateBackendOperationalSettingsForm requires all five INF-142 fields", 
 
   assert.deepEqual(errors, {
     geofenceRadiusDefaultM:
-      "GEOFENCE_RADIUS_DEFAULT_M wajib diisi dengan bilangan bulat positif.",
+      "Radius area absensi wajib diisi dengan bilangan bulat positif.",
     autoCheckoutIdleMin:
-      "AUTO_CHECKOUT_IDLE_MIN wajib diisi dengan bilangan bulat positif.",
+      "Batas idle sebelum checkout otomatis wajib diisi dengan bilangan bulat positif.",
     autoCheckoutTBufferMin:
-      "AUTO_CHECKOUT_TBUFFER_MIN wajib diisi dengan bilangan bulat positif.",
+      "Waktu penyangga checkout otomatis wajib diisi dengan bilangan bulat positif.",
     lateCheckoutToleranceMin:
-      "LATE_CHECKOUT_TOLERANCE_MIN wajib diisi dengan bilangan bulat positif.",
-    defaultShiftEnd: "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.",
+      "Toleransi checkout terlambat wajib diisi dengan bilangan bulat positif.",
+    defaultShiftEnd:
+      "Jam selesai shift default wajib diisi dalam format HH:mm.",
   });
 });
 
@@ -49,14 +50,15 @@ test("validateBackendOperationalSettingsForm rejects zero, decimals, negatives, 
 
   assert.deepEqual(errors, {
     geofenceRadiusDefaultM:
-      "GEOFENCE_RADIUS_DEFAULT_M wajib diisi dengan bilangan bulat positif.",
+      "Radius area absensi wajib diisi dengan bilangan bulat positif.",
     autoCheckoutIdleMin:
-      "AUTO_CHECKOUT_IDLE_MIN wajib diisi dengan bilangan bulat positif.",
+      "Batas idle sebelum checkout otomatis wajib diisi dengan bilangan bulat positif.",
     autoCheckoutTBufferMin:
-      "AUTO_CHECKOUT_TBUFFER_MIN wajib diisi dengan bilangan bulat positif.",
+      "Waktu penyangga checkout otomatis wajib diisi dengan bilangan bulat positif.",
     lateCheckoutToleranceMin:
-      "LATE_CHECKOUT_TOLERANCE_MIN wajib diisi dengan bilangan bulat positif.",
-    defaultShiftEnd: "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.",
+      "Toleransi checkout terlambat wajib diisi dengan bilangan bulat positif.",
+    defaultShiftEnd:
+      "Jam selesai shift default wajib diisi dalam format HH:mm.",
   });
 });
 

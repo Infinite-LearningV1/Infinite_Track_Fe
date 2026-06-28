@@ -8,8 +8,8 @@
     />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>
-      Backend Operational Settings | InfiniteTrack - Tailwind CSS Admin
-      Dashboard Template
+      Operational Settings | InfiniteTrack - Tailwind CSS Admin Dashboard
+      Template
     </title>
   </head>
   <body
@@ -39,7 +39,7 @@
 
         <main>
           <div class="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">
-            <div x-data="{ pageName: `Backend Operational Settings`}">
+            <div x-data="{ pageName: `Operational Settings`}">
               <include src="./partials/common/breadcrumb.html" />
             </div>
 
@@ -58,18 +58,6 @@
                   <p
                     class="text-sm text-red-700 dark:text-red-300"
                     x-text="loadError"
-                  ></p>
-                </div>
-              </template>
-
-              <template x-if="infoMessage">
-                <div
-                  id="canonicalOperationalSettingsNotice"
-                  class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
-                >
-                  <p
-                    class="text-sm text-blue-700 dark:text-blue-300"
-                    x-text="infoMessage"
                   ></p>
                 </div>
               </template>

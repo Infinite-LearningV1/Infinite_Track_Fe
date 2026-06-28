@@ -63,11 +63,11 @@ function isTimeString(value) {
 
 function getFieldLabel(key) {
   const labels = {
-    geofenceRadiusDefaultM: "GEOFENCE_RADIUS_DEFAULT_M",
-    autoCheckoutIdleMin: "AUTO_CHECKOUT_IDLE_MIN",
-    autoCheckoutTBufferMin: "AUTO_CHECKOUT_TBUFFER_MIN",
-    lateCheckoutToleranceMin: "LATE_CHECKOUT_TOLERANCE_MIN",
-    defaultShiftEnd: "DEFAULT_SHIFT_END",
+    geofenceRadiusDefaultM: "Radius area absensi",
+    autoCheckoutIdleMin: "Batas idle sebelum checkout otomatis",
+    autoCheckoutTBufferMin: "Waktu penyangga checkout otomatis",
+    lateCheckoutToleranceMin: "Toleransi checkout terlambat",
+    defaultShiftEnd: "Jam selesai shift default",
   };
 
   return labels[key] || key;
@@ -85,8 +85,7 @@ function validateBackendOperationalSettingsForm(form = {}) {
   }
 
   if (!isTimeString(normalizedForm.defaultShiftEnd)) {
-    errors.defaultShiftEnd =
-      "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.";
+    errors.defaultShiftEnd = `${getFieldLabel("defaultShiftEnd")} wajib diisi dalam format HH:mm.`;
   }
 
   return errors;
@@ -141,8 +140,6 @@ function backendOperationalSettingsAlpineData(
     hasLoadedCanonicalSettings: false,
     loadError: "",
     saveError: "",
-    infoMessage:
-      "Operational settings dimuat dari backend canonical dan disimpan kembali melalui /api/settings/operational. AHP_CR_THRESHOLD adalah konstanta teoritis dan tidak editable di Web FE.",
     fieldErrors: {},
     form: createDefaultBackendOperationalSettingsForm(),
     originalForm: createDefaultBackendOperationalSettingsForm(),
@@ -191,7 +188,7 @@ function backendOperationalSettingsAlpineData(
         this.hasLoadedCanonicalSettings = false;
         this.loadError = getOperationalSettingsErrorMessage(
           error,
-          "Gagal memuat operational settings dari backend.",
+          "Gagal memuat pengaturan operasional dari backend.",
         );
       } finally {
         this.isLoading = false;
@@ -212,7 +209,7 @@ function backendOperationalSettingsAlpineData(
 
       if (!this.validateForm()) {
         this.saveError =
-          "Periksa kembali field yang wajib diisi sebelum menyimpan operational settings.";
+          "Periksa kembali field yang wajib diisi sebelum menyimpan pengaturan operasional.";
         return;
       }
 
@@ -228,14 +225,13 @@ function backendOperationalSettingsAlpineData(
 
         reportInlineAlert({
           type: "success",
-          title: "Operational settings tersimpan",
-          message:
-            "Lima setting operational berhasil disimpan ke backend canonical.",
+          title: "Perubahan tersimpan",
+          message: "Perubahan siap dipakai untuk alur operasional admin.",
         });
       } catch (error) {
         this.saveError = getOperationalSettingsErrorMessage(
           error,
-          "Gagal menyimpan operational settings ke backend.",
+          "Gagal menyimpan pengaturan operasional ke backend.",
         );
       } finally {
         this.isSaving = false;

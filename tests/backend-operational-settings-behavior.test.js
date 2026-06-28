@@ -292,7 +292,7 @@ test("backendOperationalSettingsAlpineData saveSettings sends typed canonical pa
     assert.notEqual(state.lastSavedAt, "");
     assert.equal(alerts.length, 1);
     assert.equal(alerts[0].type, "success");
-    assert.match(alerts[0].message, /backend canonical/i);
+    assert.match(alerts[0].message, /operasional admin/i);
   } finally {
     env.restore();
   }
@@ -312,15 +312,15 @@ test("backendOperationalSettingsAlpineData saveSettings keeps baseline on invali
   assert.equal(state.lastSavedAt, "");
   assert.match(
     state.saveError,
-    /Periksa kembali field yang wajib diisi sebelum menyimpan operational settings\./,
+    /Periksa kembali field yang wajib diisi sebelum menyimpan pengaturan operasional\./,
   );
   assert.equal(
     state.fieldErrors.autoCheckoutIdleMin,
-    "AUTO_CHECKOUT_IDLE_MIN wajib diisi dengan bilangan bulat positif.",
+    "Batas idle sebelum checkout otomatis wajib diisi dengan bilangan bulat positif.",
   );
   assert.equal(
     state.fieldErrors.defaultShiftEnd,
-    "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.",
+    "Jam selesai shift default wajib diisi dalam format HH:mm.",
   );
 
   state.resetForm();
@@ -364,13 +364,14 @@ test("validateBackendOperationalSettingsForm rejects malformed numeric and time 
 
   assert.deepEqual(errors, {
     geofenceRadiusDefaultM:
-      "GEOFENCE_RADIUS_DEFAULT_M wajib diisi dengan bilangan bulat positif.",
+      "Radius area absensi wajib diisi dengan bilangan bulat positif.",
     autoCheckoutIdleMin:
-      "AUTO_CHECKOUT_IDLE_MIN wajib diisi dengan bilangan bulat positif.",
+      "Batas idle sebelum checkout otomatis wajib diisi dengan bilangan bulat positif.",
     autoCheckoutTBufferMin:
-      "AUTO_CHECKOUT_TBUFFER_MIN wajib diisi dengan bilangan bulat positif.",
+      "Waktu penyangga checkout otomatis wajib diisi dengan bilangan bulat positif.",
     lateCheckoutToleranceMin:
-      "LATE_CHECKOUT_TOLERANCE_MIN wajib diisi dengan bilangan bulat positif.",
-    defaultShiftEnd: "DEFAULT_SHIFT_END wajib diisi dalam format HH:mm.",
+      "Toleransi checkout terlambat wajib diisi dengan bilangan bulat positif.",
+    defaultShiftEnd:
+      "Jam selesai shift default wajib diisi dalam format HH:mm.",
   });
 });

@@ -53,16 +53,26 @@ test("backend operational settings page shell is registered and stays truthful",
     "Expected role-based access map to protect /management-backend-settings.html for Admin/Management",
   );
 
+  assert.ok(
+    pageHtml.includes("Operational Settings"),
+    "Expected page shell to render the human-facing Operational Settings title",
+  );
+
+  assert.ok(
+    !pageHtml.includes("canonicalOperationalSettingsNotice"),
+    "Expected page shell to remove the technical canonical backend notice",
+  );
+
   for (const settingLabel of [
-    "GEOFENCE_RADIUS_DEFAULT_M",
-    "AUTO_CHECKOUT_IDLE_MIN",
-    "AUTO_CHECKOUT_TBUFFER_MIN",
-    "LATE_CHECKOUT_TOLERANCE_MIN",
-    "DEFAULT_SHIFT_END",
+    "Radius area absensi",
+    "Batas idle sebelum checkout otomatis",
+    "Waktu penyangga checkout otomatis",
+    "Toleransi checkout terlambat",
+    "Jam selesai shift default",
   ]) {
     assert.ok(
       formPartial.includes(settingLabel),
-      `Expected form partial to render ${settingLabel}`,
+      `Expected form partial to render human label ${settingLabel}`,
     );
   }
 
@@ -74,8 +84,8 @@ test("backend operational settings page shell is registered and stays truthful",
     "defaultShiftEnd",
   ]) {
     assert.ok(
-      formPartial.includes(backendField),
-      `Expected form partial to render backend field ${backendField}`,
+      formPartial.includes(`x-model="form.${backendField}"`),
+      `Expected form partial to keep binding for ${backendField}`,
     );
   }
 
@@ -84,10 +94,9 @@ test("backend operational settings page shell is registered and stays truthful",
     "Expected form partial to keep AHP_CR_THRESHOLD non-editable",
   );
 
-  assert.ok(
-    formPartial.includes("not secrets") ||
-      formPartial.includes("bukan secret") ||
-      formPartial.includes("bukan secrets"),
-    "Expected form partial to explain these settings are not secrets",
+  assert.doesNotMatch(
+    formPartial,
+    /Backend Operational Settings|backend canonical|Backend field|AHP_CR_THRESHOLD/,
+    "Expected form partial to remove technical backend copy",
   );
 });

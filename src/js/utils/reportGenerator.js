@@ -137,14 +137,6 @@ class ReportGenerator {
         summaryData?.report,
       ),
       [""],
-      ["Honest Insight"],
-      [
-        this.buildHonestInsightParagraph(
-          summaryData?.summary,
-          summaryData?.report,
-        ),
-      ],
-      [""],
       ["Summary Statistics"],
       ["Category", "Count"],
       ...this.buildSummaryRows(summaryData?.summary),
@@ -158,7 +150,6 @@ class ReportGenerator {
         "NIP/NIM",
         "Role",
         "Email",
-        "Phone Number",
         "Attendance Date",
         "Check In Time",
         "Check Out Time",
@@ -195,63 +186,44 @@ class ReportGenerator {
     period = "all",
     generatedAt = new Date(),
   ) {
-    const explicitRows = rows.filter(
-      (item) =>
-        this.hasAvailableValue(item.discipline_score) ||
-        this.hasAvailableValue(item.discipline_label),
-    );
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return [
+        ["Discipline Insight"],
+        [""],
+        ["Period", this.formatPeriod(period)],
+        ["Generated on", this.formatGeneratedOn(generatedAt)],
+        [""],
+        ["Availability", "Backend Required"],
+        [
+          "Insight Note",
+          "Backend user_attendance_summary is unavailable for the selected period.",
+        ],
+      ];
+    }
 
-    const sheetRows = [
+    return [
       ["Discipline Insight"],
       [""],
       ["Period", this.formatPeriod(period)],
       ["Generated on", this.formatGeneratedOn(generatedAt)],
-      ["Provenance", this.buildExportProvenanceNote()],
-    ];
-
-    if (explicitRows.length === 0) {
-      sheetRows.push(
-        [""],
-        ["Availability", "Backend Required"],
-        ["Discipline Score", "Unavailable"],
-        ["Discipline Label", "Unavailable"],
-        [
-          "Insight Note",
-          "/summary report rows for the selected report/export period do not provide enough explicit discipline fields for a stronger discipline export view.",
-        ],
-      );
-
-      return sheetRows;
-    }
-
-    sheetRows.push(
-      [""],
-      ["Availability", "Backend-backed row fields"],
       [""],
       [
-        "Full Name",
-        "Attendance Date",
-        "Status",
-        "Work Category",
-        "Discipline Score",
+        "Employee Name",
+        "Division",
+        "Attendance Rate",
+        "Late Count",
+        "Alpha Count",
         "Discipline Label",
       ],
-      ...explicitRows.map((item) => [
+      ...rows.map((item) => [
         this.formatUnavailableValue(item.full_name),
-        this.formatDateValue(item.attendance_date),
-        this.formatStatus(item.status),
-        this.formatInformation(
-          this.firstAvailableValue(
-            item.location_details?.category,
-            item.information,
-          ),
-        ),
-        this.formatUnavailableValue(item.discipline_score),
-        this.formatUnavailableValue(item.discipline_label),
+        this.formatUnavailableValue(item.division),
+        this.buildAttendanceRateFromSummaryRow(item),
+        this.formatUnavailableValue(item.late_days),
+        this.formatUnavailableValue(item.alpha_days),
+        "Unavailable",
       ]),
-    );
-
-    return sheetRows;
+    ];
   }
 
   hasAvailableValue(value) {
@@ -341,6 +313,27 @@ class ReportGenerator {
     return "Client-generated from /summary using the selected report/export period. Missing backend fields remain Unavailable.";
   }
 
+  buildAttendanceRateFromSummaryRow(item = {}) {
+    const validAttendanceDays = this.normalizeExplicitCount(
+      item.valid_attendance_days,
+    );
+    const expectedWorkingDays = this.normalizeExplicitCount(
+      item.expected_working_days,
+    );
+
+    if (validAttendanceDays === null || expectedWorkingDays === null) {
+      return "Unavailable";
+    }
+
+    if (expectedWorkingDays === 0) {
+      return validAttendanceDays === 0 ? "0%" : "Unavailable";
+    }
+
+    return this.formatPercentValue(
+      (validAttendanceDays / expectedWorkingDays) * 100,
+    );
+  }
+
   buildHonestInsightParagraph(summary = {}, report = {}) {
     const unavailableLabels = this.getUnavailableSummaryLabels(summary);
     const totalRecords = this.formatReportTotalRecords(report);
@@ -416,8 +409,11 @@ class ReportGenerator {
     };
   }
 
-  buildExecutiveSummaryCards(summary = {}, rows = []) {
+  buildExecutiveSummaryCards(summary = {}, rows = [], analytics = {}) {
     const reportRows = Array.isArray(rows) ? rows : [];
+    const averageDisciplineScore = this.normalizeDisciplineScore(
+      analytics?.discipline_analysis?.average_discipline_score,
+    );
     const onTime = this.normalizeExplicitCount(summary.total_ontime);
     const late = this.normalizeExplicitCount(summary.total_late);
     const alpha = this.normalizeExplicitCount(summary.total_alpha);
@@ -490,11 +486,19 @@ class ReportGenerator {
       }
     }
 
-    if (reportRows.length === 0) {
+    if (averageDisciplineScore !== null) {
+      cards.push({
+        label: "Avg Discipline",
+        value: this.formatCompactNumber(averageDisciplineScore),
+        caption: "Explicit backend average discipline score.",
+        state: "ready",
+        accent: [6, 182, 212],
+      });
+    } else if (reportRows.length === 0) {
       cards.push({
         label: "Avg Discipline",
         value: "Unavailable",
-        caption: "No backend rows returned for scoring.",
+        caption: "Explicit backend average discipline score is unavailable.",
         state: "empty",
         accent: [6, 182, 212],
       });
@@ -527,8 +531,8 @@ class ReportGenerator {
 
     cards.push({
       label: "Needs Attention",
-      value: "Backend Required",
-      caption: "Dedicated attention count is not exposed.",
+      value: "Unavailable",
+      caption: "Field is not present in the canonical backend response.",
       state: "backendRequired",
       accent: [236, 72, 153],
     });
@@ -540,6 +544,7 @@ class ReportGenerator {
     return this.buildExecutiveSummaryCards(
       summaryData?.summary || {},
       this.extractReportRows(summaryData?.report) || [],
+      summaryData?.analytics || {},
     );
   }
 
@@ -919,7 +924,6 @@ class ReportGenerator {
       this.formatUnavailableValue(item.nip_nim),
       this.formatUnavailableValue(item.role),
       this.formatUnavailableValue(item.email),
-      this.formatUnavailableValue(item.phone_number),
       this.formatDateValue(item.attendance_date),
       this.formatUnavailableValue(item.time_in),
       this.formatUnavailableValue(item.time_out),
@@ -984,7 +988,11 @@ class ReportGenerator {
         { key: "footer", title: "Footer" },
       ],
       headerMetadata: this.buildPdfHeaderMetadataRows(period, generatedAt),
-      executiveCards: this.buildExecutiveSummaryCards(summary, reportRows),
+      executiveCards: this.buildExecutiveSummaryCards(
+        summary,
+        reportRows,
+        summaryData.analytics,
+      ),
       statisticsCards: this.buildPdfStatisticsCards(summary, reportRows),
       tableColumns,
       tableHead: [tableColumns.map((column) => column.header)],
@@ -1452,35 +1460,12 @@ class ReportGenerator {
   buildWorkbook(summaryData, period = "all", generatedAt = new Date()) {
     const reportRows = this.validateExportData(summaryData, "Excel");
     const workbook = XLSX.utils.book_new();
-    const userAttendanceSummaryTable =
-      this.buildUserAttendanceSummaryTableModel(summaryData.report);
 
     const summarySheet = XLSX.utils.aoa_to_sheet(
       this.buildSummarySheetRows(summaryData, period, generatedAt),
     );
     summarySheet["!cols"] = [{ wch: 24 }, { wch: 88 }];
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-
-    const userAttendanceSummarySheet = XLSX.utils.aoa_to_sheet([
-      this.buildPdfAttendanceTableColumns().map((column) => column.header),
-      ...userAttendanceSummaryTable.rows,
-    ]);
-    userAttendanceSummarySheet["!cols"] = [
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 20 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 22 },
-      { wch: 18 },
-      { wch: 42 },
-    ];
-    XLSX.utils.book_append_sheet(
-      workbook,
-      userAttendanceSummarySheet,
-      "User Attendance Summary",
-    );
 
     const attendanceSheet = XLSX.utils.aoa_to_sheet(
       this.buildAttendanceReportSheetRows(reportRows),
@@ -1490,7 +1475,6 @@ class ReportGenerator {
       { wch: 15 },
       { wch: 15 },
       { wch: 25 },
-      { wch: 15 },
       { wch: 14 },
       { wch: 12 },
       { wch: 12 },
@@ -1509,8 +1493,17 @@ class ReportGenerator {
       "Attendance Report",
     );
 
+    const disciplineSourceRows = Array.isArray(
+      summaryData?.report?.user_attendance_summary,
+    )
+      ? summaryData.report.user_attendance_summary
+      : [];
     const disciplineSheet = XLSX.utils.aoa_to_sheet(
-      this.buildDisciplineInsightSheetRows(reportRows, period, generatedAt),
+      this.buildDisciplineInsightSheetRows(
+        disciplineSourceRows,
+        period,
+        generatedAt,
+      ),
     );
     disciplineSheet["!cols"] = [
       { wch: 22 },

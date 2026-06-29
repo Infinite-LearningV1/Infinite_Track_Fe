@@ -26,6 +26,11 @@ const COMPLETE_SUMMARY_DATA = {
     total_wfh: 1,
     total_wfa: 1,
   },
+  analytics: {
+    discipline_analysis: {
+      average_discipline_score: 88,
+    },
+  },
   report: {
     data: [
       {
@@ -184,8 +189,8 @@ test("report generator builds executive summary cards from explicit backend coun
     },
     {
       label: "Needs Attention",
-      value: "Backend Required",
-      caption: "Dedicated attention count is not exposed.",
+      value: "Unavailable",
+      caption: "Field is not present in the canonical backend response.",
       state: "backendRequired",
       accent: [236, 72, 153],
     },
@@ -198,6 +203,7 @@ test("report generator builds executive KPI helper output from summary/report se
     reportGenerator.buildExecutiveSummaryCards(
       COMPLETE_SUMMARY_DATA.summary,
       COMPLETE_SUMMARY_DATA.report.data,
+      COMPLETE_SUMMARY_DATA.analytics,
     ),
   );
 });
@@ -575,6 +581,7 @@ test("report generator builds a PDF layout model without inventing summary table
     reportGenerator.buildExecutiveSummaryCards(
       COMPLETE_SUMMARY_DATA.summary,
       COMPLETE_SUMMARY_DATA.report.data,
+      COMPLETE_SUMMARY_DATA.analytics,
     ),
   );
   assert.deepEqual(
@@ -603,7 +610,7 @@ test("report generator builds a PDF layout model without inventing summary table
   });
 });
 
-test("report generator builds INF-166 workbook sheets with compact summary and raw attendance audit rows", () => {
+test("report generator builds workbook with only Summary, Attendance Report, and Discipline Insight sheets", () => {
   const workbook = reportGenerator.buildWorkbook(
     COMPLETE_SUMMARY_DATA,
     "monthly",
@@ -612,72 +619,60 @@ test("report generator builds INF-166 workbook sheets with compact summary and r
 
   assert.deepEqual(workbook.SheetNames, [
     "Summary",
-    "User Attendance Summary",
     "Attendance Report",
     "Discipline Insight",
   ]);
 
   const summarySheet = workbook.Sheets.Summary;
   assert.equal(getSheetValue(summarySheet, "A1"), "Infinite Track Palu");
-  assert.equal(getSheetValue(summarySheet, "A2"), "Attendance Report Export");
-  assert.equal(getSheetValue(summarySheet, "A4"), "Period");
-  assert.equal(getSheetValue(summarySheet, "B4"), "Monthly");
-  assert.equal(
-    getSheetValue(summarySheet, "B5"),
-    reportGenerator.formatGeneratedOn(GENERATED_AT),
-  );
-  assert.equal(getSheetValue(summarySheet, "B6"), "1");
-  assert.equal(getSheetValue(summarySheet, "A9"), "Executive KPI Summary");
-  assert.equal(getSheetValue(summarySheet, "A11"), "Total Records");
-  assert.equal(getSheetValue(summarySheet, "B11"), "1");
-  assert.equal(getSheetValue(summarySheet, "A16"), "Honest Insight");
-  assert.match(getSheetValue(summarySheet, "A17"), /operational artifact/);
-
-  const userAttendanceSummarySheet = workbook.Sheets["User Attendance Summary"];
-  assert.equal(getSheetValue(userAttendanceSummarySheet, "A1"), "Employee");
-  assert.equal(
-    getSheetValue(userAttendanceSummarySheet, "C1"),
-    "Attendance Coverage",
-  );
-  assert.equal(getSheetValue(userAttendanceSummarySheet, "A2"), "Rina Summary");
-  assert.equal(
-    getSheetValue(userAttendanceSummarySheet, "B2"),
-    "Staff / Operations",
-  );
-  assert.equal(getSheetValue(userAttendanceSummarySheet, "C2"), "10/10");
-  assert.equal(getSheetValue(userAttendanceSummarySheet, "D2"), "8");
-  assert.equal(getSheetValue(userAttendanceSummarySheet, "F2"), "0");
-  assert.equal(
-    getSheetValue(userAttendanceSummarySheet, "G2"),
-    "WFO 6 • WFH 2 • WFA 2",
-  );
-  assert.equal(getSheetValue(userAttendanceSummarySheet, "H2"), "On Time");
-  assert.match(
-    getSheetValue(userAttendanceSummarySheet, "I2"),
-    /Attendance coverage confirmed by backend\./,
-  );
+  assert.notEqual(getSheetValue(summarySheet, "A16"), "Honest Insight");
 
   const attendanceSheet = workbook.Sheets["Attendance Report"];
   assert.equal(getSheetValue(attendanceSheet, "A1"), "Full Name");
-  assert.equal(getSheetValue(attendanceSheet, "F1"), "Attendance Date");
-  assert.equal(getSheetValue(attendanceSheet, "P1"), "Location Description");
-  assert.equal(getSheetValue(attendanceSheet, "A2"), "Rina Detail");
-  assert.equal(getSheetValue(attendanceSheet, "J2"), "On Time");
-  assert.equal(getSheetValue(attendanceSheet, "K2"), "Work From Office");
-  assert.equal(getSheetValue(attendanceSheet, "N2"), "88");
-  assert.equal(getSheetValue(attendanceSheet, "O2"), "Excellent");
-  assert.equal(getSheetValue(attendanceSheet, "P2"), "Kantor Palu");
+  assert.equal(getSheetValue(attendanceSheet, "E1"), "Attendance Date");
+  assert.equal(getSheetValue(attendanceSheet, "N1"), "Discipline Label");
+  assert.equal(getSheetValue(attendanceSheet, "O1"), "Location Description");
 
   const disciplineSheet = workbook.Sheets["Discipline Insight"];
   assert.equal(getSheetValue(disciplineSheet, "A1"), "Discipline Insight");
-  assert.equal(getSheetValue(disciplineSheet, "B3"), "Monthly");
-  assert.equal(
-    getSheetValue(disciplineSheet, "B7"),
-    "Backend-backed row fields",
+});
+
+test("report generator does not expose out-of-scope fields as available workbook columns", () => {
+  const rows = reportGenerator.buildAttendanceReportSheetRows(
+    COMPLETE_SUMMARY_DATA.report.data,
   );
-  assert.equal(getSheetValue(disciplineSheet, "A9"), "Full Name");
-  assert.equal(getSheetValue(disciplineSheet, "E10"), "88");
-  assert.equal(getSheetValue(disciplineSheet, "F10"), "Excellent");
+
+  assert.equal(rows[0].includes("Phone Number"), false);
+  assert.equal(rows[1].includes("08123456789"), false);
+});
+
+test("report generator marks needs attention as unavailable/out-of-scope in executive cards", () => {
+  const cards = reportGenerator.buildExecutiveSummaryCards(
+    COMPLETE_SUMMARY_DATA.summary,
+    COMPLETE_SUMMARY_DATA.report.data,
+    COMPLETE_SUMMARY_DATA.analytics,
+  );
+
+  assert.equal(cards[3].label, "Needs Attention");
+  assert.equal(cards[3].state, "backendRequired");
+  assert.equal(cards[3].value, "Unavailable");
+});
+
+test("discipline insight sheet uses backend user_attendance_summary rows instead of raw report rows", () => {
+  const rows = reportGenerator.buildDisciplineInsightSheetRows(
+    COMPLETE_SUMMARY_DATA.report.user_attendance_summary,
+    "monthly",
+    GENERATED_AT,
+  );
+
+  assert.equal(rows[0][0], "Discipline Insight");
+  assert.equal(rows[5][0], "Employee Name");
+  assert.equal(rows[5][1], "Division");
+  assert.equal(rows[5][2], "Attendance Rate");
+  assert.equal(rows[6][0], "Rina Summary");
+  assert.equal(rows[6][1], "Operations");
+  assert.equal(rows[6][3], "2");
+  assert.equal(rows[6][4], "0");
 });
 
 test("report generator builds the branded PDF document without weakening truthful export constraints", () => {
@@ -692,16 +687,9 @@ test("report generator builds the branded PDF document without weakening truthfu
   assert.ok(pdfBytes.byteLength > 0);
 });
 
-test("report generator marks discipline insight as backend-required when explicit discipline fields are absent", () => {
+test("report generator marks discipline insight as backend-required when user attendance summary rows are absent", () => {
   const rows = reportGenerator.buildDisciplineInsightSheetRows(
-    [
-      {
-        full_name: "Missing Fields",
-        attendance_date: "2026-05-02",
-        status: "late",
-        information: "wfh",
-      },
-    ],
+    [],
     "weekly",
     GENERATED_AT,
   );
@@ -711,17 +699,11 @@ test("report generator marks discipline insight as backend-required when explici
     [""],
     ["Period", "Weekly"],
     ["Generated on", reportGenerator.formatGeneratedOn(GENERATED_AT)],
-    [
-      "Provenance",
-      "Client-generated from /summary using the selected report/export period. Missing backend fields remain Unavailable.",
-    ],
     [""],
     ["Availability", "Backend Required"],
-    ["Discipline Score", "Unavailable"],
-    ["Discipline Label", "Unavailable"],
     [
       "Insight Note",
-      "/summary report rows for the selected report/export period do not provide enough explicit discipline fields for a stronger discipline export view.",
+      "Backend user_attendance_summary is unavailable for the selected period.",
     ],
   ]);
 });
@@ -749,9 +731,9 @@ test("report generator keeps PDF summary fallbacks and Excel audit fallbacks tru
     pdfRows[0][8],
     "Expected working days unavailable. Attendance coverage label unavailable.",
   );
+  assert.equal(excelRows[0][12], "Unavailable");
   assert.equal(excelRows[0][13], "Unavailable");
   assert.equal(excelRows[0][14], "Unavailable");
-  assert.equal(excelRows[0][15], "Unavailable");
 });
 
 test("report generator preserves explicit zero values in PDF summary counts and Excel audit discipline fields", () => {
@@ -792,9 +774,9 @@ test("report generator preserves explicit zero values in PDF summary counts and 
   assert.equal(pdfRows[0][6], "WFO 0 • WFH 0 • WFA 0");
   assert.equal(pdfRows[0][7], "Alpha");
   assert.match(pdfRows[0][8], /Backend returned explicit zero counts\./);
+  assert.equal(excelRows[0][12], "0");
   assert.equal(excelRows[0][13], "0");
-  assert.equal(excelRows[0][14], "0");
-  assert.equal(excelRows[0][15], "Kantor Palu");
+  assert.equal(excelRows[0][14], "Kantor Palu");
 });
 
 test("report generator uses backend total metadata instead of row count as independent truth", () => {

@@ -13,9 +13,12 @@ Primary Linear issues:
 - INF-166 — Web FE export modal and refreshed PDF/Excel output implementation.
 - INF-183 — Backend summary report export attributes alignment.
 - INF-43 — Dashboard, reporting, and export responsibility boundary.
-- INF-109 — Dashboard table single state contract.
-- INF-111 — Dashboard search explicit contract.
 - INF-171 / INF-155 — Backend summary search contract and investigation.
+
+Historical context only:
+
+- INF-109 — Dashboard table single state contract (obsolete after dashboard table removal).
+- INF-111 — Dashboard search explicit contract (re-scope needed if referenced again).
 
 User-provided visual targets on 2026-06-28 define the desired export modal, PDF output, and Excel workbook output. The visuals are target design references, not evidence that every field is already backend-available.
 
@@ -41,29 +44,17 @@ User-provided visual targets on 2026-06-28 define the desired export modal, PDF 
 | --- | --- | --- | --- |
 | Dashboard analytics cards/charts | `/api/summary/dashboard-analytics` | Dashboard/cockpit historical overview only | Existing dashboard contract |
 | Report/export table rows | `/api/summary/reports` | Report/export source for row and summary data | Existing canonical contract |
-| PDF management report | `/api/summary/reports` now; candidate `/api/summary/reports/pdf` | Client-generated artifact today; candidate backend-native PDF payload/export endpoint | Needs backend decision |
-| Excel workbook | `/api/summary/reports` now; candidate `/api/summary/reports/excel` | Detailed operational workbook today; candidate backend-native Excel payload/export endpoint | Needs backend decision |
+| PDF management report | `/api/summary/reports` | Client-generated artifact from canonical backend response | Backend contract fixed |
+| Excel workbook | `/api/summary/reports` | Detailed operational workbook from canonical backend response | Backend contract fixed |
 | Today/live map | `/api/attendance/today-locations` | Today-only map context | Not report/export truth |
 | Geofence evidence | `/api/attendance/geofence-evidence` | Supporting geofence evidence context | Not final attendance truth |
 | FAHP detail | `/api/analysis/fuzzy-ahp/discipline`, `/wfa`, `/smart-ac` | Dedicated FAHP detail and decision-support surfaces | Not report/export source unless explicitly contracted |
 
 ### Endpoint decision
 
-Current Web FE should continue treating `GET /api/summary/reports` as the canonical report/export data source until backend changes land.
+Current Web FE must treat `GET /api/summary/reports` as the fixed canonical report/export data source.
 
-This spec adds two backend candidate endpoints for INF-183 evaluation:
-
-- `GET /api/summary/reports/pdf`
-- `GET /api/summary/reports/excel`
-
-These candidates are useful if PDF/Excel need full-period, filtered, or presentation-ready export payloads that should not be assembled from paginated table rows in Web FE. They also reduce ambiguity around export scope completeness.
-
-The candidate endpoints must not silently diverge from `/api/summary/reports` semantics. They should either:
-
-1. return backend-prepared export payloads for client-side generation, or
-2. return downloadable files directly,
-
-but the chosen shape must be explicit in backend docs/OpenAPI before Web FE consumes it.
+This spec no longer treats `GET /api/summary/reports/pdf` and `GET /api/summary/reports/excel` as active dependencies for FE implementation. If such endpoints are introduced later, they must be documented as a separate contract change and must not silently replace `/api/summary/reports` semantics.
 
 ## Export modal target
 
@@ -100,8 +91,8 @@ Behavior rules:
 
 - Show a truthful info note, e.g. export is generated from validated attendance records for the selected period.
 - Show a loading/progress state such as `Preparing export file...`.
-- Keep `Filtered records only` disabled or explicitly marked backend-required until backend confirms complete filtered export semantics.
-- If backend-native `/pdf` and `/excel` endpoints are adopted, modal format selection should route to those endpoints instead of assembling files only from `/api/summary/reports` table payload.
+- Keep `Filtered records only` disabled or explicitly marked backend-required until canonical `/api/summary/reports` semantics confirm complete filtered export behavior.
+- Format selection must continue using the canonical `/api/summary/reports` response contract unless a future backend contract explicitly replaces it.
 
 ## PDF output target
 
@@ -231,24 +222,24 @@ Excel truth rules:
 | Field name | UI/export label | Export surface | Source endpoint | Source path | Source type | Risk | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | period | Period | Modal/PDF/Excel | `/api/summary/reports` or candidate `/pdf` `/excel` | request `period`, response `period` | Backend field + FE formatting | Low | Available / Needs Verification |
-| generated_at | Generated on | PDF/Excel | `/api/summary/reports` or candidate `/pdf` `/excel` | `generated_at` or client generation timestamp | Backend field or FE metadata | Medium: client timestamp differs from backend generation | Needs UI Decision |
-| data_source | Data Source | PDF/Excel | `/api/summary/reports` or candidate `/pdf` `/excel` | Static/provenance label | Frontend formatting | Low | Available |
-| total_records | Total Records | PDF/Excel | `/api/summary/reports` | `report.pagination.total_items` / `total_records` | Backend aggregate | Medium: must match export scope | Available / Needs Verification |
+| generated_at | Generated on | PDF/Excel | `/api/summary/reports` | client generation timestamp | FE metadata | Medium: client timestamp differs from backend processing time | Needs UI Decision |
+| data_source | Data Source | PDF/Excel | `/api/summary/reports` | Static/provenance label | Frontend formatting | Low | Available |
+| total_records | Total Records | PDF/Excel | `/api/summary/reports` | `report.pagination.total_items` / `report.pagination.total_records` | Backend aggregate | Medium: must match export scope | Available / Needs Verification |
 | total_ontime | On Time | PDF/Excel | `/api/summary/reports` | `summary.total_ontime` | Backend aggregate | Medium: period-wide if search is active | Available |
 | total_late | Late | PDF/Excel | `/api/summary/reports` | `summary.total_late` | Backend aggregate | Medium: period-wide if search is active | Available |
 | total_alpha | Alpha | PDF/Excel | `/api/summary/reports` | `summary.total_alpha` | Backend aggregate | Medium: period-wide if search is active | Available |
 | total_wfo | WFO | PDF/Excel | `/api/summary/reports` | `summary.total_wfo` | Backend aggregate | Medium: period-wide if search is active | Available |
 | total_wfh | WFH | PDF/Excel | `/api/summary/reports` | `summary.total_wfh` | Backend aggregate | Medium: period-wide if search is active | Available |
 | total_wfa | WFA | PDF/Excel | `/api/summary/reports` | `summary.total_wfa` | Backend aggregate | Medium: period-wide if search is active | Available |
-| attendance_rate | Attendance Rate | PDF/Excel Summary | `/api/summary/reports` or candidate export endpoint | Derived from `summary.total_ontime`, `summary.total_late`, `summary.total_alpha`; or backend aggregate | Frontend formatting or backend aggregate | High: denominator semantics must be explicit | Needs Backend Adjustment / UI Decision |
-| late_alpha_risk | Late / Alpha Risk | PDF/Excel Summary | `/api/summary/reports` or candidate export endpoint | Derived from `summary.total_late + summary.total_alpha`; or backend aggregate | Frontend formatting or backend aggregate | Medium: count vs users wording differs | Needs UI Decision |
-| avg_discipline | Avg Discipline | PDF/Excel Summary | `/api/summary/reports` or candidate export endpoint | `analytics.discipline_analysis.average_discipline_score` or export aggregate | Backend aggregate | Medium: current analytics may reflect visible page users, not whole export scope | Needs Backend Adjustment |
-| needs_attention | Needs Attention | PDF/Excel Summary | Candidate `/pdf` `/excel` or enhanced `/api/summary/reports` | Not clearly exposed | Backend aggregate preferred | High: must not be invented | Needs Backend Adjustment |
+| attendance_rate | Attendance Rate | PDF/Excel Summary | `/api/summary/reports` | Derived from `summary.total_ontime`, `summary.total_late`, `summary.total_alpha` following backend response semantics | Frontend formatting from backend aggregates | High: denominator semantics must be explicit in FE copy | Needs UI Decision |
+| late_alpha_risk | Late / Alpha Risk | PDF/Excel Summary | `/api/summary/reports` | Derived from `summary.total_late + summary.total_alpha` | Frontend formatting from backend aggregates | Medium: count vs users wording differs | Needs UI Decision |
+| avg_discipline | Avg Discipline | PDF/Excel Summary | `/api/summary/reports` | `analytics.discipline_analysis.average_discipline_score` | Backend aggregate | Medium: FE must describe this according to backend response scope | Available / Needs Verification |
+| needs_attention | Needs Attention | PDF/Excel Summary | `/api/summary/reports` | Not present in canonical response | Not available in backend response | High: must not be invented | Out of Scope / Needs UI Decision |
 | full_name | Employee Name / Full Name | PDF/Excel rows | `/api/summary/reports` | `report.data[].full_name`, `report.user_attendance_summary[].full_name` | Backend field | Low | Available |
 | nip_nim | NIP/NIM | PDF/Excel rows | `/api/summary/reports` | `report.data[].nip_nim` | Backend field | Low | Available |
 | role | Role | PDF/Excel rows | `/api/summary/reports` | `report.data[].role`, `report.user_attendance_summary[].role_name` | Backend field | Low | Available |
 | email | Email | Excel Attendance Report | `/api/summary/reports` | `report.data[].email` | Backend field | Medium: PII/export handling | Available |
-| phone_number | Phone Number | Excel Attendance Report | `/api/summary/reports` or candidate export endpoint | Not clearly exposed in current backend contract evidence | Backend field | High: PII and availability uncertain | Needs Backend Adjustment / Needs UI Decision |
+| phone_number | Phone Number | Excel Attendance Report | `/api/summary/reports` | Not present in canonical response | Not available in backend response | High: PII and availability uncertain | Out of Scope / Needs UI Decision |
 | attendance_date | Date / Attendance Date | PDF/Excel rows | `/api/summary/reports` | `report.data[].attendance_date`, `report.user_attendance_summary[].latest_attendance_date` | Backend field | Low | Available |
 | time_in | Check In / Check In Time | PDF/Excel rows | `/api/summary/reports` | `report.data[].time_in` | Backend field | Low | Available |
 | time_out | Check Out / Check Out Time | PDF/Excel rows | `/api/summary/reports` | `report.data[].time_out` | Backend field | Low | Available |
@@ -266,77 +257,46 @@ Excel truth rules:
 | on_time_days | On Time Count | PDF/Excel summary rows | `/api/summary/reports` | `report.user_attendance_summary[].on_time_days` | Backend field | Low | Available / Needs Verification |
 | late_days | Late Count | PDF/Excel summary rows | `/api/summary/reports` | `report.user_attendance_summary[].late_days` | Backend field | Low | Available / Needs Verification |
 | alpha_days | Alpha Count | PDF/Excel summary rows | `/api/summary/reports` | `report.user_attendance_summary[].alpha_days` | Backend field | Low | Available / Needs Verification |
-| per_user_attendance_rate | Attendance Rate | Excel Discipline Insight | `/api/summary/reports` or candidate export endpoint | Derived from `valid_attendance_days / expected_working_days`, or backend field | Frontend formatting or backend aggregate | High: denominator and null handling | Needs UI Decision / Needs Backend Adjustment |
-| per_user_avg_discipline_score | Avg Discipline Score | Excel Discipline Insight | Candidate export endpoint preferred | Not clearly exposed as period-level per-user average | Backend aggregate preferred | High: row-level score is not necessarily period average | Needs Backend Adjustment |
-| recommended_action | Recommended Action | Excel Discipline Insight | Candidate export endpoint or FE rule | Not clearly exposed | Backend field or rule-based supporting label | High: can be mistaken as HR decision | Needs UI Decision / Needs Backend Adjustment |
+| per_user_attendance_rate | Attendance Rate | Excel Discipline Insight | `/api/summary/reports` | Derived from `valid_attendance_days / expected_working_days` when both values are present | Frontend formatting from backend fields | High: denominator and null handling must be explicit | Needs UI Decision |
+| per_user_avg_discipline_score | Avg Discipline Score | Excel Discipline Insight | `/api/summary/reports` | Not present as explicit period-level per-user aggregate | Not available in backend response | High: row-level score is not necessarily period average | Out of Scope / Needs UI Decision |
+| recommended_action | Recommended Action | Excel Discipline Insight | `/api/summary/reports` | Not present in canonical response | Not available in backend response | High: can be mistaken as HR decision | Out of Scope / Needs UI Decision |
 
-## Candidate backend endpoint contracts
+## Canonical backend response usage
 
-### `GET /api/summary/reports/pdf`
+Web FE implementation for this scope must follow the fixed canonical backend response from `GET /api/summary/reports`.
 
-Purpose: provide a PDF-ready export payload or direct PDF download for the selected report/export scope.
+Implementation assumptions for FE consumers:
 
-Minimum query params should align with `/api/summary/reports`:
+- summary/export aggregates come from `summary`
+- detailed attendance rows come from `report.data`
+- export completeness checks rely on `report.pagination`
+- compact summary/report rows may use `report.user_attendance_summary` when the FE output requires per-user summarized views
+- discipline aggregate values may use `analytics.discipline_analysis` only when the field exists explicitly in the backend response and is documented as part of the report/export contract
 
-- `period`
-- `from`
-- `to`
-- `q` if filtered export is supported
-- optional include flags for summary statistics, discipline score, work mode distribution, and location description
+Open FE decisions, not backend decisions:
 
-Recommended payload sections if backend returns JSON:
-
-- `metadata`
-- `executive_summary`
-- `statistics`
-- `detailed_attendance_rows`
-- `source_contract`
-- `completeness`
-
-### `GET /api/summary/reports/excel`
-
-Purpose: provide an Excel-ready export payload or direct workbook download for the selected report/export scope.
-
-Recommended payload sections if backend returns JSON:
-
-- `metadata`
-- `summary_sheet`
-- `attendance_report_sheet`
-- `discipline_insight_sheet`
-- `source_contract`
-- `completeness`
-
-### Open backend decisions
-
-- Should `/pdf` and `/excel` return JSON export payloads or files?
-- Should they include all records by default instead of paginated data?
-- Should filtered scope affect summary aggregates, or should a separate `scope_summary` be returned?
-- Should `Recommended Action` be backend-owned, omitted, or allowed as FE rule-based text?
+- whether `Filtered records only` remains disabled until canonical response semantics are proven safe for export
+- whether fields absent from the backend response are omitted or rendered as `Unavailable`
+- whether derived fields such as attendance-rate copy are labeled explicitly as FE formatting from backend aggregates
 
 ## Execution gates
 
 ### Backend INF-183 gate
 
-Before FE fully implements the refreshed PDF/Excel outputs, INF-183 should resolve:
+For this baseline, INF-183 is treated as resolved enough for FE to follow the fixed backend response contract.
 
-- field availability matrix,
-- whether `/api/summary/reports/pdf` and `/api/summary/reports/excel` will exist,
-- missing fields such as phone number,
-- needs-attention semantics,
-- per-user attendance and discipline aggregates,
-- recommended-action ownership,
-- filtered export completeness semantics.
+Remaining work is to keep field availability aligned to the backend response actually returned by `GET /api/summary/reports`, especially for fields that are absent and therefore must remain out-of-scope or unavailable in FE.
 
 ### Web FE INF-166 gate
 
 INF-166 may proceed safely once:
 
 - INF-160 dashboard binding is stable enough for export UI changes,
-- INF-183 backend gaps are resolved or accepted as unavailable/out-of-scope,
+- FE implementation follows the fixed backend response contract without inventing fields,
 - FE behavior for missing fields is explicitly specified,
 - export scope semantics are documented.
 
-If INF-166 starts before INF-183 is complete, it must implement conservative placeholders and avoid presenting missing values as final truth.
+If a target visual field is absent from the backend response, INF-166 must omit it or render it as unavailable instead of reopening backend assumptions in FE code.
 
 ## Verification plan
 

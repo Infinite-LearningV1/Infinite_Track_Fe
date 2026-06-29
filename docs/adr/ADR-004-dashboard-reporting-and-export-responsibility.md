@@ -18,7 +18,7 @@ Proposed
 
 - Web FE now renders the active dashboard as a conservative cockpit surface: `src/index.html` composes the stats card group and dashboard cockpit grid, and does not embed the old detailed report table on the main page.
 - The cockpit is intentionally fail-conservative: cards and panels may stay `error`, `empty`, `needsData`, or `backendRequired` when the backend contract is absent, invalid, or incomplete.
-- The dashboard now loads owner-specific backend sources with separate responsibilities: selected-period `/summary` data for report/export flows, `/summary/dashboard-analytics` for historical analytics panels, `/attendance/geofence-evidence` for geofence evidence, `/attendance/today-locations` for the live-map hero, and `/analysis/fuzzy-ahp/dashboard-recap` for FAHP decision-support recap.
+- The dashboard now loads owner-specific backend sources with separate responsibilities: selected-period `/summary/reports` data for report/export flows, `/summary/dashboard-analytics` for historical analytics panels, `/attendance/geofence-evidence` for geofence evidence, `/attendance/today-locations` for the live-map hero, and `/analysis/fuzzy-ahp/dashboard-recap` for FAHP decision-support recap.
 - `src/js/services/reportService.js` and dedicated owner services keep these requests transport-oriented, while `src/js/services/dashboardCockpitService.js` unwraps source-specific payloads and decides whether each cockpit panel may become `ready`, `needsData`, `backendRequired`, or `error`.
 - The active dashboard hero is no longer sourced from selected-period report rows or from analytics `map_context`. It now waits for explicit `attendance/today-locations` rows with usable coordinates and refuses to fall back to historical report-row coordinates or analytics snapshot markers.
 - Historical Attendance Trend is no longer a fixed two-line preview model. It accepts an explicit backend `historical_trend` / `historicalTrend` payload only when `historical_trend.points[]` contains valid per-date `on_time`, `late`, and `alpha` values that can be truthfully adapted into the FE range view.
@@ -27,7 +27,7 @@ Proposed
 - Attendance Mode Mix may render only from explicit dashboard analytics `mode_mix.totals` for canonical `wfo`, `wfh`, and `wfa` categories. Backend `mode_mix.percentages` may be displayed when present; otherwise FE may derive percentage labels only as presentation output from explicit totals.
 - Fuzzy AHP Decision Center may become `ready` only from explicit `analysis/fuzzy-ahp/dashboard-recap` sections under its independent `{ category, analysis_type }` filter model.
 - Geofence Evidence may become `ready` only from explicit `/attendance/geofence-evidence` payloads and must not be implied by analytics or report ownership.
-- Export is exposed through one `Export Attendance Report` modal with PDF and Excel choices; each choice reloads the selected-period backend `/summary` payload before generating the file client-side.
+- Export is exposed through one `Export Attendance Report` modal with PDF and Excel choices; each choice reloads the selected-period backend `/summary/reports` payload before generating the file client-side.
 - Export must fail closed when pagination completeness metadata is missing, non-numeric, or inconsistent with fetched rows, so Web FE does not present a partial dataset as reporting truth.
 - PDF now uses a compact summary/report contract. Its main table is driven by `report.user_attendance_summary`, not by raw `report.data` detail rows.
 - When `report.user_attendance_summary` is unavailable, PDF keeps the table in a conservative backend-required state instead of silently flattening raw report rows into a faux summary view.
@@ -57,7 +57,7 @@ We will keep the dashboard as a truth-preserving cockpit surface whose visible r
 
 We will treat the active dashboard hero as an explicit `attendance/today-locations` live-map surface. It may become `ready` only from valid today-locations rows with usable coordinates. It must not fall back to selected-period report-row coordinates, invent markers, or silently substitute analytics snapshot context.
 
-We will keep report/export transport separate from owner-specific dashboard requests. `/summary` remains the selected-period reporting/export path, while `/summary/dashboard-analytics`, `/attendance/geofence-evidence`, `/attendance/today-locations`, and `/analysis/fuzzy-ahp/dashboard-recap` remain owner-specific dashboard surfaces. Cockpit-specific envelope unwrapping and no-fallback normalization belong in `dashboardCockpitService`, not in the shared request layer.
+We will keep report/export transport separate from owner-specific dashboard requests. `/summary/reports` remains the selected-period reporting/export path, while `/summary/dashboard-analytics`, `/attendance/geofence-evidence`, `/attendance/today-locations`, and `/analysis/fuzzy-ahp/dashboard-recap` remain owner-specific dashboard surfaces. Cockpit-specific envelope unwrapping and no-fallback normalization belong in `dashboardCockpitService`, not in the shared request layer.
 
 We will treat Historical Attendance Trend as backend-ready only when the explicit analytics payload provides valid `historical_trend.points[]` entries with per-date `on_time`, `late`, and `alpha` values. FE may adapt those rows into a single dashboard range for visualization, but it must not derive trend from summary totals or split merged late/alpha risk signals. If the feed is absent, preview-only trend data may remain visible as a clearly marked backend-required placeholder. If the feed is incomplete or invalid, Web FE must stay conservative.
 
@@ -109,7 +109,7 @@ The export split is equally important. PDF has been narrowed into a compact mana
 - `src/js/services/reportService.js:66-86` — dashboard analytics request remains a raw controller-envelope passthrough.
 - `src/js/services/dashboardCockpitService.js:1370-1399` — cockpit boundary unwraps source-specific payloads and composes a conservative multi-source dashboard state instead of inventing cross-source truth.
 - `src/js/features/dashboard/dashboard.js:541-565` — export completeness validation fails when total metadata is missing or inconsistent.
-- `src/js/features/dashboard/dashboard.js:569-599` — export flow reloads the selected-period backend `/summary` payload before generation.
+- `src/js/features/dashboard/dashboard.js:569-599` — export flow reloads the selected-period backend `/summary/reports` payload before generation.
 - `src/js/services/dashboardCockpitService.js:1370-1399` — active cockpit composition treats explicit `today-locations` rows as the live-map authority and keeps the hero conservative instead of falling back to analytics snapshot or report-row coordinates.
 - `src/js/services/dashboardCockpitService.js:83-106` — cockpit definitions reserve Historical Trend, Mode Mix, Fuzzy AHP, and Geofence as separate responsibility surfaces.
 - `src/js/services/dashboardCockpitService.js:138-184` — preview Historical Trend is modeled as three explicit series (`ontime`, `late`, `alpha`).

@@ -159,10 +159,11 @@ test("report generator builds PDF footer content with page provenance", () => {
   });
 });
 
-test("report generator builds executive summary cards from explicit backend counts and row scores", () => {
+test("report generator builds executive summary cards from explicit backend counts and analytics", () => {
   const cards = reportGenerator.buildExecutiveSummaryCards(
     COMPLETE_SUMMARY_DATA.summary,
     COMPLETE_SUMMARY_DATA.report.data,
+    COMPLETE_SUMMARY_DATA.analytics,
   );
 
   assert.deepEqual(cards, [
@@ -183,7 +184,7 @@ test("report generator builds executive summary cards from explicit backend coun
     {
       label: "Avg Discipline",
       value: "88",
-      caption: "Derived from 1 explicit row scores.",
+      caption: "Explicit backend average discipline score.",
       state: "ready",
       accent: [6, 182, 212],
     },
@@ -208,7 +209,7 @@ test("report generator builds executive KPI helper output from summary/report se
   );
 });
 
-test("report generator keeps executive summary cards conservative when backend counts or scores are incomplete", () => {
+test("report generator keeps executive summary cards conservative when backend counts or analytics are incomplete", () => {
   const cards = reportGenerator.buildExecutiveSummaryCards(
     {
       total_ontime: 2,
@@ -223,8 +224,12 @@ test("report generator keeps executive summary cards conservative when backend c
   assert.equal(cards[0].state, "needsData");
   assert.equal(cards[0].value, "Unavailable");
   assert.equal(cards[1].state, "needsData");
-  assert.equal(cards[2].state, "needsData");
-  assert.equal(cards[2].caption, "Some row discipline scores are missing.");
+  assert.equal(cards[2].state, "backendRequired");
+  assert.equal(cards[2].value, "Unavailable");
+  assert.equal(
+    cards[2].caption,
+    "Explicit backend average discipline score is not present in the canonical response.",
+  );
   assert.equal(cards[3].state, "backendRequired");
 });
 

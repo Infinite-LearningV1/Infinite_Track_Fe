@@ -494,39 +494,15 @@ class ReportGenerator {
         state: "ready",
         accent: [6, 182, 212],
       });
-    } else if (reportRows.length === 0) {
+    } else {
       cards.push({
         label: "Avg Discipline",
         value: "Unavailable",
-        caption: "Explicit backend average discipline score is unavailable.",
-        state: "empty",
+        caption:
+          "Explicit backend average discipline score is not present in the canonical response.",
+        state: "backendRequired",
         accent: [6, 182, 212],
       });
-    } else {
-      const normalizedScores = reportRows.map((item) =>
-        this.normalizeDisciplineScore(item.discipline_score),
-      );
-
-      if (normalizedScores.some((score) => score === null)) {
-        cards.push({
-          label: "Avg Discipline",
-          value: "Unavailable",
-          caption: "Some row discipline scores are missing.",
-          state: "needsData",
-          accent: [6, 182, 212],
-        });
-      } else {
-        const averageScore =
-          normalizedScores.reduce((total, score) => total + score, 0) /
-          normalizedScores.length;
-        cards.push({
-          label: "Avg Discipline",
-          value: this.formatCompactNumber(averageScore),
-          caption: `Derived from ${normalizedScores.length} explicit row scores.`,
-          state: "ready",
-          accent: [6, 182, 212],
-        });
-      }
     }
 
     cards.push({

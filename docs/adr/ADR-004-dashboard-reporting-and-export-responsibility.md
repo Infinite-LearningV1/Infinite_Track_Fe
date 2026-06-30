@@ -117,10 +117,10 @@ The export split is equally important. PDF has been narrowed into a compact mana
 - `src/js/services/dashboardCockpitService.js:913-977` — Historical Trend stays preview-only when absent and refuses incomplete backend payloads.
 - `src/js/services/dashboardCockpitService.js` — Today Locations / Live Map waits for explicit `attendance/today-locations` rows with usable coordinates and does not fall back to report-row or analytics-snapshot markers.
 - `src/js/services/dashboardCockpitService.js` — Fuzzy AHP recap and Geofence Evidence now each have explicit backend-backed ready paths and stay conservative when their dedicated contracts are missing or invalid.
-- `src/js/utils/reportGenerator.js:1404-1436` — workbook includes a dedicated `User Attendance Summary` sheet built from PDF summary columns.
+- `src/js/utils/reportGenerator.js` — workbook now ships only `Summary`, `Attendance Report`, and `Discipline Insight`, aligned to the canonical report/export contract.
 - `src/js/utils/reportGenerator.js:751-808` — PDF summary rows and fallback model are driven by `report.user_attendance_summary`.
 - `src/js/utils/reportGenerator.js:880-905` — Excel report rows preserve raw row-level attendance/audit fields.
-- `src/js/utils/reportGenerator.js:924-952` — PDF layout model is centered on the compact `User Attendance Summary` table.
+- `src/js/utils/reportGenerator.js:924-952` — PDF layout model remains centered on a compact backend-backed user attendance summary table, while the workbook no longer adds a separate `User Attendance Summary` sheet.
 - `src/js/services/reportService.js` — mock helpers may exist, but runtime dashboard/export truth still depends on the active backend request path.
 
 ## Open Verification Points

@@ -74,13 +74,16 @@ Format cards:
   - For detailed data analysis, filtering, and HR/admin review.
   - Includes summary sheet, attendance report sheet, discipline insight sheet, and filter-ready columns.
 
-Export scope options:
+Export scope options for the shipped FE baseline:
 
 - `Current period`
+
+Deferred / not shipped in this baseline:
+
 - `All records in selected period`
 - `Filtered records only`
 
-Additional options:
+Additional options are also deferred in this baseline unless a future backend/UI contract explicitly activates them:
 
 - Include summary statistics
 - Include discipline score
@@ -178,13 +181,12 @@ Target fields:
 
 ### Attendance Report sheet
 
-Target columns:
+Shipped columns in this FE baseline:
 
 - Full Name
 - NIP/NIM
 - Role
 - Email
-- Phone Number
 - Attendance Date
 - Check In Time
 - Check Out Time
@@ -197,24 +199,31 @@ Target columns:
 - Discipline Label
 - Location Description
 
+Deferred / out-of-scope columns for this baseline:
+
+- Phone Number
+
 ### Discipline Insight sheet
 
-Target columns:
+Shipped columns in this FE baseline:
 
 - Employee Name
 - Division
 - Attendance Rate
 - Late Count
 - Alpha Count
+- Discipline Label (only when explicitly available; otherwise `Unavailable`)
+
+Deferred / out-of-scope columns for this baseline:
+
 - Avg Discipline Score
-- Discipline Label
 - Recommended Action
 
 Excel truth rules:
 
 - `Attendance Report` should use row-level report fields.
 - `Discipline Insight` should prefer per-user period summary fields from backend.
-- `Recommended Action` must be backend-provided or explicitly rule-based, supporting, and non-authoritative.
+- `Recommended Action` is out-of-scope in this baseline unless a future backend/UI contract explicitly introduces it.
 - Styling should be best-effort if the existing Excel generation library cannot reproduce all visual formatting in the reference.
 
 ## Attribute matrix

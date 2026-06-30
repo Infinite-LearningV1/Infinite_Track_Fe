@@ -1345,7 +1345,36 @@ test("cockpit fuzzy ahp filters malformed criteria weights without adapting lega
       value: 0.62,
     },
   ]);
-  assert.equal(fuzzyAhp.data.decisions, undefined);
+  assert.equal(fuzzyAhp.data.activeDecisionKey, "wfa");
+  assert.equal(Array.isArray(fuzzyAhp.data.decisions), true);
+  assert.equal(fuzzyAhp.data.decisions.length, 1);
+  assert.equal(fuzzyAhp.data.decisions[0].key, "wfa");
+  assert.equal(fuzzyAhp.data.decisions[0].criteriaWeights[0].weight, 0.62);
+});
+
+test("cockpit fuzzy ahp does not normalize missing status into empty output", () => {
+  const cockpit = createDashboardCockpitStateFromSources({
+    fuzzyAhpResponse: {
+      data: {
+        type: "discipline",
+        criteria_weights: [
+          {
+            key: "attendance",
+            label: "Attendance",
+            display_label: "Attendance",
+            value: 0.45,
+          },
+        ],
+      },
+    },
+  });
+
+  const fuzzyAhp = cockpit.bottomPanels.find(
+    (panel) => panel.key === "fuzzyAhp",
+  );
+
+  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.NEEDS_DATA);
+  assert.match(fuzzyAhp.message, /status must be present/i);
 });
 
 test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", () => {

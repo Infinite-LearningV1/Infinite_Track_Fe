@@ -1769,6 +1769,43 @@ function buildTodayLocationsHeroPanel(
   });
 }
 
+function buildFuzzyAhpUpdatedAtLabel(fuzzyAhp) {
+  if (!fuzzyAhp?.generatedAt) {
+    return "Menunggu pembaruan backend Fuzzy AHP";
+  }
+
+  const timezoneLabel = fuzzyAhp.timezone ? ` (${fuzzyAhp.timezone})` : "";
+  return `Backend generated at ${fuzzyAhp.generatedAt}${timezoneLabel}`;
+}
+
+function buildFuzzyAhpDecisionPayload(fuzzyAhp) {
+  return {
+    key: fuzzyAhp.type || "discipline",
+    title: fuzzyAhp.typeLabel || fuzzyAhp.type || "Fuzzy AHP",
+    summary:
+      fuzzyAhp.consistency?.summaryLabel ||
+      "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
+    consistencyRatio: fuzzyAhp.consistency?.CR ?? null,
+    consistencyThreshold: fuzzyAhp.consistency?.threshold ?? null,
+    consistencyStatus:
+      fuzzyAhp.consistency?.summaryLabel ||
+      (fuzzyAhp.consistency?.isConsistent ? "Consistent" : "Needs Review"),
+    isConsistent: Boolean(fuzzyAhp.consistency?.isConsistent),
+    updatedAtLabel: buildFuzzyAhpUpdatedAtLabel(fuzzyAhp),
+    criteriaWeights: fuzzyAhp.criteriaWeights.map((criterion) => ({
+      label: criterion.display_label || criterion.label || criterion.key,
+      weight: criterion.value,
+    })),
+    rankings: Array.isArray(fuzzyAhp.rankingPreview?.items)
+      ? fuzzyAhp.rankingPreview.items.map((item, index) => ({
+          label: item.label || `Alternative ${index + 1}`,
+          score: item.score,
+        }))
+      : [],
+    distribution: fuzzyAhp.distribution || null,
+  };
+}
+
 function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
   if (fuzzyAhpError) {
     return createPanel({
@@ -1796,6 +1833,17 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP backend payload is invalid; expected an explicit object response.",
       note: "Web FE will not coerce non-object Fuzzy AHP payloads into decision support output.",
+    });
+  }
+
+  if (!fuzzyAhp.status) {
+    return createPanel({
+      ...getBottomPanelDefinition("fuzzyAhp"),
+      state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
+      message:
+        "Fuzzy AHP backend payload is incomplete; status must be present for the dashboard recap contract.",
+      note: "Web FE will not treat malformed Fuzzy AHP recap payloads as empty backend output.",
+      data: fuzzyAhp,
     });
   }
 
@@ -1832,6 +1880,8 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
     });
   }
 
+  const decisionPayload = buildFuzzyAhpDecisionPayload(fuzzyAhp);
+
   return createPanel({
     ...getBottomPanelDefinition("fuzzyAhp"),
     state: DASHBOARD_PANEL_STATES.READY,
@@ -1839,7 +1889,12 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       ? `Explicit backend Fuzzy AHP ${fuzzyAhp.typeLabel || fuzzyAhp.type || "recap"} returned ${fuzzyAhp.criteriaWeights.length} criteria weight(s); CR value is ${formatNumericValue(fuzzyAhp.consistency.CR, 2)}.`
       : `Explicit backend Fuzzy AHP ${fuzzyAhp.typeLabel || fuzzyAhp.type || "recap"} returned ${fuzzyAhp.criteriaWeights.length} criteria weight(s).`,
     note: "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
-    data: fuzzyAhp,
+    data: {
+      ...fuzzyAhp,
+      activeDecisionKey: decisionPayload.key,
+      decisions: [decisionPayload],
+      updatedAtLabel: decisionPayload.updatedAtLabel,
+    },
   });
 }
 

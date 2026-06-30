@@ -19,7 +19,7 @@ export function buildFahpDashboardRecapViewModel(response) {
     timezone: data.timezone || null,
     requestedWindow: data.requested_window || null,
     executedWindow: data.executed_window || null,
-    status: data.status || "empty",
+    status: data.status || null,
     needsData: Boolean(data.needs_data),
     consistency: {
       CR: data.consistency?.CR ?? null,

@@ -1,4 +1,18 @@
 export function buildLiveMapViewModel(response) {
+  const sliceViewModel = response?.viewModel;
+
+  if (sliceViewModel && typeof sliceViewModel === "object") {
+    return {
+      locations: Array.isArray(sliceViewModel.locations)
+        ? sliceViewModel.locations
+        : [],
+      authority:
+        sliceViewModel.authority ||
+        response?.authority ||
+        "attendance.today-locations",
+    };
+  }
+
   const locations = Array.isArray(response?.data)
     ? response.data
     : Array.isArray(response?.data?.data)

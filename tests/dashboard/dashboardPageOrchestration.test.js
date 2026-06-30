@@ -34,15 +34,21 @@ test("loadDashboard keeps a rejected geofence fetch local while other slices sti
   });
 });
 
-test("loadExportData keeps canonical summary, report, and analytics sections for export consumers", async () => {
+test("loadExportData keeps canonical summary, period_summary, report, and analytics sections for export consumers", async () => {
   const component = dashboard();
 
   component.fetchSummaryReport = async () => ({
     summary: { total_ontime: 2, total_late: 1, total_alpha: 0 },
+    period_summary: {
+      attendance_rate: 71.77,
+      average_discipline_score: 93.79,
+      late_alpha_risk_users: 41,
+      needs_attention_users: 38,
+    },
     report: {
-      data: [{ full_name: "Rina" }],
+      data: [{ full_name: "Rina", user_id: 77, discipline_label: "Excellent" }],
       pagination: { total_records: 1 },
-      user_attendance_summary: [{ full_name: "Rina Summary" }],
+      user_attendance_summary: [{ full_name: "Rina Summary", user_id: 77 }],
     },
     analytics: {
       discipline_analysis: { average_discipline_score: 88 },
@@ -51,6 +57,12 @@ test("loadExportData keeps canonical summary, report, and analytics sections for
 
   const exportData = await component.loadExportData();
 
+  assert.deepEqual(exportData.period_summary, {
+    attendance_rate: 71.77,
+    average_discipline_score: 93.79,
+    late_alpha_risk_users: 41,
+    needs_attention_users: 38,
+  });
   assert.deepEqual(exportData.analytics, {
     discipline_analysis: { average_discipline_score: 88 },
   });

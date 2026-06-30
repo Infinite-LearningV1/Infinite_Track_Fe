@@ -1198,6 +1198,8 @@ export function dashboard() {
 
           const exportData = {
             summary: response.summary,
+            period_summary: response.period_summary,
+            export_scope_summary: response.export_scope_summary,
             report: response.report,
             analytics: response.analytics,
           };

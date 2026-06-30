@@ -31,9 +31,17 @@ const COMPLETE_SUMMARY_DATA = {
       average_discipline_score: 88,
     },
   },
+  period_summary: {
+    total_records: 6,
+    attendance_rate: 71.77,
+    average_discipline_score: 93.79,
+    late_alpha_risk_users: 41,
+    needs_attention_users: 38,
+  },
   report: {
     data: [
       {
+        user_id: 77,
         full_name: "Rina Detail",
         nip_nim: "123456",
         role: "Staff",
@@ -56,6 +64,7 @@ const COMPLETE_SUMMARY_DATA = {
     ],
     user_attendance_summary: [
       {
+        user_id: 77,
         full_name: "Rina Summary",
         role_name: "Staff",
         division: "Operations",
@@ -159,40 +168,41 @@ test("report generator builds PDF footer content with page provenance", () => {
   });
 });
 
-test("report generator builds executive summary cards from explicit backend counts and analytics", () => {
+test("report generator builds executive summary cards from explicit period_summary and analytics fields", () => {
   const cards = reportGenerator.buildExecutiveSummaryCards(
     COMPLETE_SUMMARY_DATA.summary,
     COMPLETE_SUMMARY_DATA.report.data,
     COMPLETE_SUMMARY_DATA.analytics,
+    COMPLETE_SUMMARY_DATA.period_summary,
   );
 
   assert.deepEqual(cards, [
     {
       label: "Attendance Rate",
-      value: "100%",
-      caption: "6 present of 6 explicit rows.",
+      value: "71,8%",
+      caption: "Explicit report summary metric from period_summary.",
       state: "ready",
       accent: [139, 92, 246],
     },
     {
       label: "Late / Alpha Risk",
-      value: "1",
-      caption: "16,7% of rows need status review.",
+      value: "41",
+      caption: "Explicit report summary metric from period_summary.",
       state: "ready",
       accent: [245, 158, 11],
     },
     {
       label: "Avg Discipline",
-      value: "88",
-      caption: "Explicit backend average discipline score.",
+      value: "93,8",
+      caption: "Explicit report summary metric from period_summary.",
       state: "ready",
       accent: [6, 182, 212],
     },
     {
       label: "Needs Attention",
-      value: "Unavailable",
-      caption: "Field is not present in the canonical backend response.",
-      state: "backendRequired",
+      value: "38",
+      caption: "Explicit report summary metric from period_summary.",
+      state: "ready",
       accent: [236, 72, 153],
     },
   ]);
@@ -205,11 +215,12 @@ test("report generator builds executive KPI helper output from summary/report se
       COMPLETE_SUMMARY_DATA.summary,
       COMPLETE_SUMMARY_DATA.report.data,
       COMPLETE_SUMMARY_DATA.analytics,
+      COMPLETE_SUMMARY_DATA.period_summary,
     ),
   );
 });
 
-test("report generator keeps executive summary cards conservative when backend counts or analytics are incomplete", () => {
+test("report generator keeps executive summary cards conservative when period_summary metrics are incomplete", () => {
   const cards = reportGenerator.buildExecutiveSummaryCards(
     {
       total_ontime: 2,
@@ -219,11 +230,14 @@ test("report generator keeps executive summary cards conservative when backend c
       { full_name: "Explicit Score", discipline_score: 88 },
       { full_name: "Missing Score" },
     ],
+    {},
+    {},
   );
 
-  assert.equal(cards[0].state, "needsData");
+  assert.equal(cards[0].state, "backendRequired");
   assert.equal(cards[0].value, "Unavailable");
-  assert.equal(cards[1].state, "needsData");
+  assert.equal(cards[1].state, "backendRequired");
+  assert.equal(cards[1].value, "Unavailable");
   assert.equal(cards[2].state, "backendRequired");
   assert.equal(cards[2].value, "Unavailable");
   assert.equal(
@@ -231,6 +245,7 @@ test("report generator keeps executive summary cards conservative when backend c
     "Explicit backend average discipline score is not present in the canonical response.",
   );
   assert.equal(cards[3].state, "backendRequired");
+  assert.equal(cards[3].value, "Unavailable");
 });
 
 test("report generator builds attendance distribution as a donut from explicit backend counts", () => {
@@ -587,6 +602,7 @@ test("report generator builds a PDF layout model without inventing summary table
       COMPLETE_SUMMARY_DATA.summary,
       COMPLETE_SUMMARY_DATA.report.data,
       COMPLETE_SUMMARY_DATA.analytics,
+      COMPLETE_SUMMARY_DATA.period_summary,
     ),
   );
   assert.deepEqual(
@@ -631,6 +647,14 @@ test("report generator builds workbook with only Summary, Attendance Report, and
   const summarySheet = workbook.Sheets.Summary;
   assert.equal(getSheetValue(summarySheet, "A1"), "Infinite Track Palu");
   assert.notEqual(getSheetValue(summarySheet, "A16"), "Honest Insight");
+  assert.equal(getSheetValue(summarySheet, "A11"), "Attendance Rate");
+  assert.equal(getSheetValue(summarySheet, "B11"), "71,8%");
+  assert.equal(getSheetValue(summarySheet, "A12"), "Late / Alpha Risk");
+  assert.equal(getSheetValue(summarySheet, "B12"), "41");
+  assert.equal(getSheetValue(summarySheet, "A13"), "Avg Discipline");
+  assert.equal(getSheetValue(summarySheet, "B13"), "93,8");
+  assert.equal(getSheetValue(summarySheet, "A14"), "Needs Attention");
+  assert.equal(getSheetValue(summarySheet, "B14"), "38");
 
   const attendanceSheet = workbook.Sheets["Attendance Report"];
   assert.equal(getSheetValue(attendanceSheet, "A1"), "Full Name");
@@ -640,6 +664,9 @@ test("report generator builds workbook with only Summary, Attendance Report, and
 
   const disciplineSheet = workbook.Sheets["Discipline Insight"];
   assert.equal(getSheetValue(disciplineSheet, "A1"), "Discipline Insight");
+  assert.equal(getSheetValue(disciplineSheet, "A7"), "Rina Summary");
+  assert.equal(getSheetValue(disciplineSheet, "B7"), "Operations");
+  assert.equal(getSheetValue(disciplineSheet, "F7"), "Excellent");
 });
 
 test("report generator does not expose out-of-scope fields as available workbook columns", () => {
@@ -684,6 +711,28 @@ test("discipline insight sheet uses backend user_attendance_summary rows instead
   assert.equal(rows[6][3], "2");
   assert.equal(rows[6][4], "0");
   assert.equal(rows[6][5], "Needs Review");
+});
+
+test("discipline insight discipline label fallback stays unavailable when report.data labels are ambiguous", () => {
+  const rows = reportGenerator.buildDisciplineInsightSheetRows(
+    COMPLETE_SUMMARY_DATA.report.user_attendance_summary,
+    "monthly",
+    GENERATED_AT,
+    [
+      {
+        ...COMPLETE_SUMMARY_DATA.report.data[0],
+        user_id: 77,
+        discipline_label: "Excellent",
+      },
+      {
+        ...COMPLETE_SUMMARY_DATA.report.data[0],
+        user_id: 77,
+        discipline_label: "Needs Review",
+      },
+    ],
+  );
+
+  assert.equal(rows[6][5], "Unavailable");
 });
 
 test("report generator builds the branded PDF document without weakening truthful export constraints", () => {

@@ -105,12 +105,24 @@ class ReportGenerator {
     ]);
   }
 
-  buildExecutiveSummaryRows(summary = {}, report = {}) {
+  buildExecutiveSummaryRows(summaryData = {}, report = {}) {
+    const periodSummary = summaryData?.period_summary || {};
+
     return [
+      ["Attendance Rate", this.formatPeriodSummaryPercent(periodSummary.attendance_rate)],
+      [
+        "Late / Alpha Risk",
+        this.formatUnavailableValue(periodSummary.late_alpha_risk_users),
+      ],
+      [
+        "Avg Discipline",
+        this.formatPeriodSummaryNumber(periodSummary.average_discipline_score),
+      ],
+      [
+        "Needs Attention",
+        this.formatUnavailableValue(periodSummary.needs_attention_users),
+      ],
       ["Total Records", this.formatReportTotalRecords(report)],
-      ["On Time", this.formatUnavailableValue(summary.total_ontime)],
-      ["Late", this.formatUnavailableValue(summary.total_late)],
-      ["Alpha (Absent)", this.formatUnavailableValue(summary.total_alpha)],
     ];
   }
 
@@ -132,10 +144,7 @@ class ReportGenerator {
       [""],
       ["Executive KPI Summary"],
       ["Metric", "Value"],
-      ...this.buildExecutiveSummaryRows(
-        summaryData?.summary,
-        summaryData?.report,
-      ),
+      ...this.buildExecutiveSummaryRows(summaryData, summaryData?.report),
       [""],
       ["Summary Statistics"],
       ["Category", "Count"],
@@ -185,6 +194,7 @@ class ReportGenerator {
     rows = [],
     period = "all",
     generatedAt = new Date(),
+    detailRows = [],
   ) {
     if (!Array.isArray(rows) || rows.length === 0) {
       return [
@@ -200,6 +210,8 @@ class ReportGenerator {
         ],
       ];
     }
+
+    const disciplineLabelLookup = this.buildDisciplineLabelLookup(detailRows);
 
     return [
       ["Discipline Insight"],
@@ -221,7 +233,7 @@ class ReportGenerator {
         this.buildAttendanceRateFromSummaryRow(item),
         this.formatUnavailableValue(item.late_days),
         this.formatUnavailableValue(item.alpha_days),
-        this.formatUnavailableValue(item.discipline_label),
+        this.resolveDisciplineLabelForInsight(item, disciplineLabelLookup),
       ]),
     ];
   }
@@ -384,6 +396,55 @@ class ReportGenerator {
     return `${this.formatCompactNumber(value)}%`;
   }
 
+  formatPeriodSummaryPercent(value) {
+    return this.hasAvailableValue(value)
+      ? this.formatPercentValue(Number(value))
+      : "Unavailable";
+  }
+
+  formatPeriodSummaryNumber(value) {
+    return this.hasAvailableValue(value)
+      ? this.formatCompactNumber(Number(value))
+      : "Unavailable";
+  }
+
+  buildDisciplineLabelLookup(detailRows = []) {
+    const lookup = new Map();
+
+    detailRows.forEach((row) => {
+      const userId = row?.user_id;
+      const disciplineLabel = row?.discipline_label;
+
+      if (!this.hasAvailableValue(userId) || !this.hasAvailableValue(disciplineLabel)) {
+        return;
+      }
+
+      const normalizedUserId = String(userId);
+      const existing = lookup.get(normalizedUserId) || new Set();
+      existing.add(String(disciplineLabel));
+      lookup.set(normalizedUserId, existing);
+    });
+
+    return lookup;
+  }
+
+  resolveDisciplineLabelForInsight(item = {}, disciplineLabelLookup = new Map()) {
+    if (this.hasAvailableValue(item?.discipline_label)) {
+      return this.formatUnavailableValue(item.discipline_label);
+    }
+
+    if (!this.hasAvailableValue(item?.user_id)) {
+      return "Unavailable";
+    }
+
+    const labels = disciplineLabelLookup.get(String(item.user_id));
+    if (!labels || labels.size !== 1) {
+      return "Unavailable";
+    }
+
+    return this.formatUnavailableValue(Array.from(labels)[0]);
+  }
+
   formatGeneratedOnCompact(date = new Date()) {
     return date.toLocaleDateString("id-ID", {
       day: "2-digit",
@@ -409,111 +470,57 @@ class ReportGenerator {
     };
   }
 
-  buildExecutiveSummaryCards(summary = {}, rows = [], analytics = {}) {
-    const reportRows = Array.isArray(rows) ? rows : [];
-    const averageDisciplineScore = this.normalizeDisciplineScore(
-      analytics?.discipline_analysis?.average_discipline_score,
-    );
-    const onTime = this.normalizeExplicitCount(summary.total_ontime);
-    const late = this.normalizeExplicitCount(summary.total_late);
-    const alpha = this.normalizeExplicitCount(summary.total_alpha);
-    const attendanceCountsReady = [onTime, late, alpha].every(
-      (value) => value !== null,
-    );
-    const cards = [];
+  buildExecutiveSummaryCards(
+    summary = {},
+    rows = [],
+    analytics = {},
+    periodSummary = {},
+  ) {
+    const attendanceRate = periodSummary?.attendance_rate;
+    const lateAlphaRiskUsers = periodSummary?.late_alpha_risk_users;
+    const averageDisciplineScore = periodSummary?.average_discipline_score;
+    const needsAttentionUsers = periodSummary?.needs_attention_users;
 
-    if (!attendanceCountsReady) {
-      cards.push({
+    return [
+      {
         label: "Attendance Rate",
-        value: "Unavailable",
-        caption: "Explicit status counts unavailable.",
-        state: "needsData",
+        value: this.formatPeriodSummaryPercent(attendanceRate),
+        caption: "Explicit report summary metric from period_summary.",
+        state: this.hasAvailableValue(attendanceRate) ? "ready" : "backendRequired",
         accent: [139, 92, 246],
-      });
-    } else {
-      const totalAttendance = onTime + late + alpha;
-
-      if (totalAttendance === 0) {
-        cards.push({
-          label: "Attendance Rate",
-          value: "0%",
-          caption: "No explicit attendance rows returned.",
-          state: "empty",
-          accent: [139, 92, 246],
-        });
-      } else {
-        const presentCount = onTime + late;
-        cards.push({
-          label: "Attendance Rate",
-          value: this.formatPercentValue(
-            (presentCount / totalAttendance) * 100,
-          ),
-          caption: `${presentCount} present of ${totalAttendance} explicit rows.`,
-          state: "ready",
-          accent: [139, 92, 246],
-        });
-      }
-    }
-
-    if (!attendanceCountsReady) {
-      cards.push({
+      },
+      {
         label: "Late / Alpha Risk",
-        value: "Unavailable",
-        caption: "Late or alpha counts unavailable.",
-        state: "needsData",
+        value: this.formatUnavailableValue(lateAlphaRiskUsers),
+        caption: "Explicit report summary metric from period_summary.",
+        state: this.hasAvailableValue(lateAlphaRiskUsers)
+          ? "ready"
+          : "backendRequired",
         accent: [245, 158, 11],
-      });
-    } else {
-      const totalAttendance = onTime + late + alpha;
-
-      if (totalAttendance === 0) {
-        cards.push({
-          label: "Late / Alpha Risk",
-          value: "0",
-          caption: "No explicit attendance rows returned.",
-          state: "empty",
-          accent: [245, 158, 11],
-        });
-      } else {
-        const riskCount = late + alpha;
-        cards.push({
-          label: "Late / Alpha Risk",
-          value: String(riskCount),
-          caption: `${this.formatPercentValue((riskCount / totalAttendance) * 100)} of rows need status review.`,
-          state: "ready",
-          accent: [245, 158, 11],
-        });
-      }
-    }
-
-    if (averageDisciplineScore !== null) {
-      cards.push({
+      },
+      {
         label: "Avg Discipline",
-        value: this.formatCompactNumber(averageDisciplineScore),
-        caption: "Explicit backend average discipline score.",
-        state: "ready",
+        value: this.formatPeriodSummaryNumber(averageDisciplineScore),
+        caption: this.hasAvailableValue(averageDisciplineScore)
+          ? "Explicit report summary metric from period_summary."
+          : "Explicit backend average discipline score is not present in the canonical response.",
+        state: this.hasAvailableValue(averageDisciplineScore)
+          ? "ready"
+          : "backendRequired",
         accent: [6, 182, 212],
-      });
-    } else {
-      cards.push({
-        label: "Avg Discipline",
-        value: "Unavailable",
-        caption:
-          "Explicit backend average discipline score is not present in the canonical response.",
-        state: "backendRequired",
-        accent: [6, 182, 212],
-      });
-    }
-
-    cards.push({
-      label: "Needs Attention",
-      value: "Unavailable",
-      caption: "Field is not present in the canonical backend response.",
-      state: "backendRequired",
-      accent: [236, 72, 153],
-    });
-
-    return cards;
+      },
+      {
+        label: "Needs Attention",
+        value: this.formatUnavailableValue(needsAttentionUsers),
+        caption: this.hasAvailableValue(needsAttentionUsers)
+          ? "Explicit report summary metric from period_summary."
+          : "Field is not present in the canonical backend response.",
+        state: this.hasAvailableValue(needsAttentionUsers)
+          ? "ready"
+          : "backendRequired",
+        accent: [236, 72, 153],
+      },
+    ];
   }
 
   buildExecutiveKpiCards(summaryData = {}) {
@@ -521,6 +528,7 @@ class ReportGenerator {
       summaryData?.summary || {},
       this.extractReportRows(summaryData?.report) || [],
       summaryData?.analytics || {},
+      summaryData?.period_summary || {},
     );
   }
 
@@ -968,6 +976,7 @@ class ReportGenerator {
         summary,
         reportRows,
         summaryData.analytics,
+        summaryData.period_summary,
       ),
       statisticsCards: this.buildPdfStatisticsCards(summary, reportRows),
       tableColumns,
@@ -1479,6 +1488,7 @@ class ReportGenerator {
         disciplineSourceRows,
         period,
         generatedAt,
+        reportRows,
       ),
     );
     disciplineSheet["!cols"] = [

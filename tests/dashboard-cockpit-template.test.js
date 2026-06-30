@@ -56,7 +56,7 @@ test("dashboard stats partial renders the analytics header, KPI shell, and expor
 
 test("dashboard stats partial describes export as canonical report-response output", () => {
   assert.match(statsPartial, /Export Attendance Report/);
-  assert.match(statsPartial, /canonical backend report payload/i);
+  assert.match(statsPartial, /canonical backend report response/i);
   assert.doesNotMatch(statsPartial, /Phone Number/);
   assert.doesNotMatch(statsPartial, /Recommended Action/);
 });

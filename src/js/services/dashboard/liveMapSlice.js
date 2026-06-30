@@ -1,27 +1,11 @@
 export function buildLiveMapViewModel(response) {
-  const sliceViewModel = response?.viewModel;
-
-  if (sliceViewModel && typeof sliceViewModel === "object") {
-    return {
-      locations: Array.isArray(sliceViewModel.locations)
-        ? sliceViewModel.locations
-        : false,
-      authority:
-        sliceViewModel.authority ||
-        response?.authority ||
-        "attendance.today-locations",
-    };
-  }
-
-  const locations = Array.isArray(response)
-    ? response
-    : Array.isArray(response?.data)
-      ? response.data
-      : Array.isArray(response?.data?.data)
-        ? response.data.data
-        : response === null || typeof response === "undefined"
-          ? []
-          : false;
+  const locations = Array.isArray(response?.data)
+    ? response.data
+    : Array.isArray(response?.data?.data)
+      ? response.data.data
+      : Array.isArray(response)
+        ? response
+        : [];
 
   return {
     locations,

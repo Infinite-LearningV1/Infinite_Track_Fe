@@ -38,6 +38,38 @@ test("cockpit loading state marks every panel as loading", () => {
   );
 });
 
+test("geofence evidence view model preserves dedicated operational context", () => {
+  const cockpit = createDashboardCockpitStateFromSources({
+    geofenceEvidenceResponse: {
+      data: {
+        status: "ready",
+        needs_data: false,
+        authority: "attendance.geofence-evidence",
+        final_attendance_authority: "attendance records",
+        reason: "Dedicated endpoint available",
+        window: { from: "2026-06-01", to: "2026-06-30" },
+        raw_counts: {
+          total_events: 10,
+          enter_events: 6,
+          exit_events: 4,
+          unique_users: 5,
+        },
+        operational_context: {
+          activity_label: "Morning attendance",
+          activity_note: "Using dedicated evidence feed",
+          enter_context: "6 enters detected",
+          exit_context: "4 exits detected",
+          dashboard_note: "Backend truth only",
+        },
+      },
+    },
+  });
+
+  const panel = cockpit.bottomPanels.find((entry) => entry.key === "geofenceEvidence");
+  assert.equal(panel.state, DASHBOARD_PANEL_STATES.READY);
+  assert.match(panel.note, /backend truth only/i);
+});
+
 test("cockpit source boundary ignores legacy embedded analytics in report response", () => {
   const cockpit = createDashboardCockpitStateFromSources({
     reportResponse: {
@@ -658,25 +690,17 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
   );
   assert.match(modeMix.data.chartStyle, /conic-gradient/);
 
-  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
+  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
   assert.equal(
     fuzzyAhp.subtitle,
     "Decision support output once backend feed is wired",
   );
   assert.doesNotMatch(fuzzyAhp.subtitle, /cr, weights, ranking, distribution/i);
-  assert.equal(fuzzyAhp.data.source, "analysis.fuzzy-ahp.preview");
-  assert.equal(fuzzyAhp.data.isPreview, true);
-  assert.equal(fuzzyAhp.data.activeDecisionKey, "discipline");
-  assert.equal(fuzzyAhp.data.decisions.length, 3);
-  assert.equal(fuzzyAhp.data.decisions[0].title, "Discipline");
-  assert.equal(fuzzyAhp.data.decisions[1].title, "WFA");
-  assert.equal(fuzzyAhp.data.decisions[2].title, "Smart AC");
-  assert.equal(fuzzyAhp.data.decisions[0].criteriaWeights.length, 5);
-  assert.equal(fuzzyAhp.data.decisions[0].rankings[0].label, "Rizky Ananda");
-  assert.match(fuzzyAhp.data.decisions[0].updatedAtLabel, /Perhitungan Fuzzy AHP/);
+  assert.equal(fuzzyAhp.data, null);
+  assert.match(fuzzyAhp.message, /explicit analysis\.fuzzy-ahp dashboard backend feed/i);
   assert.match(
     fuzzyAhp.note,
-    /dummy criteria, weights, and rankings are for local cockpit layout validation only/i,
+    /no dummy criteria, weights, rankings, or preview decisions/i,
   );
   assert.equal(geofenceEvidence.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
 });
@@ -1190,22 +1214,20 @@ test("cockpit hero uses explicit today locations feed as live map source when av
       },
     },
     todayLocations: {
-      viewModel: {
-        locations: [
-          {
-            attendance_id: "att_001",
-            full_name: "Andi Wijaya",
-            status: "ontime",
-            work_mode: "WFO",
-            attendance_date: "2026-05-03",
-            latitude: -0.9,
-            longitude: 119.8,
-            radius: 100,
-            location_description: "Kantor Palu",
-          },
-        ],
-        authority: "attendance.today-locations",
-      },
+      data: [
+        {
+          attendance_id: "att_001",
+          full_name: "Andi Wijaya",
+          status: "ontime",
+          work_mode: "WFO",
+          attendance_date: "2026-05-03",
+          latitude: -0.9,
+          longitude: 119.8,
+          radius: 100,
+          location_description: "Kantor Palu",
+        },
+      ],
+      authority: "attendance.today-locations",
     },
   });
 
@@ -1230,24 +1252,40 @@ test("cockpit hero stays backend-required when today locations feed is unavailab
   assert.equal(cockpit.hero.data, null);
 });
 
-test("cockpit fuzzy ahp becomes ready only with explicit fuzzy ahp backend response", () => {
+test("cockpit fuzzy ahp preserves final dashboard recap payload", () => {
   const cockpit = createDashboardCockpitStateFromSources({
     fuzzyAhpResponse: {
       data: {
-        key: "discipline",
-        title: "Discipline",
-        summary: "Primary decision summary",
-        consistency_ratio: 0.06,
-        criteriaWeights: [
-          { label: "Attendance", weight: 0.45 },
-          { label: "Punctuality", weight: 0.35 },
-          { label: "Compliance", weight: 0.2 },
+        type: "discipline",
+        type_label: "Discipline",
+        generated_at: "2026-06-25T10:00:00.000Z",
+        timezone: "Asia/Makassar",
+        requested_window: { from: "2026-06-01", to: "2026-06-30" },
+        executed_window: { from: "2026-06-01", to: "2026-06-25" },
+        status: "ready",
+        needs_data: false,
+        consistency: {
+          CR: 0.06,
+          threshold: 0.1,
+          is_consistent: true,
+          summary_label: "Consistent",
+        },
+        criteria_weights: [
+          {
+            key: "attendance",
+            label: "Attendance",
+            display_label: "Attendance",
+            value: 0.45,
+          },
+          {
+            key: "punctuality",
+            label: "Punctuality",
+            display_label: "Punctuality",
+            value: 0.35,
+          },
         ],
-        rankings: [
-          { label: "WFH", score: 0.41 },
-          { label: "WFO", score: 0.34 },
-          { label: "WFA", score: 0.25 },
-        ],
+        ranking_preview: { items: [{ label: "Andi", score: 0.91 }] },
+        distribution: { excellent: 2, good: 5 },
       },
     },
   });
@@ -1258,34 +1296,36 @@ test("cockpit fuzzy ahp becomes ready only with explicit fuzzy ahp backend respo
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(fuzzyAhp.data.source, "analysis.fuzzy-ahp");
-  assert.equal(fuzzyAhp.data.activeDecisionKey, "discipline");
-  assert.equal(fuzzyAhp.data.decisions[0].title, "Discipline");
-  assert.equal(fuzzyAhp.data.decisions[0].criteriaWeights.length, 3);
-  assert.equal(fuzzyAhp.data.decisions[0].rankings[0].label, "WFH");
+  assert.equal(fuzzyAhp.data.type, "discipline");
+  assert.equal(fuzzyAhp.data.typeLabel, "Discipline");
+  assert.equal(fuzzyAhp.data.consistency.CR, 0.06);
+  assert.equal(fuzzyAhp.data.criteriaWeights.length, 2);
+  assert.deepEqual(fuzzyAhp.data.rankingPreview, {
+    items: [{ label: "Andi", score: 0.91 }],
+  });
+  assert.deepEqual(fuzzyAhp.data.distribution, { excellent: 2, good: 5 });
+  assert.match(fuzzyAhp.note, /explicit backend fuzzy ahp feed/i);
 });
 
-test("cockpit fuzzy ahp adapts dashboard recap sections into explicit fuzzy ahp rankings", () => {
+test("cockpit fuzzy ahp filters malformed criteria weights without adapting legacy sections", () => {
   const cockpit = createDashboardCockpitStateFromSources({
     fuzzyAhpResponse: {
-      success: true,
-      filter: {
-        category: "discipline",
-        analysis_type: "summary",
-      },
       data: {
+        type: "wfa",
+        type_label: "WFA",
         status: "ready",
-        sections: [
+        criteria_weights: [
           {
-            key: "discipline",
-            title: "Discipline",
-            summary: "Top category available",
-            distribution: {
-              WFH: 0.41,
-              WFO: 0.34,
-              WFA: 0.25,
-            },
-            consistency: 0.06,
-            generatedAt: "2026-06-25T10:00:00.000Z",
+            key: "location",
+            label: "Location",
+            display_label: "Location",
+            value: 0.62,
+          },
+          {
+            key: "invalid",
+            label: "Invalid",
+            display_label: "Invalid",
+            value: "0.38",
           },
         ],
       },
@@ -1297,24 +1337,24 @@ test("cockpit fuzzy ahp adapts dashboard recap sections into explicit fuzzy ahp 
   );
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
-  assert.equal(fuzzyAhp.data.decisions[0].key, "discipline");
-  assert.deepEqual(fuzzyAhp.data.decisions[0].rankings, [
-    { label: "WFH", score: 0.41 },
-    { label: "WFO", score: 0.34 },
-    { label: "WFA", score: 0.25 },
+  assert.deepEqual(fuzzyAhp.data.criteriaWeights, [
+    {
+      key: "location",
+      label: "Location",
+      display_label: "Location",
+      value: 0.62,
+    },
   ]);
-  assert.deepEqual(fuzzyAhp.data.decisions[0].criteriaWeights, [
-    { label: "WFH", weight: 0.41 },
-    { label: "WFO", weight: 0.34 },
-    { label: "WFA", weight: 0.25 },
-  ]);
+  assert.equal(fuzzyAhp.data.decisions, undefined);
 });
 
 test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", () => {
   const cockpit = createDashboardCockpitStateFromSources({
     fuzzyAhpResponse: {
       data: {
-        rankings: [],
+        type: "discipline",
+        status: "ready",
+        criteria_weights: [],
       },
     },
   });
@@ -1324,8 +1364,8 @@ test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", ()
   );
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.NEEDS_DATA);
-  assert.equal(fuzzyAhp.data, null);
-  assert.match(fuzzyAhp.message, /invalid; expected an explicit object response/i);
+  assert.equal(fuzzyAhp.data.type, "discipline");
+  assert.match(fuzzyAhp.message, /criteria_weights must include explicit final dashboard weights/i);
 });
 
 test("cockpit error state isolates every panel as error", () => {

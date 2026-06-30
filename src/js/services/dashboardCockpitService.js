@@ -95,6 +95,7 @@ const KPI_DEFINITIONS = [
 import { buildHistoricalAnalyticsViewModel } from "./dashboard/historicalAnalyticsSlice.js";
 import { buildGeofenceEvidenceViewModel } from "./dashboard/geofenceEvidenceSlice.js";
 import { buildLiveMapViewModel } from "./dashboard/liveMapSlice.js";
+import { buildFahpDashboardRecapViewModel } from "./dashboard/fahpRecapSlice.js";
 
 const MAP_VIEW_SOURCE_KEY = "dashboard-analytics.map_context";
 const MAP_VIEW_SOURCE_NOTE =
@@ -132,251 +133,7 @@ const ATTENDANCE_MODE_COLORS = Object.freeze({
   WFA: "#f59e0b",
 });
 
-const PREVIEW_TODAY_LOCATION_ROWS = Object.freeze([
-  {
-    attendance_id: "preview-wfo-001",
-    user_id: "EMP-001",
-    full_name: "Andi Pratama",
-    email: "andi.pratama@example.test",
-    role_name: "Field Officer",
-    mode: "WFO",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:01",
-    time_out: "17:02",
-    latitude: -0.8954,
-    longitude: 119.8591,
-    description: "Preview WFO marker near Palu office zone.",
-  },
-  {
-    attendance_id: "preview-wfo-002",
-    user_id: "EMP-002",
-    full_name: "Budi Santoso",
-    email: "budi.santoso@example.test",
-    role_name: "Operations Staff",
-    mode: "WFO",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:04",
-    time_out: "17:05",
-    latitude: -0.8991,
-    longitude: 119.8672,
-    description: "Preview WFO marker near central operations area.",
-  },
-  {
-    attendance_id: "preview-wfo-003",
-    user_id: "EMP-003",
-    full_name: "Citra Lestari",
-    email: "citra.lestari@example.test",
-    role_name: "Admin Staff",
-    mode: "WFO",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "07:58",
-    time_out: "17:01",
-    latitude: -0.8898,
-    longitude: 119.8527,
-    description: "Preview WFO marker near attendance hub.",
-  },
-  {
-    attendance_id: "preview-wfo-004",
-    user_id: "EMP-004",
-    full_name: "Dimas Putra",
-    email: "dimas.putra@example.test",
-    role_name: "Supervisor",
-    mode: "WFO",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:10",
-    time_out: "17:15",
-    latitude: -0.9052,
-    longitude: 119.8546,
-    description: "Preview WFO marker near office perimeter.",
-  },
-  {
-    attendance_id: "preview-wfo-005",
-    user_id: "EMP-005",
-    full_name: "Eka Wulandari",
-    email: "eka.wulandari@example.test",
-    role_name: "Finance Staff",
-    mode: "WFO",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:03",
-    time_out: "17:00",
-    latitude: -0.8932,
-    longitude: 119.8735,
-    description: "Preview WFO marker near finance office zone.",
-  },
-  {
-    attendance_id: "preview-wfh-001",
-    user_id: "EMP-006",
-    full_name: "Fajar Ramadhan",
-    email: "fajar.ramadhan@example.test",
-    role_name: "Remote Analyst",
-    mode: "WFH",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:20",
-    time_out: "16:55",
-    latitude: -0.8825,
-    longitude: 119.8614,
-    description: "Preview WFH marker from approved home location.",
-  },
-  {
-    attendance_id: "preview-wfa-001",
-    user_id: "EMP-007",
-    full_name: "Gita Maharani",
-    email: "gita.maharani@example.test",
-    role_name: "Field Coordinator",
-    mode: "WFA",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:12",
-    time_out: "17:08",
-    latitude: -0.9111,
-    longitude: 119.8668,
-    description: "Preview WFA marker near client visit area.",
-  },
-  {
-    attendance_id: "preview-wfa-002",
-    user_id: "EMP-008",
-    full_name: "Hendra Wijaya",
-    email: "hendra.wijaya@example.test",
-    role_name: "Surveyor",
-    mode: "WFA",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:30",
-    time_out: "17:20",
-    latitude: -0.8871,
-    longitude: 119.8788,
-    description: "Preview WFA marker from field survey point.",
-  },
-  {
-    attendance_id: "preview-wfa-003",
-    user_id: "EMP-009",
-    full_name: "Intan Safitri",
-    email: "intan.safitri@example.test",
-    role_name: "Community Liaison",
-    mode: "WFA",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:18",
-    time_out: "17:12",
-    latitude: -0.9184,
-    longitude: 119.8489,
-    description: "Preview WFA marker near external meeting point.",
-  },
-  {
-    attendance_id: "preview-wfa-004",
-    user_id: "EMP-010",
-    full_name: "Joko Nugroho",
-    email: "joko.nugroho@example.test",
-    role_name: "Technician",
-    mode: "WFA",
-    status: "Checked In",
-    attendance_date: "2026-06-30",
-    time_in: "08:25",
-    time_out: "17:10",
-    latitude: -0.9017,
-    longitude: 119.8421,
-    description: "Preview WFA marker near maintenance checkpoint.",
-  },
-]);
-
 const FUZZY_AHP_SOURCE_KEY = "analysis.fuzzy-ahp";
-const FUZZY_AHP_PREVIEW_SOURCE_KEY = "analysis.fuzzy-ahp.preview";
-const GEOFENCE_EVIDENCE_PREVIEW_SOURCE_KEY = "analysis.geofence-evidence.preview";
-const PREVIEW_GEOFENCE_EVIDENCE = Object.freeze({
-  status: "ready",
-  rawCounts: {
-    enter_events: 24,
-    exit_events: 21,
-    total_events: 45,
-    unique_users: 12,
-  },
-  isPreview: true,
-  source: GEOFENCE_EVIDENCE_PREVIEW_SOURCE_KEY,
-  finalAttendanceAuthority: "backend attendance records",
-});
-const PREVIEW_FUZZY_AHP_DECISIONS = Object.freeze([
-  {
-    key: "discipline",
-    title: "Discipline",
-    summary:
-      "Preview-only discipline decision set for cockpit layout validation while the backend Fuzzy AHP feed is unavailable.",
-    consistencyRatio: 0.058,
-    consistencyThreshold: 0.1,
-    consistencyStatus: "Konsisten",
-    isConsistent: true,
-    updatedAtLabel: "Perhitungan Fuzzy AHP diperbarui per 18 Mei 2025",
-    criteriaWeights: [
-      { label: "Kehadiran", weight: 0.352 },
-      { label: "Ketepatan Waktu", weight: 0.248 },
-      { label: "Kepatuhan Aturan", weight: 0.198 },
-      { label: "Produktivitas", weight: 0.128 },
-      { label: "Kerja Sama", weight: 0.074 },
-    ],
-    rankings: [
-      { label: "Rizky Ananda", score: 0.842 },
-      { label: "Dewi Lestari", score: 0.781 },
-      { label: "Budi Santoso", score: 0.763 },
-      { label: "Siti Nurhaliza", score: 0.719 },
-      { label: "Agus Setiawan", score: 0.688 },
-    ],
-  },
-  {
-    key: "wfa",
-    title: "WFA",
-    summary:
-      "Preview-only WFA decision set that keeps criteria, weights, and ranking visible without becoming reporting truth.",
-    consistencyRatio: 0.064,
-    consistencyThreshold: 0.1,
-    consistencyStatus: "Konsisten",
-    isConsistent: true,
-    updatedAtLabel: "Perhitungan Fuzzy AHP diperbarui per 18 Mei 2025",
-    criteriaWeights: [
-      { label: "Kesiapan Lokasi", weight: 0.334 },
-      { label: "Riwayat Presensi", weight: 0.261 },
-      { label: "Kebutuhan Peran", weight: 0.207 },
-      { label: "Bukti Geofence", weight: 0.124 },
-      { label: "Kapasitas Tim", weight: 0.074 },
-    ],
-    rankings: [
-      { label: "Dewi Lestari", score: 0.814 },
-      { label: "Rizky Ananda", score: 0.798 },
-      { label: "Siti Nurhaliza", score: 0.742 },
-      { label: "Budi Santoso", score: 0.701 },
-      { label: "Agus Setiawan", score: 0.673 },
-    ],
-  },
-  {
-    key: "smart-ac",
-    title: "Smart AC",
-    summary:
-      "Preview-only Smart AC decision set for cockpit UI validation while backend scoring remains unwired.",
-    consistencyRatio: 0.071,
-    consistencyThreshold: 0.1,
-    consistencyStatus: "Konsisten",
-    isConsistent: true,
-    updatedAtLabel: "Perhitungan Fuzzy AHP diperbarui per 18 Mei 2025",
-    criteriaWeights: [
-      { label: "Jam Operasional", weight: 0.318 },
-      { label: "Kepadatan Ruangan", weight: 0.272 },
-      { label: "Konsumsi Energi", weight: 0.203 },
-      { label: "Pola Kehadiran", weight: 0.129 },
-      { label: "Kenyamanan", weight: 0.078 },
-    ],
-    rankings: [
-      { label: "Ruang Operasi", score: 0.821 },
-      { label: "Ruang Admin", score: 0.779 },
-      { label: "Ruang Rapat", score: 0.744 },
-      { label: "Ruang Arsip", score: 0.706 },
-      { label: "Lobby", score: 0.682 },
-    ],
-  },
-]);
 
 const MIDDLE_PANEL_DEFINITIONS = [
   {
@@ -990,8 +747,16 @@ function hasExplicitAnalyticsField(analytics = null, fieldName) {
   );
 }
 
+function createHistoricalAnalyticsResponseEnvelope(analytics = null) {
+  return analytics && typeof analytics === "object" && !Array.isArray(analytics)
+    ? { data: analytics }
+    : null;
+}
+
 function getExecutiveKpis(analytics = null) {
-  const executiveKpis = buildHistoricalAnalyticsViewModel(analytics).kpis;
+  const executiveKpis = buildHistoricalAnalyticsViewModel(
+    createHistoricalAnalyticsResponseEnvelope(analytics),
+  ).kpis;
 
   return executiveKpis &&
     typeof executiveKpis === "object" &&
@@ -1010,7 +775,9 @@ function getExecutiveRawCounts(analytics = null) {
 }
 
 function getModeMix(analytics = null) {
-  const modeMix = buildHistoricalAnalyticsViewModel(analytics).modeMix;
+  const modeMix = buildHistoricalAnalyticsViewModel(
+    createHistoricalAnalyticsResponseEnvelope(analytics),
+  ).modeMix;
 
   return modeMix && typeof modeMix === "object" && !Array.isArray(modeMix)
     ? modeMix
@@ -1664,7 +1431,9 @@ function createHistoricalTrendRangeFromPoints(points) {
 }
 
 function normalizeHistoricalTrend(analytics = null) {
-  const trendPayload = buildHistoricalAnalyticsViewModel(analytics).trend;
+  const trendPayload = buildHistoricalAnalyticsViewModel(
+    createHistoricalAnalyticsResponseEnvelope(analytics),
+  ).trend;
 
   if (!trendPayload) {
     return null;
@@ -1906,129 +1675,6 @@ function buildFuzzyAhpPanel() {
   return buildExplicitFuzzyAhpPanel(null);
 }
 
-function normalizeFahpDecisionRankings(rankings = []) {
-  return rankings
-    .map((ranking, index) => {
-      const label = firstPresentValue(
-        ranking?.label,
-        ranking?.name,
-        `Alternative ${index + 1}`,
-      );
-      const score = firstFiniteNumber(
-        ranking?.score,
-        ranking?.value,
-        ranking?.weight,
-      );
-
-      if (!label || score === null) {
-        return null;
-      }
-
-      return { label, score };
-    })
-    .filter(Boolean)
-    .sort((left, right) => right.score - left.score);
-}
-
-function normalizeFahpCriteriaWeights(criteriaWeights = null, rankings = []) {
-  if (Array.isArray(criteriaWeights)) {
-    const normalizedCriteriaWeights = criteriaWeights
-      .map((criterion, index) => {
-        const label = firstPresentValue(
-          criterion?.label,
-          criterion?.name,
-          criterion?.key,
-          `Criterion ${index + 1}`,
-        );
-        const weight = firstFiniteNumber(
-          criterion?.weight,
-          criterion?.value,
-          criterion?.score,
-        );
-
-        if (!label || weight === null) {
-          return null;
-        }
-
-        return { label, weight };
-      })
-      .filter(Boolean)
-      .sort((left, right) => right.weight - left.weight);
-
-    if (normalizedCriteriaWeights.length) {
-      return normalizedCriteriaWeights;
-    }
-  }
-
-  return rankings.map((ranking) => ({
-    label: ranking.label,
-    weight: ranking.score,
-  }));
-}
-
-function normalizeFahpDecision(decision, fallbackKey, fallbackTitle) {
-  if (!decision || typeof decision !== "object" || Array.isArray(decision)) {
-    return null;
-  }
-
-  const rankings = normalizeFahpDecisionRankings(decision.rankings);
-
-  if (!rankings.length) {
-    return null;
-  }
-
-  return {
-    key: firstPresentValue(decision.key, fallbackKey),
-    title: firstPresentValue(decision.title, fallbackTitle),
-    summary: firstPresentValue(decision.summary, "Explicit backend Fuzzy AHP output."),
-    consistencyRatio: firstFiniteNumber(
-      decision.consistency_ratio,
-      decision.consistencyRatio,
-    ),
-    criteriaWeights: normalizeFahpCriteriaWeights(decision.criteriaWeights, rankings),
-    rankings,
-  };
-}
-
-function normalizeFahpSectionDecision(section, index = 0) {
-  if (!section || typeof section !== "object" || Array.isArray(section)) {
-    return null;
-  }
-
-  const distribution =
-    section.distribution &&
-    typeof section.distribution === "object" &&
-    !Array.isArray(section.distribution)
-      ? section.distribution
-      : null;
-  const rankings = distribution
-    ? Object.entries(distribution)
-        .map(([label, score]) =>
-          typeof score === "number" && Number.isFinite(score)
-            ? { label, score }
-            : null,
-        )
-        .filter(Boolean)
-        .sort((left, right) => right.score - left.score)
-    : [];
-
-  if (!rankings.length) {
-    return null;
-  }
-
-  return {
-    key: firstPresentValue(section.key, `decision-${index + 1}`),
-    title: firstPresentValue(section.title, `Decision ${index + 1}`),
-    summary: firstPresentValue(section.summary, "Explicit backend Fuzzy AHP output."),
-    consistencyRatio:
-      typeof section.consistency === "number" && Number.isFinite(section.consistency)
-        ? section.consistency
-        : null,
-    criteriaWeights: normalizeFahpCriteriaWeights(section.criteriaWeights, rankings),
-    rankings,
-  };
-}
-
 function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
   if (fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined") {
     return null;
@@ -2038,51 +1684,12 @@ function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
     return false;
   }
 
-  const responsePayload =
-    fuzzyAhpResponse?.data &&
-    typeof fuzzyAhpResponse.data === "object" &&
-    !Array.isArray(fuzzyAhpResponse.data)
-      ? fuzzyAhpResponse.data
-      : fuzzyAhpResponse;
+  const viewModel = buildFahpDashboardRecapViewModel(fuzzyAhpResponse);
 
-  if (
-    responsePayload &&
-    typeof responsePayload === "object" &&
-    !Array.isArray(responsePayload) &&
-    Array.isArray(responsePayload.sections)
-  ) {
-    const decisions = responsePayload.sections
-      .map((section, index) => normalizeFahpSectionDecision(section, index))
-      .filter(Boolean);
-
-    return decisions.length
-      ? {
-          source: FUZZY_AHP_SOURCE_KEY,
-          decisions,
-        }
-      : false;
-  }
-
-  if (
-    responsePayload &&
-    typeof responsePayload === "object" &&
-    !Array.isArray(responsePayload)
-  ) {
-    const normalizedDecision = normalizeFahpDecision(
-      responsePayload,
-      "overall",
-      "Overall Decision",
-    );
-
-    return normalizedDecision
-      ? {
-          source: FUZZY_AHP_SOURCE_KEY,
-          decisions: [normalizedDecision],
-        }
-      : false;
-  }
-
-  return false;
+  return {
+    ...viewModel,
+    source: FUZZY_AHP_SOURCE_KEY,
+  };
 }
 
 function buildTodayLocationsHeroPanel(
@@ -2109,37 +1716,6 @@ function buildTodayLocationsHeroPanel(
   }
 
   const liveMap = buildLiveMapViewModel(todayLocations);
-  if (!Array.isArray(liveMap.locations)) {
-    const previewLocations = ensureUniqueMapLocationKeys(
-      PREVIEW_TODAY_LOCATION_ROWS.map((point, index) =>
-        createMapLocation(point, index, {
-          source: "attendance.today-locations.preview",
-          sourceNote:
-            "Preview-only sample rows shown because the backend today-locations payload is invalid.",
-          trackingNote:
-            "Preview markers are dummy attendance locations for UI validation only; they are not backend truth.",
-        }),
-      ).filter(Boolean),
-    );
-    const sharedData = {
-      locations: previewLocations,
-      unavailableCount: 0,
-      totalRows: PREVIEW_TODAY_LOCATION_ROWS.length,
-      source: "attendance.today-locations.preview",
-      tileProvider: "OpenStreetMap",
-      isPreview: true,
-      modeSummary: createLiveMapModeSummary(previewLocations),
-    };
-
-    return createPanel({
-      ...LIVE_MAP_PANEL_DEFINITION,
-      state: DASHBOARD_PANEL_STATES.READY,
-      message:
-        "10 preview attendance locations shown while the backend today-locations payload is invalid.",
-      note: "Preview sample: 5 WFO, 1 WFH, and 4 WFA markers. Replace with explicit backend attendance rows for production truth.",
-      data: sharedData,
-    });
-  }
 
   const locations = ensureUniqueMapLocationKeys(
     liveMap.locations
@@ -2206,16 +1782,10 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
   if (fuzzyAhp === null) {
     return createPanel({
       ...getBottomPanelDefinition("fuzzyAhp"),
-      state: DASHBOARD_PANEL_STATES.READY,
-      detail:
-        "Preview-only Fuzzy AHP decision sets are shown while the backend feed is unavailable.",
-      note: "Dummy criteria, weights, and rankings are for local cockpit layout validation only; they are not backend truth or report/export authority.",
-      data: {
-        source: FUZZY_AHP_PREVIEW_SOURCE_KEY,
-        isPreview: true,
-        decisions: PREVIEW_FUZZY_AHP_DECISIONS,
-        activeDecisionKey: PREVIEW_FUZZY_AHP_DECISIONS[0].key,
-      },
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message:
+        "Fuzzy AHP waits for the explicit analysis.fuzzy-ahp dashboard backend feed.",
+      note: "No dummy criteria, weights, rankings, or preview decisions are used as runtime Fuzzy AHP truth.",
     });
   }
 
@@ -2229,49 +1799,47 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
     });
   }
 
-  if (!Array.isArray(fuzzyAhp.decisions) || fuzzyAhp.decisions.length === 0) {
+  if (fuzzyAhp.needsData) {
     return createPanel({
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
       message:
-        "Fuzzy AHP backend payload is incomplete; decisions must contain explicit criteria and ranking output.",
-      note: "Web FE will not fabricate criteria, weights, or ranking from summary or analytics sources.",
+        "Fuzzy AHP backend payload reports needs_data for this dashboard scope.",
+      note: "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
+      data: fuzzyAhp,
     });
   }
 
-  const decisions = fuzzyAhp.decisions.filter(
-    (decision) =>
-      decision &&
-      Array.isArray(decision.rankings) &&
-      decision.rankings.length &&
-      Array.isArray(decision.criteriaWeights) &&
-      decision.criteriaWeights.length,
-  );
+  if (fuzzyAhp.status === "empty") {
+    return createPanel({
+      ...getBottomPanelDefinition("fuzzyAhp"),
+      state: DASHBOARD_PANEL_STATES.EMPTY,
+      message:
+        "Fuzzy AHP backend feed returned no recap output for this dashboard scope.",
+      note: "Web FE will not substitute dummy Fuzzy AHP decisions for empty backend output.",
+      data: fuzzyAhp,
+    });
+  }
 
-  if (!decisions.length || decisions.length !== fuzzyAhp.decisions.length) {
+  if (!Array.isArray(fuzzyAhp.criteriaWeights) || fuzzyAhp.criteriaWeights.length === 0) {
     return createPanel({
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
       message:
-        "Fuzzy AHP backend decisions are incomplete; each decision must include explicit criteria weights and ranked alternatives.",
-      note: "Web FE will not infer missing Fuzzy AHP decision fields.",
+        "Fuzzy AHP backend payload is incomplete; criteria_weights must include explicit final dashboard weights.",
+      note: "Web FE will not fabricate criteria weights from legacy sections or summary data.",
+      data: fuzzyAhp,
     });
   }
-
-  const primaryDecision = decisions[0];
 
   return createPanel({
     ...getBottomPanelDefinition("fuzzyAhp"),
     state: DASHBOARD_PANEL_STATES.READY,
-    detail: Number.isFinite(primaryDecision.consistencyRatio)
-      ? `Explicit backend Fuzzy AHP returned ${decisions.length} decision set(s); primary CR value is ${formatNumericValue(primaryDecision.consistencyRatio, 2)}.`
-      : `Explicit backend Fuzzy AHP returned ${decisions.length} decision set(s) for the active period.`,
+    detail: Number.isFinite(fuzzyAhp.consistency?.CR)
+      ? `Explicit backend Fuzzy AHP ${fuzzyAhp.typeLabel || fuzzyAhp.type || "recap"} returned ${fuzzyAhp.criteriaWeights.length} criteria weight(s); CR value is ${formatNumericValue(fuzzyAhp.consistency.CR, 2)}.`
+      : `Explicit backend Fuzzy AHP ${fuzzyAhp.typeLabel || fuzzyAhp.type || "recap"} returned ${fuzzyAhp.criteriaWeights.length} criteria weight(s).`,
     note: "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
-    data: {
-      source: firstPresentValue(fuzzyAhp.source, FUZZY_AHP_SOURCE_KEY),
-      decisions,
-      activeDecisionKey: primaryDecision.key,
-    },
+    data: fuzzyAhp,
   });
 }
 
@@ -2292,12 +1860,10 @@ function buildGeofenceEvidencePanel(
     return createPanel({
       ...getBottomPanelDefinition("geofenceEvidence"),
       title: "Geofence Operational Context",
-      subtitle: "Preview-only geofence event evidence",
-      state: DASHBOARD_PANEL_STATES.READY,
-      detail:
-        "Preview-only geofence operational context is shown while the backend feed is unavailable.",
-      note: "Dummy geofence event counts are for local cockpit layout validation only; final attendance validity remains determined by backend attendance records.",
-      data: PREVIEW_GEOFENCE_EVIDENCE,
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message:
+        "Geofence evidence waits for the explicit attendance.geofence-evidence backend feed.",
+      note: "No dummy geofence evidence is used as runtime attendance-supporting truth.",
     });
   }
 
@@ -2335,7 +1901,9 @@ function buildGeofenceEvidencePanel(
     subtitle: "ENTER / EXIT + attendance evidence",
     state: DASHBOARD_PANEL_STATES.READY,
     detail: `${geofenceEvidence.rawCounts.total_events} supporting geofence events for the active period. Final attendance authority remains ${geofenceEvidence.finalAttendanceAuthority || "unavailable"}.`,
-    note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+    note:
+      geofenceEvidence.operationalContext.dashboard_note ||
+      "Geofence events are supporting evidence only; they never become final attendance truth.",
     data: geofenceEvidence,
   });
 }

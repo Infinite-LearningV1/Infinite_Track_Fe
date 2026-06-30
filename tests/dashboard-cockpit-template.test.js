@@ -54,6 +54,13 @@ test("dashboard stats partial renders the analytics header, KPI shell, and expor
   assert.doesNotMatch(statsPartial, /cardSummaryData\./);
 });
 
+test("dashboard stats partial describes export as canonical report-response output", () => {
+  assert.match(statsPartial, /Export Attendance Report/);
+  assert.match(statsPartial, /canonical backend report payload/i);
+  assert.doesNotMatch(statsPartial, /Phone Number/);
+  assert.doesNotMatch(statsPartial, /Recommended Action/);
+});
+
 test("dashboard cockpit grid renders map-only hero, preview trend, and backend-derived mode mix card", () => {
   assert.match(cockpitGrid, /cockpit\.hero\.title/);
   assert.match(cockpitGrid, /cockpit\.hero\.subtitle/);

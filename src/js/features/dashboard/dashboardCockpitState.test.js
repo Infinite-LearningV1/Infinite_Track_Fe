@@ -2,7 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { dashboard } from "./dashboard.js";
+import { buildFahpRequestParams } from "./fahpFilterState.js";
 import { DASHBOARD_PANEL_STATES } from "../../services/dashboardCockpitService.js";
+
+test("dashboard FAHP request params use the final type-based contract", () => {
+  const component = dashboard();
+  const params =
+    component.getFahpRequestParams?.() ||
+    buildFahpRequestParams(component.fahpFilterState);
+
+  assert.deepEqual(params, { type: "discipline" });
+});
 
 test("dashboard initializes cockpit without the retired report workspace surface", () => {
   const component = dashboard();

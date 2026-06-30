@@ -1608,19 +1608,6 @@ export function dashboard() {
         : {};
 
       const requestParams = buildFahpRequestParams(params);
-      if (!requestParams.category) {
-        const error = new Error(
-          "Invalid category: null. Allowed categories are discipline, wfa, smart_ac.",
-        );
-        this.fuzzyAhpResponse = null;
-        this.fuzzyAhpError = error;
-        await this.applyCockpitSurfaceState({
-          reportResponse: currentReportResponse,
-          fuzzyAhpResponse: null,
-          fuzzyAhpError: error,
-        });
-        throw error;
-      }
 
       this.fuzzyAhpError = null;
       await this.applyCockpitSurfaceState({

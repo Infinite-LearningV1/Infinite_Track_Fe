@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createDashboardPageState } from "../../src/js/features/dashboard/dashboard.js";
+import {
+  createDashboardPageState,
+  dashboard,
+} from "../../src/js/features/dashboard/dashboard.js";
 
 test("loadDashboard keeps a rejected geofence fetch local while other slices still update", async () => {
   const page = createDashboardPageState({
@@ -29,6 +32,44 @@ test("loadDashboard keeps a rejected geofence fetch local while other slices sti
     status: "ready",
     response: "fahp",
   });
+});
+
+test("loadExportData keeps canonical summary, report, and analytics sections for export consumers", async () => {
+  const component = dashboard();
+
+  component.fetchSummaryReport = async () => ({
+    summary: { total_ontime: 2, total_late: 1, total_alpha: 0 },
+    report: {
+      data: [{ full_name: "Rina" }],
+      pagination: { total_records: 1 },
+      user_attendance_summary: [{ full_name: "Rina Summary" }],
+    },
+    analytics: {
+      discipline_analysis: { average_discipline_score: 88 },
+    },
+  });
+
+  const exportData = await component.loadExportData();
+
+  assert.deepEqual(exportData.analytics, {
+    discipline_analysis: { average_discipline_score: 88 },
+  });
+  assert.equal(
+    exportData.report.user_attendance_summary[0].full_name,
+    "Rina Summary",
+  );
+});
+
+test("ensureExportDatasetComplete throws canonical contract error when total metadata is missing", () => {
+  const component = dashboard();
+
+  assert.throws(
+    () =>
+      component.ensureExportDatasetComplete({
+        report: { data: [{}], pagination: {} },
+      }),
+    /Export data completeness could not be verified for the selected period/,
+  );
 });
 
 test("refreshFahpRecap refetches only the FAHP slice without reloading the dashboard", async () => {

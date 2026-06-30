@@ -1199,6 +1199,7 @@ export function dashboard() {
           const exportData = {
             summary: response.summary,
             report: response.report,
+            analytics: response.analytics,
           };
           const exportTotalMetadata = this.getExportTotalMetadata(
             this.getExportPagination(response),
@@ -1240,7 +1241,7 @@ export function dashboard() {
           `Export payload is missing required sections for ${format}`,
         );
         this.showNotification(
-          "Failed to load the export payload. Please try again.",
+          "The canonical export payload is missing required summary/report sections.",
           "error",
         );
         return null;

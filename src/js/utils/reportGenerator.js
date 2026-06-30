@@ -221,7 +221,7 @@ class ReportGenerator {
         this.buildAttendanceRateFromSummaryRow(item),
         this.formatUnavailableValue(item.late_days),
         this.formatUnavailableValue(item.alpha_days),
-        "Unavailable",
+        this.formatUnavailableValue(item.discipline_label),
       ]),
     ];
   }

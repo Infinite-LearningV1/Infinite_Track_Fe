@@ -665,7 +665,12 @@ test("report generator marks needs attention as unavailable/out-of-scope in exec
 
 test("discipline insight sheet uses backend user_attendance_summary rows instead of raw report rows", () => {
   const rows = reportGenerator.buildDisciplineInsightSheetRows(
-    COMPLETE_SUMMARY_DATA.report.user_attendance_summary,
+    [
+      {
+        ...COMPLETE_SUMMARY_DATA.report.user_attendance_summary[0],
+        discipline_label: "Needs Review",
+      },
+    ],
     "monthly",
     GENERATED_AT,
   );
@@ -678,6 +683,7 @@ test("discipline insight sheet uses backend user_attendance_summary rows instead
   assert.equal(rows[6][1], "Operations");
   assert.equal(rows[6][3], "2");
   assert.equal(rows[6][4], "0");
+  assert.equal(rows[6][5], "Needs Review");
 });
 
 test("report generator builds the branded PDF document without weakening truthful export constraints", () => {

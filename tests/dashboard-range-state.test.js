@@ -7,9 +7,9 @@ import {
   validateDashboardRange,
 } from "../src/js/components/dashboardRange/dashboardRange.js";
 
-test("createDefaultDashboardRange returns 30d as default", () => {
+test("createDefaultDashboardRange returns current_month as default", () => {
   assert.deepEqual(createDefaultDashboardRange(), {
-    period: "30d",
+    period: "current_month",
     from: null,
     to: null,
   });
@@ -77,11 +77,11 @@ test("validateDashboardRange rejects reversed custom range", () => {
   );
 });
 
-test("buildDashboardRangeRequestParams returns only period for 30d", () => {
+test("buildDashboardRangeRequestParams returns only period for today", () => {
   assert.deepEqual(
-    buildDashboardRangeRequestParams({ period: "30d", from: null, to: null }),
+    buildDashboardRangeRequestParams({ period: "today", from: null, to: null }),
     {
-      period: "30d",
+      period: "today",
     },
   );
 });

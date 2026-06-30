@@ -196,7 +196,7 @@ test("cockpit historical trend becomes ready only with explicit backend points",
   );
   const selectedWindowRange = historicalTrend.data.ranges[0];
 
-  assert.equal(historicalTrend.subtitle, "On Time / Late / Alpha trend");
+  assert.equal(historicalTrend.subtitle, "");
   assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(historicalTrend.data.isPreview, false);
   assert.equal(
@@ -204,11 +204,8 @@ test("cockpit historical trend becomes ready only with explicit backend points",
     "backend/dashboard-analytics.points",
   );
   assert.equal(historicalTrend.data.defaultRangeKey, "selectedWindow");
-  assert.match(historicalTrend.detail, /On Time, Late, and Alpha/);
-  assert.match(
-    historicalTrend.note,
-    /available from historical_trend\.points for dashboard analytics context/i,
-  );
+  assert.equal(historicalTrend.detail, "");
+  assert.equal(historicalTrend.note, "");
   assert.equal(selectedWindowRange.key, "selectedWindow");
   assert.equal(selectedWindowRange.label, "Selected Window");
   assert.deepEqual(selectedWindowRange.xAxisLabels, [
@@ -240,6 +237,78 @@ test("cockpit historical trend becomes ready only with explicit backend points",
   assert.equal(selectedWindowRange.series[0].points[0].x, 24);
   assert.equal(selectedWindowRange.series[0].points[1].x, 486);
   assert.equal(selectedWindowRange.series[0].points[2].x, 948);
+  assert.deepEqual(selectedWindowRange.plotArea, {
+    leftX: 24,
+    rightX: 948,
+    topY: 20,
+    baselineY: 185,
+    viewBoxWidth: 992,
+    viewBoxHeight: 220,
+  });
+  assert.deepEqual(
+    selectedWindowRange.hoverPoints.map((point) => ({
+      index: point.index,
+      label: point.label,
+      x: point.x,
+      keys: point.items.map((item) => item.key),
+    })),
+    [
+      {
+        index: 0,
+        label: "On Time",
+        x: 24,
+        keys: ["ontime", "late", "alpha"],
+      },
+      {
+        index: 1,
+        label: "On Time",
+        x: 486,
+        keys: ["ontime", "late", "alpha"],
+      },
+      {
+        index: 2,
+        label: "On Time",
+        x: 948,
+        keys: ["ontime", "late", "alpha"],
+      },
+    ],
+  );
+});
+
+test("cockpit historical trend reduces long backend windows to weekly chart cadence", () => {
+  const dailyPoints = Array.from({ length: 29 }, (_, index) => ({
+    date: `2026-06-${String(index + 1).padStart(2, "0")}`,
+    on_time: 60 + index,
+    late: 20 + (index % 4),
+    alpha: index % 3,
+  }));
+
+  const cockpit = createDashboardCockpitStateFromSources({
+    analyticsResponse: {
+      data: {
+        historical_trend: {
+          points: dailyPoints,
+        },
+      },
+    },
+  });
+
+  const historicalTrend = cockpit.middlePanels.find(
+    (panel) => panel.key === "historicalTrend",
+  );
+  const selectedWindowRange = historicalTrend.data.ranges[0];
+
+  assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.READY);
+  assert.deepEqual(selectedWindowRange.xAxisLabels, [
+    "01 Jun",
+    "08 Jun",
+    "15 Jun",
+    "22 Jun",
+    "29 Jun",
+  ]);
+  assert.equal(selectedWindowRange.series[0].points.length, 5);
+  assert.equal(selectedWindowRange.series[1].points.length, 5);
+  assert.equal(selectedWindowRange.series[2].points.length, 5);
 });
 
 test("cockpit historical trend stays conservative when backend points are incomplete", () => {
@@ -478,6 +547,7 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     roleName: "Employee",
     phoneNumber: "081234567890",
     mode: "WFO",
+    modeColor: "#2563eb",
     status: "ontime",
     information: "WFO",
     attendanceDate: "2026-05-03",
@@ -493,7 +563,7 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     trackingNote:
       "Markers reflect snapshot context only; they are not continuous tracking or filtered report/export history.",
   });
-  assert.equal(historicalTrend.subtitle, "On Time / Late / Alpha trend");
+  assert.equal(historicalTrend.subtitle, "");
   assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
   assert.equal(historicalTrend.data.isPreview, true);
   assert.equal(historicalTrend.data.source, "dummy-preview");
@@ -516,25 +586,17 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     (range) => range.key === "annually",
   );
   assert.deepEqual(monthlyPreviewRange.xAxisLabels, [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "1 Mei",
+    "8 Mei",
+    "15 Mei",
+    "22 Mei",
+    "29 Mei",
   ]);
   assert.deepEqual(monthlyPreviewRange.yAxisLabels, [
-    "250",
-    "200",
-    "150",
     "100",
+    "75",
     "50",
+    "25",
     "0",
   ]);
   assert.deepEqual(
@@ -543,7 +605,7 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
       label: series.label,
     })),
     [
-      { key: "ontime", label: "On Time" },
+      { key: "ontime", label: "Present" },
       { key: "late", label: "Late" },
       { key: "alpha", label: "Alpha" },
     ],
@@ -559,7 +621,7 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
         range.metrics.length === 3 &&
         range.series.every(
           (series) =>
-            series.points.length === 12 &&
+            series.points.length >= 4 &&
             /^M /.test(series.chartPath) &&
             /^M /.test(series.areaPath) &&
             series.chartPath.includes(" C "),
@@ -570,18 +632,15 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     annualPreviewRange.series
       .find((series) => series.key === "alpha")
       .points.at(-2).value,
-    0,
+    4,
   );
   assert.equal(
     annualPreviewRange.series
       .find((series) => series.key === "alpha")
       .points.at(-1).value,
-    0,
+    2,
   );
-  assert.match(
-    historicalTrend.note,
-    /shown for dashboard analytics context only and must not be treated as attendance truth/i,
-  );
+  assert.equal(historicalTrend.note, "");
 
   assert.equal(modeMix.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(modeMix.data.total, 34);
@@ -599,16 +658,25 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
   );
   assert.match(modeMix.data.chartStyle, /conic-gradient/);
 
-  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
+  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(
     fuzzyAhp.subtitle,
     "Decision support output once backend feed is wired",
   );
   assert.doesNotMatch(fuzzyAhp.subtitle, /cr, weights, ranking, distribution/i);
-  assert.equal(fuzzyAhp.data, null);
+  assert.equal(fuzzyAhp.data.source, "analysis.fuzzy-ahp.preview");
+  assert.equal(fuzzyAhp.data.isPreview, true);
+  assert.equal(fuzzyAhp.data.activeDecisionKey, "discipline");
+  assert.equal(fuzzyAhp.data.decisions.length, 3);
+  assert.equal(fuzzyAhp.data.decisions[0].title, "Discipline");
+  assert.equal(fuzzyAhp.data.decisions[1].title, "WFA");
+  assert.equal(fuzzyAhp.data.decisions[2].title, "Smart AC");
+  assert.equal(fuzzyAhp.data.decisions[0].criteriaWeights.length, 5);
+  assert.equal(fuzzyAhp.data.decisions[0].rankings[0].label, "Rizky Ananda");
+  assert.match(fuzzyAhp.data.decisions[0].updatedAtLabel, /Perhitungan Fuzzy AHP/);
   assert.match(
     fuzzyAhp.note,
-    /stay hidden until backend-backed fuzzy ahp output is wired/i,
+    /dummy criteria, weights, and rankings are for local cockpit layout validation only/i,
   );
   assert.equal(geofenceEvidence.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
 });
@@ -888,6 +956,11 @@ test("cockpit KPI metadata keeps the new management shell without deprecated pre
           valueFormat: "percent",
           unit: "%",
           priority: 1,
+          comparisonText: "vs periode sebelumnya",
+          trendLabel: "4.6%",
+          trendTone: "positive",
+          trendDirection: "up",
+          displayUnit: null,
         },
       },
       {
@@ -899,6 +972,11 @@ test("cockpit KPI metadata keeps the new management shell without deprecated pre
           valueFormat: "count",
           unit: "records",
           priority: 2,
+          comparisonText: "vs periode sebelumnya",
+          trendLabel: "2",
+          trendTone: "positive",
+          trendDirection: "down",
+          displayUnit: "Users",
         },
       },
       {
@@ -910,6 +988,11 @@ test("cockpit KPI metadata keeps the new management shell without deprecated pre
           valueFormat: "score",
           unit: "index",
           priority: 3,
+          comparisonText: "vs periode sebelumnya",
+          trendLabel: "3.1",
+          trendTone: "positive",
+          trendDirection: "up",
+          displayUnit: null,
         },
       },
       {
@@ -921,6 +1004,11 @@ test("cockpit KPI metadata keeps the new management shell without deprecated pre
           valueFormat: "count",
           unit: "people",
           priority: 4,
+          comparisonText: "vs periode sebelumnya",
+          trendLabel: "3",
+          trendTone: "negative",
+          trendDirection: "up",
+          displayUnit: "Users",
         },
       },
     ],
@@ -1146,7 +1234,15 @@ test("cockpit fuzzy ahp becomes ready only with explicit fuzzy ahp backend respo
   const cockpit = createDashboardCockpitStateFromSources({
     fuzzyAhpResponse: {
       data: {
+        key: "discipline",
+        title: "Discipline",
+        summary: "Primary decision summary",
         consistency_ratio: 0.06,
+        criteriaWeights: [
+          { label: "Attendance", weight: 0.45 },
+          { label: "Punctuality", weight: 0.35 },
+          { label: "Compliance", weight: 0.2 },
+        ],
         rankings: [
           { label: "WFH", score: 0.41 },
           { label: "WFO", score: 0.34 },
@@ -1162,6 +1258,10 @@ test("cockpit fuzzy ahp becomes ready only with explicit fuzzy ahp backend respo
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(fuzzyAhp.data.source, "analysis.fuzzy-ahp");
+  assert.equal(fuzzyAhp.data.activeDecisionKey, "discipline");
+  assert.equal(fuzzyAhp.data.decisions[0].title, "Discipline");
+  assert.equal(fuzzyAhp.data.decisions[0].criteriaWeights.length, 3);
+  assert.equal(fuzzyAhp.data.decisions[0].rankings[0].label, "WFH");
 });
 
 test("cockpit fuzzy ahp adapts dashboard recap sections into explicit fuzzy ahp rankings", () => {
@@ -1179,7 +1279,6 @@ test("cockpit fuzzy ahp adapts dashboard recap sections into explicit fuzzy ahp 
             key: "discipline",
             title: "Discipline",
             summary: "Top category available",
-            topRank: "WFH",
             distribution: {
               WFH: 0.41,
               WFO: 0.34,
@@ -1198,12 +1297,17 @@ test("cockpit fuzzy ahp adapts dashboard recap sections into explicit fuzzy ahp 
   );
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
-  assert.deepEqual(fuzzyAhp.data.rankings, [
+  assert.equal(fuzzyAhp.data.decisions[0].key, "discipline");
+  assert.deepEqual(fuzzyAhp.data.decisions[0].rankings, [
     { label: "WFH", score: 0.41 },
     { label: "WFO", score: 0.34 },
     { label: "WFA", score: 0.25 },
   ]);
-  assert.equal(fuzzyAhp.data.topRanking.label, "WFH");
+  assert.deepEqual(fuzzyAhp.data.decisions[0].criteriaWeights, [
+    { label: "WFH", weight: 0.41 },
+    { label: "WFO", weight: 0.34 },
+    { label: "WFA", weight: 0.25 },
+  ]);
 });
 
 test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", () => {
@@ -1221,6 +1325,7 @@ test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", ()
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.NEEDS_DATA);
   assert.equal(fuzzyAhp.data, null);
+  assert.match(fuzzyAhp.message, /invalid; expected an explicit object response/i);
 });
 
 test("cockpit error state isolates every panel as error", () => {

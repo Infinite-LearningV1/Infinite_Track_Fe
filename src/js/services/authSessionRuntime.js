@@ -129,6 +129,7 @@ export function classifyAuthFailure(error) {
     );
   const inactiveMessage = /(?:inactive|inactivity|full\s+re-?auth|required.*re-?auth)/i.test(message);
   const sessionMissingMessage = /(?:tidak ada sesi aktif|no active session|unauthenticated|not authenticated|belum login)/i.test(message);
+  const invalidTokenMessage = /(?:invalid|revoked|malformed|bad|missing|no)[\s-]*(?:bearer\s+)?(?:token|credential)|(?:token|credential)[\s-]*(?:invalid|revoked|malformed|missing|required|provided)/i.test(message);
   const accessTokenExpiredMessage =
     /(?:access[\s-]?token.*expired|expired.*access[\s-]?token)/i.test(message);
   const semanticAuthDenial = data?.success === false;
@@ -148,6 +149,7 @@ export function classifyAuthFailure(error) {
     (status === 401 || status === 403 || semanticAuthDenial) &&
     (NON_REFRESHABLE_CODES.has(code) ||
       refreshInvalidMessage ||
+      invalidTokenMessage ||
       inactiveMessage ||
       sessionMissingMessage)
   ) {

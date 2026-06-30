@@ -9,6 +9,11 @@ import {
   createDashboardCockpitLoadingState,
   createDashboardCockpitStateFromSources,
 } from "../../services/dashboardCockpitService.js";
+import { classifyAuthFailure } from "../../services/authSessionRuntime.js";
+import {
+  createRealApiCockpitLoadingShell,
+  createRealApiCockpitShell,
+} from "./realApiCockpitShell.js";
 import { createHistoricalAnalyticsSliceState } from "../../services/dashboard/historicalAnalyticsSlice.js";
 import { createFahpRecapSliceState } from "../../services/dashboard/fahpRecapSlice.js";
 import { createGeofenceEvidenceSliceState } from "../../services/dashboard/geofenceEvidenceSlice.js";
@@ -18,6 +23,21 @@ import {
   createDefaultDashboardRange,
   validateDashboardRange,
 } from "../../components/dashboardRange/dashboardRange.js";
+import {
+  applyDashboardAnalyticsPreset,
+  buildDashboardAnalyticsRangeDisplayValue,
+  connectDashboardAnalyticsDatePicker,
+  createDashboardAnalyticsHeaderState,
+  createDashboardAnalyticsPresetOptions,
+  openDashboardAnalyticsDatePicker,
+  resolveDashboardAnalyticsSelectedLabel,
+  syncDashboardAnalyticsDatePickerElement,
+  syncDashboardAnalyticsHeaderState,
+} from "../../components/dashboardRange/dashboardAnalyticsHeader.js";
+import { createHistoricalTrendViewState } from "../../components/historicalTrendPanel.js";
+import { createAttendanceModeViewState } from "../../components/attendanceModePanel.js";
+import { createFuzzyAhpViewState } from "../../components/fuzzyAhpPanel.js";
+import { createGeofenceEvidenceViewState } from "../../components/geofenceEvidencePanel.js";
 import {
   applyDashboardPageSize,
   applyDashboardPeriod,
@@ -101,11 +121,12 @@ export function dashboard() {
     period: "monthly",
     dashboardRangeState: { ...defaultDashboardRange },
     dashboardRange: defaultDashboardRange.period,
-    dashboardRangeOptions: [
-      { value: "30d", label: "Last 30 Days" },
-      { value: "current_month", label: "Current Month" },
-    ],
+    dashboardRangeOptions: createDashboardAnalyticsPresetOptions(),
+    dashboardHeaderState: createDashboardAnalyticsHeaderState(
+      defaultDashboardRange,
+    ),
     trendRange: "monthly",
+    activeTrendHoverIndex: null,
     fahpFilterState: { ...defaultFahpFilterState },
 
     // Pagination state
@@ -161,6 +182,7 @@ export function dashboard() {
     // Data properties
     summaryData: null,
     cockpit: createDashboardCockpitLoadingState(),
+    realApiCockpit: createRealApiCockpitLoadingShell(),
     dashboardSectionOrder: buildDashboardSectionOrder(),
     dashboardMap: null,
     dashboardLeaflet: null,
@@ -197,6 +219,7 @@ export function dashboard() {
      * Initialize component
      */
     async init() {
+      this.realApiCockpit = createRealApiCockpitShell();
       this.pageState = createDashboardPageState({
         fetchHistorical: async () => {
           const requestParams = this.getDashboardAnalyticsRequestParams();
@@ -265,6 +288,10 @@ export function dashboard() {
           return this.buildFahpSliceState(response);
         },
       });
+      this.syncDashboardHeaderState();
+      this.$nextTick?.(() => {
+        this.initDashboardDatePicker();
+      });
       await this.loadSummaryData();
     },
 
@@ -281,23 +308,88 @@ export function dashboard() {
     },
 
     getSelectedTrendRange(panel) {
-      const ranges = Array.isArray(panel?.data?.ranges)
-        ? panel.data.ranges
-        : [];
-      const fallbackKey =
-        panel?.data?.defaultRangeKey || ranges[0]?.key || "monthly";
-      const selectedKey = this.trendRange || fallbackKey;
+      return this.getHistoricalTrendViewState(panel).selectedRange;
+    },
 
-      return (
-        ranges.find((range) => range.key === selectedKey) ||
-        ranges.find((range) => range.key === fallbackKey) ||
-        ranges[0] || {
-          metrics: [],
-          series: [],
-          xAxisLabels: [],
-          yAxisLabels: [],
-        }
+    getHistoricalTrendViewState(panel) {
+      return createHistoricalTrendViewState(
+        panel,
+        this.trendRange,
+        this.activeTrendHoverIndex,
       );
+    },
+
+    getFuzzyAhpViewState(panel, activeDecisionKey = null) {
+      return createFuzzyAhpViewState(panel, activeDecisionKey);
+    },
+
+    getGeofenceEvidenceViewState(panel) {
+      return createGeofenceEvidenceViewState(panel);
+    },
+
+    setActiveTrendHover(panel, event) {
+      const selectedRange = this.getSelectedTrendRange(panel);
+      const hoverPoints = Array.isArray(selectedRange?.hoverPoints)
+        ? selectedRange.hoverPoints
+        : [];
+      const plotArea = selectedRange?.plotArea || null;
+      const axisFrame = selectedRange?.axisFrame || {
+        translateX: 46,
+        width: 932,
+      };
+
+      if (!hoverPoints.length || !plotArea) {
+        this.activeTrendHoverIndex = null;
+        return;
+      }
+
+      const plotElement = event.currentTarget;
+      const bounds = plotElement?.getBoundingClientRect?.();
+
+      if (!bounds || bounds.width <= 0) {
+        this.activeTrendHoverIndex = null;
+        return;
+      }
+
+      const pointerX = Math.min(
+        Math.max(event.clientX - bounds.left, 0),
+        bounds.width,
+      );
+      const renderedX = (pointerX / bounds.width) * 1000;
+      const frameX = Number(axisFrame.translateX) || 46;
+      const frameWidth = Number(axisFrame.width) || 932;
+      const leftX = Number(plotArea.leftX);
+      const rightX = Number(plotArea.rightX);
+
+      let closestIndex = 0;
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      hoverPoints.forEach((point, index) => {
+        const pointX = Number(point?.x);
+        const renderedPointX =
+          Number.isFinite(pointX) &&
+          Number.isFinite(leftX) &&
+          Number.isFinite(rightX) &&
+          rightX > leftX
+            ? frameX + ((pointX - leftX) / (rightX - leftX)) * frameWidth
+            : frameX;
+        const distance = Math.abs(renderedPointX - renderedX);
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = index;
+        }
+      });
+
+      this.activeTrendHoverIndex = closestIndex;
+    },
+
+    clearActiveTrendHover() {
+      this.activeTrendHoverIndex = null;
+    },
+
+    getAttendanceModeViewState(panel) {
+      return createAttendanceModeViewState(panel);
     },
 
     buildHistoricalSliceState(response = this.dashboardAnalyticsResponse) {
@@ -326,7 +418,8 @@ export function dashboard() {
         return {
           status: "error",
           error:
-            this.geofenceEvidenceError?.message || "geofence evidence unavailable",
+            this.geofenceEvidenceError?.message ||
+            "geofence evidence unavailable",
         };
       }
 
@@ -391,9 +484,13 @@ export function dashboard() {
       const reportPagination = response.report?.pagination || {};
       const analyticsRequestParams = this.getDashboardAnalyticsRequestParams();
       const liveMapSlice =
-        todayLocationsResponse === null || typeof todayLocationsResponse === "undefined"
+        todayLocationsResponse === null ||
+        typeof todayLocationsResponse === "undefined"
           ? null
-          : createLiveMapSliceState(todayLocationsResponse, analyticsRequestParams);
+          : createLiveMapSliceState(
+              todayLocationsResponse,
+              analyticsRequestParams,
+            );
 
       this.cockpit = createDashboardCockpitStateFromSources({
         reportResponse: response,
@@ -488,10 +585,7 @@ export function dashboard() {
         fahpRecap:
           fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined"
             ? null
-            : createFahpRecapSliceState(
-                fuzzyAhpResponse,
-                this.fahpFilterState,
-              ),
+            : createFahpRecapSliceState(fuzzyAhpResponse, this.fahpFilterState),
         geofenceEvidence: createGeofenceEvidenceSliceState(
           geofenceEvidenceResponse,
           analyticsRequestParams,
@@ -519,15 +613,213 @@ export function dashboard() {
         const fallbackRange = createDefaultDashboardRange();
         this.dashboardRangeState = { ...fallbackRange };
         this.dashboardRange = fallbackRange.period;
+        this.syncDashboardHeaderState();
         return fallbackRange;
       }
 
       this.dashboardRangeState = candidateRange;
+      this.syncDashboardHeaderState();
       return candidateRange;
+    },
+
+    syncDashboardHeaderState() {
+      this.dashboardHeaderState = syncDashboardAnalyticsHeaderState(
+        this.dashboardHeaderState,
+        this.dashboardRangeState,
+      );
+      this.syncDashboardDatePicker();
+      return this.dashboardHeaderState;
     },
 
     getDashboardAnalyticsRequestParams() {
       return buildDashboardRangeRequestParams(this.syncDashboardRangeState());
+    },
+
+    getDashboardRangeLabel() {
+      return resolveDashboardAnalyticsSelectedLabel(this.dashboardRange);
+    },
+
+    getDashboardRangeDisplayLabel() {
+      return buildDashboardAnalyticsRangeDisplayValue(this.dashboardRangeState);
+    },
+
+    toggleDashboardRangeDropdown() {
+      this.dashboardHeaderState = {
+        ...this.dashboardHeaderState,
+        isDropdownOpen: !this.dashboardHeaderState.isDropdownOpen,
+      };
+    },
+
+    closeDashboardRangeDropdown() {
+      if (!this.dashboardHeaderState.isDropdownOpen) {
+        return;
+      }
+
+      this.dashboardHeaderState = {
+        ...this.dashboardHeaderState,
+        isDropdownOpen: false,
+      };
+    },
+
+    async selectDashboardRangeOption(period) {
+      const nextRange = applyDashboardAnalyticsPreset(
+        period,
+        this.dashboardRangeState,
+      );
+      this.dashboardRange = nextRange.period;
+      this.dashboardRangeState = { ...nextRange };
+      this.dashboardHeaderState = {
+        ...this.dashboardHeaderState,
+        isDropdownOpen: false,
+      };
+      this.syncDashboardHeaderState();
+      return this.onDashboardRangeChange();
+    },
+
+    setDashboardRangePreset(period) {
+      const nextRange = applyDashboardAnalyticsPreset(
+        period,
+        this.dashboardRangeState,
+      );
+      this.dashboardRange = nextRange.period;
+      this.dashboardRangeState = { ...nextRange };
+      this.syncDashboardHeaderState();
+
+      if (period !== "custom") {
+        return this.onDashboardRangeChange();
+      }
+
+      this.$nextTick?.(() => {
+        this.openDashboardDatePicker();
+      });
+
+      return Promise.resolve();
+    },
+
+    applyDashboardCustomRange(nextRange) {
+      this.dashboardRange = nextRange.period;
+      this.dashboardRangeState = { ...nextRange };
+      this.syncDashboardHeaderState();
+      return this.onDashboardRangeChange();
+    },
+
+    initDashboardDatePicker() {
+      const element = this.$refs?.dashboardAnalyticsDatePicker;
+      connectDashboardAnalyticsDatePicker(element, {
+        rangeState: this.dashboardRangeState,
+        onReady: (instance) => {
+          this.dashboardHeaderState.pickerInstance = instance;
+        },
+        onRangeApply: (nextRange) => {
+          this.applyDashboardCustomRange(nextRange);
+        },
+        onInvalid: (message) => {
+          this.showNotification(message, "warning");
+        },
+      });
+    },
+
+    syncDashboardDatePicker() {
+      syncDashboardAnalyticsDatePickerElement(
+        this.$refs?.dashboardAnalyticsDatePicker,
+        this.dashboardRangeState,
+      );
+    },
+
+    openDashboardDatePicker() {
+      openDashboardAnalyticsDatePicker(this.$refs?.dashboardAnalyticsDatePicker);
+    },
+
+    getCockpitKpiDisplayValue(card) {
+      if (card?.state === "ready") {
+        const value = card?.value || "—";
+        const displayUnit = card?.meta?.displayUnit;
+
+        return displayUnit ? `${value} ${displayUnit}` : value;
+      }
+
+      return {
+        loading: "Loading...",
+        empty: "No data",
+        needsData: "Needs data",
+        backendRequired: "Backend required",
+        error: "Error",
+      }[card?.state] || "—";
+    },
+
+    getCockpitKpiSupportText(card) {
+      if (card?.state === "ready") {
+        return (
+          card?.meta?.comparisonText ||
+          card.detail ||
+          "Explicit backend metric for the active period."
+        );
+      }
+
+      return card?.message || card?.stateLabel || "Metric unavailable.";
+    },
+
+    getCockpitKpiIconClass(card) {
+      return {
+        neutral: "text-brand-500 dark:text-brand-400",
+        warning: "text-warning-500 dark:text-orange-400",
+        info: "text-blue-500 dark:text-blue-400",
+        critical: "text-error-600 dark:text-error-500",
+      }[card?.meta?.tone] || "text-brand-500 dark:text-brand-400";
+    },
+
+    getCockpitKpiFooterClass(card) {
+      if (card?.state === "ready" && card?.meta?.trendTone) {
+        return {
+          positive: "text-success-600 dark:text-success-500",
+          negative: "text-error-600 dark:text-error-500",
+          neutral: "text-gray-500 dark:text-gray-400",
+        }[card.meta.trendTone] || "text-success-600 dark:text-success-500";
+      }
+
+      return {
+        loading: "text-blue-600 dark:text-blue-400",
+        ready: "text-success-600 dark:text-success-500",
+        empty: "text-gray-500 dark:text-gray-400",
+        needsData: "text-amber-600 dark:text-amber-400",
+        backendRequired: "text-violet-600 dark:text-violet-400",
+        error: "text-error-600 dark:text-error-500",
+      }[card?.state] || "text-gray-500 dark:text-gray-400";
+    },
+
+    getCockpitKpiFooterLabel(card) {
+      if (card?.state === "ready" && card?.meta?.trendLabel) {
+        return card.meta.trendLabel;
+      }
+
+      return card?.stateLabel || "Unavailable";
+    },
+
+    getCockpitKpiIconSvg(icon) {
+      return {
+        "calendar-check": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.75 2.75C7.75 2.33579 8.08579 2 8.5 2C8.91421 2 9.25 2.33579 9.25 2.75V4H14.75V2.75C14.75 2.33579 15.0858 2 15.5 2C15.9142 2 16.25 2.33579 16.25 2.75V4H17C18.6569 4 20 5.34315 20 7V18C20 19.6569 18.6569 21 17 21H7C5.34315 21 4 19.6569 4 18V7C4 5.34315 5.34315 4 7 4H7.75V2.75ZM5.5 9.5V18C5.5 18.8284 6.17157 19.5 7 19.5H17C17.8284 19.5 18.5 18.8284 18.5 18V9.5H5.5ZM7 5.5C6.17157 5.5 5.5 6.17157 5.5 7V8H18.5V7C18.5 6.17157 17.8284 5.5 17 5.5H7ZM15.0303 12.4697C15.3232 12.7626 15.3232 13.2374 15.0303 13.5303L11.5303 17.0303C11.2374 17.3232 10.7626 17.3232 10.4697 17.0303L8.96967 15.5303C8.67678 15.2374 8.67678 14.7626 8.96967 14.4697C9.26256 14.1768 9.73744 14.1768 10.0303 14.4697L11 15.4393L13.9697 12.4697C14.2626 12.1768 14.7374 12.1768 15.0303 12.4697Z" fill="currentColor"/></svg>`,
+        "alert-triangle": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.2892 3.86035C11.053 2.5396 12.947 2.5396 13.7108 3.86035L21.0592 16.5604C21.823 17.8811 20.876 19.5312 19.3483 19.5312H4.65167C3.12404 19.5312 2.17699 17.8811 2.94081 16.5604L10.2892 3.86035ZM12 8.75C11.5858 8.75 11.25 9.08579 11.25 9.5V13C11.25 13.4142 11.5858 13.75 12 13.75C12.4142 13.75 12.75 13.4142 12.75 13V9.5C12.75 9.08579 12.4142 8.75 12 8.75ZM12 16.5C11.4477 16.5 11 16.9477 11 17.5C11 18.0523 11.4477 18.5 12 18.5C12.5523 18.5 13 18.0523 13 17.5C13 16.9477 12.5523 16.5 12 16.5Z" fill="currentColor"/></svg>`,
+        activity: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12H7.5L9.5 7L13.5 17L15.5 12H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        "user-check": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 19C15.5 16.7909 13.2614 15 10.5 15C7.73858 15 5.5 16.7909 5.5 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 12C12.433 12 14 10.433 14 8.5C14 6.567 12.433 5 10.5 5C8.567 5 7 6.567 7 8.5C7 10.433 8.567 12 10.5 12Z" stroke="currentColor" stroke-width="1.5"/><path d="M16 11.5L17.5 13L20.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      }[icon] || "";
+    },
+
+    getCockpitKpiStateIconSvg(card) {
+      if (card?.state === "ready" && card?.meta?.trendDirection) {
+        return {
+          up: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 13.3339L7.9974 2.66634M4 6.66366L7.99987 2.66634L12 6.66366" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+          down: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 2.66602L7.9974 13.3336M4 9.33634L7.99987 13.3337L12 9.33634" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+        }[card.meta.trendDirection] || "";
+      }
+
+      return {
+        loading: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.66602V4.66602M8 11.3327V13.3327M13.3333 8L11.3333 8M4.66667 8L2.66667 8M11.7712 4.22852L10.357 5.64273M5.64298 10.357L4.22877 11.7712M11.7712 11.7715L10.357 10.3573M5.64298 5.64273L4.22877 4.22852" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        ready: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 2.66602L7.9974 13.3336M4 6.66334L7.99987 2.66602L12 6.66334" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+        empty: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        needsData: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 5.33333V8M8 10.6667H8.00667M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        backendRequired: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.5L13 5.25V10.75L8 13.5L3 10.75V5.25L8 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 5.83301V8.49967" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 10.833H8.00667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        error: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 13.3339L7.9974 2.66634M4 9.33652L7.99987 13.3338L12 9.33652" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+      }[card?.state] || "";
     },
 
     applyCockpitSurfaceState({
@@ -727,6 +1019,7 @@ export function dashboard() {
           zoom: defaultZoom,
           zoomControl: true,
           attributionControl: true,
+          zoomAnimation: false,
         });
 
         this.dashboardMapTileLayer = L.tileLayer(
@@ -759,6 +1052,18 @@ export function dashboard() {
       this.dashboardMapTileLayer = null;
       this.dashboardMapMarkerLayer = null;
       this.dashboardMapRadiusLayer = null;
+    },
+
+    createDashboardMapMarkerIcon(L, location) {
+      const color = location.modeColor || "#2563eb";
+
+      return L.divIcon({
+        className: "dashboard-attendance-marker",
+        html: `<span style="--marker-color: ${color}" class="dashboard-attendance-marker__pin"></span>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+        popupAnchor: [0, -28],
+      });
     },
 
     createDashboardMapPopup(location) {
@@ -872,7 +1177,9 @@ export function dashboard() {
       this.clearDashboardMapLayers();
 
       locations.forEach((location) => {
-        const marker = L.marker([location.latitude, location.longitude]).addTo(
+        const marker = L.marker([location.latitude, location.longitude], {
+          icon: this.createDashboardMapMarkerIcon(L, location),
+        }).addTo(
           this.dashboardMapMarkerLayer,
         );
         marker.bindPopup(this.createDashboardMapPopup(location));
@@ -896,11 +1203,13 @@ export function dashboard() {
       if (layers.length > 1) {
         map.fitBounds(L.featureGroup(layers).getBounds(), {
           padding: [32, 32],
+          animate: false,
         });
       } else {
         map.setView(
           [firstLocation.latitude, firstLocation.longitude],
           defaultZoom,
+          { animate: false },
         );
       }
 
@@ -1073,8 +1382,19 @@ export function dashboard() {
         console.log("Summary data loaded successfully:", this.summaryData);
         console.log("Attendance data mapped:", this.attendanceData);
       } catch (error) {
+        const authFailure = classifyAuthFailure(error);
+
         console.error("Error loading summary data:", error);
         this.applySummaryError(error);
+
+        if (authFailure.kind === "refreshable" || authFailure.kind === "non_refreshable") {
+          console.warn(
+            "Dashboard summary request failed because the session is not valid; auth flow will handle user notification.",
+            authFailure,
+          );
+          return false;
+        }
+
         this.showNotification(
           "Failed to load dashboard data. Please check your connection and try again.",
           "error",
@@ -1205,12 +1525,15 @@ export function dashboard() {
           );
           const exportRows = this.extractExportReportRows(response) || [];
 
-          console.log(`Export payload loaded for selected summary report period:`, {
-            range: reportFilters,
-            summaryStats: response.summary,
-            recordCount: exportRows.length,
-            totalRecords: exportTotalMetadata.value || 0,
-          });
+          console.log(
+            `Export payload loaded for selected summary report period:`,
+            {
+              range: reportFilters,
+              summaryStats: response.summary,
+              recordCount: exportRows.length,
+              totalRecords: exportTotalMetadata.value || 0,
+            },
+          );
 
           return exportData;
         }
@@ -1315,9 +1638,7 @@ export function dashboard() {
       });
 
       if (fahpSlice?.status === "error") {
-        const error = new Error(
-          fahpSlice.error || "fahp recap unavailable",
-        );
+        const error = new Error(fahpSlice.error || "fahp recap unavailable");
         this.fuzzyAhpResponse = null;
         this.fuzzyAhpError = error;
         await this.applyCockpitSurfaceState({

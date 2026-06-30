@@ -1,7 +1,7 @@
 import { API_CONFIG } from "../config/env.js";
 import { authRequest } from "./authRequest.js";
 
-const ALLOWED_PERIODS = ["30d", "current_month", "custom"];
+const ALLOWED_PERIODS = ["today", "current_week", "current_month", "custom"];
 
 export class GeofenceEvidenceService {
   constructor(requestExecutor = authRequest) {

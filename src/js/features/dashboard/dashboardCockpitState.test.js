@@ -839,6 +839,9 @@ test("dashboard renderDashboardMap draws radius circles only for positive finite
     map() {
       return fakeMap;
     },
+    divIcon(options) {
+      return options;
+    },
     tileLayer() {
       return {
         addTo() {
@@ -991,6 +994,9 @@ test("dashboard renderDashboardMap reuses the existing Leaflet map instead of de
       mapCreateCalls += 1;
       return fakeMap;
     },
+    divIcon(options) {
+      return options;
+    },
     tileLayer() {
       return {
         addTo() {
@@ -1072,6 +1078,201 @@ test("dashboard renderDashboardMap reuses the existing Leaflet map instead of de
   assert.ok(clearLayersCalls >= 4);
 });
 
+test("dashboard renderDashboardMap disables animated zoom transitions during refresh", async () => {
+  const component = dashboard();
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const mapContainer = { id: "dashboardMapView", isConnected: true };
+  const mapOptions = [];
+  const fitBoundsOptions = [];
+  const setViewOptions = [];
+
+  const createElement = (tagName) => ({
+    tagName,
+    className: "",
+    textContent: "",
+    type: "",
+    children: [],
+    listeners: {},
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
+    addEventListener(eventName, handler) {
+      this.listeners[eventName] = handler;
+    },
+  });
+
+  const fakeMap = {
+    stop() {},
+    off() {},
+    remove() {},
+    getContainer() {
+      return mapContainer;
+    },
+    fitBounds(_bounds, options) {
+      fitBoundsOptions.push(options);
+    },
+    setView(_coords, _zoom, options) {
+      setViewOptions.push(options);
+    },
+    invalidateSize() {},
+  };
+
+  component.dashboardMapRenderToken = 1;
+  component.cockpit.hero = {
+    state: DASHBOARD_PANEL_STATES.READY,
+    data: {
+      locations: [
+        {
+          fullName: "Animated A",
+          userName: "Animated A",
+          status: "ontime",
+          mode: "WFO",
+          attendanceDate: "2026-05-03",
+          latitude: -0.9,
+          longitude: 119.8,
+          radius: 100,
+          description: "Animated point A",
+          sourceNote:
+            "Map context is a backend analytics snapshot for dashboard context.",
+          trackingNote:
+            "Markers reflect snapshot context only; they are not continuous tracking or filtered report/export history.",
+        },
+        {
+          fullName: "Animated B",
+          userName: "Animated B",
+          status: "late",
+          mode: "WFH",
+          attendanceDate: "2026-05-03",
+          latitude: -0.91,
+          longitude: 119.81,
+          radius: 0,
+          description: "Animated point B",
+          sourceNote:
+            "Map context is a backend analytics snapshot for dashboard context.",
+          trackingNote:
+            "Markers reflect snapshot context only; they are not continuous tracking or filtered report/export history.",
+        },
+      ],
+    },
+  };
+
+  component.getDashboardLeaflet = async () => ({
+    map(_container, options) {
+      mapOptions.push(options);
+      return fakeMap;
+    },
+    divIcon(options) {
+      return options;
+    },
+    tileLayer() {
+      return {
+        addTo() {
+          return this;
+        },
+      };
+    },
+    layerGroup() {
+      return {
+        addTo() {
+          return this;
+        },
+        clearLayers() {
+          return this;
+        },
+      };
+    },
+    marker() {
+      return {
+        addTo() {
+          return this;
+        },
+        bindPopup() {
+          return this;
+        },
+      };
+    },
+    circle() {
+      return {
+        addTo() {
+          return this;
+        },
+      };
+    },
+    featureGroup() {
+      return {
+        getBounds() {
+          return { north: -0.9, south: -0.91, east: 119.81, west: 119.8 };
+        },
+      };
+    },
+  });
+
+  globalThis.document = {
+    getElementById(id) {
+      return id === "dashboardMapView" ? mapContainer : null;
+    },
+    createElement,
+  };
+  globalThis.window = {
+    setTimeout(callback) {
+      callback();
+      return 0;
+    },
+  };
+
+  try {
+    await component.renderDashboardMap(1);
+
+    component.cockpit.hero.data.locations = [
+      {
+        fullName: "Single Marker",
+        userName: "Single Marker",
+        status: "ontime",
+        mode: "WFA",
+        attendanceDate: "2026-05-03",
+        latitude: -0.92,
+        longitude: 119.82,
+        radius: 50,
+        description: "Single point",
+        sourceNote:
+          "Map context is a backend analytics snapshot for dashboard context.",
+        trackingNote:
+          "Markers reflect snapshot context only; they are not continuous tracking or filtered report/export history.",
+      },
+    ];
+
+    await component.renderDashboardMap(1);
+  } finally {
+    if (originalDocument === undefined) {
+      delete globalThis.document;
+    } else {
+      globalThis.document = originalDocument;
+    }
+
+    if (originalWindow === undefined) {
+      delete globalThis.window;
+    } else {
+      globalThis.window = originalWindow;
+    }
+  }
+
+  assert.equal(mapOptions.length, 1);
+  assert.equal(mapOptions[0].zoomAnimation, false);
+  assert.deepEqual(fitBoundsOptions, [
+    {
+      padding: [32, 32],
+      animate: false,
+    },
+  ]);
+  assert.deepEqual(setViewOptions, [
+    {
+      animate: false,
+    },
+  ]);
+});
+
 test("dashboard renderDashboardMap ignores stale async renders after a newer token wins", async () => {
   const component = dashboard();
   const originalDocument = globalThis.document;
@@ -1117,6 +1318,9 @@ test("dashboard renderDashboardMap ignores stale async renders after a newer tok
     map() {
       mapCreateCalls += 1;
       return fakeMap;
+    },
+    divIcon(options) {
+      return options;
     },
     tileLayer() {
       return {

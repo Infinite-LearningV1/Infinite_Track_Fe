@@ -262,10 +262,10 @@
               href="#"
               @click.prevent="selected = (selected === 'UIElements' ? '':'UIElements')"
               class="menu-item group"
-              :class="(selected === 'UIElements') || (page === 'alerts' || page === 'badge' || page === 'buttons' || page === 'buttonsGroup' || page === 'cards'|| page === 'carousel' || page === 'dropdowns' || page === 'images' || page === 'list' || page === 'modals' || page === 'videos') ? 'menu-item-active' : 'menu-item-inactive'"
+              :class="(selected === 'UIElements') || (page === 'alerts' || page === 'badge' || page === 'buttons' || page === 'buttonsGroup' || page === 'cards' || page === 'carousel' || page === 'dropdowns' || page === 'ecommerce' || page === 'images' || page === 'list' || page === 'modals' || page === 'videos') ? 'menu-item-active' : 'menu-item-inactive'"
             >
               <svg
-                :class="(selected === 'UIElements') || (page === 'alerts' || page === 'badge' || page === 'breadcrumb' || page === 'buttons' || page === 'buttonsGroup' || page === 'cards'|| page === 'carousel' || page === 'dropdowns' || page === 'images' || page === 'list' || page === 'modals' || page === 'notifications' || page === 'popovers' || page === 'progress' || page === 'spinners' || page === 'tooltips' || page === 'videos') ? 'menu-item-icon-active'  :'menu-item-icon-inactive'"
+                :class="(selected === 'UIElements') || (page === 'alerts' || page === 'badge' || page === 'breadcrumb' || page === 'buttons' || page === 'buttonsGroup' || page === 'cards' || page === 'carousel' || page === 'dropdowns' || page === 'ecommerce' || page === 'images' || page === 'list' || page === 'modals' || page === 'notifications' || page === 'popovers' || page === 'progress' || page === 'spinners' || page === 'tooltips' || page === 'videos') ? 'menu-item-icon-active'  :'menu-item-icon-inactive'"
                 width="24"
                 height="24"
                 viewBox="0 0 24 24"
@@ -340,6 +340,15 @@
                     :class="page === 'buttons' ? 'menu-dropdown-item-active' : 'menu-dropdown-item-inactive'"
                   >
                     Buttons
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="index.html"
+                    class="menu-dropdown-item group"
+                    :class="(page === 'cards' || page === 'ecommerce') ? 'menu-dropdown-item-active' : 'menu-dropdown-item-inactive'"
+                  >
+                    Cards
                   </a>
                 </li>
               </ul>

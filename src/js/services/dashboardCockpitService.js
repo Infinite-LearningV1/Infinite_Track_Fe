@@ -1736,7 +1736,13 @@ function buildFuzzyAhpDecisionPayload(fuzzyAhp) {
     })),
     rankings: Array.isArray(fuzzyAhp.rankingPreview?.items)
       ? fuzzyAhp.rankingPreview.items.map((item, index) => ({
-          label: item.label || `Alternative ${index + 1}`,
+          rank:
+            Number.isFinite(Number(item.rank)) && Number(item.rank) > 0
+              ? Number(item.rank)
+              : index + 1,
+          id: item.id ?? null,
+          name: item.name || "",
+          label: item.label || null,
           score: item.score,
         }))
       : [],

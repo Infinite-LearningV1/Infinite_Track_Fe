@@ -27,7 +27,11 @@ export function createDashboardAnalyticsHeaderState(
   return {
     isDropdownOpen: false,
     pendingPeriod: rangeState.period,
-    selectedLabel: resolveDashboardAnalyticsSelectedLabel(rangeState.period),
+    selectedLabel: resolveDashboardAnalyticsSelectedLabel(
+      rangeState.period,
+      rangeState,
+      now,
+    ),
     customFrom: rangeState.from,
     customTo: rangeState.to,
     pickerInputValue: buildDashboardAnalyticsRangeDisplayValue(rangeState, now),
@@ -76,7 +80,11 @@ export function syncDashboardAnalyticsHeaderState(
   return {
     ...headerState,
     pendingPeriod: rangeState.period,
-    selectedLabel: resolveDashboardAnalyticsSelectedLabel(rangeState.period),
+    selectedLabel: resolveDashboardAnalyticsSelectedLabel(
+      rangeState.period,
+      rangeState,
+      now,
+    ),
     customFrom: rangeState.from,
     customTo: rangeState.to,
     pickerInputValue: buildDashboardAnalyticsRangeDisplayValue(rangeState, now),
@@ -139,7 +147,22 @@ export function resolveDashboardAnalyticsDateWindow(
   };
 }
 
-export function resolveDashboardAnalyticsSelectedLabel(period) {
+export function resolveDashboardAnalyticsSelectedLabel(
+  period,
+  rangeState = createDefaultDashboardRange(),
+  now = new Date(),
+) {
+  if (period === DASHBOARD_RANGE_PERIODS.CUSTOM) {
+    const displayValue = buildDashboardAnalyticsRangeDisplayValue(
+      rangeState,
+      now,
+    );
+
+    return displayValue === DATE_PICKER_PLACEHOLDER
+      ? DROPDOWN_DEFAULT_LABEL
+      : displayValue;
+  }
+
   const selectedOption = createDashboardAnalyticsPresetOptions().find(
     (option) => option.value === period,
   );

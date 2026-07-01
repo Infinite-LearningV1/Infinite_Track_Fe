@@ -60,18 +60,6 @@
             <include src="./partials/alert/alert-templates.html" />
             <div id="alert-container"></div>
 
-            <!-- Loading State -->
-            <div x-show="loading" class="mb-6">
-              <div class="flex items-center justify-center p-8">
-                <div
-                  class="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
-                ></div>
-                <span class="ml-3 text-sm text-gray-600 dark:text-gray-400"
-                  >Loading summary data...</span
-                >
-              </div>
-            </div>
-
             <!-- Error State -->
             <div x-show="error" class="mb-6">
               <div class="rounded-md bg-red-50 p-4 dark:bg-red-900/20">

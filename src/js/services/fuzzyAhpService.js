@@ -1,37 +1,24 @@
 import { API_CONFIG } from "../config/env.js";
 import { authRequest } from "./authRequest.js";
 
-const ALLOWED_CATEGORIES = ["discipline", "wfa", "smart_ac"];
-const ALLOWED_ANALYSIS_TYPES = ["summary", null, undefined, ""];
+const ALLOWED_TYPES = ["discipline", "wfa", "smart_ac"];
 
 export class FuzzyAhpService {
   constructor(requestExecutor = authRequest) {
     this.requestExecutor = requestExecutor;
   }
 
-  async getFuzzyAhpAnalysis({ category = null, analysis_type = null } = {}) {
-    const normalizedCategory = category ?? null;
-    const normalizedAnalysisType = analysis_type ?? null;
-
-    if (!ALLOWED_CATEGORIES.includes(normalizedCategory)) {
+  async getFuzzyAhpAnalysis({ type = "discipline" } = {}) {
+    if (!ALLOWED_TYPES.includes(type)) {
       throw new Error(
-        `Invalid category: ${normalizedCategory}. Allowed categories are ${ALLOWED_CATEGORIES.join(", ")}.`,
-      );
-    }
-
-    if (!ALLOWED_ANALYSIS_TYPES.includes(normalizedAnalysisType)) {
-      throw new Error(
-        "Invalid analysis_type. Allowed values are summary or null.",
+        `Invalid type: ${type}. Allowed types are ${ALLOWED_TYPES.join(", ")}.`,
       );
     }
 
     const response = await this.requestExecutor({
       method: "get",
-      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/dashboard-recap`,
-      params: {
-        category: normalizedCategory,
-        analysis_type: normalizedAnalysisType || null,
-      },
+      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/dashboard`,
+      params: { type },
     });
 
     return response.data;

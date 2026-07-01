@@ -464,7 +464,7 @@ test("ReportService#getTodayLocations surfaces request-layer failures", async ()
   );
 });
 
-test("ReportService#getFuzzyAhpAnalysis uses injected request executor for fuzzy ahp request config", async () => {
+test("ReportService#getFuzzyAhpAnalysis uses injected request executor for final FAHP dashboard request config", async () => {
   const seenConfigs = [];
   const service = new ReportService(async (config) => {
     seenConfigs.push(config);
@@ -476,12 +476,13 @@ test("ReportService#getFuzzyAhpAnalysis uses injected request executor for fuzzy
     };
   });
 
-  await service.getFuzzyAhpAnalysis();
+  await service.getFuzzyAhpAnalysis({ type: "wfa" });
 
   assert.deepEqual(seenConfigs, [
     {
       method: "get",
-      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp`,
+      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/dashboard`,
+      params: { type: "wfa" },
     },
   ]);
 });

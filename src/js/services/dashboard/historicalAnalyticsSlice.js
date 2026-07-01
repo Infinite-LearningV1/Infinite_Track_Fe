@@ -2,9 +2,7 @@ export function buildHistoricalAnalyticsViewModel(response) {
   const data =
     response?.data && typeof response.data === "object" && !Array.isArray(response.data)
       ? response.data
-      : response && typeof response === "object" && !Array.isArray(response)
-        ? response
-        : {};
+      : {};
 
   return {
     kpis: data.executive_kpis || {},

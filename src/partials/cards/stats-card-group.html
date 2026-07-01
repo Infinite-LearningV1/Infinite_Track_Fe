@@ -1,123 +1,49 @@
 <div
   class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
 >
-  <div
-    class="mb-6 flex flex-col justify-between gap-4 border-b border-gray-200 pb-6 xl:flex-row xl:items-start dark:border-gray-800"
-  >
-    <div class="max-w-3xl">
-      <h3 class="text-2xl font-semibold text-gray-900 dark:text-white">
-        Dashboard Analytics
-      </h3>
-    </div>
-    <div class="flex flex-wrap items-center gap-3">
-      <button
-        @click="openExportModal()"
-        :disabled="isExporting"
-        class="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
-        :title="`Export Attendance Report (${getExportPeriodLabel()})`"
-      >
-        <svg
-          class="h-4 w-4 text-blue-600"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-            clip-rule="evenodd"
-          ></path>
-        </svg>
-        <span x-text="isExporting ? 'Exporting...' : 'Export'"></span>
-      </button>
+  <include src="../dashboard/dashboard-analytics-header.html"></include>
 
-      <div
-        class="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-      >
-        <select
-          x-model="dashboardRange"
-          @change="onDashboardRangeChange()"
-          class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
-          title="Filter range for dashboard analytics"
-        >
-          <template x-for="option in dashboardRangeOptions" :key="option.value">
-            <option :value="option.value" x-text="option.label"></option>
-          </template>
-        </select>
-        <button
-          @click="loadSummaryData()"
-          class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
-        >
-          <svg
-            class="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            ></path>
-          </svg>
-          <span class="hidden sm:inline">Refresh</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
     <template x-for="card in cockpit.kpis" :key="card.key">
       <section
-        class="rounded-3xl border p-5"
-        :class="{
-          'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900': card.meta.tone === 'neutral',
-          'border-amber-200 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/10': card.meta.tone === 'warning',
-          'border-blue-200 bg-blue-50/70 dark:border-blue-500/20 dark:bg-blue-500/10': card.meta.tone === 'info',
-          'border-rose-200 bg-rose-50/70 dark:border-rose-500/20 dark:bg-rose-500/10': card.meta.tone === 'critical'
-        }"
+        class="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
       >
-        <div class="flex items-start justify-between gap-3">
+        <div class="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p
+            <span
               class="text-sm font-medium text-gray-500 dark:text-gray-400"
               x-text="card.title"
-            ></p>
-            <p
-              class="mt-1 text-xs tracking-[0.2em] text-gray-400 uppercase dark:text-gray-500"
-              x-text="card.meta.unit || card.meta.valueFormat"
-            ></p>
+            ></span>
           </div>
           <span
-            class="rounded-full px-2.5 py-1 text-xs font-medium"
-            :class="{
-              'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': card.state === 'loading',
-              'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': card.state === 'ready',
-              'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': card.state === 'empty',
-              'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': card.state === 'needsData',
-              'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300': card.state === 'backendRequired',
-              'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': card.state === 'error'
-            }"
-            x-text="card.stateLabel"
+            class="inline-flex h-6 w-6 items-center justify-center"
+            :class="getCockpitKpiIconClass(card)"
+            x-html="getCockpitKpiIconSvg(card.meta.icon)"
           ></span>
         </div>
-
-        <div class="mt-5">
-          <h4
-            class="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white"
-            x-text="card.state === 'ready' ? card.value : '—'"
-          ></h4>
-          <p
-            class="mt-3 min-h-[72px] text-sm leading-6 text-gray-600 dark:text-gray-300"
-            x-text="card.state === 'ready' ? card.detail : card.message"
-          ></p>
-        </div>
-
-        <div
-          class="mt-5 flex items-center justify-between border-t border-black/5 pt-4 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400"
-        >
-          <span x-text="card.meta.icon"></span>
-          <span x-text="card.meta.valueFormat"></span>
+        <h2
+          class="mb-2 text-3xl font-semibold text-gray-800 dark:text-white/90"
+          x-text="getCockpitKpiDisplayValue(card)"
+        ></h2>
+        <p
+          class="mb-4 min-h-[72px] text-sm leading-6 text-gray-500 dark:text-gray-400"
+          x-text="getCockpitKpiSupportText(card)"
+        ></p>
+        <div class="mt-auto flex items-center justify-between gap-3">
+          <span
+            class="text-sm text-gray-500 dark:text-gray-400"
+            x-text="getDashboardRangeLabel()"
+          ></span>
+          <span
+            class="flex items-center gap-1 text-sm font-medium"
+            :class="getCockpitKpiFooterClass(card)"
+          >
+            <span
+              class="inline-flex h-4 w-4 items-center justify-center"
+              x-html="getCockpitKpiStateIconSvg(card)"
+            ></span>
+            <span x-text="getCockpitKpiFooterLabel(card)"></span>
+          </span>
         </div>
       </section>
     </template>

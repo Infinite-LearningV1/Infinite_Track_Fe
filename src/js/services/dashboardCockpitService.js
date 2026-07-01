@@ -15,6 +15,11 @@ function createManagementKpiDefinition({
   valueFormat,
   unit,
   priority,
+  comparisonText = "vs periode sebelumnya",
+  trendLabel = null,
+  trendTone = null,
+  trendDirection = "up",
+  displayUnit = null,
 }) {
   return {
     key,
@@ -25,6 +30,11 @@ function createManagementKpiDefinition({
       valueFormat,
       unit,
       priority,
+      comparisonText,
+      trendLabel,
+      trendTone,
+      trendDirection,
+      displayUnit,
     },
   };
 }
@@ -38,6 +48,9 @@ const KPI_DEFINITIONS = [
     valueFormat: "percent",
     unit: "%",
     priority: 1,
+    trendLabel: "4.6%",
+    trendTone: "positive",
+    trendDirection: "up",
   }),
   createManagementKpiDefinition({
     key: "lateAlphaRisk",
@@ -47,6 +60,10 @@ const KPI_DEFINITIONS = [
     valueFormat: "count",
     unit: "records",
     priority: 2,
+    trendLabel: "2",
+    trendTone: "positive",
+    trendDirection: "down",
+    displayUnit: "Users",
   }),
   createManagementKpiDefinition({
     key: "averageDiscipline",
@@ -56,6 +73,9 @@ const KPI_DEFINITIONS = [
     valueFormat: "score",
     unit: "index",
     priority: 3,
+    trendLabel: "3.1",
+    trendTone: "positive",
+    trendDirection: "up",
   }),
   createManagementKpiDefinition({
     key: "needsAttention",
@@ -65,16 +85,17 @@ const KPI_DEFINITIONS = [
     valueFormat: "count",
     unit: "people",
     priority: 4,
+    trendLabel: "3",
+    trendTone: "negative",
+    trendDirection: "up",
+    displayUnit: "Users",
   }),
 ];
 
-import {
-  buildHistoricalAnalyticsViewModel,
-} from "./dashboard/historicalAnalyticsSlice.js";
-import {
-  buildGeofenceEvidenceViewModel,
-} from "./dashboard/geofenceEvidenceSlice.js";
+import { buildHistoricalAnalyticsViewModel } from "./dashboard/historicalAnalyticsSlice.js";
+import { buildGeofenceEvidenceViewModel } from "./dashboard/geofenceEvidenceSlice.js";
 import { buildLiveMapViewModel } from "./dashboard/liveMapSlice.js";
+import { buildFahpDashboardRecapViewModel } from "./dashboard/fahpRecapSlice.js";
 
 const MAP_VIEW_SOURCE_KEY = "dashboard-analytics.map_context";
 const MAP_VIEW_SOURCE_NOTE =
@@ -106,17 +127,28 @@ const LIVE_MAP_PANEL_DEFINITION = {
     "Explicit today-locations backend feed for current attendance context",
 };
 
+const ATTENDANCE_MODE_COLORS = Object.freeze({
+  WFO: "#2563eb",
+  WFH: "#16a34a",
+  WFA: "#f59e0b",
+});
+
 const FUZZY_AHP_SOURCE_KEY = "analysis.fuzzy-ahp";
+const FUZZY_AHP_TYPE_OPTIONS = Object.freeze([
+  { key: "discipline", title: "Discipline" },
+  { key: "wfa", title: "WFA" },
+  { key: "smart_ac", title: "Smart AC" },
+]);
 
 const MIDDLE_PANEL_DEFINITIONS = [
   {
     key: "historicalTrend",
     title: "Historical Attendance Trend",
-    subtitle: "On Time / Late / Alpha trend",
+    subtitle: "",
   },
   {
     key: "modeMix",
-    title: "Attendance Mode Mix",
+    title: "Attendance Mode",
     subtitle: "WFO / WFH / WFA count + percentage",
   },
 ];
@@ -205,30 +237,6 @@ const HISTORICAL_TREND_SERIES_DEFINITIONS = Object.freeze([
     metricTone: "critical",
   },
 ]);
-
-const HISTORICAL_TREND_PREVIEW_RANGES = HISTORICAL_TREND_RANGE_DEFINITIONS.map(
-  (range) =>
-    createHistoricalTrendRange({
-      ...range,
-      seriesValues: {
-        monthly: {
-          ontime: [145, 168, 186, 176, 190, 205, 198, 214, 226, 218, 232, 240],
-          late: [70, 84, 96, 88, 102, 118, 112, 124, 132, 128, 140, 152],
-          alpha: [12, 10, 8, 0, 9, 11, 10, 12, 14, 13, 15, 16],
-        },
-        quarterly: {
-          ontime: [132, 148, 172, 164, 178, 188, 184, 196, 204, 210, 216, 224],
-          late: [80, 92, 108, 104, 112, 120, 126, 132, 128, 136, 142, 148],
-          alpha: [18, 16, 12, 10, 11, 9, 8, 10, 12, 11, 9, 8],
-        },
-        annually: {
-          ontime: [120, 132, 146, 152, 158, 164, 170, 178, 184, 190, 198, 206],
-          late: [92, 96, 102, 108, 110, 116, 120, 124, 128, 132, 136, 140],
-          alpha: [24, 22, 18, 16, 12, 10, 8, 6, 4, 2, 0, 0],
-        },
-      }[range.key],
-    }),
-);
 
 const MODE_MIX_COLORS = {
   wfo: "#2563eb",
@@ -460,6 +468,37 @@ function firstPresentValue(...values) {
   return values.find(hasPresentValue) ?? null;
 }
 
+function normalizeWorkMode(mode) {
+  const normalizedMode = String(mode || "").trim().toUpperCase();
+
+  return ["WFO", "WFH", "WFA"].includes(normalizedMode) ? normalizedMode : "WFO";
+}
+
+function getAttendanceModeColor(mode) {
+  return ATTENDANCE_MODE_COLORS[normalizeWorkMode(mode)] || ATTENDANCE_MODE_COLORS.WFO;
+}
+
+function createLiveMapModeSummary(locations = []) {
+  const summary = {
+    total: locations.length,
+    WFO: { key: "WFO", label: "WFO", description: "Work From Office", value: 0, color: ATTENDANCE_MODE_COLORS.WFO },
+    WFH: { key: "WFH", label: "WFH", description: "Work From Home", value: 0, color: ATTENDANCE_MODE_COLORS.WFH },
+    WFA: { key: "WFA", label: "WFA", description: "Work From Anywhere", value: 0, color: ATTENDANCE_MODE_COLORS.WFA },
+  };
+
+  locations.forEach((location) => {
+    summary[normalizeWorkMode(location.mode)].value += 1;
+  });
+
+  return {
+    total: summary.total,
+    modes: [summary.WFO, summary.WFH, summary.WFA].map((mode) => ({
+      ...mode,
+      percentage: summary.total ? Math.round((mode.value / summary.total) * 100) : 0,
+    })),
+  };
+}
+
 function createMapLocationKey(point, index) {
   const pointId = firstPresentValue(
     point?.id,
@@ -527,9 +566,18 @@ function createMapLocation(point, index, metadata = {}) {
     point?.full_name,
     point?.fullName,
   );
+  const statusModeCandidate =
+    typeof point?.status === "string" ? point.status.trim().toUpperCase() : null;
+  const inferredStatusMode =
+    statusModeCandidate === "WFO" ||
+    statusModeCandidate === "WFH" ||
+    statusModeCandidate === "WFA"
+      ? statusModeCandidate
+      : null;
   const mode = firstPresentValue(
     point?.mode,
     point?.work_mode,
+    inferredStatusMode,
     point?.location_details?.category,
     point?.information,
   );
@@ -555,11 +603,12 @@ function createMapLocation(point, index, metadata = {}) {
     phoneNumber:
       point?.phone_number || point?.phoneNumber || point?.phone || "-",
     mode,
+    modeColor: getAttendanceModeColor(mode),
     status: point?.status || "-",
     information: mode || "-",
-    attendanceDate: point?.attendance_date || null,
-    timeIn: point?.time_in || null,
-    timeOut: point?.time_out || null,
+    attendanceDate: point?.attendance_date || point?.date || null,
+    timeIn: point?.time_in || point?.check_in_time || null,
+    timeOut: point?.time_out || point?.check_out_time || null,
     latitude,
     longitude,
     radius: Number.isFinite(radius) && radius > 0 ? radius : null,
@@ -624,14 +673,22 @@ function hasExplicitAnalytics(analytics = null) {
 function hasExplicitAnalyticsField(analytics = null, fieldName) {
   return Boolean(
     analytics &&
-      typeof analytics === "object" &&
-      !Array.isArray(analytics) &&
-      Object.prototype.hasOwnProperty.call(analytics, fieldName),
+    typeof analytics === "object" &&
+    !Array.isArray(analytics) &&
+    Object.prototype.hasOwnProperty.call(analytics, fieldName),
   );
 }
 
+function createHistoricalAnalyticsResponseEnvelope(analytics = null) {
+  return analytics && typeof analytics === "object" && !Array.isArray(analytics)
+    ? { data: analytics }
+    : null;
+}
+
 function getExecutiveKpis(analytics = null) {
-  const executiveKpis = buildHistoricalAnalyticsViewModel(analytics).kpis;
+  const executiveKpis = buildHistoricalAnalyticsViewModel(
+    createHistoricalAnalyticsResponseEnvelope(analytics),
+  ).kpis;
 
   return executiveKpis &&
     typeof executiveKpis === "object" &&
@@ -650,7 +707,9 @@ function getExecutiveRawCounts(analytics = null) {
 }
 
 function getModeMix(analytics = null) {
-  const modeMix = buildHistoricalAnalyticsViewModel(analytics).modeMix;
+  const modeMix = buildHistoricalAnalyticsViewModel(
+    createHistoricalAnalyticsResponseEnvelope(analytics),
+  ).modeMix;
 
   return modeMix && typeof modeMix === "object" && !Array.isArray(modeMix)
     ? modeMix
@@ -1032,6 +1091,8 @@ function createTrendSeries(values, scale) {
     return {
       label: getHistoricalTrendPointLabel(point, index),
       value,
+      displayValue:
+        point && typeof point === "object" ? point.displayValue || null : null,
       x: getHistoricalTrendPointX(index, values.length, stepX, horizontalRange),
       y:
         HISTORICAL_TREND_CHART.baselineY -
@@ -1095,13 +1156,56 @@ function createHistoricalTrendMetrics(seriesEntries) {
   });
 }
 
-function createHistoricalTrendRange({ key, label, seriesValues = {} }) {
+function createHistoricalTrendHoverPoints(series = []) {
+  const totalPoints = Math.max(
+    0,
+    ...series.map((seriesEntry) => seriesEntry.points?.length || 0),
+  );
+
+  return Array.from({ length: totalPoints }, (_, index) => {
+    const items = series
+      .map((seriesEntry) => {
+        const point = seriesEntry.points?.[index] || null;
+
+        if (!point) {
+          return null;
+        }
+
+        return {
+          key: seriesEntry.key,
+          label: seriesEntry.label,
+          color: seriesEntry.color,
+          value: point.value,
+          displayValue: point.displayValue || null,
+          x: point.x,
+          y: point.y,
+        };
+      })
+      .filter(Boolean);
+
+    return {
+      index,
+      label: items[0]?.label || "",
+      x: items[0]?.x ?? HISTORICAL_TREND_CHART.leftX,
+      items,
+    };
+  });
+}
+
+function createHistoricalTrendRange({
+  key,
+  label,
+  seriesValues = {},
+  yAxisLabels = null,
+  seriesLabels = {},
+}) {
   const scale = createHistoricalTrendScale(seriesValues);
   const series = HISTORICAL_TREND_SERIES_DEFINITIONS.map((definition) => {
     const points = createTrendSeries(seriesValues[definition.key] ?? [], scale);
 
     return {
       ...definition,
+      label: seriesLabels[definition.key] || definition.label,
       points,
       chartPath: createTrendChartPath(points),
       areaPath: createTrendAreaPath(points),
@@ -1113,8 +1217,17 @@ function createHistoricalTrendRange({ key, label, seriesValues = {} }) {
     label,
     metrics: createHistoricalTrendMetrics(series),
     series,
+    hoverPoints: createHistoricalTrendHoverPoints(series),
+    plotArea: {
+      leftX: HISTORICAL_TREND_CHART.leftX,
+      rightX: HISTORICAL_TREND_CHART.rightX,
+      topY: HISTORICAL_TREND_CHART.topY,
+      baselineY: HISTORICAL_TREND_CHART.baselineY,
+      viewBoxWidth: 992,
+      viewBoxHeight: 220,
+    },
     xAxisLabels: series[0]?.points?.map((point) => point.label) ?? [],
-    yAxisLabels: scale.yAxisLabels,
+    yAxisLabels: Array.isArray(yAxisLabels) && yAxisLabels.length ? yAxisLabels : scale.yAxisLabels,
   };
 }
 
@@ -1202,6 +1315,21 @@ function createHistoricalTrendRangeFailure(reason) {
   };
 }
 
+function normalizeHistoricalTrendWindowPoints(points) {
+  if (points.length <= 7) {
+    return points;
+  }
+
+  const weeklyPoints = points.filter((_, index) => index % 7 === 0);
+  const lastPoint = points[points.length - 1];
+
+  if (weeklyPoints[weeklyPoints.length - 1]?.date !== lastPoint.date) {
+    weeklyPoints.push(lastPoint);
+  }
+
+  return weeklyPoints;
+}
+
 function createHistoricalTrendRangeFromPoints(points) {
   if (!points.length) {
     return createHistoricalTrendRangeFailure(
@@ -1209,20 +1337,22 @@ function createHistoricalTrendRangeFromPoints(points) {
     );
   }
 
+  const windowPoints = normalizeHistoricalTrendWindowPoints(points);
+
   return {
     range: createHistoricalTrendRange({
       key: "selectedWindow",
       label: "Selected Window",
       seriesValues: {
-        ontime: points.map((point) => ({
+        ontime: windowPoints.map((point) => ({
           label: point.label,
           value: point.ontime,
         })),
-        late: points.map((point) => ({
+        late: windowPoints.map((point) => ({
           label: point.label,
           value: point.late,
         })),
-        alpha: points.map((point) => ({
+        alpha: windowPoints.map((point) => ({
           label: point.label,
           value: point.alpha,
         })),
@@ -1233,7 +1363,9 @@ function createHistoricalTrendRangeFromPoints(points) {
 }
 
 function normalizeHistoricalTrend(analytics = null) {
-  const trendPayload = buildHistoricalAnalyticsViewModel(analytics).trend;
+  const trendPayload = buildHistoricalAnalyticsViewModel(
+    createHistoricalAnalyticsResponseEnvelope(analytics),
+  ).trend;
 
   if (!trendPayload) {
     return null;
@@ -1277,24 +1409,6 @@ function normalizeHistoricalTrend(analytics = null) {
   };
 }
 
-function buildPreviewHistoricalTrendPanel() {
-  const defaultRange = HISTORICAL_TREND_PREVIEW_RANGES[0];
-
-  return createPanel({
-    ...getMiddlePanelDefinition("historicalTrend"),
-    state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
-    message:
-      "Backend trend feed is pending; this statistics card is preview-only.",
-    note: "Preview data is shown for dashboard analytics context only and must not be treated as attendance truth.",
-    data: {
-      ranges: HISTORICAL_TREND_PREVIEW_RANGES,
-      defaultRangeKey: defaultRange.key,
-      isPreview: true,
-      source: "dummy-preview",
-    },
-  });
-}
-
 function buildHistoricalTrendPanel(analytics = null, analyticsError = null) {
   if (analyticsError) {
     return createPanel({
@@ -1306,17 +1420,38 @@ function buildHistoricalTrendPanel(analytics = null, analyticsError = null) {
   }
 
   if (!hasExplicitAnalytics(analytics)) {
-    return buildPreviewHistoricalTrendPanel();
+    return createPanel({
+      ...getMiddlePanelDefinition("historicalTrend"),
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message:
+        "Historical attendance trend waits for explicit dashboard analytics historical_trend.",
+      note: "Web FE will not derive trend from summary totals or use preview chart data.",
+      data: null,
+    });
   }
 
   if (!hasExplicitAnalyticsField(analytics, "historical_trend")) {
-    return buildPreviewHistoricalTrendPanel();
+    return createPanel({
+      ...getMiddlePanelDefinition("historicalTrend"),
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message:
+        "Historical attendance trend waits for explicit dashboard analytics historical_trend.",
+      note: "Web FE will not derive trend from summary totals or use preview chart data.",
+      data: null,
+    });
   }
 
   const normalizedTrend = normalizeHistoricalTrend(analytics);
 
   if (!normalizedTrend) {
-    return buildPreviewHistoricalTrendPanel();
+    return createPanel({
+      ...getMiddlePanelDefinition("historicalTrend"),
+      state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
+      message:
+        "Historical attendance trend backend payload is invalid; historical_trend must be an object with explicit points.",
+      note: "Web FE will not substitute preview ranges when backend trend payload is malformed.",
+      data: null,
+    });
   }
 
   if (!normalizedTrend.ranges) {
@@ -1336,9 +1471,6 @@ function buildHistoricalTrendPanel(analytics = null, analyticsError = null) {
   return createPanel({
     ...getMiddlePanelDefinition("historicalTrend"),
     state: DASHBOARD_PANEL_STATES.READY,
-    detail:
-      "Explicit backend attendance trend for On Time, Late, and Alpha across the selected dashboard window.",
-    note: "Backend trend is available from historical_trend.points for dashboard analytics context.",
     data: {
       ranges: normalizedTrend.ranges,
       defaultRangeKey: defaultRange.key,
@@ -1478,14 +1610,8 @@ function buildHeroPanel(analytics = null, analyticsError = null) {
 }
 
 function buildFuzzyAhpPanel() {
-  return createPanel({
-    ...getBottomPanelDefinition("fuzzyAhp"),
-    state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
-    message: "Fuzzy AHP output is not available for the active period.",
-    note: "Criteria, weights, and ranking stay hidden until backend-backed Fuzzy AHP output is wired.",
-  });
+  return buildExplicitFuzzyAhpPanel(null);
 }
-
 
 function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
   if (fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined") {
@@ -1496,53 +1622,12 @@ function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
     return false;
   }
 
-  const responsePayload =
-    fuzzyAhpResponse?.data &&
-    typeof fuzzyAhpResponse.data === "object" &&
-    !Array.isArray(fuzzyAhpResponse.data)
-      ? fuzzyAhpResponse.data
-      : fuzzyAhpResponse;
+  const viewModel = buildFahpDashboardRecapViewModel(fuzzyAhpResponse);
 
-  if (
-    responsePayload &&
-    typeof responsePayload === "object" &&
-    !Array.isArray(responsePayload) &&
-    Array.isArray(responsePayload.sections)
-  ) {
-    const section = responsePayload.sections[0] ?? null;
-    const distribution =
-      section?.distribution &&
-      typeof section.distribution === "object" &&
-      !Array.isArray(section.distribution)
-        ? section.distribution
-        : null;
-    const rankings = distribution
-      ? Object.entries(distribution)
-          .map(([label, score]) =>
-            typeof score === "number" && Number.isFinite(score)
-              ? { label, score }
-              : null,
-          )
-          .filter(Boolean)
-      : null;
-
-    return rankings && rankings.length > 0
-      ? {
-          consistency_ratio:
-            typeof section?.consistency === "number" &&
-            Number.isFinite(section.consistency)
-              ? section.consistency
-              : null,
-          rankings,
-        }
-      : false;
-  }
-
-  return responsePayload &&
-    typeof responsePayload === "object" &&
-    !Array.isArray(responsePayload)
-    ? responsePayload
-    : false;
+  return {
+    ...viewModel,
+    source: FUZZY_AHP_SOURCE_KEY,
+  };
 }
 
 function buildTodayLocationsHeroPanel(
@@ -1569,15 +1654,6 @@ function buildTodayLocationsHeroPanel(
   }
 
   const liveMap = buildLiveMapViewModel(todayLocations);
-  if (!Array.isArray(liveMap.locations)) {
-    return createPanel({
-      ...LIVE_MAP_PANEL_DEFINITION,
-      state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
-      message:
-        "Today locations backend payload is invalid; Live Map requires an explicit attendance row array.",
-      note: "Web FE will not coerce non-array today-locations payloads into live markers.",
-    });
-  }
 
   const locations = ensureUniqueMapLocationKeys(
     liveMap.locations
@@ -1597,6 +1673,8 @@ function buildTodayLocationsHeroPanel(
     totalRows: liveMap.locations.length,
     source: liveMap.authority,
     tileProvider: "OpenStreetMap",
+    isPreview: false,
+    modeSummary: createLiveMapModeSummary(locations),
   };
 
   if (liveMap.locations.length === 0) {
@@ -1629,6 +1707,56 @@ function buildTodayLocationsHeroPanel(
   });
 }
 
+function buildFuzzyAhpUpdatedAtLabel(fuzzyAhp) {
+  if (!fuzzyAhp?.generatedAt) {
+    return "Menunggu pembaruan backend Fuzzy AHP";
+  }
+
+  const timezoneLabel = fuzzyAhp.timezone ? ` (${fuzzyAhp.timezone})` : "";
+  return `Backend generated at ${fuzzyAhp.generatedAt}${timezoneLabel}`;
+}
+
+function buildFuzzyAhpDecisionPayload(fuzzyAhp) {
+  return {
+    key: fuzzyAhp.type || "discipline",
+    title: fuzzyAhp.typeLabel || fuzzyAhp.type || "Fuzzy AHP",
+    summary:
+      fuzzyAhp.consistency?.summaryLabel ||
+      "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
+    consistencyRatio: fuzzyAhp.consistency?.CR ?? null,
+    consistencyThreshold: fuzzyAhp.consistency?.threshold ?? null,
+    consistencyStatus:
+      fuzzyAhp.consistency?.summaryLabel ||
+      (fuzzyAhp.consistency?.isConsistent ? "Consistent" : "Needs Review"),
+    isConsistent: Boolean(fuzzyAhp.consistency?.isConsistent),
+    updatedAtLabel: buildFuzzyAhpUpdatedAtLabel(fuzzyAhp),
+    criteriaWeights: fuzzyAhp.criteriaWeights.map((criterion) => ({
+      label: criterion.display_label || criterion.label || criterion.key,
+      weight: criterion.value,
+    })),
+    rankings: Array.isArray(fuzzyAhp.rankingPreview?.items)
+      ? fuzzyAhp.rankingPreview.items.map((item, index) => ({
+          rank:
+            Number.isFinite(Number(item.rank)) && Number(item.rank) > 0
+              ? Number(item.rank)
+              : index + 1,
+          id: item.id ?? null,
+          name: item.name || "",
+          label: item.label || null,
+          score: item.score,
+        }))
+      : [],
+    distribution: fuzzyAhp.distribution || null,
+  };
+}
+
+function createFuzzyAhpFallbackData(activeType = "discipline") {
+  return {
+    typeOptions: FUZZY_AHP_TYPE_OPTIONS,
+    activeType,
+  };
+}
+
 function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
   if (fuzzyAhpError) {
     return createPanel({
@@ -1636,6 +1764,7 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       state: DASHBOARD_PANEL_STATES.ERROR,
       message: `${getAnalyticsErrorMessage(fuzzyAhpError)} Fuzzy AHP output remains unavailable until the explicit backend feed succeeds.`,
       note: "Web FE will not fabricate criteria, weights, or ranking from summary or analytics sources.",
+      data: createFuzzyAhpFallbackData(),
     });
   }
 
@@ -1643,8 +1772,10 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
     return createPanel({
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
-      message: "Fuzzy AHP backend feed is not available for the active period.",
-      note: "Criteria, weights, and ranking stay hidden until backend-backed Fuzzy AHP output is wired.",
+      message:
+        "Fuzzy AHP waits for the explicit analysis.fuzzy-ahp dashboard backend feed.",
+      note: "No dummy criteria, weights, rankings, or preview decisions are used as runtime Fuzzy AHP truth.",
+      data: createFuzzyAhpFallbackData(),
     });
   }
 
@@ -1655,69 +1786,82 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP backend payload is invalid; expected an explicit object response.",
       note: "Web FE will not coerce non-object Fuzzy AHP payloads into decision support output.",
+      data: createFuzzyAhpFallbackData(),
     });
   }
 
-  if (!Array.isArray(fuzzyAhp.rankings) || fuzzyAhp.rankings.length === 0) {
+  if (!fuzzyAhp.status) {
     return createPanel({
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
       message:
-        "Fuzzy AHP backend payload is incomplete; rankings must contain explicit alternatives.",
-      note: "Web FE will not fabricate criteria, weights, or ranking from summary or analytics sources.",
+        "Fuzzy AHP backend payload is incomplete; status must be present for the dashboard recap contract.",
+      note: "Web FE will not treat malformed Fuzzy AHP recap payloads as empty backend output.",
+      data: {
+        ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
+        ...fuzzyAhp,
+      },
     });
   }
 
-  const rankings = fuzzyAhp.rankings
-    .map((ranking, index) => {
-      const label = firstPresentValue(
-        ranking?.label,
-        ranking?.name,
-        `Alternative ${index + 1}`,
-      );
-      const score = firstFiniteNumber(
-        ranking?.score,
-        ranking?.value,
-        ranking?.weight,
-      );
-
-      if (!label || score === null) {
-        return null;
-      }
-
-      return { label, score };
-    })
-    .filter(Boolean);
-
-  if (!rankings.length || rankings.length !== fuzzyAhp.rankings.length) {
+  if (fuzzyAhp.needsData) {
     return createPanel({
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
       message:
-        "Fuzzy AHP backend rankings are incomplete; each alternative must include explicit label and score values.",
-      note: "Web FE will not infer missing Fuzzy AHP ranking fields.",
+        "Fuzzy AHP backend payload reports needs_data for this dashboard scope.",
+      note: "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
+      data: {
+        ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
+        ...fuzzyAhp,
+      },
     });
   }
 
-  const consistencyRatio = firstFiniteNumber(
-    fuzzyAhp.consistency_ratio,
-    fuzzyAhp.consistencyRatio,
-  );
-  const topRanking =
-    [...rankings].sort((left, right) => right.score - left.score)[0] ?? null;
+  if (fuzzyAhp.status === "empty") {
+    return createPanel({
+      ...getBottomPanelDefinition("fuzzyAhp"),
+      state: DASHBOARD_PANEL_STATES.EMPTY,
+      message:
+        "Fuzzy AHP backend feed returned no recap output for this dashboard scope.",
+      note: "Web FE will not substitute dummy Fuzzy AHP decisions for empty backend output.",
+      data: {
+        ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
+        ...fuzzyAhp,
+      },
+    });
+  }
+
+  if (!Array.isArray(fuzzyAhp.criteriaWeights) || fuzzyAhp.criteriaWeights.length === 0) {
+    return createPanel({
+      ...getBottomPanelDefinition("fuzzyAhp"),
+      state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
+      message:
+        "Fuzzy AHP backend payload is incomplete; criteria_weights must include explicit final dashboard weights.",
+      note: "Web FE will not fabricate criteria weights from legacy sections or summary data.",
+      data: {
+        ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
+        ...fuzzyAhp,
+      },
+    });
+  }
+
+  const decisionPayload = buildFuzzyAhpDecisionPayload(fuzzyAhp);
 
   return createPanel({
     ...getBottomPanelDefinition("fuzzyAhp"),
     state: DASHBOARD_PANEL_STATES.READY,
-    detail: Number.isFinite(consistencyRatio)
-      ? `Explicit backend Fuzzy AHP ranked ${rankings.length} alternatives with consistency ratio ${formatNumericValue(consistencyRatio, 2)}.`
-      : `Explicit backend Fuzzy AHP ranked ${rankings.length} alternatives for the active period.`,
+    detail: Number.isFinite(fuzzyAhp.consistency?.CR)
+      ? `Explicit backend Fuzzy AHP ${fuzzyAhp.typeLabel || fuzzyAhp.type || "recap"} returned ${fuzzyAhp.criteriaWeights.length} criteria weight(s); CR value is ${formatNumericValue(fuzzyAhp.consistency.CR, 2)}.`
+      : `Explicit backend Fuzzy AHP ${fuzzyAhp.typeLabel || fuzzyAhp.type || "recap"} returned ${fuzzyAhp.criteriaWeights.length} criteria weight(s).`,
     note: "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
     data: {
-      source: FUZZY_AHP_SOURCE_KEY,
-      consistencyRatio,
-      rankings,
-      topRanking,
+      ...fuzzyAhp,
+      typeOptions: FUZZY_AHP_TYPE_OPTIONS,
+      activeType: decisionPayload.key,
+      activeDecisionKey: decisionPayload.key,
+      decisions: [decisionPayload],
+      updatedAtLabel: decisionPayload.updatedAtLabel,
     },
   });
 }
@@ -1738,13 +1882,17 @@ function buildGeofenceEvidencePanel(
   if (geofenceEvidenceResponse === null) {
     return createPanel({
       ...getBottomPanelDefinition("geofenceEvidence"),
+      title: "Geofence Operational Context",
       state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
-      message: "Geofence evidence backend feed is not available for the active period.",
-      note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+      message:
+        "Geofence evidence waits for the explicit attendance.geofence-evidence backend feed.",
+      note: "No dummy geofence evidence is used as runtime attendance-supporting truth.",
     });
   }
 
-  const geofenceEvidence = buildGeofenceEvidenceViewModel(geofenceEvidenceResponse);
+  const geofenceEvidence = buildGeofenceEvidenceViewModel(
+    geofenceEvidenceResponse,
+  );
 
   if (geofenceEvidence.needsData) {
     return createPanel({
@@ -1772,19 +1920,23 @@ function buildGeofenceEvidencePanel(
 
   return createPanel({
     ...getBottomPanelDefinition("geofenceEvidence"),
+    title: "Geofence Operational Context",
+    subtitle: "ENTER / EXIT + attendance evidence",
     state: DASHBOARD_PANEL_STATES.READY,
     detail: `${geofenceEvidence.rawCounts.total_events} supporting geofence events for the active period. Final attendance authority remains ${geofenceEvidence.finalAttendanceAuthority || "unavailable"}.`,
-    note: "Geofence events are supporting evidence only; they never become final attendance truth.",
+    note:
+      geofenceEvidence.operationalContext.dashboard_note ||
+      "Geofence events are supporting evidence only; they never become final attendance truth.",
     data: geofenceEvidence,
   });
 }
 
 export function buildDashboardSectionOrder() {
   return [
-    "historicalOverview",
-    "geofenceEvidence",
-    "fahpRecap",
     "liveOperationsMap",
+    "historicalOverview",
+    "fahpRecap",
+    "geofenceEvidence",
   ];
 }
 

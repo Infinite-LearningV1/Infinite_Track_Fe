@@ -1,10 +1,17 @@
-const ALLOWED_PERIODS = new Set(["30d", "current_month", "custom"]);
+export const DASHBOARD_RANGE_PERIODS = {
+  TODAY: "today",
+  CURRENT_WEEK: "current_week",
+  CURRENT_MONTH: "current_month",
+  CUSTOM: "custom",
+};
+
+const ALLOWED_PERIODS = new Set(Object.values(DASHBOARD_RANGE_PERIODS));
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function createDefaultDashboardRange() {
   return {
-    period: "30d",
+    period: DASHBOARD_RANGE_PERIODS.CURRENT_MONTH,
     from: null,
     to: null,
   };
@@ -18,7 +25,7 @@ export function validateDashboardRange({ period, from, to }) {
     };
   }
 
-  if (period !== "custom") {
+  if (period !== DASHBOARD_RANGE_PERIODS.CUSTOM) {
     return {
       isValid: true,
       message: "",
@@ -71,11 +78,23 @@ export function validateDashboardRange({ period, from, to }) {
 }
 
 export function buildDashboardRangeRequestParams({ period, from, to }) {
-  if (period === "custom") {
+  if (period === DASHBOARD_RANGE_PERIODS.CUSTOM) {
     return {
       period,
       from,
       to,
+    };
+  }
+
+  if (period === DASHBOARD_RANGE_PERIODS.TODAY) {
+    return {
+      period: "daily",
+    };
+  }
+
+  if (period === DASHBOARD_RANGE_PERIODS.CURRENT_WEEK) {
+    return {
+      period: "weekly",
     };
   }
 

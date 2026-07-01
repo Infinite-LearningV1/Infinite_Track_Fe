@@ -9,6 +9,10 @@ const statsPartial = readFileSync(
   join(root, "src", "partials", "cards", "stats-card-group.html"),
   "utf8",
 );
+const exportReportModal = readFileSync(
+  join(root, "src", "partials", "modal", "export-report-modal.html"),
+  "utf8",
+);
 const cockpitGrid = readFileSync(
   join(root, "src", "partials", "dashboard", "dashboard-cockpit-grid.html"),
   "utf8",
@@ -19,7 +23,7 @@ const mapDetailModal = readFileSync(
   "utf8",
 );
 
-test("dashboard stats partial renders the analytics header, KPI shell, and export modal", () => {
+test("dashboard stats partial keeps export trigger lightweight and includes modal partial", () => {
   assert.match(statsPartial, /Dashboard Analytics/);
   assert.match(statsPartial, /cockpit\.kpis/);
   assert.match(statsPartial, /x-text="card\.title"/);
@@ -29,36 +33,53 @@ test("dashboard stats partial renders the analytics header, KPI shell, and expor
     /card\.state === 'ready' \? card\.detail : card\.message/,
   );
   assert.match(statsPartial, /@click="openExportModal\(\)"/);
-  assert.match(statsPartial, /Export Attendance Report/);
-  assert.match(statsPartial, /PDF Report/);
-  assert.match(statsPartial, /Excel Workbook/);
-  assert.match(statsPartial, /@click="exportSelected\('pdf'\)"/);
-  assert.match(statsPartial, /@click="exportSelected\('excel'\)"/);
   assert.match(statsPartial, /x-model="dashboardRange"/);
   assert.match(statsPartial, /@change="onDashboardRangeChange\(\)"/);
-  assert.match(statsPartial, /Filter range for dashboard analytics/);
-  assert.match(statsPartial, /x-for="option in dashboardRangeOptions"/);
-  assert.match(statsPartial, /:value="option\.value"/);
-  assert.match(statsPartial, /x-text="option\.label"/);
+  assert.match(statsPartial, /<include src="\.\.\/modal\/export-report-modal\.html" \/>/);
   assert.doesNotMatch(statsPartial, /x-model="filters\.period"/);
   assert.doesNotMatch(statsPartial, /Filter period for dashboard and export/);
-  assert.doesNotMatch(
-    statsPartial,
-    /Attendance, Fuzzy AHP, geofence evidence, and operational monitoring/,
-  );
-  assert.doesNotMatch(statsPartial, /@click="exportToPDF\(\)"/);
-  assert.doesNotMatch(statsPartial, /@click="exportToExcel\(\)"/);
+  assert.doesNotMatch(statsPartial, /@click="exportSelected\('pdf'\)"/);
+  assert.doesNotMatch(statsPartial, /@click="exportSelected\('excel'\)"/);
+  assert.doesNotMatch(statsPartial, /Phone Number/);
+  assert.doesNotMatch(statsPartial, /Recommended Action/);
   assert.doesNotMatch(statsPartial, /Management Cockpit/);
   assert.doesNotMatch(statsPartial, /Verified backend truth first/);
   assert.doesNotMatch(statsPartial, /card\.meta\.presentation/);
   assert.doesNotMatch(statsPartial, /cardSummaryData\./);
 });
 
-test("dashboard stats partial describes export as canonical report-response output", () => {
-  assert.match(statsPartial, /Export Attendance Report/);
-  assert.match(statsPartial, /canonical backend report response/i);
-  assert.doesNotMatch(statsPartial, /Phone Number/);
-  assert.doesNotMatch(statsPartial, /Recommended Action/);
+test("export report modal partial matches redesigned contract-aware layout", () => {
+  assert.match(exportReportModal, /Export Attendance Report/);
+  assert.match(exportReportModal, /Choose the report format and data scope for the selected period\./);
+  assert.match(exportReportModal, /x-text="getExportPeriodLabel\(\)"/);
+  assert.match(exportReportModal, /x-for="card in exportFormatCards"/);
+  assert.match(exportReportModal, /@click="selectExportFormat\(card\.value\)"/);
+  assert.match(exportReportModal, /x-text="card\.title"/);
+  assert.match(exportReportModal, /x-text="card\.description"/);
+  assert.match(exportReportModal, /x-for="feature in card\.features"/);
+  assert.match(exportReportModal, /x-text="feature"/);
+  assert.match(exportReportModal, /Export Scope/);
+  assert.match(exportReportModal, /x-for="option in exportScopeOptions"/);
+  assert.match(exportReportModal, /name="export-scope"/);
+  assert.match(exportReportModal, /@change="selectExportScope\(option\.value\)"/);
+  assert.match(exportReportModal, /x-text="option\.label"/);
+  assert.match(exportReportModal, /x-text="option\.note"/);
+  assert.match(exportReportModal, /Additional Options/);
+  assert.match(exportReportModal, /x-for="option in exportAdditionalOptions"/);
+  assert.match(exportReportModal, /@change="toggleExportOption\(option\.key\)"/);
+  assert.match(exportReportModal, /Export is generated from validated attendance records for the selected period\./);
+  assert.match(exportReportModal, /x-text="exportProgressMessage \|\| 'Preparing export file\.\.\.'"/);
+  assert.match(exportReportModal, /x-if="!isExporting && exportInlineError"/);
+  assert.match(exportReportModal, /@click="confirmExport\(\)"/);
+  assert.match(exportReportModal, />\s*Cancel\s*</);
+  assert.match(exportReportModal, /Export Report/);
+  assert.match(exportReportModal, /x-show="!option\.enabled && option\.note"/);
+  assert.match(exportReportModal, /:disabled="!selectedExportFormat \|\| isExporting"/);
+  assert.match(exportReportModal, /x-show="isExportModalOpen"/);
+  assert.match(exportReportModal, /@keydown.escape.window="closeExportModal\(\)"/);
+  assert.match(exportReportModal, /@click="closeExportModal\(\)"/);
+  assert.doesNotMatch(exportReportModal, /Phone Number/);
+  assert.doesNotMatch(exportReportModal, /Recommended Action/);
 });
 
 test("dashboard cockpit grid renders map-only hero, preview trend, and backend-derived mode mix card", () => {

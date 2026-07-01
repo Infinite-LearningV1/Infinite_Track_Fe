@@ -84,6 +84,41 @@ test("ensureExportDatasetComplete throws canonical contract error when total met
   );
 });
 
+test("selectExportFormat only updates local selection and does not export immediately", () => {
+  const component = dashboard();
+
+  component.selectExportFormat("excel");
+
+  assert.equal(component.selectedExportFormat, "excel");
+  assert.equal(component.isExporting, false);
+});
+
+test("confirmExport uses the selected format and closes modal on success", async () => {
+  const component = dashboard();
+  component.isExportModalOpen = true;
+  component.selectedExportFormat = "excel";
+  component.exportToExcel = async () => true;
+
+  const result = await component.confirmExport();
+
+  assert.equal(result, true);
+  assert.equal(component.isExportModalOpen, false);
+  assert.equal(component.exportInlineError, null);
+});
+
+test("confirmExport sets inline error when format is missing", async () => {
+  const component = dashboard();
+  component.selectedExportFormat = null;
+
+  const result = await component.confirmExport();
+
+  assert.equal(result, false);
+  assert.equal(
+    component.exportInlineError,
+    "Select an export format before continuing.",
+  );
+});
+
 test("refreshFahpRecap refetches only the FAHP slice without reloading the dashboard", async () => {
   const calls = [];
   let fahpResponses = 0;

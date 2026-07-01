@@ -1842,6 +1842,8 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
     note: "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
     data: {
       ...fuzzyAhp,
+      typeOptions: FUZZY_AHP_TYPE_OPTIONS,
+      activeType: decisionPayload.key,
       activeDecisionKey: decisionPayload.key,
       decisions: [decisionPayload],
       updatedAtLabel: decisionPayload.updatedAtLabel,

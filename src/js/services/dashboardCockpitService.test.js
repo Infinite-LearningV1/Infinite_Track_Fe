@@ -1283,6 +1283,12 @@ test("cockpit fuzzy ahp preserves final dashboard recap payload", () => {
     items: [{ label: "Andi", score: 0.91 }],
   });
   assert.deepEqual(fuzzyAhp.data.distribution, { excellent: 2, good: 5 });
+  assert.deepEqual(fuzzyAhp.data.typeOptions, [
+    { key: "discipline", title: "Discipline" },
+    { key: "wfa", title: "WFA" },
+    { key: "smart_ac", title: "Smart AC" },
+  ]);
+  assert.equal(fuzzyAhp.data.activeType, "discipline");
   assert.match(fuzzyAhp.note, /explicit backend fuzzy ahp feed/i);
 });
 
@@ -1325,6 +1331,12 @@ test("cockpit fuzzy ahp filters malformed criteria weights without adapting lega
     },
   ]);
   assert.equal(fuzzyAhp.data.activeDecisionKey, "wfa");
+  assert.equal(fuzzyAhp.data.activeType, "wfa");
+  assert.deepEqual(fuzzyAhp.data.typeOptions, [
+    { key: "discipline", title: "Discipline" },
+    { key: "wfa", title: "WFA" },
+    { key: "smart_ac", title: "Smart AC" },
+  ]);
   assert.equal(Array.isArray(fuzzyAhp.data.decisions), true);
   assert.equal(fuzzyAhp.data.decisions.length, 1);
   assert.equal(fuzzyAhp.data.decisions[0].key, "wfa");

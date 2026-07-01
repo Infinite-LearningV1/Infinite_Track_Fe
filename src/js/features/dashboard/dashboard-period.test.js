@@ -32,6 +32,116 @@ test("dashboard analytics range change reloads dashboard data without changing r
   ]);
 });
 
+test("today preset maps dashboard analytics and geofence requests to backend daily", async () => {
+  const component = dashboard();
+  const analyticsCalls = [];
+  const geofenceCalls = [];
+
+  component.queueDashboardMapRender = () => {};
+  component.showNotification = () => {};
+  component.dashboardRange = "current_month";
+  component.dashboardRangeState = {
+    period: "current_month",
+    from: null,
+    to: null,
+  };
+  component.fetchSummaryReport = async () => ({
+    summary: {
+      total_ontime: 1,
+      total_late: 0,
+      total_alpha: 0,
+    },
+    report: {
+      data: [],
+      pagination: {
+        current_page: 1,
+        total_pages: 1,
+        total_records: 0,
+        per_page: 5,
+        has_prev_page: false,
+        has_next_page: false,
+      },
+    },
+  });
+  component.fetchDashboardAnalytics = async (params) => {
+    analyticsCalls.push(params);
+    return { data: { executive_kpis: { avg_discipline: 88 } } };
+  };
+  component.fetchGeofenceEvidence = async (params) => {
+    geofenceCalls.push(params);
+    return { data: { status: "empty", raw_counts: { total_events: 0, enter_events: 0, exit_events: 0, unique_users: 0 } } };
+  };
+  component.fetchTodayLocations = async () => ({ data: [] });
+  component.fetchFuzzyAhpAnalysis = async () => ({
+    data: {
+      type: "discipline",
+      type_label: "Discipline",
+      status: "ready",
+      criteria_weights: [{ key: "attendance", label: "Attendance", display_label: "Attendance", value: 0.45 }],
+    },
+  });
+
+  await component.selectDashboardRangeOption("today");
+
+  assert.deepEqual(analyticsCalls, [{ period: "daily" }]);
+  assert.deepEqual(geofenceCalls, [{ period: "daily" }]);
+});
+
+test("current week preset maps dashboard analytics and geofence requests to backend weekly", async () => {
+  const component = dashboard();
+  const analyticsCalls = [];
+  const geofenceCalls = [];
+
+  component.queueDashboardMapRender = () => {};
+  component.showNotification = () => {};
+  component.dashboardRange = "current_month";
+  component.dashboardRangeState = {
+    period: "current_month",
+    from: null,
+    to: null,
+  };
+  component.fetchSummaryReport = async () => ({
+    summary: {
+      total_ontime: 1,
+      total_late: 0,
+      total_alpha: 0,
+    },
+    report: {
+      data: [],
+      pagination: {
+        current_page: 1,
+        total_pages: 1,
+        total_records: 0,
+        per_page: 5,
+        has_prev_page: false,
+        has_next_page: false,
+      },
+    },
+  });
+  component.fetchDashboardAnalytics = async (params) => {
+    analyticsCalls.push(params);
+    return { data: { executive_kpis: { avg_discipline: 88 } } };
+  };
+  component.fetchGeofenceEvidence = async (params) => {
+    geofenceCalls.push(params);
+    return { data: { status: "empty", raw_counts: { total_events: 0, enter_events: 0, exit_events: 0, unique_users: 0 } } };
+  };
+  component.fetchTodayLocations = async () => ({ data: [] });
+  component.fetchFuzzyAhpAnalysis = async () => ({
+    data: {
+      type: "discipline",
+      type_label: "Discipline",
+      status: "ready",
+      criteria_weights: [{ key: "attendance", label: "Attendance", display_label: "Attendance", value: 0.45 }],
+    },
+  });
+
+  await component.selectDashboardRangeOption("current_week");
+
+  assert.deepEqual(analyticsCalls, [{ period: "weekly" }]);
+  assert.deepEqual(geofenceCalls, [{ period: "weekly" }]);
+});
+
 test("initial load fetches report, analytics, geofence, today locations, and Fuzzy AHP in parallel", async () => {
   const component = dashboard();
   const calls = [];

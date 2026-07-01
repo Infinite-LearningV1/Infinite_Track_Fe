@@ -86,6 +86,18 @@ export function buildDashboardRangeRequestParams({ period, from, to }) {
     };
   }
 
+  if (period === DASHBOARD_RANGE_PERIODS.TODAY) {
+    return {
+      period: "daily",
+    };
+  }
+
+  if (period === DASHBOARD_RANGE_PERIODS.CURRENT_WEEK) {
+    return {
+      period: "weekly",
+    };
+  }
+
   return {
     period,
   };

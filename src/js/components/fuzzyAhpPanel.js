@@ -31,11 +31,18 @@ function createCriteriaRows(criteriaWeights = []) {
 function createRankingRows(rankings = []) {
   return rankings.slice(0, 5).map((ranking, index) => {
     const score = Number(ranking.score);
+    const fallbackRank = index + 1;
+    const rank = Number.isFinite(Number(ranking.rank))
+      ? Number(ranking.rank)
+      : fallbackRank;
+    const primaryLabel =
+      ranking.name || `Alternative ${fallbackRank}`;
 
     return {
-      key: `${ranking.label || "ranking"}-${index}`,
-      rank: index + 1,
-      label: ranking.label || `Alternative ${index + 1}`,
+      key: `${ranking.id || primaryLabel || "ranking"}-${index}`,
+      rank,
+      label: primaryLabel,
+      secondaryLabel: ranking.label || null,
       score: Number.isFinite(score) ? score : 0,
       scoreLabel: formatDecimal(score, 3),
     };

@@ -372,10 +372,11 @@ test("dashboard loadSummaryData uses the explicit analytics response for cockpit
   assert.deepEqual(notifications, []);
 });
 
-test("dashboard loadSummaryData keeps report params stable while requesting analytics and today locations only", async () => {
+test("dashboard loadSummaryData keeps report params stable while requesting analytics, geofence, today locations, and Fuzzy AHP", async () => {
   const component = dashboard();
   const reportCalls = [];
   const analyticsCalls = [];
+  const geofenceCalls = [];
   const todayLocationCalls = [];
   const fuzzyAhpCalls = [];
   const originalLog = console.log;
@@ -422,6 +423,21 @@ test("dashboard loadSummaryData keeps report params stable while requesting anal
     };
   };
 
+  component.fetchGeofenceEvidence = async (params) => {
+    geofenceCalls.push(params);
+    return {
+      data: {
+        status: "empty",
+        raw_counts: {
+          total_events: 0,
+          enter_events: 0,
+          exit_events: 0,
+          unique_users: 0,
+        },
+      },
+    };
+  };
+
   component.fetchTodayLocations = async () => {
     todayLocationCalls.push(true);
     return {
@@ -429,10 +445,33 @@ test("dashboard loadSummaryData keeps report params stable while requesting anal
     };
   };
 
-  component.fetchFuzzyAhpAnalysis = async () => {
-    fuzzyAhpCalls.push(true);
+  component.fetchFuzzyAhpAnalysis = async (params) => {
+    fuzzyAhpCalls.push(params);
     return {
-      data: {},
+      data: {
+        type: params.type,
+        type_label: "Discipline",
+        status: "ready",
+        needs_data: false,
+        consistency: {
+          CR: 0.04,
+          threshold: 0.1,
+          is_consistent: true,
+          summary_label: "Consistent",
+        },
+        criteria_weights: [
+          {
+            key: "attendance",
+            label: "Attendance",
+            display_label: "Attendance",
+            value: 0.45,
+          },
+        ],
+        ranking_preview: {
+          items: [{ label: "Andi", score: 0.91 }],
+        },
+        distribution: { excellent: 1 },
+      },
     };
   };
 
@@ -455,8 +494,9 @@ test("dashboard loadSummaryData keeps report params stable while requesting anal
     },
   ]);
   assert.deepEqual(analyticsCalls, [{ period: "current_month" }]);
+  assert.deepEqual(geofenceCalls, [{ period: "current_month" }]);
   assert.equal(todayLocationCalls.length, 1);
-  assert.equal(fuzzyAhpCalls.length, 0);
+  assert.deepEqual(fuzzyAhpCalls, [{ type: "discipline" }]);
 });
 
 test("dashboard loadSummaryData keeps report rows when analytics fails but today locations explicitly returns no rows", async () => {

@@ -625,6 +625,42 @@ export function dashboard() {
       return this.dashboardHeaderState;
     },
 
+    syncDashboardRangeFromReportPeriod() {
+      if (
+        this.filters.period === "range" &&
+        this.filters.from &&
+        this.filters.to
+      ) {
+        this.dashboardRange = "custom";
+        this.dashboardRangeState = {
+          period: "custom",
+          from: this.filters.from,
+          to: this.filters.to,
+        };
+        this.syncDashboardHeaderState();
+        return this.dashboardRangeState;
+      }
+
+      const mappedPeriod = {
+        daily: "today",
+        weekly: "current_week",
+        monthly: "current_month",
+      }[this.filters.period];
+
+      if (!mappedPeriod) {
+        return this.dashboardRangeState;
+      }
+
+      this.dashboardRange = mappedPeriod;
+      this.dashboardRangeState = {
+        period: mappedPeriod,
+        from: null,
+        to: null,
+      };
+      this.syncDashboardHeaderState();
+      return this.dashboardRangeState;
+    },
+
     getDashboardAnalyticsRequestParams() {
       return buildDashboardRangeRequestParams(this.syncDashboardRangeState());
     },
@@ -1289,10 +1325,12 @@ export function dashboard() {
         };
         const analyticsRequestParams =
           this.getDashboardAnalyticsRequestParams();
+        const fuzzyAhpRequestParams = buildFahpRequestParams(this.fahpFilterState);
         const requests = [
           this.fetchSummaryReport(reportRequestParams),
           this.fetchDashboardAnalytics(analyticsRequestParams),
           this.fetchGeofenceEvidence(analyticsRequestParams),
+          this.fetchFuzzyAhpAnalysis(fuzzyAhpRequestParams),
         ];
 
         if (includeTodayLocations) {
@@ -1303,6 +1341,7 @@ export function dashboard() {
           reportResult,
           analyticsResult,
           geofenceEvidenceResult,
+          fuzzyAhpResult,
           todayLocationsResult,
         ] = await Promise.allSettled(requests);
 
@@ -1324,6 +1363,10 @@ export function dashboard() {
           geofenceEvidenceResult.status === "fulfilled"
             ? null
             : geofenceEvidenceResult.reason;
+        const fuzzyAhpResponse =
+          fuzzyAhpResult.status === "fulfilled" ? fuzzyAhpResult.value : null;
+        const fuzzyAhpError =
+          fuzzyAhpResult.status === "fulfilled" ? null : fuzzyAhpResult.reason;
         const todayLocations = includeTodayLocations
           ? todayLocationsResult.status === "fulfilled"
             ? createLiveMapSliceState(
@@ -1359,6 +1402,13 @@ export function dashboard() {
           );
         }
 
+        if (fuzzyAhpError) {
+          console.warn(
+            "Fuzzy AHP request failed; decision panel will stay truthful to the missing backend feed:",
+            fuzzyAhpError,
+          );
+        }
+
         console.log(
           `Dashboard API calls made with report period='${this.filters.period}' and analytics range='${this.dashboardRange}'`,
         );
@@ -1368,8 +1418,8 @@ export function dashboard() {
           analyticsError,
           todayLocations?.response ?? null,
           todayLocationsError,
-          this.fuzzyAhpResponse,
-          this.fuzzyAhpError,
+          fuzzyAhpResponse,
+          fuzzyAhpError,
           geofenceEvidenceResponse,
           geofenceEvidenceError,
         );
@@ -1602,6 +1652,10 @@ export function dashboard() {
         : {};
 
       const requestParams = buildFahpRequestParams(params);
+      this.fahpFilterState = {
+        ...createDefaultFahpFilterState(),
+        ...requestParams,
+      };
 
       this.fuzzyAhpError = null;
       await this.applyCockpitSurfaceState({
@@ -1643,6 +1697,7 @@ export function dashboard() {
 
       this.filters = applyDashboardPeriod(this.filters, this.filters.period);
       this.period = this.filters.period;
+      this.syncDashboardRangeFromReportPeriod();
       const loaded = await this.loadSummaryData();
 
       if (loaded === false) {

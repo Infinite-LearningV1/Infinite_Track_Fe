@@ -134,6 +134,11 @@ const ATTENDANCE_MODE_COLORS = Object.freeze({
 });
 
 const FUZZY_AHP_SOURCE_KEY = "analysis.fuzzy-ahp";
+const FUZZY_AHP_TYPE_OPTIONS = Object.freeze([
+  { key: "discipline", title: "Discipline" },
+  { key: "wfa", title: "WFA" },
+  { key: "smart_ac", title: "Smart AC" },
+]);
 
 const MIDDLE_PANEL_DEFINITIONS = [
   {
@@ -1730,6 +1735,13 @@ function buildFuzzyAhpDecisionPayload(fuzzyAhp) {
   };
 }
 
+function createFuzzyAhpFallbackData(activeType = "discipline") {
+  return {
+    typeOptions: FUZZY_AHP_TYPE_OPTIONS,
+    activeType,
+  };
+}
+
 function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
   if (fuzzyAhpError) {
     return createPanel({
@@ -1737,6 +1749,7 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       state: DASHBOARD_PANEL_STATES.ERROR,
       message: `${getAnalyticsErrorMessage(fuzzyAhpError)} Fuzzy AHP output remains unavailable until the explicit backend feed succeeds.`,
       note: "Web FE will not fabricate criteria, weights, or ranking from summary or analytics sources.",
+      data: createFuzzyAhpFallbackData(),
     });
   }
 
@@ -1747,6 +1760,7 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP waits for the explicit analysis.fuzzy-ahp dashboard backend feed.",
       note: "No dummy criteria, weights, rankings, or preview decisions are used as runtime Fuzzy AHP truth.",
+      data: createFuzzyAhpFallbackData(),
     });
   }
 
@@ -1757,6 +1771,7 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP backend payload is invalid; expected an explicit object response.",
       note: "Web FE will not coerce non-object Fuzzy AHP payloads into decision support output.",
+      data: createFuzzyAhpFallbackData(),
     });
   }
 
@@ -1767,7 +1782,10 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP backend payload is incomplete; status must be present for the dashboard recap contract.",
       note: "Web FE will not treat malformed Fuzzy AHP recap payloads as empty backend output.",
-      data: fuzzyAhp,
+      data: {
+        ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
+        ...fuzzyAhp,
+      },
     });
   }
 
@@ -1778,7 +1796,10 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP backend payload reports needs_data for this dashboard scope.",
       note: "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
-      data: fuzzyAhp,
+      data: {
+        ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
+        ...fuzzyAhp,
+      },
     });
   }
 
@@ -1789,7 +1810,10 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP backend feed returned no recap output for this dashboard scope.",
       note: "Web FE will not substitute dummy Fuzzy AHP decisions for empty backend output.",
-      data: fuzzyAhp,
+      data: {
+        ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
+        ...fuzzyAhp,
+      },
     });
   }
 
@@ -1800,7 +1824,10 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP backend payload is incomplete; criteria_weights must include explicit final dashboard weights.",
       note: "Web FE will not fabricate criteria weights from legacy sections or summary data.",
-      data: fuzzyAhp,
+      data: {
+        ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
+        ...fuzzyAhp,
+      },
     });
   }
 

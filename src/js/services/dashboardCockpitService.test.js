@@ -633,7 +633,12 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     "Decision support output once backend feed is wired",
   );
   assert.doesNotMatch(fuzzyAhp.subtitle, /cr, weights, ranking, distribution/i);
-  assert.equal(fuzzyAhp.data, null);
+  assert.deepEqual(fuzzyAhp.data.typeOptions, [
+    { key: "discipline", title: "Discipline" },
+    { key: "wfa", title: "WFA" },
+    { key: "smart_ac", title: "Smart AC" },
+  ]);
+  assert.equal(fuzzyAhp.data.activeType, "discipline");
   assert.match(fuzzyAhp.message, /explicit analysis\.fuzzy-ahp dashboard backend feed/i);
   assert.match(
     fuzzyAhp.note,

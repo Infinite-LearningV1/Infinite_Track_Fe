@@ -207,15 +207,19 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                   <template
-                    x-if="panel.key === 'fuzzyAhp' && panel.state !== 'ready' && panel.state !== 'loading'"
+                    x-if="panel.key === 'fuzzyAhp' && panel.state !== 'ready'"
                   >
-                    <button
-                      type="button"
-                      class="rounded-full border border-violet-200 px-3 py-1 text-xs font-medium text-violet-700 transition hover:border-violet-300 hover:bg-violet-50 dark:border-violet-500/30 dark:text-violet-300 dark:hover:bg-violet-500/10"
-                      @click="loadFuzzyAhpDetail({ type: 'discipline', period: 'monthly' })"
-                    >
-                      Load detail
-                    </button>
+                    <nav class="flex max-w-full overflow-x-auto rounded-lg border border-violet-200 bg-violet-50 p-0.5 dark:border-violet-500/30 dark:bg-violet-500/10 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-violet-300 dark:[&::-webkit-scrollbar-thumb]:bg-violet-500 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1.5">
+                      <template x-for="option in panel.data?.typeOptions || []" :key="option.key">
+                        <button
+                          type="button"
+                          class="inline-flex min-w-[92px] items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors duration-200 ease-in-out"
+                          :class="fahpFilterState.type === option.key ? 'bg-brand-500 text-white shadow-[0_8px_18px_rgba(70,95,255,0.25)] dark:bg-brand-500 dark:text-white' : 'bg-transparent text-violet-700 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-200'"
+                          @click="loadFuzzyAhpDetail({ type: option.key })"
+                          x-text="option.title"
+                        ></button>
+                      </template>
+                    </nav>
                   </template>
                   <span
                     class="rounded-full px-2.5 py-1 text-xs font-medium"

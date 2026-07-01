@@ -14,7 +14,7 @@
         @click="openExportModal()"
         :disabled="isExporting"
         class="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
-        :title="`Export Attendance Report (${dashboardRange})`"
+        :title="`Export Attendance Report (${getExportPeriodLabel()})`"
       >
         <svg
           class="h-4 w-4 text-blue-600"
@@ -123,120 +123,5 @@
     </template>
   </div>
 
-  <div
-    x-show="isExportModalOpen"
-    x-transition.opacity
-    @keydown.escape.window="closeExportModal()"
-    class="fixed inset-0 z-99999 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm"
-    style="display: none"
-  >
-    <div class="absolute inset-0" @click="closeExportModal()"></div>
-    <section
-      class="relative w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="export-modal-title"
-    >
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <p
-            class="text-xs tracking-[0.2em] text-gray-400 uppercase dark:text-gray-500"
-          >
-            Active Dashboard Range
-          </p>
-          <h4
-            id="export-modal-title"
-            class="mt-2 text-xl font-semibold text-gray-900 dark:text-white"
-          >
-            Export Attendance Report
-          </h4>
-          <p class="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
-            Choose the report format for the active Dashboard Range. Export uses
-            the backend report payload and fails closed when the dataset is
-            incomplete.
-          </p>
-        </div>
-        <button
-          @click="closeExportModal()"
-          class="rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-          aria-label="Close export modal"
-          type="button"
-        >
-          <svg
-            class="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            ></path>
-          </svg>
-        </button>
-      </div>
-
-      <div class="mt-6 grid gap-4 md:grid-cols-2">
-        <button
-          @click="exportSelected('pdf')"
-          :disabled="isExporting"
-          type="button"
-          class="group rounded-3xl border border-gray-200 bg-gray-50 p-5 text-left transition hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
-        >
-          <span
-            class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
-          >
-            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M4 4a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414A1 1 0 0116 6.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm7 1V3.5L14.5 7H13a2 2 0 01-2-2z"
-                clip-rule="evenodd"
-              ></path>
-            </svg>
-          </span>
-          <span
-            class="mt-4 block text-base font-semibold text-gray-900 dark:text-white"
-          >
-            PDF Report
-          </span>
-          <span
-            class="mt-2 block text-sm leading-6 text-gray-500 dark:text-gray-400"
-          >
-            Printable management report for the active Dashboard Range,
-            generated from the backend export payload.
-          </span>
-        </button>
-
-        <button
-          @click="exportSelected('excel')"
-          :disabled="isExporting"
-          type="button"
-          class="group rounded-3xl border border-gray-200 bg-gray-50 p-5 text-left transition hover:border-green-200 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-green-500/30 dark:hover:bg-green-500/10"
-        >
-          <span
-            class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300"
-          >
-            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm1 3h10v2H5V6zm0 3h4v2H5V9zm0 3h4v2H5v-2zm6-3h4v2h-4V9zm0 3h4v2h-4v-2z"
-              ></path>
-            </svg>
-          </span>
-          <span
-            class="mt-4 block text-base font-semibold text-gray-900 dark:text-white"
-          >
-            Excel Workbook
-          </span>
-          <span
-            class="mt-2 block text-sm leading-6 text-gray-500 dark:text-gray-400"
-          >
-            Spreadsheet workbook for HR/admin analysis using the active
-            Dashboard Range backend rows.
-          </span>
-        </button>
-      </div>
-    </section>
-  </div>
+  <include src="../modal/export-report-modal.html" />
 </div>

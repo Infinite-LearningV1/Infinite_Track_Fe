@@ -1197,22 +1197,26 @@ test("cockpit hero stays backend-required when today locations feed is unavailab
 test("cockpit hero preserves ready live map data when today locations are passed through the slice wrapper", () => {
   const todayLocations = createLiveMapSliceState(
     {
-      data: [
-        {
-          attendance_id: "att_002",
-          full_name: "Sari Putri",
-          status: "ontime",
-          work_mode: "WFA",
-          attendance_date: "2026-05-04",
-          latitude: -0.91,
-          longitude: 119.81,
-          radius: 120,
-          location_description: "Site visit",
-        },
-      ],
-      authority: "attendance.today-locations",
+      data: {
+        date: "2026-07-01",
+        timezone: "Asia/Jakarta",
+        snapshot_type: "attendance_checkin_snapshot",
+        authority: "context_only",
+        final_attendance_authority: "attendance_records",
+        total_users: 52,
+        locations: [
+          {
+            user_id: 56,
+            full_name: "Billy Pratama",
+            status: "WFO",
+            check_in_time: "08:00",
+            latitude: -0.842239,
+            longitude: 119.892637,
+          },
+        ],
+      },
     },
-    { period: "30d" },
+    { period: "today" },
   );
 
   const cockpit = createDashboardCockpitStateFromSources({
@@ -1227,8 +1231,13 @@ test("cockpit hero preserves ready live map data when today locations are passed
   });
 
   assert.equal(cockpit.hero.state, DASHBOARD_PANEL_STATES.READY);
-  assert.equal(cockpit.hero.data.source, "attendance.today-locations");
+  assert.equal(cockpit.hero.data.source, "context_only");
   assert.equal(cockpit.hero.data.locations.length, 1);
+  assert.equal(cockpit.hero.data.locations[0].fullName, "Billy Pratama");
+  assert.equal(cockpit.hero.data.locations[0].mode, "WFO");
+  assert.equal(cockpit.hero.data.locations[0].timeIn, "08:00");
+  assert.equal(cockpit.hero.data.totalRows, 1);
+  assert.equal(cockpit.hero.data.modeSummary.total, 1);
 });
 
 test("cockpit fuzzy ahp preserves final dashboard recap payload", () => {

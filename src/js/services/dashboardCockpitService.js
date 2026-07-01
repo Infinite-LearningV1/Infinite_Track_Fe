@@ -566,9 +566,18 @@ function createMapLocation(point, index, metadata = {}) {
     point?.full_name,
     point?.fullName,
   );
+  const statusModeCandidate =
+    typeof point?.status === "string" ? point.status.trim().toUpperCase() : null;
+  const inferredStatusMode =
+    statusModeCandidate === "WFO" ||
+    statusModeCandidate === "WFH" ||
+    statusModeCandidate === "WFA"
+      ? statusModeCandidate
+      : null;
   const mode = firstPresentValue(
     point?.mode,
     point?.work_mode,
+    inferredStatusMode,
     point?.location_details?.category,
     point?.information,
   );
@@ -597,9 +606,9 @@ function createMapLocation(point, index, metadata = {}) {
     modeColor: getAttendanceModeColor(mode),
     status: point?.status || "-",
     information: mode || "-",
-    attendanceDate: point?.attendance_date || null,
-    timeIn: point?.time_in || null,
-    timeOut: point?.time_out || null,
+    attendanceDate: point?.attendance_date || point?.date || null,
+    timeIn: point?.time_in || point?.check_in_time || null,
+    timeOut: point?.time_out || point?.check_out_time || null,
     latitude,
     longitude,
     radius: Number.isFinite(radius) && radius > 0 ? radius : null,

@@ -46,6 +46,7 @@ test("Fuzzy AHP ranking rows use backend name as the main label and preserve the
   assert.equal(viewState.rankingRows[0].secondaryLabel, "Sangat Baik");
   assert.equal(viewState.rankingRows[0].scoreLabel, "100.000");
   assert.equal(viewState.rankingRows[1].label, "Alternative 2");
+  assert.equal(viewState.consistencyStatusLabel, "Konsisten");
   assert.equal(viewState.rankingRows[1].rank, 4);
   assert.equal(viewState.rankingRows[1].secondaryLabel, "Cukup");
 });

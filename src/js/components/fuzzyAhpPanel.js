@@ -14,6 +14,18 @@ function formatWeight(value) {
   return value.toFixed(3);
 }
 
+function normalizeConsistencyStatusLabel(value, isConsistent) {
+  if (typeof value === "string" && value.trim() !== "") {
+    if (value.trim().toLowerCase() === "konsistensi dapat diterima") {
+      return "Konsisten";
+    }
+
+    return value;
+  }
+
+  return isConsistent ? "Konsisten" : "Perlu Review";
+}
+
 function createCriteriaRows(criteriaWeights = []) {
   return criteriaWeights.map((criterion, index) => {
     const weight = Number(criterion.weight);
@@ -84,8 +96,10 @@ export function createFuzzyAhpViewState(panel, activeDecisionKey = null) {
     activeDecisionKey: activeDecision?.key || selectedKey,
     consistencyRatioLabel: formatDecimal(consistencyRatio, 3),
     thresholdLabel: formatDecimal(threshold, 2),
-    consistencyStatusLabel:
-      activeDecision?.consistencyStatus || (isConsistent ? "Konsisten" : "Perlu Review"),
+    consistencyStatusLabel: normalizeConsistencyStatusLabel(
+      activeDecision?.consistencyStatus,
+      isConsistent,
+    ),
     isConsistent,
     criteriaRows: createCriteriaRows(activeDecision?.criteriaWeights),
     rankingRows: createRankingRows(activeDecision?.rankings),

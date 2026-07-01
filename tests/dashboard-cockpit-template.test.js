@@ -87,6 +87,40 @@ test("dashboard stats partial renders the analytics header, KPI shell, and expor
   assert.doesNotMatch(statsPartial, /cardSummaryData\./);
 });
 
+test("export report modal partial matches redesigned contract-aware layout", () => {
+  assert.match(exportReportModal, /Export Attendance Report/);
+  assert.match(exportReportModal, /Choose the report format and data scope for the selected period\./);
+  assert.match(exportReportModal, /x-text="getExportPeriodLabel\(\)"/);
+  assert.match(exportReportModal, /x-for="card in exportFormatCards"/);
+  assert.match(exportReportModal, /@click="selectExportFormat\(card\.value\)"/);
+  assert.match(exportReportModal, /x-text="card\.title"/);
+  assert.match(exportReportModal, /x-text="card\.description"/);
+  assert.match(exportReportModal, /x-for="feature in card\.features"/);
+  assert.match(exportReportModal, /x-text="feature"/);
+  assert.match(exportReportModal, /Export Scope/);
+  assert.match(exportReportModal, /x-for="option in exportScopeOptions"/);
+  assert.match(exportReportModal, /name="export-scope"/);
+  assert.match(exportReportModal, /@change="selectExportScope\(option\.value\)"/);
+  assert.match(exportReportModal, /x-text="option\.label"/);
+  assert.match(exportReportModal, /x-text="option\.note"/);
+  assert.match(exportReportModal, /Additional Options/);
+  assert.match(exportReportModal, /x-for="option in exportAdditionalOptions"/);
+  assert.match(exportReportModal, /@change="toggleExportOption\(option\.key\)"/);
+  assert.match(exportReportModal, /Export is generated from validated attendance records for the selected period\./);
+  assert.match(exportReportModal, /x-text="exportProgressMessage \|\| 'Preparing export file\.\.\.'"/);
+  assert.match(exportReportModal, /x-if="!isExporting && exportInlineError"/);
+  assert.match(exportReportModal, /@click="confirmExport\(\)"/);
+  assert.match(exportReportModal, />\s*Cancel\s*</);
+  assert.match(exportReportModal, /Export Report/);
+  assert.match(exportReportModal, /x-show="!option\.enabled && option\.note"/);
+  assert.match(exportReportModal, /:disabled="!selectedExportFormat \|\| isExporting"/);
+  assert.match(exportReportModal, /x-show="isExportModalOpen"/);
+  assert.match(exportReportModal, /@keydown.escape.window="closeExportModal\(\)"/);
+  assert.match(exportReportModal, /@click="closeExportModal\(\)"/);
+  assert.doesNotMatch(exportReportModal, /Phone Number/);
+  assert.doesNotMatch(exportReportModal, /Recommended Action/);
+});
+
 test("dashboard cockpit grid renders map-only hero, preview trend, and backend-derived mode mix card", () => {
   assert.doesNotMatch(cockpitGrid, /cockpit\.hero\.title/);
   assert.doesNotMatch(cockpitGrid, /cockpit\.hero\.subtitle/);

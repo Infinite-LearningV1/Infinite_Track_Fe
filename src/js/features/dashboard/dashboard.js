@@ -174,6 +174,96 @@ export function dashboard() {
     // Export state
     isExporting: false,
     isExportModalOpen: false,
+    selectedExportFormat: "pdf",
+    selectedExportScope: "current_period",
+    exportProgressMessage: null,
+    exportInlineError: null,
+    exportOptions: {
+      includeSummaryStatistics: true,
+      includeDisciplineScore: true,
+      includeWorkModeDistribution: true,
+      includeLocationDescription: false,
+    },
+    exportUiCapabilities: {
+      scopeAllRecordsEnabled: false,
+      scopeFilteredOnlyEnabled: false,
+      optionSummaryStatisticsEnabled: false,
+      optionDisciplineScoreEnabled: false,
+      optionWorkModeDistributionEnabled: false,
+      optionLocationDescriptionEnabled: false,
+    },
+    exportFormatCards: [
+      {
+        value: "pdf",
+        title: "PDF Report",
+        description:
+          "Best for printable management summaries, thesis evidence, and formal reporting.",
+        features: [
+          "Executive summary",
+          "KPI cards",
+          "Statistic charts",
+          "Compact attendance table",
+        ],
+      },
+      {
+        value: "excel",
+        title: "Excel Workbook",
+        description:
+          "Best for detailed data analysis, filtering, and HR/admin review.",
+        features: [
+          "Summary sheet",
+          "Attendance report sheet",
+          "Discipline insight sheet",
+          "Filter-ready columns",
+        ],
+      },
+    ],
+    exportScopeOptions: [
+      {
+        value: "current_period",
+        label: "Current period",
+        enabled: true,
+        note: null,
+      },
+      {
+        value: "all_records",
+        label: "All records in selected period",
+        enabled: false,
+        note: "Backend contract decision required.",
+      },
+      {
+        value: "filtered_only",
+        label: "Filtered records only",
+        enabled: false,
+        note: "Backend contract decision required.",
+      },
+    ],
+    exportAdditionalOptions: [
+      {
+        key: "includeSummaryStatistics",
+        label: "Include summary statistics",
+        enabled: false,
+        note: "Shipped disabled until option-specific runtime contract is activated.",
+      },
+      {
+        key: "includeDisciplineScore",
+        label: "Include discipline score",
+        enabled: false,
+        note: "Shipped disabled until option-specific runtime contract is activated.",
+      },
+      {
+        key: "includeWorkModeDistribution",
+        label: "Include work mode distribution",
+        enabled: false,
+        note: "Shipped disabled until option-specific runtime contract is activated.",
+      },
+      {
+        key: "includeLocationDescription",
+        label: "Include location description",
+        enabled: false,
+        note: "Shipped disabled until option-specific runtime contract is activated.",
+      },
+    ],
 
     // Data properties
     summaryData: null,
@@ -1562,7 +1652,10 @@ export function dashboard() {
 
           const exportData = {
             summary: response.summary,
+            period_summary: response.period_summary,
+            export_scope_summary: response.export_scope_summary,
             report: response.report,
+            analytics: response.analytics,
           };
           const exportTotalMetadata = this.getExportTotalMetadata(
             this.getExportPagination(response),
@@ -1606,19 +1699,16 @@ export function dashboard() {
         console.error(
           `Export payload is missing required sections for ${format}`,
         );
-        this.showNotification(
-          "Failed to load the export payload. Please try again.",
-          "error",
-        );
+        this.exportInlineError =
+          "The canonical export payload is missing required summary/report sections.";
+        this.showNotification(this.exportInlineError, "error");
         return null;
       }
 
       if (!this.hasRequiredExportStructure(exportData)) {
         console.error(`Export payload failed structural checks for ${format}`);
-        this.showNotification(
-          `The export payload is missing required summary/report structure for ${format} export.`,
-          "error",
-        );
+        this.exportInlineError = `The export payload is missing required summary/report structure for ${format} export.`;
+        this.showNotification(this.exportInlineError, "error");
         return null;
       }
 
@@ -1730,35 +1820,120 @@ export function dashboard() {
       return "bg-red-500"; // Poor - Red
     },
 
+    resetExportModalState() {
+      this.selectedExportFormat = "pdf";
+      this.selectedExportScope = "current_period";
+      this.exportProgressMessage = null;
+      this.exportInlineError = null;
+      this.exportOptions = {
+        includeSummaryStatistics: true,
+        includeDisciplineScore: true,
+        includeWorkModeDistribution: true,
+        includeLocationDescription: false,
+      };
+    },
+
     openExportModal() {
+      this.resetExportModalState();
       this.isExportModalOpen = true;
     },
 
     closeExportModal() {
       this.isExportModalOpen = false;
+      this.exportProgressMessage = null;
+      this.exportInlineError = null;
     },
 
-    async exportSelected(format) {
-      // TODO(INF-166): Redesign export UX after this single-entry export wiring is stable.
+    selectExportFormat(format) {
       if (this.isExporting) {
         return;
       }
 
-      if (format === "pdf") {
+      if (!["pdf", "excel"].includes(format)) {
+        this.exportInlineError = "Unsupported export format selected.";
+        return;
+      }
+
+      this.selectedExportFormat = format;
+      this.exportInlineError = null;
+    },
+
+    selectExportScope(scope) {
+      if (this.isExporting) {
+        return;
+      }
+
+      const option = this.exportScopeOptions.find((item) => item.value === scope);
+      if (!option || !option.enabled) {
+        return;
+      }
+
+      this.selectedExportScope = scope;
+      this.exportInlineError = null;
+    },
+
+    toggleExportOption(optionKey) {
+      if (this.isExporting) {
+        return;
+      }
+
+      const option = this.exportAdditionalOptions.find((item) => item.key === optionKey);
+      if (!option || !option.enabled) {
+        return;
+      }
+
+      this.exportOptions[optionKey] = !this.exportOptions[optionKey];
+      this.exportInlineError = null;
+    },
+
+    getExportPeriodLabel() {
+      if (this.filters.period === "range") {
+        const from = this.filters.from || "Unknown start";
+        const to = this.filters.to || "Unknown end";
+        return `Selected period: ${from} → ${to}`;
+      }
+
+      const option = this.periodOptions.find(
+        (item) => item.value === this.filters.period,
+      );
+      return `Selected period: ${option?.label || this.filters.period}`;
+    },
+
+    async confirmExport() {
+      if (this.isExporting) {
+        return false;
+      }
+
+      if (!this.selectedExportFormat) {
+        this.exportInlineError = "Select an export format before continuing.";
+        return false;
+      }
+
+      this.exportInlineError = null;
+
+      if (this.selectedExportFormat === "pdf") {
         if (await this.exportToPDF()) {
           this.closeExportModal();
+          return true;
         }
-        return;
+        return false;
       }
 
-      if (format === "excel") {
+      if (this.selectedExportFormat === "excel") {
         if (await this.exportToExcel()) {
           this.closeExportModal();
+          return true;
         }
-        return;
+        return false;
       }
 
-      this.showNotification("Unsupported export format selected.", "error");
+      this.exportInlineError = "Unsupported export format selected.";
+      return false;
+    },
+
+    async exportSelected(format) {
+      this.selectExportFormat(format);
+      return this.confirmExport();
     },
 
     /**
@@ -1766,6 +1941,8 @@ export function dashboard() {
      */
     async downloadPDF() {
       try {
+        this.exportProgressMessage = "Preparing export file...";
+        this.exportInlineError = null;
         console.log(
           `Generating PDF report with period filter: ${this.filters.period}`,
         );
@@ -1777,13 +1954,13 @@ export function dashboard() {
 
         generatePDFReport(exportData, this.filters.period);
         this.showNotification("PDF report downloaded successfully!", "success");
+        this.exportProgressMessage = null;
         return true;
       } catch (error) {
         console.error("Error generating PDF:", error);
-        this.showNotification(
-          error?.message || "Failed to generate PDF report",
-          "error",
-        );
+        this.exportInlineError = error?.message || "Failed to generate PDF report";
+        this.exportProgressMessage = null;
+        this.showNotification(this.exportInlineError, "error");
         return false;
       }
     },
@@ -1792,6 +1969,8 @@ export function dashboard() {
      */
     async downloadExcel() {
       try {
+        this.exportProgressMessage = "Preparing export file...";
+        this.exportInlineError = null;
         console.log(
           `Generating Excel report with period filter: ${this.filters.period}`,
         );
@@ -1806,13 +1985,13 @@ export function dashboard() {
           "Excel report downloaded successfully!",
           "success",
         );
+        this.exportProgressMessage = null;
         return true;
       } catch (error) {
         console.error("Error generating Excel:", error);
-        this.showNotification(
-          error?.message || "Failed to generate Excel report",
-          "error",
-        );
+        this.exportInlineError = error?.message || "Failed to generate Excel report";
+        this.exportProgressMessage = null;
+        this.showNotification(this.exportInlineError, "error");
         return false;
       }
     },

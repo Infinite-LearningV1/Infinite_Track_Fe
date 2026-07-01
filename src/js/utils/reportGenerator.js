@@ -105,12 +105,24 @@ class ReportGenerator {
     ]);
   }
 
-  buildExecutiveSummaryRows(summary = {}, report = {}) {
+  buildExecutiveSummaryRows(summaryData = {}, report = {}) {
+    const periodSummary = summaryData?.period_summary || {};
+
     return [
+      ["Attendance Rate", this.formatPeriodSummaryPercent(periodSummary.attendance_rate)],
+      [
+        "Late / Alpha Risk",
+        this.formatUnavailableValue(periodSummary.late_alpha_risk_users),
+      ],
+      [
+        "Avg Discipline",
+        this.formatPeriodSummaryNumber(periodSummary.average_discipline_score),
+      ],
+      [
+        "Needs Attention",
+        this.formatUnavailableValue(periodSummary.needs_attention_users),
+      ],
       ["Total Records", this.formatReportTotalRecords(report)],
-      ["On Time", this.formatUnavailableValue(summary.total_ontime)],
-      ["Late", this.formatUnavailableValue(summary.total_late)],
-      ["Alpha (Absent)", this.formatUnavailableValue(summary.total_alpha)],
     ];
   }
 
@@ -132,18 +144,7 @@ class ReportGenerator {
       [""],
       ["Executive KPI Summary"],
       ["Metric", "Value"],
-      ...this.buildExecutiveSummaryRows(
-        summaryData?.summary,
-        summaryData?.report,
-      ),
-      [""],
-      ["Honest Insight"],
-      [
-        this.buildHonestInsightParagraph(
-          summaryData?.summary,
-          summaryData?.report,
-        ),
-      ],
+      ...this.buildExecutiveSummaryRows(summaryData, summaryData?.report),
       [""],
       ["Summary Statistics"],
       ["Category", "Count"],
@@ -158,7 +159,6 @@ class ReportGenerator {
         "NIP/NIM",
         "Role",
         "Email",
-        "Phone Number",
         "Attendance Date",
         "Check In Time",
         "Check Out Time",
@@ -194,64 +194,48 @@ class ReportGenerator {
     rows = [],
     period = "all",
     generatedAt = new Date(),
+    detailRows = [],
   ) {
-    const explicitRows = rows.filter(
-      (item) =>
-        this.hasAvailableValue(item.discipline_score) ||
-        this.hasAvailableValue(item.discipline_label),
-    );
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return [
+        ["Discipline Insight"],
+        [""],
+        ["Period", this.formatPeriod(period)],
+        ["Generated on", this.formatGeneratedOn(generatedAt)],
+        [""],
+        ["Availability", "Backend Required"],
+        [
+          "Insight Note",
+          "Backend user_attendance_summary is unavailable for the selected period.",
+        ],
+      ];
+    }
 
-    const sheetRows = [
+    const disciplineLabelLookup = this.buildDisciplineLabelLookup(detailRows);
+
+    return [
       ["Discipline Insight"],
       [""],
       ["Period", this.formatPeriod(period)],
       ["Generated on", this.formatGeneratedOn(generatedAt)],
-      ["Provenance", this.buildExportProvenanceNote()],
-    ];
-
-    if (explicitRows.length === 0) {
-      sheetRows.push(
-        [""],
-        ["Availability", "Backend Required"],
-        ["Discipline Score", "Unavailable"],
-        ["Discipline Label", "Unavailable"],
-        [
-          "Insight Note",
-          "/summary report rows for the selected report/export period do not provide enough explicit discipline fields for a stronger discipline export view.",
-        ],
-      );
-
-      return sheetRows;
-    }
-
-    sheetRows.push(
-      [""],
-      ["Availability", "Backend-backed row fields"],
       [""],
       [
-        "Full Name",
-        "Attendance Date",
-        "Status",
-        "Work Category",
-        "Discipline Score",
+        "Employee Name",
+        "Division",
+        "Attendance Rate",
+        "Late Count",
+        "Alpha Count",
         "Discipline Label",
       ],
-      ...explicitRows.map((item) => [
+      ...rows.map((item) => [
         this.formatUnavailableValue(item.full_name),
-        this.formatDateValue(item.attendance_date),
-        this.formatStatus(item.status),
-        this.formatInformation(
-          this.firstAvailableValue(
-            item.location_details?.category,
-            item.information,
-          ),
-        ),
-        this.formatUnavailableValue(item.discipline_score),
-        this.formatUnavailableValue(item.discipline_label),
+        this.formatUnavailableValue(item.division),
+        this.buildAttendanceRateFromSummaryRow(item),
+        this.formatUnavailableValue(item.late_days),
+        this.formatUnavailableValue(item.alpha_days),
+        this.resolveDisciplineLabelForInsight(item, disciplineLabelLookup),
       ]),
-    );
-
-    return sheetRows;
+    ];
   }
 
   hasAvailableValue(value) {
@@ -338,7 +322,28 @@ class ReportGenerator {
   }
 
   buildExportProvenanceNote() {
-    return "Client-generated from /summary using the selected report/export period. Missing backend fields remain Unavailable.";
+    return "Client-generated from /summary/reports using the selected report/export period. Missing backend fields remain Unavailable.";
+  }
+
+  buildAttendanceRateFromSummaryRow(item = {}) {
+    const validAttendanceDays = this.normalizeExplicitCount(
+      item.valid_attendance_days,
+    );
+    const expectedWorkingDays = this.normalizeExplicitCount(
+      item.expected_working_days,
+    );
+
+    if (validAttendanceDays === null || expectedWorkingDays === null) {
+      return "Unavailable";
+    }
+
+    if (expectedWorkingDays === 0) {
+      return validAttendanceDays === 0 ? "0%" : "Unavailable";
+    }
+
+    return this.formatPercentValue(
+      (validAttendanceDays / expectedWorkingDays) * 100,
+    );
   }
 
   buildHonestInsightParagraph(summary = {}, report = {}) {
@@ -346,10 +351,10 @@ class ReportGenerator {
     const totalRecords = this.formatReportTotalRecords(report);
 
     if (unavailableLabels.length > 0) {
-      return `This export uses the /summary response for the selected report/export period and keeps Total Records at ${totalRecords}. ${unavailableLabels.join(", ")} were unavailable in the source payload and remain marked as Unavailable so the report does not invent reporting truth.`;
+      return `This export uses the /summary/reports response for the selected report/export period and keeps Total Records at ${totalRecords}. ${unavailableLabels.join(", ")} were unavailable in the source payload and remain marked as Unavailable so the report does not invent reporting truth.`;
     }
 
-    return `This export uses the /summary response for the selected report/export period and keeps Total Records at ${totalRecords}. It remains a client-generated operational artifact for review, and any backend field that is absent would stay marked as Unavailable rather than inferred.`;
+    return `This export uses the /summary/reports response for the selected report/export period and keeps Total Records at ${totalRecords}. It remains a client-generated operational artifact for review, and any backend field that is absent would stay marked as Unavailable rather than inferred.`;
   }
 
   normalizeExplicitCount(value) {
@@ -391,6 +396,55 @@ class ReportGenerator {
     return `${this.formatCompactNumber(value)}%`;
   }
 
+  formatPeriodSummaryPercent(value) {
+    return this.hasAvailableValue(value)
+      ? this.formatPercentValue(Number(value))
+      : "Unavailable";
+  }
+
+  formatPeriodSummaryNumber(value) {
+    return this.hasAvailableValue(value)
+      ? this.formatCompactNumber(Number(value))
+      : "Unavailable";
+  }
+
+  buildDisciplineLabelLookup(detailRows = []) {
+    const lookup = new Map();
+
+    detailRows.forEach((row) => {
+      const userId = row?.user_id;
+      const disciplineLabel = row?.discipline_label;
+
+      if (!this.hasAvailableValue(userId) || !this.hasAvailableValue(disciplineLabel)) {
+        return;
+      }
+
+      const normalizedUserId = String(userId);
+      const existing = lookup.get(normalizedUserId) || new Set();
+      existing.add(String(disciplineLabel));
+      lookup.set(normalizedUserId, existing);
+    });
+
+    return lookup;
+  }
+
+  resolveDisciplineLabelForInsight(item = {}, disciplineLabelLookup = new Map()) {
+    if (this.hasAvailableValue(item?.discipline_label)) {
+      return this.formatUnavailableValue(item.discipline_label);
+    }
+
+    if (!this.hasAvailableValue(item?.user_id)) {
+      return "Unavailable";
+    }
+
+    const labels = disciplineLabelLookup.get(String(item.user_id));
+    if (!labels || labels.size !== 1) {
+      return "Unavailable";
+    }
+
+    return this.formatUnavailableValue(Array.from(labels)[0]);
+  }
+
   formatGeneratedOnCompact(date = new Date()) {
     return date.toLocaleDateString("id-ID", {
       day: "2-digit",
@@ -404,7 +458,7 @@ class ReportGenerator {
       ["Period", this.formatPeriod(period)],
       ["Generated on", this.formatGeneratedOnCompact(generatedAt)],
       ["Generated by", "Infinite Track System"],
-      ["Data source", "/summary payload for selected report/export period"],
+      ["Data source", "/summary/reports payload for selected report/export period"],
     ];
   }
 
@@ -416,130 +470,65 @@ class ReportGenerator {
     };
   }
 
-  buildExecutiveSummaryCards(summary = {}, rows = []) {
-    const reportRows = Array.isArray(rows) ? rows : [];
-    const onTime = this.normalizeExplicitCount(summary.total_ontime);
-    const late = this.normalizeExplicitCount(summary.total_late);
-    const alpha = this.normalizeExplicitCount(summary.total_alpha);
-    const attendanceCountsReady = [onTime, late, alpha].every(
-      (value) => value !== null,
-    );
-    const cards = [];
+  buildExecutiveSummaryCards(
+    summary = {},
+    rows = [],
+    analytics = {},
+    periodSummary = {},
+  ) {
+    const attendanceRate = periodSummary?.attendance_rate;
+    const lateAlphaRiskUsers = periodSummary?.late_alpha_risk_users;
+    const averageDisciplineScore = periodSummary?.average_discipline_score;
+    const needsAttentionUsers = periodSummary?.needs_attention_users;
 
-    if (!attendanceCountsReady) {
-      cards.push({
+    return [
+      {
         label: "Attendance Rate",
-        value: "Unavailable",
-        caption: "Explicit status counts unavailable.",
-        state: "needsData",
+        value: this.formatPeriodSummaryPercent(attendanceRate),
+        caption: "Explicit report summary metric from period_summary.",
+        state: this.hasAvailableValue(attendanceRate) ? "ready" : "backendRequired",
         accent: [139, 92, 246],
-      });
-    } else {
-      const totalAttendance = onTime + late + alpha;
-
-      if (totalAttendance === 0) {
-        cards.push({
-          label: "Attendance Rate",
-          value: "0%",
-          caption: "No explicit attendance rows returned.",
-          state: "empty",
-          accent: [139, 92, 246],
-        });
-      } else {
-        const presentCount = onTime + late;
-        cards.push({
-          label: "Attendance Rate",
-          value: this.formatPercentValue(
-            (presentCount / totalAttendance) * 100,
-          ),
-          caption: `${presentCount} present of ${totalAttendance} explicit rows.`,
-          state: "ready",
-          accent: [139, 92, 246],
-        });
-      }
-    }
-
-    if (!attendanceCountsReady) {
-      cards.push({
+      },
+      {
         label: "Late / Alpha Risk",
-        value: "Unavailable",
-        caption: "Late or alpha counts unavailable.",
-        state: "needsData",
+        value: this.formatUnavailableValue(lateAlphaRiskUsers),
+        caption: "Explicit report summary metric from period_summary.",
+        state: this.hasAvailableValue(lateAlphaRiskUsers)
+          ? "ready"
+          : "backendRequired",
         accent: [245, 158, 11],
-      });
-    } else {
-      const totalAttendance = onTime + late + alpha;
-
-      if (totalAttendance === 0) {
-        cards.push({
-          label: "Late / Alpha Risk",
-          value: "0",
-          caption: "No explicit attendance rows returned.",
-          state: "empty",
-          accent: [245, 158, 11],
-        });
-      } else {
-        const riskCount = late + alpha;
-        cards.push({
-          label: "Late / Alpha Risk",
-          value: String(riskCount),
-          caption: `${this.formatPercentValue((riskCount / totalAttendance) * 100)} of rows need status review.`,
-          state: "ready",
-          accent: [245, 158, 11],
-        });
-      }
-    }
-
-    if (reportRows.length === 0) {
-      cards.push({
+      },
+      {
         label: "Avg Discipline",
-        value: "Unavailable",
-        caption: "No backend rows returned for scoring.",
-        state: "empty",
+        value: this.formatPeriodSummaryNumber(averageDisciplineScore),
+        caption: this.hasAvailableValue(averageDisciplineScore)
+          ? "Explicit report summary metric from period_summary."
+          : "Explicit backend average discipline score is not present in the canonical response.",
+        state: this.hasAvailableValue(averageDisciplineScore)
+          ? "ready"
+          : "backendRequired",
         accent: [6, 182, 212],
-      });
-    } else {
-      const normalizedScores = reportRows.map((item) =>
-        this.normalizeDisciplineScore(item.discipline_score),
-      );
-
-      if (normalizedScores.some((score) => score === null)) {
-        cards.push({
-          label: "Avg Discipline",
-          value: "Unavailable",
-          caption: "Some row discipline scores are missing.",
-          state: "needsData",
-          accent: [6, 182, 212],
-        });
-      } else {
-        const averageScore =
-          normalizedScores.reduce((total, score) => total + score, 0) /
-          normalizedScores.length;
-        cards.push({
-          label: "Avg Discipline",
-          value: this.formatCompactNumber(averageScore),
-          caption: `Derived from ${normalizedScores.length} explicit row scores.`,
-          state: "ready",
-          accent: [6, 182, 212],
-        });
-      }
-    }
-
-    cards.push({
-      label: "Needs Attention",
-      value: "Backend Required",
-      caption: "Dedicated attention count is not exposed.",
-      state: "backendRequired",
-      accent: [236, 72, 153],
-    });
-
-    return cards;
+      },
+      {
+        label: "Needs Attention",
+        value: this.formatUnavailableValue(needsAttentionUsers),
+        caption: this.hasAvailableValue(needsAttentionUsers)
+          ? "Explicit report summary metric from period_summary."
+          : "Field is not present in the canonical backend response.",
+        state: this.hasAvailableValue(needsAttentionUsers)
+          ? "ready"
+          : "backendRequired",
+        accent: [236, 72, 153],
+      },
+    ];
   }
 
   buildExecutiveKpiCards(summaryData = {}) {
     return this.buildExecutiveSummaryCards(
       summaryData?.summary || {},
       this.extractReportRows(summaryData?.report) || [],
+      summaryData?.analytics || {},
+      summaryData?.period_summary || {},
     );
   }
 
@@ -919,7 +908,6 @@ class ReportGenerator {
       this.formatUnavailableValue(item.nip_nim),
       this.formatUnavailableValue(item.role),
       this.formatUnavailableValue(item.email),
-      this.formatUnavailableValue(item.phone_number),
       this.formatDateValue(item.attendance_date),
       this.formatUnavailableValue(item.time_in),
       this.formatUnavailableValue(item.time_out),
@@ -984,7 +972,12 @@ class ReportGenerator {
         { key: "footer", title: "Footer" },
       ],
       headerMetadata: this.buildPdfHeaderMetadataRows(period, generatedAt),
-      executiveCards: this.buildExecutiveSummaryCards(summary, reportRows),
+      executiveCards: this.buildExecutiveSummaryCards(
+        summary,
+        reportRows,
+        summaryData.analytics,
+        summaryData.period_summary,
+      ),
       statisticsCards: this.buildPdfStatisticsCards(summary, reportRows),
       tableColumns,
       tableHead: [tableColumns.map((column) => column.header)],
@@ -1452,35 +1445,12 @@ class ReportGenerator {
   buildWorkbook(summaryData, period = "all", generatedAt = new Date()) {
     const reportRows = this.validateExportData(summaryData, "Excel");
     const workbook = XLSX.utils.book_new();
-    const userAttendanceSummaryTable =
-      this.buildUserAttendanceSummaryTableModel(summaryData.report);
 
     const summarySheet = XLSX.utils.aoa_to_sheet(
       this.buildSummarySheetRows(summaryData, period, generatedAt),
     );
     summarySheet["!cols"] = [{ wch: 24 }, { wch: 88 }];
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-
-    const userAttendanceSummarySheet = XLSX.utils.aoa_to_sheet([
-      this.buildPdfAttendanceTableColumns().map((column) => column.header),
-      ...userAttendanceSummaryTable.rows,
-    ]);
-    userAttendanceSummarySheet["!cols"] = [
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 20 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 22 },
-      { wch: 18 },
-      { wch: 42 },
-    ];
-    XLSX.utils.book_append_sheet(
-      workbook,
-      userAttendanceSummarySheet,
-      "User Attendance Summary",
-    );
 
     const attendanceSheet = XLSX.utils.aoa_to_sheet(
       this.buildAttendanceReportSheetRows(reportRows),
@@ -1490,7 +1460,6 @@ class ReportGenerator {
       { wch: 15 },
       { wch: 15 },
       { wch: 25 },
-      { wch: 15 },
       { wch: 14 },
       { wch: 12 },
       { wch: 12 },
@@ -1509,8 +1478,18 @@ class ReportGenerator {
       "Attendance Report",
     );
 
+    const disciplineSourceRows = Array.isArray(
+      summaryData?.report?.user_attendance_summary,
+    )
+      ? summaryData.report.user_attendance_summary
+      : [];
     const disciplineSheet = XLSX.utils.aoa_to_sheet(
-      this.buildDisciplineInsightSheetRows(reportRows, period, generatedAt),
+      this.buildDisciplineInsightSheetRows(
+        disciplineSourceRows,
+        period,
+        generatedAt,
+        reportRows,
+      ),
     );
     disciplineSheet["!cols"] = [
       { wch: 22 },

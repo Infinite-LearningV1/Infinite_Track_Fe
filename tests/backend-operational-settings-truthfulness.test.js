@@ -88,26 +88,32 @@ function createSettingsService(updatePayloads = []) {
   };
 }
 
-test("truthful copy states canonical backend load/save and AHP threshold boundary", () => {
+test("human-facing copy removes backend implementation details and keeps AHP threshold non-editable", () => {
   const pageHtml = fs.readFileSync(PAGE_PATH, "utf8");
   const formPartial = fs.readFileSync(FORM_PARTIAL_PATH, "utf8");
 
   assert.match(
     pageHtml,
-    /canonicalOperationalSettingsNotice/,
-    "Expected page shell to expose a canonical backend notice area",
+    /Operational Settings/,
+    "Expected page shell to use the Operational Settings title",
+  );
+
+  assert.doesNotMatch(
+    pageHtml,
+    /canonicalOperationalSettingsNotice|Backend Operational Settings/,
+    "Expected page shell to remove the technical notice and old page title",
   );
 
   assert.match(
     formPartial,
-    /\/api\/settings\/operational/,
-    "Expected form copy to name the canonical operational settings endpoint",
+    /Atur kebiasaan operasional harian/,
+    "Expected form copy to use human-facing operational wording",
   );
 
-  assert.match(
+  assert.doesNotMatch(
     formPartial,
-    /AHP_CR_THRESHOLD.*tidak editable|AHP_CR_THRESHOLD.*not editable/i,
-    "Expected form copy to keep AHP_CR_THRESHOLD non-editable",
+    /\/api\/settings\/operational|backend canonical|Backend field|AHP_CR_THRESHOLD/i,
+    "Expected form copy to hide backend implementation details from admins",
   );
 
   assert.doesNotMatch(
@@ -130,8 +136,7 @@ test("backendOperationalSettingsAlpineData starts by loading canonical backend s
     defaultShiftEnd: "17:00",
   });
   assert.deepEqual(state.originalForm, state.form);
-  assert.match(state.infoMessage, /backend canonical/i);
-  assert.match(state.infoMessage, /AHP_CR_THRESHOLD/i);
+  assert.equal(state.infoMessage, undefined);
   assert.equal(state.hasLoadedCanonicalSettings, true);
 });
 
@@ -167,7 +172,8 @@ test("backendOperationalSettingsAlpineData saveSettings announces durable backen
     assert.equal(alerts.length, 1);
     assert.equal(alerts[0].type, "success");
     assert.match(alerts[0].title, /tersimpan/i);
-    assert.match(alerts[0].message, /backend canonical/i);
+    assert.match(alerts[0].message, /operasional admin/i);
+    assert.doesNotMatch(alerts[0].message, /backend canonical/i);
     assert.notEqual(state.lastSavedAt, "");
   } finally {
     env.restore();

@@ -1,24 +1,5 @@
 <div class="space-y-6">
   <div
-    class="rounded-2xl border border-blue-200 bg-blue-50 p-6 dark:border-blue-800 dark:bg-blue-900/20"
-  >
-    <h3 class="mb-2 text-lg font-semibold text-gray-800 dark:text-white/90">
-      Backend Operational Settings
-    </h3>
-    <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
-      Halaman ini khusus untuk operational backend settings yang dipakai pada
-      alur operasional admin. Nilai di sini bukan secret, bukan runtime
-      credential, dan bukan deploy credential.
-    </p>
-    <p class="mt-3 text-sm leading-6 text-blue-700 dark:text-blue-300">
-      Data dimuat dari backend canonical melalui
-      <code>/api/settings/operational</code>. Hanya lima setting INF-142 yang
-      bisa diedit; AHP_CR_THRESHOLD tetap konstanta teoritis dan tidak editable
-      di Web FE.
-    </p>
-  </div>
-
-  <div
     class="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]"
   >
     <div
@@ -26,20 +7,21 @@
     >
       <div>
         <h4 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Pengaturan operasional
+          Atur kebiasaan operasional harian
         </h4>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Update dikirim sebagai field backend canonical camelCase, lalu form
-          disinkronkan kembali dari response backend.
+          Sesuaikan batas lokasi, checkout otomatis, toleransi pulang terlambat,
+          dan jam selesai shift default untuk membantu operasional admin tetap
+          konsisten.
         </p>
       </div>
 
       <div class="space-y-1 text-xs text-gray-500 dark:text-gray-400">
         <template x-if="lastLoadedAt">
-          <p>Dimuat: <span x-text="lastLoadedAt"></span></p>
+          <p>Terakhir dimuat: <span x-text="lastLoadedAt"></span></p>
         </template>
         <template x-if="lastSavedAt">
-          <p>Disimpan: <span x-text="lastSavedAt"></span></p>
+          <p>Terakhir disimpan: <span x-text="lastSavedAt"></span></p>
         </template>
       </div>
     </div>
@@ -49,7 +31,7 @@
         class="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/30"
       >
         <p class="text-sm text-gray-600 dark:text-gray-300">
-          Memuat operational settings dari backend...
+          Mengambil pengaturan terbaru...
         </p>
       </div>
     </template>
@@ -59,7 +41,7 @@
         <label
           class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400"
         >
-          GEOFENCE_RADIUS_DEFAULT_M <span class="text-red-500">*</span>
+          Radius area absensi <span class="text-red-500">*</span>
         </label>
         <input
           type="number"
@@ -72,7 +54,7 @@
           placeholder="Contoh: 100"
         />
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Backend field: <code>geofenceRadiusDefaultM</code>
+          Jarak maksimal dari titik kerja agar absensi diterima, dalam meter.
         </p>
         <p
           x-show="getFieldError('geofenceRadiusDefaultM')"
@@ -85,7 +67,8 @@
         <label
           class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400"
         >
-          AUTO_CHECKOUT_IDLE_MIN <span class="text-red-500">*</span>
+          Batas idle sebelum checkout otomatis
+          <span class="text-red-500">*</span>
         </label>
         <input
           type="number"
@@ -98,7 +81,8 @@
           placeholder="Contoh: 15"
         />
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Backend field: <code>autoCheckoutIdleMin</code>
+          Lama tidak ada aktivitas sebelum sistem menutup sesi kerja, dalam
+          menit.
         </p>
         <p
           x-show="getFieldError('autoCheckoutIdleMin')"
@@ -111,7 +95,7 @@
         <label
           class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400"
         >
-          AUTO_CHECKOUT_TBUFFER_MIN <span class="text-red-500">*</span>
+          Waktu penyangga checkout otomatis <span class="text-red-500">*</span>
         </label>
         <input
           type="number"
@@ -124,7 +108,8 @@
           placeholder="Contoh: 10"
         />
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Backend field: <code>autoCheckoutTBufferMin</code>
+          Tambahan waktu sebelum checkout otomatis benar-benar diproses, dalam
+          menit.
         </p>
         <p
           x-show="getFieldError('autoCheckoutTBufferMin')"
@@ -137,7 +122,7 @@
         <label
           class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400"
         >
-          LATE_CHECKOUT_TOLERANCE_MIN <span class="text-red-500">*</span>
+          Toleransi checkout terlambat <span class="text-red-500">*</span>
         </label>
         <input
           type="number"
@@ -150,7 +135,8 @@
           placeholder="Contoh: 120"
         />
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Backend field: <code>lateCheckoutToleranceMin</code>
+          Batas waktu setelah jam selesai shift yang masih diterima, dalam
+          menit.
         </p>
         <p
           x-show="getFieldError('lateCheckoutToleranceMin')"
@@ -163,7 +149,7 @@
         <label
           class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400"
         >
-          DEFAULT_SHIFT_END <span class="text-red-500">*</span>
+          Jam selesai shift default <span class="text-red-500">*</span>
         </label>
         <input
           type="time"
@@ -173,7 +159,7 @@
           class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
         />
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Backend field: <code>defaultShiftEnd</code>
+          Jam pulang standar saat jadwal khusus belum tersedia.
         </p>
         <p
           x-show="getFieldError('defaultShiftEnd')"
@@ -201,7 +187,7 @@
         :disabled="isLoading || isSaving"
         class="rounded-lg border border-gray-300 px-5 py-2 text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
       >
-        Muat ulang dari backend
+        Muat ulang
       </button>
       <button
         type="button"
@@ -209,7 +195,7 @@
         :disabled="isLoading || isSaving || !hasChanges"
         class="rounded-lg border border-gray-300 px-5 py-2 text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
       >
-        Reset ke baseline
+        Batalkan perubahan
       </button>
       <button
         type="button"
@@ -217,7 +203,7 @@
         :disabled="!canSave"
         class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2 text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <span x-show="!isSaving">Simpan ke backend</span>
+        <span x-show="!isSaving">Simpan perubahan</span>
         <span x-show="isSaving">Menyimpan...</span>
       </button>
     </div>

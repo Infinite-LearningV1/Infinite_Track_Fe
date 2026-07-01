@@ -15,18 +15,29 @@ const ROLE_ACCESS_PATH = path.resolve(
   "../src/js/utils/roleBasedAccess.js",
 );
 
-test("management backend settings is wired into navigation and Admin/Management protection", () => {
+test("operational settings is wired as a main navigation item and Admin/Management protection", () => {
   const sidebar = fs.readFileSync(SIDEBAR_PATH, "utf8");
   const roleBasedAccess = fs.readFileSync(ROLE_ACCESS_PATH, "utf8");
 
   assert.ok(
     sidebar.includes('href="management-backend-settings.html"'),
-    "Expected Management submenu to include management-backend-settings.html",
+    "Expected sidebar to include management-backend-settings.html",
+  );
+
+  assert.ok(
+    sidebar.includes("Operational Settings"),
+    "Expected sidebar to label the page as Operational Settings",
   );
 
   assert.ok(
     sidebar.includes("page === 'managementBackendSettings'"),
-    "Expected Management menu active state to include managementBackendSettings page key",
+    "Expected Operational Settings main item active state to include managementBackendSettings page key",
+  );
+
+  assert.doesNotMatch(
+    sidebar,
+    /menu-dropdown-item[\s\S]*Backend Settings/,
+    "Expected Operational Settings to be removed from the Management submenu",
   );
 
   assert.match(

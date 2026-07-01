@@ -237,14 +237,53 @@ scp -r build/* user@your-server:/var/www/infinitetrack/
 
 ---
 
-## 📞 Emergency Contacts
+## 📞 Rollback & Incident Response
 
-Jika ada masalah serius saat deployment:
+Jika ada masalah serius saat deployment, gunakan decision tree berikut sebelum memilih rollback path.
 
-1. **Rollback:** Deploy versi build sebelumnya
-2. **Check Logs:** Browser console + Server logs
-3. **Verify Backend:** Pastikan backend accessible
-4. **Test Locally:** Reproduce issue di localhost
+### Decision Tree
+
+1. **Build gagal sebelum release branch / artifact dipromosikan**
+   - Jangan deploy paksa.
+   - Perbaiki build/config lebih dulu.
+   - Release belum valid, jadi rollback production belum relevan.
+
+2. **Artifact static sudah terdeploy, tetapi browser/runtime langsung broken**
+   - Cek apakah masalahnya berasal dari env/build contract (`API_BASE_URL`, wrong asset path, wrong output artifact).
+   - Jika ya, rollback ke deployment static sebelumnya atau redeploy artifact terakhir yang diketahui sehat.
+
+3. **Frontend baru naik, tetapi API/auth flow gagal**
+   - Pisahkan apakah masalahnya CORS / env base URL / backend outage.
+   - Jika penyebabnya frontend deploy/config baru, rollback frontend.
+   - Jika penyebabnya backend outage tanpa perubahan frontend, rollback frontend biasanya tidak menyelesaikan insiden; eskalasi backend.
+
+4. **Promotion `develop` -> `master` sudah merge tetapi release ternyata tidak sehat**
+   - Buat revert path yang jelas pada branch/release flow.
+   - Gunakan revert PR / commit rollback yang traceable, lalu pastikan hosting kembali menunjuk ke artifact/deployment yang sehat.
+
+### Minimum Rollback Evidence
+
+- [ ] Catat incident timestamp
+- [ ] Catat trigger rollback (contoh: blank page, auth fail, export fail, CORS/network error)
+- [ ] Catat rollback target (commit / PR / deployment ID / previous App Platform deployment)
+- [ ] Catat siapa yang menyetujui rollback
+- [ ] Jalankan post-rollback smoke minimal
+- [ ] Lampirkan evidence ke issue / PR / release note
+
+### Minimum Post-Rollback Smoke
+
+- [ ] Frontend domain kembali bisa dibuka
+- [ ] Halaman signin tampil
+- [ ] Endpoint protected yang dituju oleh `API_BASE_URL` production kembali reachable dan memberi auth-required response yang sesuai (misalnya anonymous `401`), bukan `404` / network error
+- [ ] Jika credentials tersedia, login + dashboard smoke diulang
+- [ ] Browser console / hosting logs tidak menunjukkan error rollback yang blocking
+
+### Quick Response Actions
+
+1. **Check Logs:** Browser console + hosting/server logs
+2. **Verify Backend:** Pastikan backend accessible sebelum menyalahkan frontend artifact
+3. **Test Locally:** Reproduce issue dari artifact/build branch bila perlu
+4. **Rollback:** gunakan deployment/commit terakhir yang sudah terbukti sehat, bukan snapshot yang belum punya smoke evidence
 
 ---
 

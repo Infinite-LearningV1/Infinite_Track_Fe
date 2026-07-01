@@ -110,8 +110,11 @@ test("cockpit source boundary ignores legacy embedded analytics in report respon
   );
   assert.equal(averageDiscipline.value, null);
   assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
-  assert.equal(historicalTrend.data?.isPreview, true);
-  assert.equal(historicalTrend.data?.source, "dummy-preview");
+  assert.equal(historicalTrend.data, null);
+  assert.match(
+    historicalTrend.message,
+    /historical attendance trend waits for explicit dashboard analytics/i,
+  );
 });
 
 test("cockpit average discipline comes from executive_kpis.avg_discipline instead of legacy discipline_index", () => {
@@ -598,82 +601,15 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
   });
   assert.equal(historicalTrend.subtitle, "");
   assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
-  assert.equal(historicalTrend.data.isPreview, true);
-  assert.equal(historicalTrend.data.source, "dummy-preview");
-  assert.equal(historicalTrend.data.defaultRangeKey, "monthly");
-  assert.deepEqual(
-    historicalTrend.data.ranges.map((range) => ({
-      key: range.key,
-      label: range.label,
-    })),
-    [
-      { key: "monthly", label: "Monthly" },
-      { key: "quarterly", label: "Quarterly" },
-      { key: "annually", label: "Annually" },
-    ],
-  );
-  const monthlyPreviewRange = historicalTrend.data.ranges.find(
-    (range) => range.key === "monthly",
-  );
-  const annualPreviewRange = historicalTrend.data.ranges.find(
-    (range) => range.key === "annually",
-  );
-  assert.deepEqual(monthlyPreviewRange.xAxisLabels, [
-    "1 Mei",
-    "8 Mei",
-    "15 Mei",
-    "22 Mei",
-    "29 Mei",
-  ]);
-  assert.deepEqual(monthlyPreviewRange.yAxisLabels, [
-    "100",
-    "75",
-    "50",
-    "25",
-    "0",
-  ]);
-  assert.deepEqual(
-    monthlyPreviewRange.series.map((series) => ({
-      key: series.key,
-      label: series.label,
-    })),
-    [
-      { key: "ontime", label: "Present" },
-      { key: "late", label: "Late" },
-      { key: "alpha", label: "Alpha" },
-    ],
-  );
-  assert.deepEqual(
-    monthlyPreviewRange.metrics.map((metric) => metric.key),
-    ["ontime", "late", "alpha"],
-  );
-  assert.ok(
-    historicalTrend.data.ranges.every(
-      (range) =>
-        range.series.length === 3 &&
-        range.metrics.length === 3 &&
-        range.series.every(
-          (series) =>
-            series.points.length >= 4 &&
-            /^M /.test(series.chartPath) &&
-            /^M /.test(series.areaPath) &&
-            series.chartPath.includes(" C "),
-        ),
-    ),
+  assert.equal(historicalTrend.data, null);
+  assert.match(
+    historicalTrend.message,
+    /historical attendance trend waits for explicit dashboard analytics/i,
   );
   assert.equal(
-    annualPreviewRange.series
-      .find((series) => series.key === "alpha")
-      .points.at(-2).value,
-    4,
+    historicalTrend.note,
+    "Web FE will not derive trend from summary totals or use preview chart data.",
   );
-  assert.equal(
-    annualPreviewRange.series
-      .find((series) => series.key === "alpha")
-      .points.at(-1).value,
-    2,
-  );
-  assert.equal(historicalTrend.note, "");
 
   assert.equal(modeMix.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(modeMix.data.total, 34);

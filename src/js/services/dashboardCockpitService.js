@@ -233,88 +233,6 @@ const HISTORICAL_TREND_SERIES_DEFINITIONS = Object.freeze([
   },
 ]);
 
-const HISTORICAL_TREND_PREVIEW_RANGES = HISTORICAL_TREND_RANGE_DEFINITIONS.map(
-  (range) =>
-    createHistoricalTrendRange({
-      ...range,
-      seriesLabels: {
-        ontime: "Present",
-      },
-      yAxisLabels: ["100", "75", "50", "25", "0"],
-      seriesValues: {
-        monthly: {
-          ontime: [
-            { label: "1 Mei", value: 72 },
-            { label: "8 Mei", value: 86 },
-            { label: "15 Mei", value: 82 },
-            { label: "22 Mei", value: 83 },
-            { label: "29 Mei", value: 87, displayValue: "92.4%" },
-          ],
-          late: [
-            { label: "1 Mei", value: 33 },
-            { label: "8 Mei", value: 29 },
-            { label: "15 Mei", value: 23 },
-            { label: "22 Mei", value: 31 },
-            { label: "29 Mei", value: 26, displayValue: "6.1%" },
-          ],
-          alpha: [
-            { label: "1 Mei", value: 7.1 },
-            { label: "8 Mei", value: 8.2 },
-            { label: "15 Mei", value: 6.3 },
-            { label: "22 Mei", value: 7.2 },
-            { label: "29 Mei", value: 8, displayValue: "2.5%" },
-          ],
-        },
-        quarterly: {
-          ontime: [
-            { label: "Q1", value: 78 },
-            { label: "Q2", value: 82 },
-            { label: "Q3", value: 80 },
-            { label: "Q4", value: 88 },
-          ],
-          late: [
-            { label: "Q1", value: 29 },
-            { label: "Q2", value: 25 },
-            { label: "Q3", value: 31 },
-            { label: "Q4", value: 27 },
-          ],
-          alpha: [
-            { label: "Q1", value: 8 },
-            { label: "Q2", value: 7 },
-            { label: "Q3", value: 9 },
-            { label: "Q4", value: 6 },
-          ],
-        },
-        annually: {
-          ontime: [
-            { label: "2019", value: 68 },
-            { label: "2020", value: 73 },
-            { label: "2021", value: 77 },
-            { label: "2022", value: 81 },
-            { label: "2023", value: 86 },
-            { label: "2024", value: 90 },
-          ],
-          late: [
-            { label: "2019", value: 34 },
-            { label: "2020", value: 31 },
-            { label: "2021", value: 28 },
-            { label: "2022", value: 24 },
-            { label: "2023", value: 21 },
-            { label: "2024", value: 18 },
-          ],
-          alpha: [
-            { label: "2019", value: 12 },
-            { label: "2020", value: 10 },
-            { label: "2021", value: 8 },
-            { label: "2022", value: 6 },
-            { label: "2023", value: 4 },
-            { label: "2024", value: 2 },
-          ],
-        },
-      }[range.key],
-    }),
-);
-
 const MODE_MIX_COLORS = {
   wfo: "#2563eb",
   wfh: "#16a34a",
@@ -1477,21 +1395,6 @@ function normalizeHistoricalTrend(analytics = null) {
   };
 }
 
-function buildPreviewHistoricalTrendPanel() {
-  const defaultRange = HISTORICAL_TREND_PREVIEW_RANGES[0];
-
-  return createPanel({
-    ...getMiddlePanelDefinition("historicalTrend"),
-    state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
-    data: {
-      ranges: HISTORICAL_TREND_PREVIEW_RANGES,
-      defaultRangeKey: defaultRange.key,
-      isPreview: true,
-      source: "dummy-preview",
-    },
-  });
-}
-
 function buildHistoricalTrendPanel(analytics = null, analyticsError = null) {
   if (analyticsError) {
     return createPanel({
@@ -1503,17 +1406,38 @@ function buildHistoricalTrendPanel(analytics = null, analyticsError = null) {
   }
 
   if (!hasExplicitAnalytics(analytics)) {
-    return buildPreviewHistoricalTrendPanel();
+    return createPanel({
+      ...getMiddlePanelDefinition("historicalTrend"),
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message:
+        "Historical attendance trend waits for explicit dashboard analytics historical_trend.",
+      note: "Web FE will not derive trend from summary totals or use preview chart data.",
+      data: null,
+    });
   }
 
   if (!hasExplicitAnalyticsField(analytics, "historical_trend")) {
-    return buildPreviewHistoricalTrendPanel();
+    return createPanel({
+      ...getMiddlePanelDefinition("historicalTrend"),
+      state: DASHBOARD_PANEL_STATES.BACKEND_REQUIRED,
+      message:
+        "Historical attendance trend waits for explicit dashboard analytics historical_trend.",
+      note: "Web FE will not derive trend from summary totals or use preview chart data.",
+      data: null,
+    });
   }
 
   const normalizedTrend = normalizeHistoricalTrend(analytics);
 
   if (!normalizedTrend) {
-    return buildPreviewHistoricalTrendPanel();
+    return createPanel({
+      ...getMiddlePanelDefinition("historicalTrend"),
+      state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
+      message:
+        "Historical attendance trend backend payload is invalid; historical_trend must be an object with explicit points.",
+      note: "Web FE will not substitute preview ranges when backend trend payload is malformed.",
+      data: null,
+    });
   }
 
   if (!normalizedTrend.ranges) {

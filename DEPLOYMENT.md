@@ -172,6 +172,19 @@ Baseline repo ini hanya menambahkan build gate minimum dan **tidak** menyalakan 
 
 > Needs Verification: branch protection / ruleset GitHub yang mewajibkan required status check untuk `develop` dan `master`, pembatasan direct push ke `master`, pembatasan source branch promotion, dan source branch hosting production aktual tidak bisa dibuktikan dari isi repo saja dan harus dikonfirmasi di GitHub UI / platform hosting.
 
+### CORS / Auth Transport Truth
+
+Frontend Web FE mengandalkan credentialed browser requests untuk auth/session runtime. Itu berarti backend production harus secara eksplisit mengizinkan origin frontend production, preflight `OPTIONS`, dan header yang dipakai auth runtime.
+
+Minimal contract yang harus dicatat di environment/backend docs:
+
+- origin frontend production harus spesifik, bukan wildcard
+- jika session/cookie dipakai, `Access-Control-Allow-Credentials: true` wajib aktif
+- metode umum yang dipakai Web FE harus diizinkan: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
+- header minimum yang perlu lolos preflight: `Content-Type` dan `X-Client-Type`
+- `Authorization` hanya perlu diizinkan bila backend memang memiliki flow yang menggunakannya secara eksplisit; current auth runtime Web FE justru membersihkan bearer header pada protected request flow
+- jika browser menampilkan `Failed to fetch` / `Network Error` pada login atau bootstrap, cek CORS sebelum menyalahkan API availability
+
 ### Local Tooling Truth
 
 Workflow **Docker Compose + NGINX Gateway** di dokumen ini dipertahankan untuk local development dan staging-like verification. Workflow ini bukan sumber kebenaran deploy production frontend.

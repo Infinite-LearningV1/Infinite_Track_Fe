@@ -10,10 +10,6 @@ import {
   createDashboardCockpitStateFromSources,
 } from "../../services/dashboardCockpitService.js";
 import { classifyAuthFailure } from "../../services/authSessionRuntime.js";
-import {
-  createRealApiCockpitLoadingShell,
-  createRealApiCockpitShell,
-} from "./realApiCockpitShell.js";
 import { createHistoricalAnalyticsSliceState } from "../../services/dashboard/historicalAnalyticsSlice.js";
 import { createFahpRecapSliceState } from "../../services/dashboard/fahpRecapSlice.js";
 import { createGeofenceEvidenceSliceState } from "../../services/dashboard/geofenceEvidenceSlice.js";
@@ -182,7 +178,6 @@ export function dashboard() {
     // Data properties
     summaryData: null,
     cockpit: createDashboardCockpitLoadingState(),
-    realApiCockpit: createRealApiCockpitLoadingShell(),
     dashboardSectionOrder: buildDashboardSectionOrder(),
     dashboardMap: null,
     dashboardLeaflet: null,
@@ -219,7 +214,6 @@ export function dashboard() {
      * Initialize component
      */
     async init() {
-      this.realApiCockpit = createRealApiCockpitShell();
       this.pageState = createDashboardPageState({
         fetchHistorical: async () => {
           const requestParams = this.getDashboardAnalyticsRequestParams();
@@ -1200,7 +1194,7 @@ export function dashboard() {
         }
       });
 
-      if (layers.length > 1) {
+      if (locations.length > 1) {
         map.fitBounds(L.featureGroup(layers).getBounds(), {
           padding: [32, 32],
           animate: false,

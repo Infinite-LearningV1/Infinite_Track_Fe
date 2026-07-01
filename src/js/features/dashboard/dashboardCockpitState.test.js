@@ -17,12 +17,13 @@ test("dashboard FAHP request params use the final type-based contract", () => {
 test("dashboard initializes cockpit without the retired report workspace surface", () => {
   const component = dashboard();
 
+  assert.equal("realApiCockpit" in component, false);
   assert.equal("cardSummaryData" in component, false);
   assert.equal("analyticsData" in component, false);
   assert.equal("reportWorkspace" in component, false);
   assert.equal(component.summaryData, null);
   assert.equal(component.isExportModalOpen, false);
-  assert.equal(component.dashboardRange, "30d");
+  assert.equal(component.dashboardRange, "current_month");
   assert.equal(component.trendRange, "monthly");
   assert.ok(
     component.cockpit.kpis.every(

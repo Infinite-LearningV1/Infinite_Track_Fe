@@ -60,11 +60,18 @@ yarn install
 
 ### 1. Setup Environment Variables
 
-**PENTING:** Sebelum build production, Anda HARUS mengonfigurasi file `.env.production`
+**PENTING:** Sebelum build production, Anda HARUS menyiapkan **nilai env production** yang akan dibaca oleh proses build.
+
+> Repo ini memanggil `dotenv.config()` default di `webpack.config.js`, jadi script `npm run build` **tidak otomatis memuat** file `.env.production`.
+>
+> Untuk operator lokal, `.env.production.example` adalah **template contract**, bukan file yang langsung dibaca build. Jika ingin build lokal dengan nilai production, export env ke shell/build environment yang aktif atau sinkronkan nilainya ke `.env` sesuai prosedur operator yang disetujui.
 
 ```bash
-# File .env.production sudah dibuat, edit dan sesuaikan:
-nano .env.production
+# Gunakan sebagai template contract build-time env production
+cp .env.production.example .env.production
+
+# Lalu export / sinkronkan nilainya ke environment build yang benar
+# sebelum menjalankan npm run build.
 ```
 
 **Konfigurasi WAJIB yang harus diubah:**
@@ -80,14 +87,29 @@ API_AUTH_ENDPOINT=/auth
 
 ### 2. Verifikasi Konfigurasi
 
-Pastikan konfigurasi berikut sesuai dengan kebutuhan:
+Pastikan konfigurasi berikut sesuai dengan kebutuhan.
 
-| Variable          | Development   | Production                   | Keterangan                    |
-| ----------------- | ------------- | ---------------------------- | ----------------------------- |
-| `API_BASE_URL`    | `/api`        | `https://api.infinite-track.tech/api` | **WAJIB mencakup prefix API final!** |
-| `APP_ENVIRONMENT` | `development` | `production`                        | Menentukan mode aplikasi             |
-| `DEBUG_MODE`      | `true`        | `false`                             | Matikan di production                |
-| `LOG_LEVEL`       | `info`        | `error`                             | Hanya log error di production        |
+> **Build-time truth penting:** frontend ini memakai Webpack `DefinePlugin` untuk membake env ke bundle saat build. `npm run build` hanya mengeset `NODE_ENV=production`; command itu **tidak otomatis memuat** `.env.production.example` maupun `.env.production`. Untuk static production, nilai final harus diinjeksi oleh environment build yang benar (misalnya export env di shell/build runner atau App Platform build-time env).
+>
+> **Staging note:** repo ini tidak memiliki `.env.staging` committed. Kolom **Staging** di bawah hanya boleh dianggap placeholder governance. Jika environment staging dipakai, nilainya harus dikunci dan diverifikasi terpisah (`REQUIRES REPO VERIFICATION`).
+
+| Variable | Development (`.env.example`) | Staging | Production (`.env.production.example`) | Keterangan / source of truth |
+| --- | --- | --- | --- | --- |
+| `API_BASE_URL` | `/api` | `REQUIRES REPO VERIFICATION` | `https://api.infinite-track.tech/api` | **WAJIB** mencakup prefix API final untuk static production. Default fallback webpack tetap `/api`. |
+| `API_AUTH_ENDPOINT` | `/auth` | `REQUIRES REPO VERIFICATION` | `/auth` | Digabung dengan `API_BASE_URL` di `src/js/config/env.js`. |
+| `API_VERSION` | `v1` | `REQUIRES REPO VERIFICATION` | `v1` | Build-time public-safe. |
+| `APP_NAME` | `Infinite Track` | `REQUIRES REPO VERIFICATION` | `Infinite Track` | Label aplikasi di browser/runtime. |
+| `APP_VERSION` | `2.0.1` | `REQUIRES REPO VERIFICATION` | `2.0.1` | Versi aplikasi yang dibake ke bundle. |
+| `APP_ENVIRONMENT` | `development` | `REQUIRES REPO VERIFICATION` | `production` | Jangan samakan dengan `NODE_ENV`; ini adalah nilai aplikasi yang dibake ke bundle. |
+| `SESSION_TIMEOUT` | `3600000` | `REQUIRES REPO VERIFICATION` | `3600000` | Konfigurasi auth/session di frontend. |
+| `REMEMBER_ME_DAYS` | `7` | `REQUIRES REPO VERIFICATION` | `7` | Konfigurasi auth/session di frontend. |
+| `DEFAULT_LANGUAGE` | `id` | `REQUIRES REPO VERIFICATION` | `id` | Lokalisasi default. |
+| `TIMEZONE` | `Asia/Jakarta` | `REQUIRES REPO VERIFICATION` | `Asia/Jakarta` | Timezone default frontend. |
+| `DEBUG_MODE` | `true` | `REQUIRES REPO VERIFICATION` | `false` | Default fallback webpack adalah `false` bila env tidak diset. |
+| `LOG_LEVEL` | `info` | `REQUIRES REPO VERIFICATION` | `error` | Default fallback webpack adalah `info`. |
+| `AUTH_CLIENT_TYPE` | *(tidak ada di `.env.example`)* | `REQUIRES REPO VERIFICATION` | *(tidak ada di `.env.production.example`)* | Webpack masih menginjeksi fallback `web`, tetapi `src/js/config/env.js` saat ini hardcode `CLIENT_TYPE = "web"`; ini **belum** menjadi env contract efektif. |
+
+**Last Verified (repo docs alignment):** 2026-07-02.
 
 Verifikasi cepat prefix production: `https://api.infinite-track.tech/api/settings/operational` harus mencapai endpoint backend dan boleh mengembalikan `401 Unauthorized` saat belum login. Jika `https://api.infinite-track.tech/settings/operational` mengembalikan `404`, jangan gunakan base URL tanpa `/api` untuk static production.
 
@@ -515,9 +537,10 @@ docker compose down -v
 
 **Solusi:**
 
-- Update `API_BASE_URL` ke full URL backend
-- Jangan gunakan `/api` di production (kecuali ada nginx proxy)
-- Contoh: `API_BASE_URL=https://api.yourdomain.com`
+- Update `API_BASE_URL` ke full URL backend public yang dipakai production
+- Untuk static production Infinite Track saat ini, **tetap gunakan prefix API final** pada base URL
+- Contoh current contract: `API_BASE_URL=https://api.infinite-track.tech/api`
+- Jika memakai domain backend lain, tetap gunakan URL public yang sudah mencakup prefix API final, misalnya `https://api.yourdomain.com/api`
 
 ### Problem 6: Environment Variables Not Applied
 
@@ -526,8 +549,9 @@ docker compose down -v
 **Solusi:**
 
 1. Pastikan build dengan `NODE_ENV=production`
-2. Rebuild setelah ubah `.env.production`
-3. Clear cache: `rm -rf build && npm run build`
+2. Pastikan nilai env production benar-benar masuk ke environment build aktif (jangan asumsi `.env.production` dibaca otomatis)
+3. Rebuild setelah export / sinkronisasi env yang benar
+4. Clear cache: `rm -rf build && npm run build`
 
 ---
 
@@ -628,6 +652,6 @@ Catat minimal hal berikut:
 
 ---
 
-**Last Updated:** October 28, 2025  
+**Last Updated:** 2026-07-02  
 **Version:** 1.0.0  
 **Maintainer:** Development Team

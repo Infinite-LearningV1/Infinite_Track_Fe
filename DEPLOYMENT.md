@@ -82,12 +82,12 @@ API_AUTH_ENDPOINT=/auth
 
 Pastikan konfigurasi berikut sesuai dengan kebutuhan:
 
-| Variable          | Development   | Production                   | Keterangan                    |
-| ----------------- | ------------- | ---------------------------- | ----------------------------- |
+| Variable          | Development   | Production                            | Keterangan                           |
+| ----------------- | ------------- | ------------------------------------- | ------------------------------------ |
 | `API_BASE_URL`    | `/api`        | `https://api.infinite-track.tech/api` | **WAJIB mencakup prefix API final!** |
-| `APP_ENVIRONMENT` | `development` | `production`                        | Menentukan mode aplikasi             |
-| `DEBUG_MODE`      | `true`        | `false`                             | Matikan di production                |
-| `LOG_LEVEL`       | `info`        | `error`                             | Hanya log error di production        |
+| `APP_ENVIRONMENT` | `development` | `production`                          | Menentukan mode aplikasi             |
+| `DEBUG_MODE`      | `true`        | `false`                               | Matikan di production                |
+| `LOG_LEVEL`       | `info`        | `error`                               | Hanya log error di production        |
 
 Verifikasi cepat prefix production: `https://api.infinite-track.tech/api/settings/operational` harus mencapai endpoint backend dan boleh mengembalikan `401 Unauthorized` saat belum login. Jika `https://api.infinite-track.tech/settings/operational` mengembalikan `404`, jangan gunakan base URL tanpa `/api` untuk static production.
 

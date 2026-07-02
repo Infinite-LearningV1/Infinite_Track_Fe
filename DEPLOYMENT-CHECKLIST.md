@@ -70,7 +70,6 @@ serve -s build -p 3000
 - [ ] `Needs Verification`: branch protection / GitHub ruleset benar-benar mewajibkan status check workflow build pada PR ke `develop` dan PR promotion ke `master`.
 - [ ] `Needs Verification`: source branch static hosting production memang menunjuk ke `master` sebagai branch final.
 
-
 ### Pre-Build
 
 - [ ] File `.env.production` sudah dibuat
@@ -140,6 +139,7 @@ Contoh konfigurasi yang direkomendasikan untuk static production Infinite Track:
 - Jika memakai domain lain, pastikan nilai `API_BASE_URL` tetap mencakup prefix API final, misalnya `https://api.yourdomain.com/api`.
 
 Catatan:
+
 - Untuk production static site, gunakan backend public URL eksplisit yang sudah mencakup prefix API final.
 - Jangan mengandalkan local `/api` gateway sebagai production default kecuali memang ada reverse proxy production yang sengaja disiapkan.
 - Verifikasi cepat: `https://api.infinite-track.tech/api/settings/operational` boleh mengembalikan `401 Unauthorized` saat belum login, tetapi tidak boleh `404`. Route tanpa prefix seperti `https://api.infinite-track.tech/settings/operational` bukan contract production Web FE.

@@ -119,6 +119,16 @@ serve -s build -p 3000
 - [ ] Promotion PR `develop` -> `master` punya evidence review + build yang cukup sebelum `master` diperlakukan release-ready
 - [ ] Test akses dari domain production
 
+#### DigitalOcean App Platform Verification (2026-07-02)
+
+> External snapshot via DigitalOcean MCP/API on 2026-07-02. Re-verify in dashboard before release / promotion approval.
+
+- [x] ✅ App production teridentifikasi sebagai `infinite-track-fe-production` (static site, region `sgp`)
+- [x] ✅ GitHub repo `Infinite-LearningV1/Infinite_Track_Fe` dan source branch `master` sudah terhubung; deploy-on-push aktif
+- [x] ✅ Build setting static site sesuai ekspektasi repo: `build_command = npm run build`, `source_dir = /`, `output_dir = build`
+- [ ] 🔍 **GAP:** Build-time env App Platform belum fully aligned dengan current canonical deployment docs (`.env.production.example`, `DEPLOYMENT.md`, `DEPLOYMENT-CHECKLIST.md`) karena `API_BASE_URL` saat ini masih `https://api.infinite-track.tech` (tanpa `/api`), sedangkan contract production aktif memakai `https://api.infinite-track.tech/api`
+- [ ] 🔍 Manual dashboard screenshot attachment masih direkomendasikan bila issue / PR membutuhkan bukti UI selain MCP/API evidence
+
 ### Docker Compose Verification
 
 - [ ] `BACKEND_IMAGE` menunjuk ke image backend yang tersedia dan listen pada port container `3005`

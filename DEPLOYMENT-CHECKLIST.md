@@ -70,6 +70,17 @@ serve -s build -p 3000
 - [ ] `Needs Verification`: branch protection / GitHub ruleset benar-benar mewajibkan status check workflow build pada PR ke `develop` dan PR promotion ke `master`.
 - [ ] `Needs Verification`: source branch static hosting production memang menunjuk ke `master` sebagai branch final.
 
+#### GitHub Ruleset Verification (2026-07-02)
+
+> External snapshot via GitHub API/rulesets on 2026-07-02. Re-verify in GitHub UI before release / promotion approval.
+
+- [x] ✅ Active branch ruleset for `develop`: `develop — integration gate` on `refs/heads/develop`
+- [x] ✅ Active branch ruleset for `master`: `master — release-ready gate` on `refs/heads/master`
+- [x] ✅ Both rulesets block deletion dan non-fast-forward pushes
+- [x] ✅ Both rulesets require pull request review dengan minimum 1 approval, stale review dismissal, dan resolved review threads
+- [x] ✅ `develop` ruleset juga mewajibkan linear history
+- [ ] 🔍 **GAP:** Active rulesets yang terdeteksi tidak menampilkan required status check untuk workflow build
+- [ ] 🔍 **GAP:** Repo workflow `.github/workflows/build.yml` saat ini hanya trigger PR/push ke `develop`, belum ke promotion PR target `master`
 
 ### Layer 1 — Pre-Build Readiness
 
@@ -80,7 +91,11 @@ serve -s build -p 3000
 - [ ] Git status branch kerja bersih dari perubahan tak terkait
 - [ ] Dependencies ter-install (`npm ci` untuk baseline reproducible, atau `npm install` bila konteksnya local iteration biasa)
 
-### Layer 2 — Repo Build Smoke
+- [ ] Workflow build lulus pada PR ke `develop`
+- [ ] Promotion PR `develop` -> `master` memiliki evidence build yang cukup; repo workflow saat ini belum trigger otomatis ke target `master`
+- [ ] `npm run build` berhasil tanpa error
+- [ ] Folder `build/` ter-generate dengan lengkap
+- [ ] File `bundle.js` dan `style.css` ada
 
 > Tujuan layer ini: membuktikan bundle frontend masih bisa dibentuk dari repo. Ini **bukan** bukti production runtime.
 
@@ -115,8 +130,8 @@ serve -s build -p 3000
 
 - [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
-- [ ] Jika memakai DigitalOcean App Platform Static Site, source branch final = `master`, build command benar, dan output directory mengarah ke artifact static yang tepat
-- [ ] Promotion PR `develop` -> `master` punya evidence review + build yang cukup sebelum `master` diperlakukan release-ready
+- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch final adalah `master`, build command benar, dan output directory mengarah ke artifact static yang tepat
+- [ ] Promotion PR `develop` -> `master` punya evidence review + build yang cukup sebelum `master` diperlakukan release-ready; jangan asumsi workflow `build.yml` otomatis berjalan untuk target `master`
 - [ ] Test akses dari domain production
 
 #### DigitalOcean App Platform Verification (2026-07-02)
@@ -341,7 +356,7 @@ Jika ada masalah serius saat deployment, gunakan decision tree berikut sebelum m
 
 ## 📝 Final Notes
 
-- ✅ Baseline CI sekarang mencakup build verification untuk PR ke `develop`, push ke `develop`, dan promotion PR ke `master`
+- ✅ Baseline CI repo saat ini mencakup build verification untuk PR ke `develop` dan push ke `develop`; promotion PR ke `master` masih butuh evidence build terpisah atau perubahan workflow
 - ✅ `master` adalah branch final yang dimaksudkan menjadi release / deploy source dalam workflow repo ini
 - ✅ Docker gateway workflow lokal sekarang memakai `BACKEND_IMAGE`, profile `dev`, profile `staging`, dan NGINX sebagai browser entrypoint
 - ⚠️ `Needs Verification`: required status check, branch protection GitHub UI, direct-push restriction, dan source-branch restriction ke `master` benar-benar sudah enforced

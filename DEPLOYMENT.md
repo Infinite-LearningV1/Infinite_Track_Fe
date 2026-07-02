@@ -531,6 +531,71 @@ docker compose down -v
 
 ---
 
+## ↩️ Rollback Procedure
+
+### Kapan rollback dilakukan
+
+Pertimbangkan rollback jika salah satu kondisi berikut terjadi setelah deploy/promotion:
+
+- artifact static berhasil publish tetapi frontend blank / broken pada browser
+- login, bootstrap session, atau navigasi utama gagal setelah perubahan frontend/env/build
+- production memakai `API_BASE_URL` atau env build-time yang salah
+- export/reporting smoke gagal karena perubahan frontend deploy terbaru
+- PR `develop` -> `master` sudah dipromosikan tetapi smoke production menunjukkan regression yang jelas
+
+Jangan langsung rollback frontend jika akar masalahnya adalah backend outage murni, DNS/SSL eksternal, atau incident yang tidak dipicu oleh perubahan frontend release terbaru.
+
+### Decision tree singkat
+
+1. **Build/CI gagal sebelum release-ready**
+   - Stop release. Perbaiki build/config terlebih dahulu.
+   - Belum perlu rollback production karena artifact baru belum valid.
+
+2. **Deploy static berhasil tetapi runtime browser langsung broken**
+   - Cek asset path, output artifact, dan env build-time.
+   - Jika regression berasal dari deploy frontend terbaru, rollback ke deployment/artifact sebelumnya yang sudah punya smoke evidence.
+
+3. **Auth/API flow gagal setelah deploy**
+   - Verifikasi apakah penyebabnya CORS, wrong `API_BASE_URL`, atau backend outage.
+   - Jika dipicu deploy/config frontend terbaru, rollback frontend.
+   - Jika backend outage berdiri sendiri, frontend rollback belum tentu menyelesaikan insiden.
+
+4. **Promotion `develop` -> `master` sudah merge tetapi release tidak sehat**
+   - Gunakan revert PR / revert commit yang traceable di release flow.
+   - Pastikan hosting kembali menunjuk ke deployment/artifact terakhir yang sehat.
+
+### Bentuk rollback yang didukung secara operasional
+
+- **Rollback hosting/static deployment**
+  - redeploy previous static deployment / previous successful artifact pada platform hosting
+  - cocok untuk incident yang jelas berasal dari artifact frontend terakhir
+- **Rollback release flow (`master`)**
+  - revert commit/PR promotion yang membawa regression
+  - cocok jika branch release sudah bergerak dan perlu audit trail yang jelas
+- **Rollback env/build config**
+  - kembalikan `API_BASE_URL` atau build-time env lain ke nilai yang sudah terbukti sehat, lalu rebuild/redeploy
+  - cocok untuk incident contract/env drift
+
+### Evidence minimum saat rollback
+
+Catat minimal hal berikut:
+
+- incident timestamp
+- gejala yang memicu rollback
+- target rollback (commit, PR, deployment ID, atau artifact)
+- approver / decision owner
+- hasil post-rollback smoke
+
+### Post-rollback verification
+
+- frontend domain bisa dibuka
+- halaman signin tampil
+- endpoint protected yang dituju oleh `API_BASE_URL` production kembali reachable dan memberi auth-required response yang sesuai (misalnya anonymous `401`), bukan `404` / network error
+- jika credentials tersedia, login + dashboard smoke diulang
+- browser console dan hosting logs tidak menunjukkan error blocking baru
+
+> `Needs Verification`: langkah rollback spesifik hosting production (misalnya previous deployment selection di DigitalOcean App Platform) tetap perlu dibuktikan di dashboard/platform nyata.
+
 ## 📞 Support & Resources
 
 ### Dokumentasi Teknologi

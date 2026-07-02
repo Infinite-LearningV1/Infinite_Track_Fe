@@ -71,36 +71,52 @@ serve -s build -p 3000
 - [ ] `Needs Verification`: source branch static hosting production memang menunjuk ke `master` sebagai branch final.
 
 
-### Pre-Build
+### Layer 1 — Pre-Build Readiness
 
-- [ ] File `.env.production` sudah dibuat
-- [ ] `API_BASE_URL` sudah diubah ke backend production
-- [ ] Git status bersih (no conflicts)
-- [ ] Dependencies ter-install (`npm ci` untuk clean install yang konsisten dengan baseline CI, atau `npm install` bila konteksnya local iteration biasa)
+> Tujuan layer ini: memastikan input build sudah siap sebelum ada klaim smoke / deploy success.
 
-### Build
+- [ ] File `.env.production` atau build-time env production setara sudah disiapkan (`REQUIRES REPO VERIFICATION`)
+- [ ] `API_BASE_URL` sudah mengarah ke backend public URL yang benar dan mencakup prefix API final
+- [ ] Git status branch kerja bersih dari perubahan tak terkait
+- [ ] Dependencies ter-install (`npm ci` untuk baseline reproducible, atau `npm install` bila konteksnya local iteration biasa)
 
-- [ ] Workflow build lulus pada PR ke `develop`
-- [ ] Workflow build lulus pada promotion PR `develop` -> `master`
-- [ ] `npm run build` berhasil tanpa error
-- [ ] Folder `build/` ter-generate dengan lengkap
-- [ ] File `bundle.js` dan `style.css` ada
+### Layer 2 — Repo Build Smoke
 
-### Testing Lokal
+> Tujuan layer ini: membuktikan bundle frontend masih bisa dibentuk dari repo. Ini **bukan** bukti production runtime.
 
-- [ ] Test dengan `serve -s build`
-- [ ] Halaman signin bisa dibuka
-- [ ] Logo tampil semua
+- [ ] Workflow build lulus pada PR ke `develop` (evidence: GitHub check / CI log)
+- [ ] Promotion PR `develop` -> `master` punya evidence build yang cukup; jangan asumsi workflow otomatis berjalan untuk target `master`
+- [ ] `npm run build` berhasil tanpa error (`REQUIRES REPO VERIFICATION` bila belum dijalankan fresh)
+- [ ] Folder `build/` ter-generate fresh setelah build, bukan output lama
+- [ ] File utama hasil build ada: `index.html`, `bundle.js`, `style.css`
+
+### Layer 3 — Local Static Smoke
+
+> Tujuan layer ini: memastikan artifact `build/` benar-benar bisa disajikan sebagai static site sebelum upload/deploy.
+
+- [ ] Jalankan static server lokal, misalnya `serve -s build -p 3000` (`REQUIRES REPO VERIFICATION` bila command belum dijalankan)
+- [ ] Halaman signin bisa dibuka dari artifact static
+- [ ] Logo / file assets tampil
 - [ ] Dark mode toggle berfungsi
-- [ ] Responsive di mobile view
-- [ ] No error di browser console
+- [ ] Responsive di mobile view dasar
+- [ ] Browser console tidak menunjukkan error blocking saat startup
 
-### Deployment
+### Layer 4 — Anonymous API Contract Smoke
+
+> Tujuan layer ini: memverifikasi contract API public + prefix production tanpa memakai credentials nyata.
+
+- [ ] Endpoint protected pada target `API_BASE_URL` production reachable dan memberi auth-required response yang sesuai (misalnya `401`), serta **bukan** `404` / network error
+- [ ] Verifikasi bahwa contract Web FE production memang memakai `API_BASE_URL` yang mencakup prefix API final `/api`; route tanpa prefix bukan success evidence untuk frontend contract
+- [ ] Tidak ada CORS / network error saat browser mencoba bootstrap anonymous flow
+
+### Layer 5 — Deployment Readiness
+
+> Tujuan layer ini: memastikan artifact dan target release branch siap dipromosikan / diupload.
 
 - [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
-- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch final adalah `master`, build command benar, dan output directory mengarah ke artifact static yang tepat
-- [ ] Promotion PR `develop` -> `master` sudah lulus workflow build sebelum `master` diperlakukan release-ready
+- [ ] Jika memakai DigitalOcean App Platform Static Site, source branch final = `master`, build command benar, dan output directory mengarah ke artifact static yang tepat
+- [ ] Promotion PR `develop` -> `master` punya evidence review + build yang cukup sebelum `master` diperlakukan release-ready
 - [ ] Test akses dari domain production
 
 ### Docker Compose Verification
@@ -118,13 +134,25 @@ serve -s build -p 3000
 - [ ] Pastikan `/api` diproxy lewat gateway ke backend container `backend:3005`
 - [ ] Gunakan `docker compose down` untuk stop stack, atau `docker compose down -v` bila juga ingin membersihkan volume lokal
 
-### Post-Deployment
+### Layer 6 — Post-Deploy Authenticated Smoke
 
-- [ ] Login berhasil
-- [ ] Dashboard data tampil
-- [ ] Export PDF/Excel berfungsi
-- [ ] Test di berbagai browser
-- [ ] Monitor error logs
+> Tujuan layer ini: membuktikan flow runtime utama bekerja setelah deploy. Layer ini membutuhkan browser/runtime evidence dan biasanya `EXTERNAL VERIFICATION REQUIRED` bila credentials tidak tersedia di sesi ini.
+
+- [ ] Login berhasil dengan account yang diizinkan
+- [ ] Dashboard data tampil sesuai role / akses account
+- [ ] Navigasi antar halaman utama berjalan tanpa error blocking
+- [ ] Export PDF/Excel berfungsi untuk flow yang memang tersedia di production
+- [ ] Search / filter utama bekerja pada halaman yang relevan
+
+### Layer 7 — Post-Deploy Browser / Ops Smoke
+
+- [ ] Test di Chrome latest
+- [ ] Test di Firefox latest
+- [ ] Test di Edge latest
+- [ ] Test di mobile browser / responsive viewport yang disepakati
+- [ ] Browser console bersih dari error runtime yang blocking
+- [ ] Monitor error logs / hosting logs setelah deploy
+- [ ] Catat evidence hasil smoke (screenshot, console capture, atau issue/PR note)
 
 ---
 

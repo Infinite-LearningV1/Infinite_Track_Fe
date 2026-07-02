@@ -44,6 +44,34 @@ test("classifyAuthFailure marks invalid refresh token as non-refreshable", () =>
   });
 });
 
+test("classifyAuthFailure marks invalid bearer token as non-refreshable", () => {
+  const result = classifyAuthFailure({
+    response: {
+      status: 401,
+      data: { message: "Invalid token" },
+    },
+  });
+
+  assert.deepEqual(result, {
+    kind: "non_refreshable",
+    reason: "refresh_invalid",
+  });
+});
+
+test("classifyAuthFailure marks missing bearer token as non-refreshable", () => {
+  const result = classifyAuthFailure({
+    response: {
+      status: 401,
+      data: { message: "No token provided" },
+    },
+  });
+
+  assert.deepEqual(result, {
+    kind: "non_refreshable",
+    reason: "refresh_invalid",
+  });
+});
+
 test("classifyAuthFailure treats refresh or session expired message without code as non-refreshable", () => {
   const result = classifyAuthFailure({
     status: 401,

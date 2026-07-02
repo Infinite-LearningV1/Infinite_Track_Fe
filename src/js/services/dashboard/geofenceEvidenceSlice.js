@@ -1,20 +1,28 @@
 export function buildGeofenceEvidenceViewModel(response) {
   const data = response?.data || {};
+  const operationalContext = data.operational_context || {};
+  const window = data.window || response?.executed_window || null;
 
   return {
     status: data.status || "empty",
-    rawCounts:
-      data.raw_counts || {
-        total_events: 0,
-        enter_events: 0,
-        exit_events: 0,
-        unique_users: 0,
-      },
+    needsData: Boolean(data.needs_data),
+    reason: data.reason || null,
     authority: data.authority || null,
     finalAttendanceAuthority: data.final_attendance_authority || null,
-    reason: data.reason || null,
-    needsData: Boolean(data.needs_data),
-    window: response?.executed_window || null,
+    window,
+    rawCounts: {
+      total_events: data.raw_counts?.total_events || 0,
+      enter_events: data.raw_counts?.enter_events || 0,
+      exit_events: data.raw_counts?.exit_events || 0,
+      unique_users: data.raw_counts?.unique_users || 0,
+    },
+    operationalContext: {
+      activity_label: operationalContext.activity_label || null,
+      activity_note: operationalContext.activity_note || null,
+      enter_context: operationalContext.enter_context || null,
+      exit_context: operationalContext.exit_context || null,
+      dashboard_note: operationalContext.dashboard_note || null,
+    },
   };
 }
 

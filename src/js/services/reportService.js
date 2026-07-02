@@ -207,11 +207,12 @@ export class ReportService {
     }
   }
 
-  async getFuzzyAhpAnalysis() {
+  async getFuzzyAhpAnalysis({ type = "discipline" } = {}) {
     try {
       const response = await this.requestExecutor({
         method: "get",
-        url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp`,
+        url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/dashboard`,
+        params: { type },
       });
 
       return response.data;

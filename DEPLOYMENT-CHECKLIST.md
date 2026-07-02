@@ -82,14 +82,14 @@ serve -s build -p 3000
 - [ ] 🔍 **GAP:** Active rulesets yang terdeteksi tidak menampilkan required status check untuk workflow build
 - [ ] 🔍 **GAP:** Repo workflow `.github/workflows/build.yml` saat ini hanya trigger PR/push ke `develop`, belum ke promotion PR target `master`
 
-### Pre-Build
+### Layer 1 — Pre-Build Readiness
 
-- [ ] File `.env.production` sudah dibuat
-- [ ] `API_BASE_URL` sudah diubah ke backend production
-- [ ] Git status bersih (no conflicts)
-- [ ] Dependencies ter-install (`npm ci` untuk clean install yang konsisten dengan baseline CI, atau `npm install` bila konteksnya local iteration biasa)
+> Tujuan layer ini: memastikan input build sudah siap sebelum ada klaim smoke / deploy success.
 
-### Build
+- [ ] File `.env.production` atau build-time env production setara sudah disiapkan (`REQUIRES REPO VERIFICATION`)
+- [ ] `API_BASE_URL` sudah mengarah ke backend public URL yang benar dan mencakup prefix API final
+- [ ] Git status branch kerja bersih dari perubahan tak terkait
+- [ ] Dependencies ter-install (`npm ci` untuk baseline reproducible, atau `npm install` bila konteksnya local iteration biasa)
 
 - [ ] Workflow build lulus pada PR ke `develop`
 - [ ] Promotion PR `develop` -> `master` memiliki evidence build yang cukup; repo workflow saat ini belum trigger otomatis ke target `master`
@@ -97,16 +97,36 @@ serve -s build -p 3000
 - [ ] Folder `build/` ter-generate dengan lengkap
 - [ ] File `bundle.js` dan `style.css` ada
 
-### Testing Lokal
+> Tujuan layer ini: membuktikan bundle frontend masih bisa dibentuk dari repo. Ini **bukan** bukti production runtime.
 
-- [ ] Test dengan `serve -s build`
-- [ ] Halaman signin bisa dibuka
-- [ ] Logo tampil semua
+- [ ] Workflow build lulus pada PR ke `develop` (evidence: GitHub check / CI log)
+- [ ] Promotion PR `develop` -> `master` punya evidence build yang cukup; jangan asumsi workflow otomatis berjalan untuk target `master`
+- [ ] `npm run build` berhasil tanpa error (`REQUIRES REPO VERIFICATION` bila belum dijalankan fresh)
+- [ ] Folder `build/` ter-generate fresh setelah build, bukan output lama
+- [ ] File utama hasil build ada: `index.html`, `bundle.js`, `style.css`
+
+### Layer 3 — Local Static Smoke
+
+> Tujuan layer ini: memastikan artifact `build/` benar-benar bisa disajikan sebagai static site sebelum upload/deploy.
+
+- [ ] Jalankan static server lokal, misalnya `serve -s build -p 3000` (`REQUIRES REPO VERIFICATION` bila command belum dijalankan)
+- [ ] Halaman signin bisa dibuka dari artifact static
+- [ ] Logo / file assets tampil
 - [ ] Dark mode toggle berfungsi
-- [ ] Responsive di mobile view
-- [ ] No error di browser console
+- [ ] Responsive di mobile view dasar
+- [ ] Browser console tidak menunjukkan error blocking saat startup
 
-### Deployment
+### Layer 4 — Anonymous API Contract Smoke
+
+> Tujuan layer ini: memverifikasi contract API public + prefix production tanpa memakai credentials nyata.
+
+- [ ] Endpoint protected pada target `API_BASE_URL` production reachable dan memberi auth-required response yang sesuai (misalnya `401`), serta **bukan** `404` / network error
+- [ ] Verifikasi bahwa contract Web FE production memang memakai `API_BASE_URL` yang mencakup prefix API final `/api`; route tanpa prefix bukan success evidence untuk frontend contract
+- [ ] Tidak ada CORS / network error saat browser mencoba bootstrap anonymous flow
+
+### Layer 5 — Deployment Readiness
+
+> Tujuan layer ini: memastikan artifact dan target release branch siap dipromosikan / diupload.
 
 - [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
@@ -129,13 +149,25 @@ serve -s build -p 3000
 - [ ] Pastikan `/api` diproxy lewat gateway ke backend container `backend:3005`
 - [ ] Gunakan `docker compose down` untuk stop stack, atau `docker compose down -v` bila juga ingin membersihkan volume lokal
 
-### Post-Deployment
+### Layer 6 — Post-Deploy Authenticated Smoke
 
-- [ ] Login berhasil
-- [ ] Dashboard data tampil
-- [ ] Export PDF/Excel berfungsi
-- [ ] Test di berbagai browser
-- [ ] Monitor error logs
+> Tujuan layer ini: membuktikan flow runtime utama bekerja setelah deploy. Layer ini membutuhkan browser/runtime evidence dan biasanya `EXTERNAL VERIFICATION REQUIRED` bila credentials tidak tersedia di sesi ini.
+
+- [ ] Login berhasil dengan account yang diizinkan
+- [ ] Dashboard data tampil sesuai role / akses account
+- [ ] Navigasi antar halaman utama berjalan tanpa error blocking
+- [ ] Export PDF/Excel berfungsi untuk flow yang memang tersedia di production
+- [ ] Search / filter utama bekerja pada halaman yang relevan
+
+### Layer 7 — Post-Deploy Browser / Ops Smoke
+
+- [ ] Test di Chrome latest
+- [ ] Test di Firefox latest
+- [ ] Test di Edge latest
+- [ ] Test di mobile browser / responsive viewport yang disepakati
+- [ ] Browser console bersih dari error runtime yang blocking
+- [ ] Monitor error logs / hosting logs setelah deploy
+- [ ] Catat evidence hasil smoke (screenshot, console capture, atau issue/PR note)
 
 ---
 
@@ -157,17 +189,31 @@ Catatan:
 
 ### 2. CORS Configuration
 
-Backend harus allow origin dari frontend domain Anda:
+Backend harus mengizinkan origin frontend production secara eksplisit dan mendukung credentialed browser requests untuk auth/session flow.
+
+> Karena Web FE mengirim request auth dengan `withCredentials: true`, CORS production **tidak boleh** memakai wildcard origin. Origin harus spesifik, `credentials` harus diaktifkan bila flow memakai cookie/session, dan preflight harus lolos untuk header yang dipakai frontend.
+
+Contoh backend (Express.js):
 
 ```javascript
-// Contoh di backend (Express.js)
 app.use(
   cors({
     origin: "https://yourdomain.com",
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "X-Client-Type"],
   }),
 );
 ```
+
+Jika suatu endpoint benar-benar membutuhkan header `Authorization`, tambahkan hanya untuk endpoint/flow yang memang menggunakannya; jangan asumsikan semua request Web FE mengirim bearer token karena repo auth runtime saat ini justru membersihkan Authorization dari protected request flow.
+
+Checklist validasi CORS:
+
+- origin frontend production tercantum spesifik
+- credentialed requests diizinkan bila session/cookie dipakai
+- preflight `OPTIONS` lolos untuk `Content-Type` dan `X-Client-Type`
+- browser tidak menampilkan CORS/network error saat login atau bootstrap session
 
 ### 3. File Assets
 
@@ -248,14 +294,53 @@ scp -r build/* user@your-server:/var/www/infinitetrack/
 
 ---
 
-## 📞 Emergency Contacts
+## 📞 Rollback & Incident Response
 
-Jika ada masalah serius saat deployment:
+Jika ada masalah serius saat deployment, gunakan decision tree berikut sebelum memilih rollback path.
 
-1. **Rollback:** Deploy versi build sebelumnya
-2. **Check Logs:** Browser console + Server logs
-3. **Verify Backend:** Pastikan backend accessible
-4. **Test Locally:** Reproduce issue di localhost
+### Decision Tree
+
+1. **Build gagal sebelum release branch / artifact dipromosikan**
+   - Jangan deploy paksa.
+   - Perbaiki build/config lebih dulu.
+   - Release belum valid, jadi rollback production belum relevan.
+
+2. **Artifact static sudah terdeploy, tetapi browser/runtime langsung broken**
+   - Cek apakah masalahnya berasal dari env/build contract (`API_BASE_URL`, wrong asset path, wrong output artifact).
+   - Jika ya, rollback ke deployment static sebelumnya atau redeploy artifact terakhir yang diketahui sehat.
+
+3. **Frontend baru naik, tetapi API/auth flow gagal**
+   - Pisahkan apakah masalahnya CORS / env base URL / backend outage.
+   - Jika penyebabnya frontend deploy/config baru, rollback frontend.
+   - Jika penyebabnya backend outage tanpa perubahan frontend, rollback frontend biasanya tidak menyelesaikan insiden; eskalasi backend.
+
+4. **Promotion `develop` -> `master` sudah merge tetapi release ternyata tidak sehat**
+   - Buat revert path yang jelas pada branch/release flow.
+   - Gunakan revert PR / commit rollback yang traceable, lalu pastikan hosting kembali menunjuk ke artifact/deployment yang sehat.
+
+### Minimum Rollback Evidence
+
+- [ ] Catat incident timestamp
+- [ ] Catat trigger rollback (contoh: blank page, auth fail, export fail, CORS/network error)
+- [ ] Catat rollback target (commit / PR / deployment ID / previous App Platform deployment)
+- [ ] Catat siapa yang menyetujui rollback
+- [ ] Jalankan post-rollback smoke minimal
+- [ ] Lampirkan evidence ke issue / PR / release note
+
+### Minimum Post-Rollback Smoke
+
+- [ ] Frontend domain kembali bisa dibuka
+- [ ] Halaman signin tampil
+- [ ] Endpoint protected yang dituju oleh `API_BASE_URL` production kembali reachable dan memberi auth-required response yang sesuai (misalnya anonymous `401`), bukan `404` / network error
+- [ ] Jika credentials tersedia, login + dashboard smoke diulang
+- [ ] Browser console / hosting logs tidak menunjukkan error rollback yang blocking
+
+### Quick Response Actions
+
+1. **Check Logs:** Browser console + hosting/server logs
+2. **Verify Backend:** Pastikan backend accessible sebelum menyalahkan frontend artifact
+3. **Test Locally:** Reproduce issue dari artifact/build branch bila perlu
+4. **Rollback:** gunakan deployment/commit terakhir yang sudah terbukti sehat, bukan snapshot yang belum punya smoke evidence
 
 ---
 

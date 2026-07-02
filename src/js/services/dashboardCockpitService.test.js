@@ -7,6 +7,7 @@ import {
   createDashboardCockpitState,
   createDashboardCockpitStateFromSources,
 } from "./dashboardCockpitService.js";
+import { createLiveMapSliceState } from "./dashboard/liveMapSlice.js";
 
 function createMapContext(points, status = "ready") {
   return { status, points };
@@ -36,6 +37,38 @@ test("cockpit loading state marks every panel as loading", () => {
       (panel) => panel.state === DASHBOARD_PANEL_STATES.LOADING,
     ),
   );
+});
+
+test("geofence evidence view model preserves dedicated operational context", () => {
+  const cockpit = createDashboardCockpitStateFromSources({
+    geofenceEvidenceResponse: {
+      data: {
+        status: "ready",
+        needs_data: false,
+        authority: "attendance.geofence-evidence",
+        final_attendance_authority: "attendance records",
+        reason: "Dedicated endpoint available",
+        window: { from: "2026-06-01", to: "2026-06-30" },
+        raw_counts: {
+          total_events: 10,
+          enter_events: 6,
+          exit_events: 4,
+          unique_users: 5,
+        },
+        operational_context: {
+          activity_label: "Morning attendance",
+          activity_note: "Using dedicated evidence feed",
+          enter_context: "6 enters detected",
+          exit_context: "4 exits detected",
+          dashboard_note: "Backend truth only",
+        },
+      },
+    },
+  });
+
+  const panel = cockpit.bottomPanels.find((entry) => entry.key === "geofenceEvidence");
+  assert.equal(panel.state, DASHBOARD_PANEL_STATES.READY);
+  assert.match(panel.note, /backend truth only/i);
 });
 
 test("cockpit source boundary ignores legacy embedded analytics in report response", () => {
@@ -77,8 +110,11 @@ test("cockpit source boundary ignores legacy embedded analytics in report respon
   );
   assert.equal(averageDiscipline.value, null);
   assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
-  assert.equal(historicalTrend.data?.isPreview, true);
-  assert.equal(historicalTrend.data?.source, "dummy-preview");
+  assert.equal(historicalTrend.data, null);
+  assert.match(
+    historicalTrend.message,
+    /historical attendance trend waits for explicit dashboard analytics/i,
+  );
 });
 
 test("cockpit average discipline comes from executive_kpis.avg_discipline instead of legacy discipline_index", () => {
@@ -196,7 +232,7 @@ test("cockpit historical trend becomes ready only with explicit backend points",
   );
   const selectedWindowRange = historicalTrend.data.ranges[0];
 
-  assert.equal(historicalTrend.subtitle, "On Time / Late / Alpha trend");
+  assert.equal(historicalTrend.subtitle, "");
   assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(historicalTrend.data.isPreview, false);
   assert.equal(
@@ -204,11 +240,8 @@ test("cockpit historical trend becomes ready only with explicit backend points",
     "backend/dashboard-analytics.points",
   );
   assert.equal(historicalTrend.data.defaultRangeKey, "selectedWindow");
-  assert.match(historicalTrend.detail, /On Time, Late, and Alpha/);
-  assert.match(
-    historicalTrend.note,
-    /available from historical_trend\.points for dashboard analytics context/i,
-  );
+  assert.equal(historicalTrend.detail, "");
+  assert.equal(historicalTrend.note, "");
   assert.equal(selectedWindowRange.key, "selectedWindow");
   assert.equal(selectedWindowRange.label, "Selected Window");
   assert.deepEqual(selectedWindowRange.xAxisLabels, [
@@ -240,6 +273,78 @@ test("cockpit historical trend becomes ready only with explicit backend points",
   assert.equal(selectedWindowRange.series[0].points[0].x, 24);
   assert.equal(selectedWindowRange.series[0].points[1].x, 486);
   assert.equal(selectedWindowRange.series[0].points[2].x, 948);
+  assert.deepEqual(selectedWindowRange.plotArea, {
+    leftX: 24,
+    rightX: 948,
+    topY: 20,
+    baselineY: 185,
+    viewBoxWidth: 992,
+    viewBoxHeight: 220,
+  });
+  assert.deepEqual(
+    selectedWindowRange.hoverPoints.map((point) => ({
+      index: point.index,
+      label: point.label,
+      x: point.x,
+      keys: point.items.map((item) => item.key),
+    })),
+    [
+      {
+        index: 0,
+        label: "On Time",
+        x: 24,
+        keys: ["ontime", "late", "alpha"],
+      },
+      {
+        index: 1,
+        label: "On Time",
+        x: 486,
+        keys: ["ontime", "late", "alpha"],
+      },
+      {
+        index: 2,
+        label: "On Time",
+        x: 948,
+        keys: ["ontime", "late", "alpha"],
+      },
+    ],
+  );
+});
+
+test("cockpit historical trend reduces long backend windows to weekly chart cadence", () => {
+  const dailyPoints = Array.from({ length: 29 }, (_, index) => ({
+    date: `2026-06-${String(index + 1).padStart(2, "0")}`,
+    on_time: 60 + index,
+    late: 20 + (index % 4),
+    alpha: index % 3,
+  }));
+
+  const cockpit = createDashboardCockpitStateFromSources({
+    analyticsResponse: {
+      data: {
+        historical_trend: {
+          points: dailyPoints,
+        },
+      },
+    },
+  });
+
+  const historicalTrend = cockpit.middlePanels.find(
+    (panel) => panel.key === "historicalTrend",
+  );
+  const selectedWindowRange = historicalTrend.data.ranges[0];
+
+  assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.READY);
+  assert.deepEqual(selectedWindowRange.xAxisLabels, [
+    "01 Jun",
+    "08 Jun",
+    "15 Jun",
+    "22 Jun",
+    "29 Jun",
+  ]);
+  assert.equal(selectedWindowRange.series[0].points.length, 5);
+  assert.equal(selectedWindowRange.series[1].points.length, 5);
+  assert.equal(selectedWindowRange.series[2].points.length, 5);
 });
 
 test("cockpit historical trend stays conservative when backend points are incomplete", () => {
@@ -478,6 +583,7 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     roleName: "Employee",
     phoneNumber: "081234567890",
     mode: "WFO",
+    modeColor: "#2563eb",
     status: "ontime",
     information: "WFO",
     attendanceDate: "2026-05-03",
@@ -493,94 +599,16 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     trackingNote:
       "Markers reflect snapshot context only; they are not continuous tracking or filtered report/export history.",
   });
-  assert.equal(historicalTrend.subtitle, "On Time / Late / Alpha trend");
+  assert.equal(historicalTrend.subtitle, "");
   assert.equal(historicalTrend.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
-  assert.equal(historicalTrend.data.isPreview, true);
-  assert.equal(historicalTrend.data.source, "dummy-preview");
-  assert.equal(historicalTrend.data.defaultRangeKey, "monthly");
-  assert.deepEqual(
-    historicalTrend.data.ranges.map((range) => ({
-      key: range.key,
-      label: range.label,
-    })),
-    [
-      { key: "monthly", label: "Monthly" },
-      { key: "quarterly", label: "Quarterly" },
-      { key: "annually", label: "Annually" },
-    ],
-  );
-  const monthlyPreviewRange = historicalTrend.data.ranges.find(
-    (range) => range.key === "monthly",
-  );
-  const annualPreviewRange = historicalTrend.data.ranges.find(
-    (range) => range.key === "annually",
-  );
-  assert.deepEqual(monthlyPreviewRange.xAxisLabels, [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ]);
-  assert.deepEqual(monthlyPreviewRange.yAxisLabels, [
-    "250",
-    "200",
-    "150",
-    "100",
-    "50",
-    "0",
-  ]);
-  assert.deepEqual(
-    monthlyPreviewRange.series.map((series) => ({
-      key: series.key,
-      label: series.label,
-    })),
-    [
-      { key: "ontime", label: "On Time" },
-      { key: "late", label: "Late" },
-      { key: "alpha", label: "Alpha" },
-    ],
-  );
-  assert.deepEqual(
-    monthlyPreviewRange.metrics.map((metric) => metric.key),
-    ["ontime", "late", "alpha"],
-  );
-  assert.ok(
-    historicalTrend.data.ranges.every(
-      (range) =>
-        range.series.length === 3 &&
-        range.metrics.length === 3 &&
-        range.series.every(
-          (series) =>
-            series.points.length === 12 &&
-            /^M /.test(series.chartPath) &&
-            /^M /.test(series.areaPath) &&
-            series.chartPath.includes(" C "),
-        ),
-    ),
-  );
-  assert.equal(
-    annualPreviewRange.series
-      .find((series) => series.key === "alpha")
-      .points.at(-2).value,
-    0,
-  );
-  assert.equal(
-    annualPreviewRange.series
-      .find((series) => series.key === "alpha")
-      .points.at(-1).value,
-    0,
-  );
+  assert.equal(historicalTrend.data, null);
   assert.match(
+    historicalTrend.message,
+    /historical attendance trend waits for explicit dashboard analytics/i,
+  );
+  assert.equal(
     historicalTrend.note,
-    /shown for dashboard analytics context only and must not be treated as attendance truth/i,
+    "Web FE will not derive trend from summary totals or use preview chart data.",
   );
 
   assert.equal(modeMix.state, DASHBOARD_PANEL_STATES.READY);
@@ -605,10 +633,16 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     "Decision support output once backend feed is wired",
   );
   assert.doesNotMatch(fuzzyAhp.subtitle, /cr, weights, ranking, distribution/i);
-  assert.equal(fuzzyAhp.data, null);
+  assert.deepEqual(fuzzyAhp.data.typeOptions, [
+    { key: "discipline", title: "Discipline" },
+    { key: "wfa", title: "WFA" },
+    { key: "smart_ac", title: "Smart AC" },
+  ]);
+  assert.equal(fuzzyAhp.data.activeType, "discipline");
+  assert.match(fuzzyAhp.message, /explicit analysis\.fuzzy-ahp dashboard backend feed/i);
   assert.match(
     fuzzyAhp.note,
-    /stay hidden until backend-backed fuzzy ahp output is wired/i,
+    /no dummy criteria, weights, rankings, or preview decisions/i,
   );
   assert.equal(geofenceEvidence.state, DASHBOARD_PANEL_STATES.BACKEND_REQUIRED);
 });
@@ -888,6 +922,11 @@ test("cockpit KPI metadata keeps the new management shell without deprecated pre
           valueFormat: "percent",
           unit: "%",
           priority: 1,
+          comparisonText: "vs periode sebelumnya",
+          trendLabel: "4.6%",
+          trendTone: "positive",
+          trendDirection: "up",
+          displayUnit: null,
         },
       },
       {
@@ -899,6 +938,11 @@ test("cockpit KPI metadata keeps the new management shell without deprecated pre
           valueFormat: "count",
           unit: "records",
           priority: 2,
+          comparisonText: "vs periode sebelumnya",
+          trendLabel: "2",
+          trendTone: "positive",
+          trendDirection: "down",
+          displayUnit: "Users",
         },
       },
       {
@@ -910,6 +954,11 @@ test("cockpit KPI metadata keeps the new management shell without deprecated pre
           valueFormat: "score",
           unit: "index",
           priority: 3,
+          comparisonText: "vs periode sebelumnya",
+          trendLabel: "3.1",
+          trendTone: "positive",
+          trendDirection: "up",
+          displayUnit: null,
         },
       },
       {
@@ -921,6 +970,11 @@ test("cockpit KPI metadata keeps the new management shell without deprecated pre
           valueFormat: "count",
           unit: "people",
           priority: 4,
+          comparisonText: "vs periode sebelumnya",
+          trendLabel: "3",
+          trendTone: "negative",
+          trendDirection: "up",
+          displayUnit: "Users",
         },
       },
     ],
@@ -1102,22 +1156,20 @@ test("cockpit hero uses explicit today locations feed as live map source when av
       },
     },
     todayLocations: {
-      viewModel: {
-        locations: [
-          {
-            attendance_id: "att_001",
-            full_name: "Andi Wijaya",
-            status: "ontime",
-            work_mode: "WFO",
-            attendance_date: "2026-05-03",
-            latitude: -0.9,
-            longitude: 119.8,
-            radius: 100,
-            location_description: "Kantor Palu",
-          },
-        ],
-        authority: "attendance.today-locations",
-      },
+      data: [
+        {
+          attendance_id: "att_001",
+          full_name: "Andi Wijaya",
+          status: "ontime",
+          work_mode: "WFO",
+          attendance_date: "2026-05-03",
+          latitude: -0.9,
+          longitude: 119.8,
+          radius: 100,
+          location_description: "Kantor Palu",
+        },
+      ],
+      authority: "attendance.today-locations",
     },
   });
 
@@ -1142,16 +1194,86 @@ test("cockpit hero stays backend-required when today locations feed is unavailab
   assert.equal(cockpit.hero.data, null);
 });
 
-test("cockpit fuzzy ahp becomes ready only with explicit fuzzy ahp backend response", () => {
+test("cockpit hero preserves ready live map data when today locations are passed through the slice wrapper", () => {
+  const todayLocations = createLiveMapSliceState(
+    {
+      data: {
+        date: "2026-07-01",
+        timezone: "Asia/Jakarta",
+        snapshot_type: "attendance_checkin_snapshot",
+        authority: "context_only",
+        final_attendance_authority: "attendance_records",
+        total_users: 52,
+        locations: [
+          {
+            user_id: 56,
+            full_name: "Billy Pratama",
+            status: "WFO",
+            check_in_time: "08:00",
+            latitude: -0.842239,
+            longitude: 119.892637,
+          },
+        ],
+      },
+    },
+    { period: "today" },
+  );
+
+  const cockpit = createDashboardCockpitStateFromSources({
+    analyticsResponse: {
+      data: {
+        executive_kpis: {
+          attendance_rate: 92,
+        },
+      },
+    },
+    todayLocations,
+  });
+
+  assert.equal(cockpit.hero.state, DASHBOARD_PANEL_STATES.READY);
+  assert.equal(cockpit.hero.data.source, "context_only");
+  assert.equal(cockpit.hero.data.locations.length, 1);
+  assert.equal(cockpit.hero.data.locations[0].fullName, "Billy Pratama");
+  assert.equal(cockpit.hero.data.locations[0].mode, "WFO");
+  assert.equal(cockpit.hero.data.locations[0].timeIn, "08:00");
+  assert.equal(cockpit.hero.data.totalRows, 1);
+  assert.equal(cockpit.hero.data.modeSummary.total, 1);
+});
+
+test("cockpit fuzzy ahp preserves final dashboard recap payload", () => {
   const cockpit = createDashboardCockpitStateFromSources({
     fuzzyAhpResponse: {
       data: {
-        consistency_ratio: 0.06,
-        rankings: [
-          { label: "WFH", score: 0.41 },
-          { label: "WFO", score: 0.34 },
-          { label: "WFA", score: 0.25 },
+        type: "discipline",
+        type_label: "Discipline",
+        generated_at: "2026-06-25T10:00:00.000Z",
+        timezone: "Asia/Makassar",
+        requested_window: { from: "2026-06-01", to: "2026-06-30" },
+        executed_window: { from: "2026-06-01", to: "2026-06-25" },
+        status: "ready",
+        needs_data: false,
+        consistency: {
+          CR: 0.06,
+          threshold: 0.1,
+          is_consistent: true,
+          summary_label: "Consistent",
+        },
+        criteria_weights: [
+          {
+            key: "attendance",
+            label: "Attendance",
+            display_label: "Attendance",
+            value: 0.45,
+          },
+          {
+            key: "punctuality",
+            label: "Punctuality",
+            display_label: "Punctuality",
+            value: 0.35,
+          },
         ],
+        ranking_preview: { items: [{ label: "Andi", score: 0.91 }] },
+        distribution: { excellent: 2, good: 5 },
       },
     },
   });
@@ -1162,31 +1284,42 @@ test("cockpit fuzzy ahp becomes ready only with explicit fuzzy ahp backend respo
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
   assert.equal(fuzzyAhp.data.source, "analysis.fuzzy-ahp");
+  assert.equal(fuzzyAhp.data.type, "discipline");
+  assert.equal(fuzzyAhp.data.typeLabel, "Discipline");
+  assert.equal(fuzzyAhp.data.consistency.CR, 0.06);
+  assert.equal(fuzzyAhp.data.criteriaWeights.length, 2);
+  assert.deepEqual(fuzzyAhp.data.rankingPreview, {
+    items: [{ label: "Andi", score: 0.91 }],
+  });
+  assert.deepEqual(fuzzyAhp.data.distribution, { excellent: 2, good: 5 });
+  assert.deepEqual(fuzzyAhp.data.typeOptions, [
+    { key: "discipline", title: "Discipline" },
+    { key: "wfa", title: "WFA" },
+    { key: "smart_ac", title: "Smart AC" },
+  ]);
+  assert.equal(fuzzyAhp.data.activeType, "discipline");
+  assert.match(fuzzyAhp.note, /explicit backend fuzzy ahp feed/i);
 });
 
-test("cockpit fuzzy ahp adapts dashboard recap sections into explicit fuzzy ahp rankings", () => {
+test("cockpit fuzzy ahp filters malformed criteria weights without adapting legacy sections", () => {
   const cockpit = createDashboardCockpitStateFromSources({
     fuzzyAhpResponse: {
-      success: true,
-      filter: {
-        category: "discipline",
-        analysis_type: "summary",
-      },
       data: {
+        type: "wfa",
+        type_label: "WFA",
         status: "ready",
-        sections: [
+        criteria_weights: [
           {
-            key: "discipline",
-            title: "Discipline",
-            summary: "Top category available",
-            topRank: "WFH",
-            distribution: {
-              WFH: 0.41,
-              WFO: 0.34,
-              WFA: 0.25,
-            },
-            consistency: 0.06,
-            generatedAt: "2026-06-25T10:00:00.000Z",
+            key: "location",
+            label: "Location",
+            display_label: "Location",
+            value: 0.62,
+          },
+          {
+            key: "invalid",
+            label: "Invalid",
+            display_label: "Invalid",
+            value: "0.38",
           },
         ],
       },
@@ -1198,19 +1331,40 @@ test("cockpit fuzzy ahp adapts dashboard recap sections into explicit fuzzy ahp 
   );
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.READY);
-  assert.deepEqual(fuzzyAhp.data.rankings, [
-    { label: "WFH", score: 0.41 },
-    { label: "WFO", score: 0.34 },
-    { label: "WFA", score: 0.25 },
+  assert.deepEqual(fuzzyAhp.data.criteriaWeights, [
+    {
+      key: "location",
+      label: "Location",
+      display_label: "Location",
+      value: 0.62,
+    },
   ]);
-  assert.equal(fuzzyAhp.data.topRanking.label, "WFH");
+  assert.equal(fuzzyAhp.data.activeDecisionKey, "wfa");
+  assert.equal(fuzzyAhp.data.activeType, "wfa");
+  assert.deepEqual(fuzzyAhp.data.typeOptions, [
+    { key: "discipline", title: "Discipline" },
+    { key: "wfa", title: "WFA" },
+    { key: "smart_ac", title: "Smart AC" },
+  ]);
+  assert.equal(Array.isArray(fuzzyAhp.data.decisions), true);
+  assert.equal(fuzzyAhp.data.decisions.length, 1);
+  assert.equal(fuzzyAhp.data.decisions[0].key, "wfa");
+  assert.equal(fuzzyAhp.data.decisions[0].criteriaWeights[0].weight, 0.62);
 });
 
-test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", () => {
+test("cockpit fuzzy ahp does not normalize missing status into empty output", () => {
   const cockpit = createDashboardCockpitStateFromSources({
     fuzzyAhpResponse: {
       data: {
-        rankings: [],
+        type: "discipline",
+        criteria_weights: [
+          {
+            key: "attendance",
+            label: "Attendance",
+            display_label: "Attendance",
+            value: 0.45,
+          },
+        ],
       },
     },
   });
@@ -1220,7 +1374,27 @@ test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", ()
   );
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.NEEDS_DATA);
-  assert.equal(fuzzyAhp.data, null);
+  assert.match(fuzzyAhp.message, /status must be present/i);
+});
+
+test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", () => {
+  const cockpit = createDashboardCockpitStateFromSources({
+    fuzzyAhpResponse: {
+      data: {
+        type: "discipline",
+        status: "ready",
+        criteria_weights: [],
+      },
+    },
+  });
+
+  const fuzzyAhp = cockpit.bottomPanels.find(
+    (panel) => panel.key === "fuzzyAhp",
+  );
+
+  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.NEEDS_DATA);
+  assert.equal(fuzzyAhp.data.type, "discipline");
+  assert.match(fuzzyAhp.message, /criteria_weights must include explicit final dashboard weights/i);
 });
 
 test("cockpit error state isolates every panel as error", () => {

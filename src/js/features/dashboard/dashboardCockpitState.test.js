@@ -2,17 +2,28 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { dashboard } from "./dashboard.js";
+import { buildFahpRequestParams } from "./fahpFilterState.js";
 import { DASHBOARD_PANEL_STATES } from "../../services/dashboardCockpitService.js";
+
+test("dashboard FAHP request params use the final type-based contract", () => {
+  const component = dashboard();
+  const params =
+    component.getFahpRequestParams?.() ||
+    buildFahpRequestParams(component.fahpFilterState);
+
+  assert.deepEqual(params, { type: "discipline" });
+});
 
 test("dashboard initializes cockpit without the retired report workspace surface", () => {
   const component = dashboard();
 
+  assert.equal("realApiCockpit" in component, false);
   assert.equal("cardSummaryData" in component, false);
   assert.equal("analyticsData" in component, false);
   assert.equal("reportWorkspace" in component, false);
   assert.equal(component.summaryData, null);
   assert.equal(component.isExportModalOpen, false);
-  assert.equal(component.dashboardRange, "30d");
+  assert.equal(component.dashboardRange, "current_month");
   assert.equal(component.trendRange, "monthly");
   assert.ok(
     component.cockpit.kpis.every(
@@ -361,10 +372,11 @@ test("dashboard loadSummaryData uses the explicit analytics response for cockpit
   assert.deepEqual(notifications, []);
 });
 
-test("dashboard loadSummaryData keeps report params stable while requesting analytics and today locations only", async () => {
+test("dashboard loadSummaryData keeps report params stable while requesting analytics, geofence, today locations, and Fuzzy AHP", async () => {
   const component = dashboard();
   const reportCalls = [];
   const analyticsCalls = [];
+  const geofenceCalls = [];
   const todayLocationCalls = [];
   const fuzzyAhpCalls = [];
   const originalLog = console.log;
@@ -411,6 +423,21 @@ test("dashboard loadSummaryData keeps report params stable while requesting anal
     };
   };
 
+  component.fetchGeofenceEvidence = async (params) => {
+    geofenceCalls.push(params);
+    return {
+      data: {
+        status: "empty",
+        raw_counts: {
+          total_events: 0,
+          enter_events: 0,
+          exit_events: 0,
+          unique_users: 0,
+        },
+      },
+    };
+  };
+
   component.fetchTodayLocations = async () => {
     todayLocationCalls.push(true);
     return {
@@ -418,10 +445,33 @@ test("dashboard loadSummaryData keeps report params stable while requesting anal
     };
   };
 
-  component.fetchFuzzyAhpAnalysis = async () => {
-    fuzzyAhpCalls.push(true);
+  component.fetchFuzzyAhpAnalysis = async (params) => {
+    fuzzyAhpCalls.push(params);
     return {
-      data: {},
+      data: {
+        type: params.type,
+        type_label: "Discipline",
+        status: "ready",
+        needs_data: false,
+        consistency: {
+          CR: 0.04,
+          threshold: 0.1,
+          is_consistent: true,
+          summary_label: "Consistent",
+        },
+        criteria_weights: [
+          {
+            key: "attendance",
+            label: "Attendance",
+            display_label: "Attendance",
+            value: 0.45,
+          },
+        ],
+        ranking_preview: {
+          items: [{ label: "Andi", score: 0.91 }],
+        },
+        distribution: { excellent: 1 },
+      },
     };
   };
 
@@ -444,8 +494,9 @@ test("dashboard loadSummaryData keeps report params stable while requesting anal
     },
   ]);
   assert.deepEqual(analyticsCalls, [{ period: "current_month" }]);
+  assert.deepEqual(geofenceCalls, [{ period: "current_month" }]);
   assert.equal(todayLocationCalls.length, 1);
-  assert.equal(fuzzyAhpCalls.length, 0);
+  assert.deepEqual(fuzzyAhpCalls, [{ type: "discipline" }]);
 });
 
 test("dashboard loadSummaryData keeps report rows when analytics fails but today locations explicitly returns no rows", async () => {
@@ -839,6 +890,9 @@ test("dashboard renderDashboardMap draws radius circles only for positive finite
     map() {
       return fakeMap;
     },
+    divIcon(options) {
+      return options;
+    },
     tileLayer() {
       return {
         addTo() {
@@ -991,6 +1045,9 @@ test("dashboard renderDashboardMap reuses the existing Leaflet map instead of de
       mapCreateCalls += 1;
       return fakeMap;
     },
+    divIcon(options) {
+      return options;
+    },
     tileLayer() {
       return {
         addTo() {
@@ -1072,6 +1129,201 @@ test("dashboard renderDashboardMap reuses the existing Leaflet map instead of de
   assert.ok(clearLayersCalls >= 4);
 });
 
+test("dashboard renderDashboardMap disables animated zoom transitions during refresh", async () => {
+  const component = dashboard();
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const mapContainer = { id: "dashboardMapView", isConnected: true };
+  const mapOptions = [];
+  const fitBoundsOptions = [];
+  const setViewOptions = [];
+
+  const createElement = (tagName) => ({
+    tagName,
+    className: "",
+    textContent: "",
+    type: "",
+    children: [],
+    listeners: {},
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
+    addEventListener(eventName, handler) {
+      this.listeners[eventName] = handler;
+    },
+  });
+
+  const fakeMap = {
+    stop() {},
+    off() {},
+    remove() {},
+    getContainer() {
+      return mapContainer;
+    },
+    fitBounds(_bounds, options) {
+      fitBoundsOptions.push(options);
+    },
+    setView(_coords, _zoom, options) {
+      setViewOptions.push(options);
+    },
+    invalidateSize() {},
+  };
+
+  component.dashboardMapRenderToken = 1;
+  component.cockpit.hero = {
+    state: DASHBOARD_PANEL_STATES.READY,
+    data: {
+      locations: [
+        {
+          fullName: "Animated A",
+          userName: "Animated A",
+          status: "ontime",
+          mode: "WFO",
+          attendanceDate: "2026-05-03",
+          latitude: -0.9,
+          longitude: 119.8,
+          radius: 100,
+          description: "Animated point A",
+          sourceNote:
+            "Map context is a backend analytics snapshot for dashboard context.",
+          trackingNote:
+            "Markers reflect snapshot context only; they are not continuous tracking or filtered report/export history.",
+        },
+        {
+          fullName: "Animated B",
+          userName: "Animated B",
+          status: "late",
+          mode: "WFH",
+          attendanceDate: "2026-05-03",
+          latitude: -0.91,
+          longitude: 119.81,
+          radius: 0,
+          description: "Animated point B",
+          sourceNote:
+            "Map context is a backend analytics snapshot for dashboard context.",
+          trackingNote:
+            "Markers reflect snapshot context only; they are not continuous tracking or filtered report/export history.",
+        },
+      ],
+    },
+  };
+
+  component.getDashboardLeaflet = async () => ({
+    map(_container, options) {
+      mapOptions.push(options);
+      return fakeMap;
+    },
+    divIcon(options) {
+      return options;
+    },
+    tileLayer() {
+      return {
+        addTo() {
+          return this;
+        },
+      };
+    },
+    layerGroup() {
+      return {
+        addTo() {
+          return this;
+        },
+        clearLayers() {
+          return this;
+        },
+      };
+    },
+    marker() {
+      return {
+        addTo() {
+          return this;
+        },
+        bindPopup() {
+          return this;
+        },
+      };
+    },
+    circle() {
+      return {
+        addTo() {
+          return this;
+        },
+      };
+    },
+    featureGroup() {
+      return {
+        getBounds() {
+          return { north: -0.9, south: -0.91, east: 119.81, west: 119.8 };
+        },
+      };
+    },
+  });
+
+  globalThis.document = {
+    getElementById(id) {
+      return id === "dashboardMapView" ? mapContainer : null;
+    },
+    createElement,
+  };
+  globalThis.window = {
+    setTimeout(callback) {
+      callback();
+      return 0;
+    },
+  };
+
+  try {
+    await component.renderDashboardMap(1);
+
+    component.cockpit.hero.data.locations = [
+      {
+        fullName: "Single Marker",
+        userName: "Single Marker",
+        status: "ontime",
+        mode: "WFA",
+        attendanceDate: "2026-05-03",
+        latitude: -0.92,
+        longitude: 119.82,
+        radius: 50,
+        description: "Single point",
+        sourceNote:
+          "Map context is a backend analytics snapshot for dashboard context.",
+        trackingNote:
+          "Markers reflect snapshot context only; they are not continuous tracking or filtered report/export history.",
+      },
+    ];
+
+    await component.renderDashboardMap(1);
+  } finally {
+    if (originalDocument === undefined) {
+      delete globalThis.document;
+    } else {
+      globalThis.document = originalDocument;
+    }
+
+    if (originalWindow === undefined) {
+      delete globalThis.window;
+    } else {
+      globalThis.window = originalWindow;
+    }
+  }
+
+  assert.equal(mapOptions.length, 1);
+  assert.equal(mapOptions[0].zoomAnimation, false);
+  assert.deepEqual(fitBoundsOptions, [
+    {
+      padding: [32, 32],
+      animate: false,
+    },
+  ]);
+  assert.deepEqual(setViewOptions, [
+    {
+      animate: false,
+    },
+  ]);
+});
+
 test("dashboard renderDashboardMap ignores stale async renders after a newer token wins", async () => {
   const component = dashboard();
   const originalDocument = globalThis.document;
@@ -1117,6 +1369,9 @@ test("dashboard renderDashboardMap ignores stale async renders after a newer tok
     map() {
       mapCreateCalls += 1;
       return fakeMap;
+    },
+    divIcon(options) {
+      return options;
     },
     tileLayer() {
       return {

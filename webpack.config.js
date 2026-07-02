@@ -5,6 +5,8 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
 require("dotenv").config();
 
+const projectRoot = __dirname;
+
 const INCLUDE_PATTERN =
   /<include\s+src=["'](.+?)["']\s*\/?>\s*(?:<\/include>)?/gis;
 
@@ -12,7 +14,10 @@ const processNestedHtml = (content, loaderContext, dir = null) =>
   !INCLUDE_PATTERN.test(content)
     ? content
     : content.replace(INCLUDE_PATTERN, (m, src) => {
-        const filePath = path.resolve(dir || loaderContext.context, src);
+        const filePath = path.resolve(
+          dir || path.dirname(loaderContext.resourcePath),
+          src,
+        );
         loaderContext.dependency(filePath);
         return processNestedHtml(
           loaderContext.fs.readFileSync(filePath, "utf8"),
@@ -24,17 +29,19 @@ const processNestedHtml = (content, loaderContext, dir = null) =>
 // HTML generation
 const paths = [];
 const generateHTMLPlugins = () =>
-  glob.sync("./src/*.html").map((dir) => {
+  glob.sync("src/*.html", { cwd: projectRoot }).map((dir) => {
     const filename = path.basename(dir);
 
     if (filename !== "404.html") {
       paths.push(filename);
     }
 
+    const template = path.join(projectRoot, "src", filename);
+
     return new HtmlWebpackPlugin({
       filename,
-      template: `./src/${filename}`,
-      favicon: `./src/images/favicon.ico`,
+      template,
+      favicon: path.join(projectRoot, "src", "images", "favicon.ico"),
       inject: "body",
     });
   });
@@ -69,7 +76,8 @@ const devServer = {
 
 module.exports = {
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
-  entry: "./src/js/index.js",
+  context: projectRoot,
+  entry: path.join(projectRoot, "src", "js", "index.js"),
   module: {
     rules: [
       {

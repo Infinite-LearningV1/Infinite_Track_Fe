@@ -174,16 +174,16 @@ Baseline repo ini hanya menambahkan build gate minimum dan **tidak** menyalakan 
 
 ### CORS / Auth Transport Truth
 
-Frontend Web FE mengandalkan credentialed browser requests untuk auth/session runtime. Itu berarti backend production harus secara eksplisit mengizinkan origin frontend production, preflight `OPTIONS`, dan header yang dipakai auth runtime.
+Jika production memakai `API_BASE_URL` cross-origin / separate API domain, frontend Web FE mengandalkan credentialed browser requests untuk auth/session runtime. Pada topology ini backend production harus secara eksplisit mengizinkan origin frontend production, preflight `OPTIONS`, dan header yang dipakai auth runtime. Jika production tetap memakai same-origin `/api` lewat gateway/proxy, fokus verifikasi utamanya adalah routing gateway, bukan backend CORS header lintas origin.
 
-Minimal contract yang harus dicatat di environment/backend docs:
+Minimal contract yang harus dicatat di environment/backend docs untuk path cross-origin:
 
 - origin frontend production harus spesifik, bukan wildcard
-- jika session/cookie dipakai, `Access-Control-Allow-Credentials: true` wajib aktif
+- `Access-Control-Allow-Credentials: true` wajib aktif karena current runtime mengirim `withCredentials: true`
 - metode umum yang dipakai Web FE harus diizinkan: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
 - header minimum yang perlu lolos preflight: `Content-Type` dan `X-Client-Type`
 - `Authorization` hanya perlu diizinkan bila backend memang memiliki flow yang menggunakannya secara eksplisit; current auth runtime Web FE justru membersihkan bearer header pada protected request flow
-- jika browser menampilkan `Failed to fetch` / `Network Error` pada login atau bootstrap, cek CORS sebelum menyalahkan API availability
+- jika browser menampilkan `Failed to fetch` / `Network Error` pada login atau bootstrap di path cross-origin, cek CORS sebelum menyalahkan API availability
 
 ### Local Tooling Truth
 

@@ -146,9 +146,9 @@ Catatan:
 
 ### 2. CORS Configuration
 
-Backend harus mengizinkan origin frontend production secara eksplisit dan mendukung credentialed browser requests untuk auth/session flow.
+Jika production memakai `API_BASE_URL` cross-origin / separate API domain, backend harus mengizinkan origin frontend production secara eksplisit dan mendukung credentialed browser requests untuk auth/session flow. Jika production tetap same-origin `/api` melalui gateway/proxy, verifikasi utama ada pada routing gateway dan bukan pada backend CORS header lintas origin.
 
-> Karena Web FE mengirim request auth dengan `withCredentials: true`, CORS production **tidak boleh** memakai wildcard origin. Origin harus spesifik, `credentials` harus diaktifkan bila flow memakai cookie/session, dan preflight harus lolos untuk header yang dipakai frontend.
+> Karena runtime Web FE saat ini mengirim request auth/protected dengan `withCredentials: true`, CORS production untuk path cross-origin **tidak boleh** memakai wildcard origin. Origin harus spesifik, `Access-Control-Allow-Credentials` wajib aktif, dan preflight harus lolos untuk header yang dipakai frontend.
 
 Contoh backend (Express.js):
 
@@ -167,8 +167,8 @@ Jika suatu endpoint benar-benar membutuhkan header `Authorization`, tambahkan ha
 
 Checklist validasi CORS:
 
-- origin frontend production tercantum spesifik
-- credentialed requests diizinkan bila session/cookie dipakai
+- untuk path cross-origin, origin frontend production tercantum spesifik
+- untuk path cross-origin, credentialed requests diizinkan karena runtime mengirim `withCredentials: true`
 - preflight `OPTIONS` lolos untuk `Content-Type` dan `X-Client-Type`
 - browser tidak menampilkan CORS/network error saat login atau bootstrap session
 

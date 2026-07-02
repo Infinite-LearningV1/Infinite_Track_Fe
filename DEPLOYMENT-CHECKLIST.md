@@ -146,17 +146,31 @@ Catatan:
 
 ### 2. CORS Configuration
 
-Backend harus allow origin dari frontend domain Anda:
+Backend harus mengizinkan origin frontend production secara eksplisit dan mendukung credentialed browser requests untuk auth/session flow.
+
+> Karena Web FE mengirim request auth dengan `withCredentials: true`, CORS production **tidak boleh** memakai wildcard origin. Origin harus spesifik, `credentials` harus diaktifkan bila flow memakai cookie/session, dan preflight harus lolos untuk header yang dipakai frontend.
+
+Contoh backend (Express.js):
 
 ```javascript
-// Contoh di backend (Express.js)
 app.use(
   cors({
     origin: "https://yourdomain.com",
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "X-Client-Type"],
   }),
 );
 ```
+
+Jika suatu endpoint benar-benar membutuhkan header `Authorization`, tambahkan hanya untuk endpoint/flow yang memang menggunakannya; jangan asumsikan semua request Web FE mengirim bearer token karena repo auth runtime saat ini justru membersihkan Authorization dari protected request flow.
+
+Checklist validasi CORS:
+
+- origin frontend production tercantum spesifik
+- credentialed requests diizinkan bila session/cookie dipakai
+- preflight `OPTIONS` lolos untuk `Content-Type` dan `X-Client-Type`
+- browser tidak menampilkan CORS/network error saat login atau bootstrap session
 
 ### 3. File Assets
 

@@ -8,6 +8,8 @@
 4. [Opsi Deployment](#opsi-deployment)
 5. [Checklist Quality Assurance](#checklist-quality-assurance)
 6. [Troubleshooting](#troubleshooting)
+7. [Rollback Procedure](#rollback-procedure)
+8. [Support & Resources](#support--resources)
 
 ---
 
@@ -201,11 +203,37 @@ Frontend Web FE mengandalkan credentialed browser requests untuk auth/session ru
 Minimal contract yang harus dicatat di environment/backend docs:
 
 - origin frontend production harus spesifik, bukan wildcard
-- jika session/cookie dipakai, `Access-Control-Allow-Credentials: true` wajib aktif
+- current production frontend origin harus dikunci sebagai URL final yang dilayani user, misalnya `https://infinite-track.tech` bila domain itu menjadi host Web FE production; jika platform hosting memakai domain berbeda, gunakan domain final tersebut secara eksplisit
+- origin preview/staging tidak otomatis diwariskan ke production allowlist; tambahkan hanya bila environment itu memang dipakai dan sudah punya owner/evidence terpisah
+- jika session/cookie dipakai, `Access-Control-Allow-Credentials: true` wajib aktif dan backend tidak boleh memakai `Access-Control-Allow-Origin: *`
 - metode umum yang dipakai Web FE harus diizinkan: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
 - header minimum yang perlu lolos preflight: `Content-Type` dan `X-Client-Type`
 - `Authorization` hanya perlu diizinkan bila backend memang memiliki flow yang menggunakannya secara eksplisit; current auth runtime Web FE justru membersihkan bearer header pada protected request flow
 - jika browser menampilkan `Failed to fetch` / `Network Error` pada login atau bootstrap, cek CORS sebelum menyalahkan API availability
+
+Contoh backend/platform CORS production yang diharapkan:
+
+```env
+CORS_ALLOWED_ORIGINS=https://infinite-track.tech
+CORS_ALLOW_CREDENTIALS=true
+CORS_ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+CORS_ALLOWED_HEADERS=Content-Type,X-Client-Type
+```
+
+Jika production Web FE memakai domain lain, ganti `https://infinite-track.tech` dengan origin final yang benar. Jangan menambahkan path seperti `/signin.html` atau `/api` ke CORS origin; CORS origin hanya scheme + host + optional port.
+
+Verification method setelah deploy/config change:
+
+1. Buka Web FE production dari browser pada origin final.
+2. Jalankan login smoke atau request bootstrap yang memicu protected API.
+3. Di DevTools Network, pastikan request `OPTIONS` preflight ke backend mengembalikan status 2xx/204 dan header berikut sesuai:
+   - `Access-Control-Allow-Origin` sama persis dengan origin Web FE production
+   - `Access-Control-Allow-Credentials: true` bila cookie/session dipakai
+   - `Access-Control-Allow-Headers` mencakup `Content-Type` dan `X-Client-Type`
+4. Pastikan request API sesudah preflight tidak gagal dengan browser-level CORS error.
+5. Jika memakai curl untuk preflight smoke, set header `Origin` ke origin Web FE production dan sertakan `Access-Control-Request-Method` serta `Access-Control-Request-Headers`; hasil curl hanya pendukung, browser DevTools tetap evidence utama untuk credentialed request.
+
+> `Needs Verification`: domain final Web FE production dan nama env CORS backend aktual harus dikonfirmasi di platform/backend repo. Contoh di atas adalah deployment contract yang harus diselaraskan, bukan bukti konfigurasi backend sudah aktif.
 
 ### Local Tooling Truth
 
@@ -600,6 +628,67 @@ Jangan langsung rollback frontend jika akar masalahnya adalah backend outage mur
   - kembalikan `API_BASE_URL` atau build-time env lain ke nilai yang sudah terbukti sehat, lalu rebuild/redeploy
   - cocok untuk incident contract/env drift
 
+### Platform-specific rollback steps
+
+#### Netlify
+
+1. Buka Netlify Dashboard → pilih site Web FE production.
+2. Masuk ke **Deploys** dan cari deployment terakhir yang sehat berdasarkan timestamp, commit SHA, atau deploy note.
+3. Pilih **Publish deploy** pada deployment sehat tersebut.
+4. Jika insiden berasal dari env build-time, perbaiki env di **Site configuration → Environment variables**, lalu trigger deploy baru dari commit/artifact sehat.
+5. Jalankan post-rollback verification dan catat deploy ID yang dipublish ulang.
+
+#### Vercel
+
+1. Buka Vercel Dashboard → pilih project Web FE production.
+2. Masuk ke **Deployments** dan identifikasi deployment terakhir yang sehat berdasarkan commit SHA / production alias sebelumnya.
+3. Gunakan action rollback / promote pada deployment sehat agar production domain kembali menunjuk ke deployment tersebut.
+4. Jika env build-time salah, koreksi **Project Settings → Environment Variables** untuk environment production, lalu redeploy commit sehat.
+5. Jalankan post-rollback verification dan catat deployment URL/ID.
+
+#### Firebase Hosting
+
+1. Buka Firebase Console → Hosting → pilih site/channel production.
+2. Review release history dan pilih release terakhir yang sehat.
+3. Gunakan rollback ke release tersebut melalui Console atau CLI sesuai akses operator.
+4. Jika perlu CLI, gunakan project/site production yang benar dan verifikasi target sebelum menjalankan rollback.
+5. Jalankan post-rollback verification dan catat release ID.
+
+#### VPS / Nginx / Apache
+
+1. Freeze upload/deploy baru ke host production selama rollback.
+2. Restore direktori `build/` dari backup artifact terakhir yang sehat atau rsync ulang artifact sehat ke document root production.
+3. Jika memakai symlink release directory, pindahkan symlink current ke release sehat lalu reload web server.
+4. Jika config web server ikut berubah, restore config sehat dan jalankan config test sebelum reload (`nginx -t` untuk Nginx, `apachectl configtest` untuk Apache bila tersedia di host).
+5. Reload service web server, jangan restart penuh kecuali diperlukan.
+6. Jalankan post-rollback verification dan catat artifact path / release directory yang aktif.
+
+> `Needs Verification`: nama menu/action tiap platform bisa berubah dan akses dashboard/CLI bergantung role operator. Treat langkah di atas sebagai runbook operasional; bukti final tetap berasal dari dashboard/platform production nyata.
+
+### Communication protocol saat rollback
+
+1. **Declare incident:** PIC release menyatakan status rollback dimulai, gejala, impact user, dan kandidat penyebab di channel operasional yang disepakati.
+2. **Assign roles:** tetapkan rollback owner, verifier, dan communicator. Satu orang memegang keputusan publish/redeploy untuk menghindari double action.
+3. **Freeze changes:** hentikan deploy/promotion baru sampai rollback selesai dan smoke sehat.
+4. **Update cadence:** kirim update singkat tiap 10-15 menit atau setiap milestone penting: decision, rollback action started, rollback action completed, smoke result.
+5. **Completion notice:** setelah sehat, umumkan deployment/artifact aktif, hasil smoke, sisa risiko, dan next action RCA/prevention.
+6. **Escalation:** jika rollback tidak memulihkan service, eskalasi ke backend/platform owner karena akar masalah mungkin bukan artifact Web FE terbaru.
+
+### Prevention measures setelah rollback
+
+- Tambahkan regression yang memicu rollback ke pre-release smoke checklist bila belum ada.
+- Simpan mapping release antara commit SHA, deployment ID, build env, dan hasil smoke agar target rollback berikutnya tidak ambigu.
+- Pastikan env build-time production (`API_BASE_URL`, `APP_ENVIRONMENT`, `DEBUG_MODE`, `LOG_LEVEL`) punya owner dan review sebelum promotion ke `master`.
+- Verifikasi CORS production setiap kali domain Web FE, domain backend, atau auth transport berubah.
+- Gunakan canary/preview deployment untuk smoke sebelum production publish jika platform mendukung.
+- Lakukan post-incident review dan buat follow-up issue untuk gap yang tidak bisa diperbaiki langsung di rollback window.
+
+### Rollback metadata
+
+- **Owner:** Web FE release owner bersama platform/backend owner saat insiden menyentuh CORS, auth transport, DNS, SSL, atau backend availability.
+- **Last Updated:** 2026-07-03.
+- **Review Cadence:** review minimal setiap release mayor, setiap perubahan hosting/env production, atau setelah rollback/incident production.
+
 ### Evidence minimum saat rollback
 
 Catat minimal hal berikut:
@@ -652,6 +741,6 @@ Catat minimal hal berikut:
 
 ---
 
-**Last Updated:** 2026-07-02  
-**Version:** 1.0.0  
+**Last Updated:** 2026-07-03
+**Version:** 1.0.0
 **Maintainer:** Development Team

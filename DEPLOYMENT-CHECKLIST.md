@@ -79,8 +79,8 @@ serve -s build -p 3000
 - [x] ✅ Both rulesets block deletion dan non-fast-forward pushes
 - [x] ✅ Both rulesets require pull request review dengan minimum 1 approval, stale review dismissal, dan resolved review threads
 - [x] ✅ `develop` ruleset juga mewajibkan linear history
-- [ ] 🔍 **GAP:** Active rulesets yang terdeteksi tidak menampilkan required status check untuk workflow build
-- [ ] 🔍 **GAP:** Repo workflow `.github/workflows/build.yml` saat ini hanya trigger PR/push ke `develop`, belum ke promotion PR target `master`
+- [ ] 🔍 **Needs Verification:** Active rulesets yang terdeteksi belum dibuktikan di GitHub UI sebagai required status check untuk workflow build
+- [x] ✅ Repo workflow `.github/workflows/build.yml` sekarang trigger PR/push ke `develop` dan `master`
 
 ### Layer 1 — Pre-Build Readiness
 
@@ -92,7 +92,7 @@ serve -s build -p 3000
 - [ ] Dependencies ter-install (`npm ci` untuk baseline reproducible, atau `npm install` bila konteksnya local iteration biasa)
 
 - [ ] Workflow build lulus pada PR ke `develop`
-- [ ] Promotion PR `develop` -> `master` memiliki evidence build yang cukup; repo workflow saat ini belum trigger otomatis ke target `master`
+- [ ] Promotion PR `develop` -> `master` memiliki evidence build yang cukup; repo workflow sekarang trigger otomatis ke target `master`, tetapi required status check tetap perlu diverifikasi di GitHub UI
 - [ ] `npm run build` berhasil tanpa error
 - [ ] Folder `build/` ter-generate dengan lengkap
 - [ ] File `bundle.js` dan `style.css` ada
@@ -100,7 +100,7 @@ serve -s build -p 3000
 > Tujuan layer ini: membuktikan bundle frontend masih bisa dibentuk dari repo. Ini **bukan** bukti production runtime.
 
 - [ ] Workflow build lulus pada PR ke `develop` (evidence: GitHub check / CI log)
-- [ ] Promotion PR `develop` -> `master` punya evidence build yang cukup; jangan asumsi workflow otomatis berjalan untuk target `master`
+- [ ] Promotion PR `develop` -> `master` punya evidence build yang cukup; workflow sekarang berjalan untuk target `master`, tetapi enforcement required status check masih `Needs Verification`
 - [ ] `npm run build` berhasil tanpa error (`REQUIRES REPO VERIFICATION` bila belum dijalankan fresh)
 - [ ] Folder `build/` ter-generate fresh setelah build, bukan output lama
 - [ ] File utama hasil build ada: `index.html`, `bundle.js`, `style.css`
@@ -356,7 +356,7 @@ Jika ada masalah serius saat deployment, gunakan decision tree berikut sebelum m
 
 ## 📝 Final Notes
 
-- ✅ Baseline CI repo saat ini mencakup build verification untuk PR ke `develop` dan push ke `develop`; promotion PR ke `master` masih butuh evidence build terpisah atau perubahan workflow
+- ✅ Baseline CI repo saat ini mencakup build verification untuk PR/push ke `develop` dan `master`; promotion PR ke `master` sekarang punya trigger workflow, tetapi required status check GitHub UI masih perlu diverifikasi
 - ✅ `master` adalah branch final yang dimaksudkan menjadi release / deploy source dalam workflow repo ini
 - ✅ Docker gateway workflow lokal sekarang memakai `BACKEND_IMAGE`, profile `dev`, profile `staging`, dan NGINX sebagai browser entrypoint
 - ⚠️ `Needs Verification`: required status check, branch protection GitHub UI, direct-push restriction, dan source-branch restriction ke `master` benar-benar sudah enforced

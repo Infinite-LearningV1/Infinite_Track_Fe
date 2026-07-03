@@ -67,8 +67,8 @@ serve -s build -p 3000
 
 - [ ] Verifikasi evidence untuk perubahan deploy/runtime sudah jelas, atau tandai `REQUIRES REPO VERIFICATION` bila jalur verifikasinya belum terkunci.
 - [ ] Tinjau kebutuhan update `CLAUDE.md` / ADR bila perubahan menggeser env, build, deploy, atau runtime assumptions.
-- [ ] `Needs Verification`: branch protection / GitHub ruleset benar-benar mewajibkan status check workflow build pada PR ke `develop` dan PR promotion ke `master`.
-- [ ] `Needs Verification`: source branch static hosting production memang menunjuk ke `master` sebagai branch final.
+- [ ] `Needs Verification`: branch protection / GitHub ruleset benar-benar mewajibkan status check workflow build pada PR ke `develop` dan PR promotion ke `master` (capture 2026-07-04 via `gh api` tidak menemukan rule `required_status_checks`; lihat `docs/evidence/github-ruleset-evidence-2026-07-04.md`).
+- [x] ✅ Source branch static hosting production menunjuk ke `master` sebagai branch final (evidence: `docs/evidence/do-app-platform-source-2026-07-04.md`).
 
 #### GitHub Ruleset Verification (2026-07-02)
 
@@ -79,7 +79,7 @@ serve -s build -p 3000
 - [x] ✅ Both rulesets block deletion dan non-fast-forward pushes
 - [x] ✅ Both rulesets require pull request review dengan minimum 1 approval, stale review dismissal, dan resolved review threads
 - [x] ✅ `develop` ruleset juga mewajibkan linear history
-- [ ] 🔍 **Needs Verification:** Active rulesets yang terdeteksi belum dibuktikan di GitHub UI sebagai required status check untuk workflow build
+- [ ] 🔍 **Needs Verification:** Capture 2026-07-04 via `gh api` membuktikan active rulesets untuk `develop`/`master`, tetapi tidak menemukan rule `required_status_checks` untuk workflow build; re-check GitHub UI / org-level policy sebelum release approval (evidence: `docs/evidence/github-ruleset-evidence-2026-07-04.md`)
 - [x] ✅ Repo workflow `.github/workflows/build.yml` sekarang trigger PR/push ke `develop` dan `master`
 
 ### Layer 1 — Pre-Build Readiness
@@ -130,7 +130,7 @@ serve -s build -p 3000
 
 - [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
-- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch final adalah `master`, build command benar, dan output directory mengarah ke artifact static yang tepat
+- [x] ✅ Jika memakai DigitalOcean App Platform Static Site, source branch final adalah `master`, build command `npm run build`, dan output directory `build` (evidence: `docs/evidence/do-app-platform-source-2026-07-04.md`)
 - [ ] Promotion PR `develop` -> `master` punya evidence review + build yang cukup sebelum `master` diperlakukan release-ready; jangan asumsi workflow `build.yml` otomatis berjalan untuk target `master`
 - [ ] Test akses dari domain production
 
@@ -193,6 +193,7 @@ Contoh konfigurasi yang direkomendasikan untuk static production Infinite Track:
 - Jika memakai domain lain, pastikan nilai `API_BASE_URL` tetap mencakup prefix API final, misalnya `https://api.yourdomain.com/api`.
 
 Catatan:
+
 - Untuk production static site, gunakan backend public URL eksplisit yang sudah mencakup prefix API final.
 - Jangan mengandalkan local `/api` gateway sebagai production default kecuali memang ada reverse proxy production yang sengaja disiapkan.
 - Verifikasi cepat: `https://api.infinite-track.tech/api/settings/operational` boleh mengembalikan `401 Unauthorized` saat belum login, tetapi tidak boleh `404`. Route tanpa prefix seperti `https://api.infinite-track.tech/settings/operational` bukan contract production Web FE.
@@ -359,8 +360,8 @@ Jika ada masalah serius saat deployment, gunakan decision tree berikut sebelum m
 - ✅ Baseline CI repo saat ini mencakup build verification untuk PR/push ke `develop` dan `master`; promotion PR ke `master` sekarang punya trigger workflow, tetapi required status check GitHub UI masih perlu diverifikasi
 - ✅ `master` adalah branch final yang dimaksudkan menjadi release / deploy source dalam workflow repo ini
 - ✅ Docker gateway workflow lokal sekarang memakai `BACKEND_IMAGE`, profile `dev`, profile `staging`, dan NGINX sebagai browser entrypoint
-- ⚠️ `Needs Verification`: required status check, branch protection GitHub UI, direct-push restriction, dan source-branch restriction ke `master` benar-benar sudah enforced
-- ⚠️ `Needs Verification`: source branch, build command, dan output directory pada static hosting production sudah benar
+- ⚠️ `Needs Verification`: required status check, branch protection GitHub UI, dan direct-push restriction masih perlu closure; capture 2026-07-04 via `gh api` tidak menemukan rule `required_status_checks` (lihat `docs/evidence/github-ruleset-evidence-2026-07-04.md`)
+- ✅ Source branch, build command, dan output directory pada static hosting production sudah terverifikasi (lihat `docs/evidence/do-app-platform-source-2026-07-04.md`)
 - ⚠️ `Needs Verification`: image backend lokal yang dipakai untuk Compose benar-benar listen pada port container `3005`
 - ⚠️ **TINGGAL:** Configure environment variables
 - ⚠️ **TINGGAL:** Deploy ke hosting pilihan Anda

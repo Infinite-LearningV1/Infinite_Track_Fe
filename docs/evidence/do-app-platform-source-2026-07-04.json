@@ -1,0 +1,13 @@
+{
+  "app_id": "90f0e9f3-e671-41e6-8765-c4ec84dc83f4",
+  "app_name": "infinite-track-fe-production",
+  "component": "frontend",
+  "repository": "Infinite-LearningV1/Infinite_Track_Fe",
+  "branch": "master",
+  "deploy_on_push": true,
+  "build_command": "npm run build",
+  "source_dir": "/",
+  "output_dir": "build",
+  "region": "sgp",
+  "captured_at": "2026-07-04"
+}

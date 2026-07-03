@@ -21,7 +21,7 @@ Proposed
   1. `GET /summary/dashboard-analytics` (historical analytics authority)
   2. `GET /attendance/geofence-evidence` (geofence evidence authority)
   3. `GET /attendance/today-locations` (today live-map authority)
-  4. `GET /analysis/fuzzy-ahp/dashboard-recap` (FAHP dashboard recap authority)
+  4. `GET /analysis/fuzzy-ahp/dashboard?type=discipline|wfa|smart_ac` (FAHP dashboard recap authority by type)
 - `GET /summary` remains the selected-period report/export path, but it is not part of the owner-driven cockpit authority model described by this ADR.
 - `/api/summary` alias is non-canonical for the migrated dashboard flow.
 - `/api/summary/dashboard-map` is not used by this flow.
@@ -41,7 +41,7 @@ We will adopt and document the cockpit contract as a four-owner dashboard model:
 - Historical analytics authority: `GET /summary/dashboard-analytics`
 - Geofence evidence authority: `GET /attendance/geofence-evidence`
 - Today-locations authority: `GET /attendance/today-locations`
-- FAHP dashboard recap authority: `GET /analysis/fuzzy-ahp/dashboard-recap`
+- FAHP dashboard recap authority: `GET /analysis/fuzzy-ahp/dashboard?type=discipline|wfa|smart_ac`
 
 We will treat `/api/summary` as non-canonical for this dashboard flow and will not treat `/api/summary/dashboard-map` as an active integration path.
 

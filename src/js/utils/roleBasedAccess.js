@@ -3,7 +3,23 @@
  * Middleware untuk validasi hak akses berdasarkan role user
  */
 
-import { getCurrentUser, isAuthenticated } from "../services/authService.js";
+function getAuthStore() {
+  if (typeof Alpine === "undefined" || !Alpine.store) {
+    return null;
+  }
+
+  return Alpine.store("auth");
+}
+
+function getVerifiedUser() {
+  const authStore = getAuthStore();
+
+  if (authStore?.sessionState === "verification_failed") {
+    return null;
+  }
+
+  return authStore?.isAuthenticated === true ? authStore.user : null;
+}
 
 /**
  * Role definitions
@@ -23,6 +39,7 @@ const PAGE_PERMISSIONS = {
   "/management-user.html": [ROLES.ADMIN],
   "/management-booking.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
   "/management-attendance.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
+  "/management-backend-settings.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
   "/form-user.html": [ROLES.ADMIN],
   "/profile.html": [
     ROLES.ADMIN,
@@ -42,30 +59,62 @@ const PAGE_PERMISSIONS = {
   "/blank.html": [ROLES.ADMIN, ROLES.MANAGEMENT],
 };
 
+const PROTECTED_PAGES = Object.freeze(Object.keys(PAGE_PERMISSIONS));
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+const DASHBOARD_ALLOWED_ROLES = new Set([ROLES.ADMIN, ROLES.MANAGEMENT]);
+const DASHBOARD_DENIED_ROLES = new Set([ROLES.INTERNSHIP, ROLES.EMPLOYEE]);
+
+function normalizePagePath(path) {
+  if (path === "/" || path === "") {
+    return "/index.html";
+  }
+
+  const pathname = path.startsWith("/") ? path : `/${path}`;
+
+  if (pathname.endsWith("/")) {
+    return `${pathname}index.html`;
+  }
+
+  if (!pathname.includes(".")) {
+    return `${pathname}.html`;
+  }
+
+  return pathname;
+}
+
+function isProtectedPage(page) {
+  return PROTECTED_PAGES.includes(normalizePagePath(page));
+}
+
 /**
  * Check if user has access to specific page
  * @param {string} page - Page path
  * @returns {boolean} - True if user has access
  */
-function hasPageAccess(page) {
-  if (!isAuthenticated()) {
+function hasPageAccessForUser(page, userData) {
+  const normalizedPage = normalizePagePath(page);
+  if (!userData?.role_name) {
     return false;
   }
 
-  const userData = getCurrentUser();
-  if (!userData || !userData.role_name) {
-    return false;
-  }
-
-  const userRole = userData.role_name;
-  const allowedRoles = PAGE_PERMISSIONS[page];
-
+  const allowedRoles = PAGE_PERMISSIONS[normalizedPage];
   if (!allowedRoles) {
-    // Jika page tidak terdefinisi, default allow untuk backward compatibility
-    return true;
+    return false;
   }
 
-  return allowedRoles.includes(userRole);
+  return allowedRoles.includes(userData.role_name);
+}
+
+function hasPageAccess(page) {
+  return hasPageAccessForUser(page, getVerifiedUser());
 }
 
 /**
@@ -82,10 +131,9 @@ function redirectBasedOnRole(userRole) {
     case ROLES.INTERNSHIP:
     case ROLES.EMPLOYEE:
       // Internship dan Employee diarahkan ke profile
-      window.location.href = "/signin.html";
+      window.location.href = "/profile.html";
       break;
     default:
-      // Default ke profile untuk role yang tidak dikenal
       window.location.href = "/signin.html";
       break;
   }
@@ -94,8 +142,19 @@ function redirectBasedOnRole(userRole) {
 /**
  * Show access denied page/message
  * @param {string} userRole - User's role
+ * @param {{ keepCurrentLocation?: boolean, primaryAction?: string }} options - Denial behavior options
  */
-function showAccessDenied(userRole) {
+function showAccessDenied(userRole, options = {}) {
+  const { keepCurrentLocation = false, primaryAction = "close" } = options;
+  const isDashboardDeniedRole = DASHBOARD_DENIED_ROLES.has(userRole);
+  const primaryButtonLabel =
+    primaryAction === "close"
+      ? "Tutup"
+      : isDashboardDeniedRole
+        ? "Kembali ke Sign In"
+        : "Buka Halaman Sesuai Role";
+  const safeUserRole = escapeHtml(userRole || "Unknown");
+
   // Create access denied modal with styling matching modalAlert danger theme
   const modalHTML = `
     <div id="access-denied-modal" class="fixed inset-0 z-99999 flex items-center justify-center p-5 overflow-y-auto transition-all duration-300 opacity-0">
@@ -170,7 +229,7 @@ function showAccessDenied(userRole) {
 
           <!-- Message -->
           <p class="text-sm leading-6 text-gray-500 dark:text-gray-400 mb-7">
-            Maaf, role <strong>"${userRole}"</strong> tidak memiliki akses ke halaman dashboard.
+            Maaf, role <strong>"${safeUserRole}"</strong> tidak memiliki akses ke halaman dashboard.
             <br><br>
             Hanya <strong>Admin</strong> dan <strong>Management</strong> yang dapat mengakses dashboard.
           </p>
@@ -181,7 +240,7 @@ function showAccessDenied(userRole) {
               id="modal-redirect-btn" 
               class="flex justify-center w-full px-4 py-3 text-sm font-medium text-white rounded-lg shadow-theme-xs sm:w-auto bg-blue-600 hover:bg-blue-700"
             >
-              Kembali ke Halaman Utama
+              ${primaryButtonLabel}
             </button>
             <button 
               id="modal-logout-btn" 
@@ -200,10 +259,18 @@ function showAccessDenied(userRole) {
   const modal = document.getElementById("access-denied-modal");
 
   // Setup event listeners
-  setupAccessDeniedEventListeners(modal, userRole);
+  setupAccessDeniedEventListeners(modal, userRole, {
+    keepCurrentLocation,
+    primaryAction,
+  });
 
   // Show modal with animation
-  requestAnimationFrame(() => {
+  const scheduleAnimation =
+    typeof requestAnimationFrame === "function"
+      ? requestAnimationFrame
+      : (callback) => callback();
+
+  scheduleAnimation(() => {
     modal.classList.remove("opacity-0");
     modal.querySelector(".relative").classList.remove("scale-95");
     modal.querySelector(".relative").classList.add("scale-100");
@@ -217,15 +284,30 @@ function showAccessDenied(userRole) {
  * Setup event listeners for access denied modal
  * @param {HTMLElement} modal - Modal element
  * @param {string} userRole - User's role
+ * @param {{ keepCurrentLocation?: boolean, primaryAction?: string }} options - Denial behavior options
  */
-function setupAccessDeniedEventListeners(modal, userRole) {
+function setupAccessDeniedEventListeners(modal, userRole, options = {}) {
+  const { keepCurrentLocation = false, primaryAction = "close" } = options;
+  const preventPassiveDismissal =
+    keepCurrentLocation && primaryAction !== "close";
+  const shouldRedirectAfterPrimaryAction = primaryAction !== "close";
+  const isDashboardDeniedRole = DASHBOARD_DENIED_ROLES.has(userRole);
   const closeBtn = modal.querySelector("#modal-close-btn");
   const redirectBtn = modal.querySelector("#modal-redirect-btn");
   const logoutBtn = modal.querySelector("#modal-logout-btn");
   const backdrop = modal.querySelector("#modal-backdrop");
 
+  if (preventPassiveDismissal) {
+    closeBtn?.classList?.add("hidden");
+  }
+
   // Close modal function
-  const closeModal = () => {
+  const closeModal = ({ force = false } = {}) => {
+    if (preventPassiveDismissal && !force) {
+      return;
+    }
+
+    document.removeEventListener?.("keydown", handleEscKey);
     modal.classList.add("opacity-0");
     modal.querySelector(".relative").classList.add("scale-95");
     modal.querySelector(".relative").classList.remove("scale-100");
@@ -238,32 +320,28 @@ function setupAccessDeniedEventListeners(modal, userRole) {
 
   // Redirect function
   const redirectToAllowedPage = () => {
-    closeModal();
+    closeModal({ force: true });
     setTimeout(() => {
+      if (!shouldRedirectAfterPrimaryAction) {
+        return;
+      }
+
+      if (isDashboardDeniedRole) {
+        logout();
+        return;
+      }
+
       redirectBasedOnRole(userRole);
     }, 300);
   };
   // Logout function
   const logout = async () => {
+    const authService =
+      window.AuthService || (await import("../services/authService.js"));
+
     try {
-      // Import logout function from authService
-      const { logout: authLogout } = await import("../services/authService.js");
+      await authService.logout();
 
-      // Call the proper logout function
-      await authLogout();
-
-      // Clear additional session data
-      sessionStorage.clear();
-
-      // Clear remember me preferences
-      localStorage.removeItem("rememberMe");
-      localStorage.removeItem("rememberedEmail");
-
-      // Clear any redirect URLs
-      localStorage.removeItem("redirectAfterLogin");
-      sessionStorage.removeItem("redirectAfterLogin");
-
-      // Update Alpine.js store if available
       if (
         typeof Alpine !== "undefined" &&
         Alpine.store &&
@@ -281,40 +359,9 @@ function setupAccessDeniedEventListeners(modal, userRole) {
     } catch (error) {
       console.error("Logout error:", error);
 
-      // Force logout if API call fails
-      forceLogout();
+      closeModal();
+      await authService.forceReauthenticate();
     }
-  };
-
-  // Force logout function (fallback)
-  const forceLogout = () => {
-    // Clear all localStorage items
-    localStorage.removeItem("userData");
-    localStorage.removeItem("currentUserData");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("rememberMe");
-    localStorage.removeItem("rememberedEmail");
-    localStorage.removeItem("redirectAfterLogin");
-
-    // Clear sessionStorage
-    sessionStorage.clear();
-
-    // Clear cookies manually
-    document.cookie.split(";").forEach((c) => {
-      document.cookie = c
-        .replace(/^ +/, "")
-        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-    });
-
-    // Update Alpine.js store if available
-    if (typeof Alpine !== "undefined" && Alpine.store && Alpine.store("auth")) {
-      Alpine.store("auth").clearAuth();
-    }
-
-    closeModal();
-    setTimeout(() => {
-      window.location.href = "/signin.html";
-    }, 300);
   };
 
   // Event listeners
@@ -345,44 +392,84 @@ function setupAccessDeniedEventListeners(modal, userRole) {
   document.addEventListener("keydown", handleEscKey);
 }
 
+function presentAccessDenied(userRole, options = {}) {
+  const externalShowAccessDenied =
+    typeof window !== "undefined"
+      ? window.RoleBasedAccess?.showAccessDenied
+      : null;
+
+  if (
+    typeof externalShowAccessDenied === "function" &&
+    externalShowAccessDenied !== showAccessDenied
+  ) {
+    externalShowAccessDenied(userRole, options);
+    return;
+  }
+
+  showAccessDenied(userRole, options);
+}
+
+function markAccessBoundaryDenied() {
+  if (typeof document === "undefined" || !document.body?.dataset) {
+    return;
+  }
+
+  document.body.dataset.accessBoundary = "denied";
+}
+
 /**
  * Initialize role-based access control
  */
 function initRoleBasedAccess() {
-  // Get current page
-  const currentPath = window.location.pathname;
-  const currentPage = currentPath === "/" ? "/index.html" : currentPath;
+  const currentPage = normalizePagePath(window.location.pathname);
+  const authStore = getAuthStore();
 
   console.log("Checking role-based access for page:", currentPage);
 
-  // Check if user is authenticated
-  if (!isAuthenticated()) {
-    console.log("User not authenticated");
+  if (!isProtectedPage(currentPage)) {
     return;
   }
 
-  const userData = getCurrentUser();
-  if (!userData || !userData.role_name) {
-    console.log("No user data or role found");
+  if (authStore?.sessionState === "verification_failed") {
+    console.log(
+      "Auth verification failed at startup, deferring RBAC enforcement",
+    );
+    return;
+  }
+
+  const userData = getVerifiedUser();
+  if (!userData?.role_name) {
+    console.log("No backend-verified user data or role found");
     return;
   }
 
   const userRole = userData.role_name;
   console.log("User role:", userRole);
 
-  // Check page access
   if (!hasPageAccess(currentPage)) {
     console.log(`Access denied for role ${userRole} to page ${currentPage}`);
 
-    // Special handling for dashboard access
-    if (currentPage === "/index.html") {
-      if (userRole === ROLES.INTERNSHIP || userRole === ROLES.EMPLOYEE) {
-        showAccessDenied(userRole);
-        return;
-      }
+    if (currentPage === "/index.html" && DASHBOARD_DENIED_ROLES.has(userRole)) {
+      markAccessBoundaryDenied();
+      presentAccessDenied(userRole, {
+        keepCurrentLocation: true,
+        primaryAction: "redirect",
+      });
+      return;
     }
 
-    // For other pages, redirect to appropriate page
+    if (
+      currentPage === "/index.html" &&
+      !DASHBOARD_ALLOWED_ROLES.has(userRole)
+    ) {
+      markAccessBoundaryDenied();
+      presentAccessDenied(userRole, {
+        keepCurrentLocation: true,
+        primaryAction: "close",
+      });
+      return;
+    }
+
     redirectBasedOnRole(userRole);
     return;
   }
@@ -395,12 +482,8 @@ function initRoleBasedAccess() {
  * @returns {boolean} - True if user can access dashboard
  */
 function canAccessDashboard() {
-  if (!isAuthenticated()) {
-    return false;
-  }
-
-  const userData = getCurrentUser();
-  if (!userData || !userData.role_name) {
+  const userData = getVerifiedUser();
+  if (!userData?.role_name) {
     return false;
   }
 
@@ -412,7 +495,11 @@ function canAccessDashboard() {
 export {
   ROLES,
   PAGE_PERMISSIONS,
+  PROTECTED_PAGES,
+  normalizePagePath,
+  isProtectedPage,
   hasPageAccess,
+  hasPageAccessForUser,
   redirectBasedOnRole,
   showAccessDenied,
   initRoleBasedAccess,
@@ -423,21 +510,14 @@ export {
 if (typeof window !== "undefined") {
   window.RoleBasedAccess = {
     ROLES,
+    PROTECTED_PAGES,
+    normalizePagePath,
+    isProtectedPage,
     hasPageAccess,
+    hasPageAccessForUser,
     redirectBasedOnRole,
     showAccessDenied,
     initRoleBasedAccess,
     canAccessDashboard,
   };
-}
-
-// Auto-initialize on DOM ready
-if (typeof window !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      setTimeout(initRoleBasedAccess, 200);
-    });
-  } else {
-    setTimeout(initRoleBasedAccess, 200);
-  }
 }

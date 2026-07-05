@@ -3,20 +3,8 @@
  * Mengenkapsulasi logika panggilan API untuk manajemen data booking WFA
  */
 
-import axios from "axios";
 import { API_CONFIG, envLog } from "../config/env.js";
-
-// Konfigurasi axios default
-axios.defaults.withCredentials = true; // Mengizinkan pengiriman cookie
-
-/**
- * Mendapatkan token dari localStorage untuk header Authorization
- * @returns {string|null} - Bearer token atau null jika tidak ada
- */
-function getBearerToken() {
-  const token = localStorage.getItem("auth_token");
-  return token ? `Bearer ${token}` : null;
-}
+import { authRequest } from "./authRequest.js";
 
 /**
  * Mengambil daftar booking dari API
@@ -57,18 +45,13 @@ export async function getBookings(params = {}) {
 
     envLog("info", "GET Bookings:", { url, params });
 
-    // Setup headers
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    // Tambahkan Authorization header jika ada token
-    const bearerToken = getBearerToken();
-    if (bearerToken) {
-      headers.Authorization = bearerToken;
-    }
-
-    const response = await axios.get(url, { headers });
+    const response = await authRequest({
+      method: "get",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     envLog("info", "Bookings Response:", response.data);
 
@@ -111,18 +94,14 @@ export async function updateBookingStatus(bookingId, status) {
 
     envLog("info", "PATCH Booking Status:", { url, bookingId, status });
 
-    // Setup headers
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    // Tambahkan Authorization header jika ada token
-    const bearerToken = getBearerToken();
-    if (bearerToken) {
-      headers.Authorization = bearerToken;
-    }
-
-    const response = await axios.patch(url, { status }, { headers });
+    const response = await authRequest({
+      method: "patch",
+      url,
+      data: { status },
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     envLog("info", "Update Booking Status Response:", response.data);
 
@@ -159,18 +138,13 @@ export async function deleteBooking(bookingId) {
 
     envLog("info", "DELETE Booking:", { url, bookingId });
 
-    // Setup headers
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    // Tambahkan Authorization header jika ada token
-    const bearerToken = getBearerToken();
-    if (bearerToken) {
-      headers.Authorization = bearerToken;
-    }
-
-    const response = await axios.delete(url, { headers });
+    const response = await authRequest({
+      method: "delete",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     envLog("info", "Delete Booking Response:", response.data);
 

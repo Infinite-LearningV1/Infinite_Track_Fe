@@ -36,27 +36,32 @@ Local-only `.claude` hooks, agents, settings, and untracked review helpers may b
 ### Task 1: Verify current Codex and review-governance baseline
 
 **Files:**
+
 - Modify: none
 - Test: operational verification only
 
 - [ ] **Step 1: Confirm the Codex plugin commands are available in the current session**
 
 Run in Claude Code:
+
 ```text
 /reload-plugins
 ```
 
 Expected:
+
 ```text
 Reloaded: ... plugins ... skills ... agents ...
 ```
 
 Then run:
+
 ```text
 /codex:setup
 ```
 
 Expected:
+
 ```text
 ready: true
 codex available: true
@@ -66,11 +71,13 @@ auth loggedIn: true
 - [ ] **Step 2: Record the governance baseline actually present in the repo**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && git ls-files .claude docs CLAUDE.md | sed -n '1,120p'
 ```
 
 Expected:
+
 - the command reflects the tracked governance files that actually exist on the branch
 - local-only `.claude` hooks, settings, or agents are not treated as required baseline assets
 - no `codex-trigger-matrix`, `codex-review-summary`, or `codex-pr-readiness` skill exists yet in the tracked branch baseline unless it has already been added deliberately
@@ -78,6 +85,7 @@ Expected:
 - [ ] **Step 3: Record the current governance gap checklist in the execution notes**
 
 Write this exact checklist into the task notes or execution log:
+
 ```text
 - Decision routing not yet standardized
 - Post-Codex summary format not yet standardized
@@ -96,22 +104,26 @@ Do not create a commit in this task. This is a baseline verification task only.
 ### Task 2: Create the `codex-trigger-matrix` governance skill
 
 **Files:**
+
 - Create: `.claude/skills/codex-trigger-matrix/SKILL.md`
 - Test: reload skill registry and inspect behavior manually
 
 - [ ] **Step 1: Create the skill directory**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && mkdir -p .claude/skills/codex-trigger-matrix
 ```
 
 Expected:
+
 - directory `.claude/skills/codex-trigger-matrix` exists
 
 - [ ] **Step 2: Write the initial skill file**
 
 Write this exact file to `.claude/skills/codex-trigger-matrix/SKILL.md`:
+
 ```md
 ---
 name: codex-trigger-matrix
@@ -129,16 +141,20 @@ paths:
 # codex-trigger-matrix
 
 ## Purpose
+
 Use this skill to operationalize the repository's review trigger matrix before invoking any Codex command.
 
 ## Required inputs
+
 - change summary
 - file or area scope
 - risk tier
 - early verification state
 
 ## Required decision outputs
+
 Return all of the following:
+
 1. whether Codex is required yet
 2. which command is required:
    - `/codex:review`
@@ -149,8 +165,11 @@ Return all of the following:
 4. why that route was chosen
 
 ## Routing rules
+
 ### Route to `/codex:review`
+
 Use when:
+
 - changes are stable enough for review
 - general implementation quality review is needed
 - multi-file work has passed initial local verification
@@ -158,7 +177,9 @@ Use when:
 - a large revision needs a second pass
 
 ### Route to `/codex:adversarial-review`
+
 Use when:
+
 - risk tier is medium or high
 - changes affect auth, permissions, roles, tokens, sessions, credentials, or trust boundaries
 - changes affect important business rules
@@ -167,7 +188,9 @@ Use when:
 - failure modes and hidden assumptions need pressure-testing
 
 ### Route to `/codex:rescue`
+
 Use when:
+
 - investigation is stuck
 - root cause is unclear
 - regression source is hard to localize
@@ -175,12 +198,14 @@ Use when:
 - an alternate line of investigation is needed
 
 ## Boundaries
+
 - Do not perform the Codex review directly.
 - Do not recommend `/codex:rescue` as a shortcut for ordinary coding work.
 - Do not route medium/high-risk work to normal review when the policy clearly requires adversarial review.
 - If the task is still too raw for meaningful review, say so explicitly.
 
 ## Required output shape
+
 1. Tujuan perubahan
 2. Scope
 3. Risk tier
@@ -193,11 +218,13 @@ Use when:
 - [ ] **Step 3: Reload plugins so the new skill is discoverable**
 
 Run in Claude Code:
+
 ```text
 /reload-plugins
 ```
 
 Expected:
+
 ```text
 Reloaded: ... skills ...
 ```
@@ -205,11 +232,13 @@ Reloaded: ... skills ...
 - [ ] **Step 4: Verify the skill content is present and readable**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && sed -n '1,220p' .claude/skills/codex-trigger-matrix/SKILL.md
 ```
 
 Expected:
+
 - frontmatter is valid
 - routing rules are present
 - output shape is present
@@ -217,11 +246,13 @@ Expected:
 - [ ] **Step 5: Commit**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && git add .claude/skills/codex-trigger-matrix/SKILL.md && git commit -m "feat: add codex trigger matrix skill"
 ```
 
 Expected:
+
 - one commit containing only the new trigger-matrix skill
 
 ---
@@ -229,22 +260,26 @@ Expected:
 ### Task 3: Create the `codex-review-summary` governance skill
 
 **Files:**
+
 - Create: `.claude/skills/codex-review-summary/SKILL.md`
 - Test: reload skill registry and inspect behavior manually
 
 - [ ] **Step 1: Create the skill directory**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && mkdir -p .claude/skills/codex-review-summary
 ```
 
 Expected:
+
 - directory `.claude/skills/codex-review-summary` exists
 
 - [ ] **Step 2: Write the skill file**
 
 Write this exact file to `.claude/skills/codex-review-summary/SKILL.md`:
+
 ```md
 ---
 name: codex-review-summary
@@ -262,14 +297,17 @@ paths:
 # codex-review-summary
 
 ## Purpose
+
 Use this skill after any Codex invocation to prevent raw Codex output from being presented directly.
 
 ## Accepted sources
+
 - `/codex:review`
 - `/codex:adversarial-review`
 - `/codex:rescue`
 
 ## Required inputs
+
 - purpose of the Codex invocation
 - raw Codex result
 - change context
@@ -277,6 +315,7 @@ Use this skill after any Codex invocation to prevent raw Codex output from being
 - current local verification state
 
 ## Mandatory output shape
+
 1. Ringkasan tujuan pemanggilan
 2. Temuan utama
 3. Severity
@@ -296,7 +335,9 @@ Use this skill after any Codex invocation to prevent raw Codex output from being
 7. Apakah perubahan sudah layak ke PR atau belum
 
 ## Special handling for `/codex:adversarial-review`
+
 Also separate:
+
 - blocker risk
 - non-blocking risk
 - test gap
@@ -304,18 +345,22 @@ Also separate:
 - follow-up candidate
 
 ## Special handling for `/codex:rescue`
+
 Also include:
+
 - root-cause confidence
 - fix confidence
 - unresolved uncertainty
 - verification debt
 
 ## Boundaries
+
 - Do not present raw Codex output without interpretation.
 - Do not convert Codex feedback into automatic implementation instructions.
 - Do not hide uncertainty when rescue confidence is low.
 
 ## Required tone
+
 - concise
 - review-ready
 - evidence-oriented
@@ -325,11 +370,13 @@ Also include:
 - [ ] **Step 3: Reload plugins so the new skill is discoverable**
 
 Run in Claude Code:
+
 ```text
 /reload-plugins
 ```
 
 Expected:
+
 ```text
 Reloaded: ... skills ...
 ```
@@ -337,11 +384,13 @@ Reloaded: ... skills ...
 - [ ] **Step 4: Verify the file content**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && sed -n '1,240p' .claude/skills/codex-review-summary/SKILL.md
 ```
 
 Expected:
+
 - mandatory output shape is present
 - adversarial handling section is present
 - rescue handling section is present
@@ -349,11 +398,13 @@ Expected:
 - [ ] **Step 5: Commit**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && git add .claude/skills/codex-review-summary/SKILL.md && git commit -m "feat: add codex review summary skill"
 ```
 
 Expected:
+
 - one commit containing only the new review-summary skill
 
 ---
@@ -361,22 +412,26 @@ Expected:
 ### Task 4: Create the `codex-pr-readiness` governance skill
 
 **Files:**
+
 - Create: `.claude/skills/codex-pr-readiness/SKILL.md`
 - Test: reload skill registry and inspect behavior manually
 
 - [ ] **Step 1: Create the skill directory**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && mkdir -p .claude/skills/codex-pr-readiness
 ```
 
 Expected:
+
 - directory `.claude/skills/codex-pr-readiness` exists
 
 - [ ] **Step 2: Write the skill file**
 
 Write this exact file to `.claude/skills/codex-pr-readiness/SKILL.md`:
+
 ```md
 ---
 name: codex-pr-readiness
@@ -394,9 +449,11 @@ paths:
 # codex-pr-readiness
 
 ## Purpose
+
 Use this skill before claiming that a change is ready for PR.
 
 ## Required inputs
+
 - change summary
 - file scope
 - risk tier
@@ -406,34 +463,41 @@ Use this skill before claiming that a change is ready for PR.
 - known concerns and unresolved items
 
 ## Allowed final verdicts
+
 - not review-ready
 - review-ready but not PR-ready
 - PR-ready with follow-up notes
 - not PR-ready
 
 ## Required checks
+
 ### Author readiness
+
 - the change is mature enough for serious review
 - scope is clear
 - correctness and maintainability concerns have been considered
 - adjacent impact has been considered
 
 ### Verification readiness
+
 - relevant local tests have been run
 - results are recorded
 - verification gaps are stated explicitly
 
 ### Review readiness
+
 - if the trigger matrix requires Codex review, that review has been performed
 - Codex findings have been fixed, deferred, or explicitly accepted
 
 ### PR artifact readiness
+
 - the change summary is clear
 - risk notes are visible
 - test notes are visible
 - unresolved issues are exposed instead of hidden
 
 ## Required output shape
+
 1. Ringkasan tujuan perubahan
 2. Scope
 3. Risk tier
@@ -444,6 +508,7 @@ Use this skill before claiming that a change is ready for PR.
 8. What must happen before PR, if not ready
 
 ## Boundaries
+
 - Do not declare PR-ready without verification evidence.
 - Do not skip required Codex review when the trigger matrix says it is mandatory.
 - Do not hide unresolved concerns to reach a cleaner verdict.
@@ -452,11 +517,13 @@ Use this skill before claiming that a change is ready for PR.
 - [ ] **Step 3: Reload plugins so the new skill is discoverable**
 
 Run in Claude Code:
+
 ```text
 /reload-plugins
 ```
 
 Expected:
+
 ```text
 Reloaded: ... skills ...
 ```
@@ -464,11 +531,13 @@ Reloaded: ... skills ...
 - [ ] **Step 4: Verify the file content**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && sed -n '1,240p' .claude/skills/codex-pr-readiness/SKILL.md
 ```
 
 Expected:
+
 - verdict list is present
 - required checks are present
 - boundary section is present
@@ -476,11 +545,13 @@ Expected:
 - [ ] **Step 5: Commit**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && git add .claude/skills/codex-pr-readiness/SKILL.md && git commit -m "feat: add codex pr readiness skill"
 ```
 
 Expected:
+
 - one commit containing only the new PR-readiness skill
 
 ---
@@ -488,22 +559,27 @@ Expected:
 ### Task 5: Add repository-facing code review governance documentation
 
 **Files:**
+
 - Create: `docs/code-review-governance.md`
 - Test: consistency check against approved spec
 
 - [ ] **Step 1: Write the governance document**
 
 Write this exact file to `docs/code-review-governance.md`:
+
 ```md
 # Code Review Governance
 
 ## Role split
+
 - Claude Code is the primary builder, executor, and final owner.
 - Codex is used for parallel review, challenge review, and rescue investigation.
 - GitHub CLI (`gh`) is the default governance path for PRs, checks, and rules.
 
 ## Trigger matrix
+
 ### Use `/codex:review` when:
+
 - changes are stable enough for review
 - you want a general quality pass
 - multi-file changes already passed initial local verification
@@ -511,19 +587,23 @@ Write this exact file to `docs/code-review-governance.md`:
 - a large revision needs a second pass
 
 ### Use `/codex:adversarial-review` when:
+
 - risk tier is medium/high
 - auth, permission, role, token, session, credential, or trust-boundary behavior changed
 - business rules or failure-mode-sensitive logic changed
 - persistence, retries, rollback, caching, concurrency, or reliability tradeoffs need challenge review
 
 ### Use `/codex:rescue` when:
+
 - investigation is stuck
 - root cause is unclear
 - regression or flaky behavior needs narrowing
 - an alternate investigation path is needed
 
 ## Post-Codex result format
+
 After any Codex command, summarize the result using:
+
 1. Ringkasan tujuan pemanggilan
 2. Temuan utama
 3. Severity
@@ -533,7 +613,9 @@ After any Codex command, summarize the result using:
 7. PR readiness
 
 ## PR readiness rule
+
 Do not claim a change is ready for PR unless:
+
 - self-review is done
 - relevant local verification is done
 - required Codex review has been considered
@@ -541,13 +623,16 @@ Do not claim a change is ready for PR unless:
 - PR notes are clear enough for a reviewer
 
 ## CLI-first governance
+
 Use `gh` or `gh api` for:
+
 - creating and editing PRs
 - reading checks
 - inspecting rulesets
 - reading repository governance state
 
 ## Prohibitions
+
 - Do not treat Codex as the primary builder.
 - Do not use rescue as a shortcut for ordinary coding work.
 - Do not present raw Codex output without interpretation.
@@ -557,17 +642,20 @@ Use `gh` or `gh api` for:
 - [ ] **Step 2: Verify consistency against the approved spec**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && diff -u docs/code-review-governance.md docs/superpowers/specs/2026-04-13-code-review-governance-standardization-design.md > /tmp/governance-diff.txt || true && sed -n '1,200p' /tmp/governance-diff.txt
 ```
 
 Expected:
+
 - wording can differ
 - core policy must not contradict the approved spec
 
 - [ ] **Step 3: Optionally add a short pointer in README if the governance doc feels too hidden**
 
 If adding a pointer to `README.md`, add this exact line under an appropriate section:
+
 ```md
 - See `docs/code-review-governance.md` for repository review workflow and Codex usage rules.
 ```
@@ -577,11 +665,13 @@ If the governance document is already easy to find and README would become noisy
 - [ ] **Step 4: Commit**
 
 Run:
+
 ```bash
 cd "/e/skrisi/clonefee/Infinite_Track_Fe" && git add docs/code-review-governance.md README.md && git commit -m "docs: add code review governance guide"
 ```
 
 Expected:
+
 - commit created with the governance document
 - README is included only if it was actually changed
 
@@ -590,22 +680,26 @@ Expected:
 ### Task 6: Verify the new governance workflow end-to-end
 
 **Files:**
+
 - Modify: none
 - Test: operational workflow verification
 
 - [ ] **Step 1: Reload plugins and confirm the three new skills are available**
 
 Run in Claude Code:
+
 ```text
 /reload-plugins
 ```
 
 Expected:
+
 ```text
 Reloaded: ... skills ...
 ```
 
 Then confirm the skill names are now available in the session:
+
 ```text
 codex-trigger-matrix
 codex-review-summary
@@ -615,11 +709,13 @@ codex-pr-readiness
 - [ ] **Step 2: Run a dry-run governance decision using the trigger-matrix skill**
 
 Use a sample prompt equivalent to:
+
 ```text
 We changed auth session handling across multiple files, local tests passed, and we are approaching PR readiness.
 ```
 
 Expected result:
+
 - the skill routes to `/codex:adversarial-review`
 - background mode is recommended for multi-file review
 - justification references risk tier and auth/session impact
@@ -627,11 +723,13 @@ Expected result:
 - [ ] **Step 3: Run a dry-run summary formatting pass using the review-summary skill**
 
 Use a sample Codex result excerpt like:
+
 ```text
 Found one blocker: retry loop can re-submit an expired token request. Missing test for concurrent refresh. Consider simplifying fallback path.
 ```
 
 Expected result:
+
 - output is structured into the repository's mandatory 7-part summary
 - severity is separated
 - required tests are called out explicitly
@@ -639,23 +737,27 @@ Expected result:
 - [ ] **Step 4: Run a dry-run PR-readiness check using the readiness skill**
 
 Use a sample state equivalent to:
+
 ```text
 Self-review done. Local tests passed. Adversarial review found one blocker not yet fixed.
 ```
 
 Expected result:
+
 - verdict is not PR-ready
 - blocker remediation is called out before PR
 
 - [ ] **Step 5: Decide whether a soft reminder hook is still necessary**
 
 Use this decision rule:
+
 ```text
 If the three skills and the governance doc are sufficient for normal disciplined usage, do not add a new hook yet.
 If the workflow still feels easy to bypass in repeated practice, add a separate follow-up spec for a soft reminder hook.
 ```
 
 Expected:
+
 - no hook is added by default in this implementation pass
 - hook work becomes a separate follow-up only if usage proves it necessary
 
@@ -668,6 +770,7 @@ Do not create a commit in this task. This is a verification and rollout-decision
 ## Self-review
 
 ### Spec coverage
+
 - Decision Layer: covered by Task 2
 - Result Layer: covered by Task 3
 - Readiness Layer: covered by Task 4
@@ -676,12 +779,14 @@ Do not create a commit in this task. This is a verification and rollout-decision
 - Existing Web FE review assets preserved: covered in file structure and Task 6 verification
 
 ### Placeholder scan
+
 - No TODO/TBD placeholders remain
 - No undefined skill names remain
 - No hard-gated hook implementation is assumed without verification
 - No guessed Codex command semantics are introduced beyond the approved spec
 
 ### Type and naming consistency
+
 - Skill names are consistently `codex-trigger-matrix`, `codex-review-summary`, and `codex-pr-readiness`
 - Governance document path is consistently `docs/code-review-governance.md`
 - Existing repo review assets are referenced consistently without renaming them

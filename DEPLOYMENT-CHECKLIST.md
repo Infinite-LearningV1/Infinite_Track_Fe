@@ -7,8 +7,8 @@
 **File: `.env.production`** (Buat manual, tidak di-commit ke git)
 
 ```env
-# GANTI URL INI dengan backend Anda!
-API_BASE_URL=https://api.yourdomain.com
+# Production Infinite Track memakai prefix /api di backend public.
+API_BASE_URL=https://api.infinite-track.tech/api
 
 API_AUTH_ENDPOINT=/auth
 API_VERSION=v1
@@ -42,7 +42,7 @@ git commit -m "Fix: Update logo files and prepare for deployment"
 ### 3️⃣ Install Dependencies Baru
 
 ```bash
-npm install
+npm ci
 ```
 
 ### 4️⃣ Build Production
@@ -67,58 +67,117 @@ serve -s build -p 3000
 
 - [ ] Verifikasi evidence untuk perubahan deploy/runtime sudah jelas, atau tandai `REQUIRES REPO VERIFICATION` bila jalur verifikasinya belum terkunci.
 - [ ] Tinjau kebutuhan update `CLAUDE.md` / ADR bila perubahan menggeser env, build, deploy, atau runtime assumptions.
+- [ ] `Needs Verification`: branch protection / GitHub ruleset benar-benar mewajibkan status check workflow build pada PR ke `develop` dan PR promotion ke `master` (capture 2026-07-04 via `gh api` tidak menemukan rule `required_status_checks`; lihat `docs/evidence/github-ruleset-evidence-2026-07-04.md`).
+- [x] ✅ Source branch static hosting production menunjuk ke `master` sebagai branch final (evidence: `docs/evidence/do-app-platform-source-2026-07-04.md`).
 
+#### GitHub Ruleset Verification (2026-07-02)
 
-### Pre-Build
+> External snapshot via GitHub API/rulesets on 2026-07-02. Re-verify in GitHub UI before release / promotion approval.
 
-- [ ] File referensi `.env.production.example` sudah disiapkan, dan untuk simulasi build production lokal sudah dicopy ke `.env.production`
-- [ ] `API_BASE_URL` sudah diubah ke backend production (tanpa trailing slash)
-- [ ] Git status bersih (no conflicts)
-- [ ] Dependencies ter-install (`npm install`)
+- [x] ✅ Active branch ruleset for `develop`: `develop — integration gate` on `refs/heads/develop`
+- [x] ✅ Active branch ruleset for `master`: `master — release-ready gate` on `refs/heads/master`
+- [x] ✅ Both rulesets block deletion dan non-fast-forward pushes
+- [x] ✅ Both rulesets require pull request review dengan minimum 1 approval, stale review dismissal, dan resolved review threads
+- [x] ✅ `develop` ruleset juga mewajibkan linear history
+- [ ] 🔍 **Needs Verification:** Capture 2026-07-04 via `gh api` membuktikan active rulesets untuk `develop`/`master`, tetapi tidak menemukan rule `required_status_checks` untuk workflow build; re-check GitHub UI / org-level policy sebelum release approval (evidence: `docs/evidence/github-ruleset-evidence-2026-07-04.md`)
+- [x] ✅ Repo workflow `.github/workflows/build.yml` sekarang trigger PR/push ke `develop` dan `master`
 
-### Build
+### Layer 1 — Pre-Build Readiness
 
+> Tujuan layer ini: memastikan input build sudah siap sebelum ada klaim smoke / deploy success.
+
+- [ ] File `.env.production` atau build-time env production setara sudah disiapkan (`REQUIRES REPO VERIFICATION`)
+- [ ] `API_BASE_URL` sudah mengarah ke backend public URL yang benar dan mencakup prefix API final
+- [ ] Git status branch kerja bersih dari perubahan tak terkait
+- [ ] Dependencies ter-install (`npm ci` untuk baseline reproducible, atau `npm install` bila konteksnya local iteration biasa)
+
+- [ ] Workflow build lulus pada PR ke `develop`
+- [ ] Promotion PR `develop` -> `master` memiliki evidence build yang cukup; repo workflow sekarang trigger otomatis ke target `master`, tetapi required status check tetap perlu diverifikasi di GitHub UI
 - [ ] `npm run build` berhasil tanpa error
 - [ ] Folder `build/` ter-generate dengan lengkap
 - [ ] File `bundle.js` dan `style.css` ada
 
-### Testing Lokal
+> Tujuan layer ini: membuktikan bundle frontend masih bisa dibentuk dari repo. Ini **bukan** bukti production runtime.
 
-- [ ] Test dengan `serve -s build`
-- [ ] Halaman signin bisa dibuka
-- [ ] Logo tampil semua
+- [ ] Workflow build lulus pada PR ke `develop` (evidence: GitHub check / CI log)
+- [ ] Promotion PR `develop` -> `master` punya evidence build yang cukup; workflow sekarang berjalan untuk target `master`, tetapi enforcement required status check masih `Needs Verification`
+- [ ] `npm run build` berhasil tanpa error (`REQUIRES REPO VERIFICATION` bila belum dijalankan fresh)
+- [ ] Folder `build/` ter-generate fresh setelah build, bukan output lama
+- [ ] File utama hasil build ada: `index.html`, `bundle.js`, `style.css`
+
+### Layer 3 — Local Static Smoke
+
+> Tujuan layer ini: memastikan artifact `build/` benar-benar bisa disajikan sebagai static site sebelum upload/deploy.
+
+- [ ] Jalankan static server lokal, misalnya `serve -s build -p 3000` (`REQUIRES REPO VERIFICATION` bila command belum dijalankan)
+- [ ] Halaman signin bisa dibuka dari artifact static
+- [ ] Logo / file assets tampil
 - [ ] Dark mode toggle berfungsi
-- [ ] Responsive di mobile view
-- [ ] No error di browser console
+- [ ] Responsive di mobile view dasar
+- [ ] Browser console tidak menunjukkan error blocking saat startup
 
-### Deployment
+### Layer 4 — Anonymous API Contract Smoke
+
+> Tujuan layer ini: memverifikasi contract API public + prefix production tanpa memakai credentials nyata.
+
+- [ ] Endpoint protected pada target `API_BASE_URL` production reachable dan memberi auth-required response yang sesuai (misalnya `401`), serta **bukan** `404` / network error
+- [ ] Verifikasi bahwa contract Web FE production memang memakai `API_BASE_URL` yang mencakup prefix API final `/api`; route tanpa prefix bukan success evidence untuk frontend contract
+- [ ] Tidak ada CORS / network error saat browser mencoba bootstrap anonymous flow
+
+### Layer 5 — Deployment Readiness
+
+> Tujuan layer ini: memastikan artifact dan target release branch siap dipromosikan / diupload.
 
 - [ ] Upload folder `build/` ke hosting static production
 - [ ] Setup SSL certificate (HTTPS)
-- [ ] Jika memakai DigitalOcean App Platform Static Site, pastikan source branch/build/output sudah benar
+- [x] ✅ Jika memakai DigitalOcean App Platform Static Site, source branch final adalah `master`, build command `npm run build`, dan output directory `build` (evidence: `docs/evidence/do-app-platform-source-2026-07-04.md`)
+- [ ] Promotion PR `develop` -> `master` punya evidence review + build yang cukup sebelum `master` diperlakukan release-ready; jangan asumsi workflow `build.yml` otomatis berjalan untuk target `master`
 - [ ] Test akses dari domain production
+
+#### DigitalOcean App Platform Verification (2026-07-02)
+
+> External snapshot via DigitalOcean MCP/API on 2026-07-02. Re-verify in dashboard before release / promotion approval.
+
+- [x] ✅ App production teridentifikasi sebagai `infinite-track-fe-production` (static site, region `sgp`)
+- [x] ✅ GitHub repo `Infinite-LearningV1/Infinite_Track_Fe` dan source branch `master` sudah terhubung; deploy-on-push aktif
+- [x] ✅ Build setting static site sesuai ekspektasi repo: `build_command = npm run build`, `source_dir = /`, `output_dir = build`
+- [ ] 🔍 **GAP:** Build-time env App Platform belum fully aligned dengan current canonical deployment docs (`.env.production.example`, `DEPLOYMENT.md`, `DEPLOYMENT-CHECKLIST.md`) karena `API_BASE_URL` saat ini masih `https://api.infinite-track.tech` (tanpa `/api`), sedangkan contract production aktif memakai `https://api.infinite-track.tech/api`
+- [ ] 🔍 Manual dashboard screenshot attachment masih direkomendasikan bila issue / PR membutuhkan bukti UI selain MCP/API evidence
 
 ### Docker Compose Verification
 
-- [ ] `BACKEND_REPO_PATH` diarahkan ke repo backend lokal yang benar sebelum menjalankan `docker compose --profile dev up --build`
-- [ ] Tambahkan `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, dan `CLOUDINARY_API_SECRET` saat smoke test Docker lokal karena backend saat ini membutuhkannya untuk startup sukses
-- [ ] Development gateway flow diverifikasi dengan stack Compose aktif dan trafik browser masuk lewat service `nginx` setelah menjalankan `docker compose --profile dev up --build`
-- [ ] Jika memakai mode staging-like, jalankan `NGINX_MODE=staging docker compose --profile staging up --build` lalu verifikasi HTTP setelah service `frontend-build` selesai mempopulasi volume `frontend_dist`
+- [ ] `BACKEND_IMAGE` menunjuk ke image backend yang tersedia dan listen pada port container `3005`
+- [ ] Development profile diverifikasi dengan `docker compose --profile dev up --build`
+- [ ] Staging-like profile diverifikasi dengan `docker compose --profile staging up --build`
+- [ ] Staging-like mode memakai artifact container untuk membangun dan menyalin output frontend ke volume `frontend_dist`, bukan build manual host sebelum Compose
+- [ ] `nginx-staging` menunggu marker artifact dari `frontend-build` sebelum gateway dianggap siap menyajikan aset
 
 ### Docker Gateway Verification
 
-- [ ] Verifikasi gateway NGINX merespons pada port host yang dipakai, misalnya `curl -I http://localhost:8080`
-- [ ] Jika port gateway dioverride, verifikasi endpoint yang sesuai, misalnya `curl -I http://localhost:8081`
-- [ ] Pastikan `/api` diproxy lewat gateway ke backend container, bukan lagi asumsi lama `localhost:3005`
+- [ ] Verifikasi gateway NGINX merespons pada port host default, misalnya `curl -I http://localhost:8080`
+- [ ] Jika `GATEWAY_PORT` dioverride, verifikasi endpoint yang sesuai, misalnya `curl -I http://localhost:8081`
+- [ ] Pastikan `/api` diproxy lewat gateway ke backend container `backend:3005`
 - [ ] Gunakan `docker compose down` untuk stop stack, atau `docker compose down -v` bila juga ingin membersihkan volume lokal
 
-### Post-Deployment
+### Layer 6 — Post-Deploy Authenticated Smoke
 
-- [ ] Login berhasil
-- [ ] Dashboard data tampil
-- [ ] Export PDF/Excel berfungsi
-- [ ] Test di berbagai browser
-- [ ] Monitor error logs
+> Tujuan layer ini: membuktikan flow runtime utama bekerja setelah deploy. Layer ini membutuhkan browser/runtime evidence dan biasanya `EXTERNAL VERIFICATION REQUIRED` bila credentials tidak tersedia di sesi ini.
+
+- [ ] Login berhasil dengan account yang diizinkan
+- [ ] Dashboard data tampil sesuai role / akses account
+- [ ] Navigasi antar halaman utama berjalan tanpa error blocking
+- [ ] Export PDF/Excel berfungsi untuk flow yang memang tersedia di production
+- [ ] Search / filter utama bekerja pada halaman yang relevan
+
+### Layer 7 — Post-Deploy Browser / Ops Smoke
+
+- [ ] Test di Chrome latest
+- [ ] Test di Firefox latest
+- [ ] Test di Edge latest
+- [ ] Test di mobile browser / responsive viewport yang disepakati
+- [ ] Browser console bersih dari error runtime yang blocking
+- [ ] Monitor error logs / hosting logs setelah deploy
+- [ ] Catat evidence hasil smoke (screenshot, console capture, atau issue/PR note)
 
 ---
 
@@ -126,29 +185,46 @@ serve -s build -p 3000
 
 ### 1. Backend API Integration
 
-**CRITICAL:** Pastikan `API_BASE_URL` di env build-time production benar. Jika memakai `.env.production` untuk simulasi lokal, nilainya harus sama dengan contract production dan tidak memakai trailing slash.
+**CRITICAL:** Pastikan `API_BASE_URL` di `.env.production` atau env build-time production benar.
 
-Contoh konfigurasi yang direkomendasikan untuk static production:
+Contoh konfigurasi yang direkomendasikan untuk static production Infinite Track:
 
-- Backend di subdomain: `https://api.yourdomain.com`
+- Backend public dengan prefix API final: `API_BASE_URL=https://api.infinite-track.tech/api`
+- Jika memakai domain lain, pastikan nilai `API_BASE_URL` tetap mencakup prefix API final, misalnya `https://api.yourdomain.com/api`.
 
 Catatan:
-- Untuk production static site, gunakan backend public URL eksplisit.
+
+- Untuk production static site, gunakan backend public URL eksplisit yang sudah mencakup prefix API final.
 - Jangan mengandalkan local `/api` gateway sebagai production default kecuali memang ada reverse proxy production yang sengaja disiapkan.
+- Verifikasi cepat: `https://api.infinite-track.tech/api/settings/operational` boleh mengembalikan `401 Unauthorized` saat belum login, tetapi tidak boleh `404`. Route tanpa prefix seperti `https://api.infinite-track.tech/settings/operational` bukan contract production Web FE.
 
 ### 2. CORS Configuration
 
-Backend harus allow origin dari frontend domain Anda:
+Backend harus mengizinkan origin frontend production secara eksplisit dan mendukung credentialed browser requests untuk auth/session flow.
+
+> Karena Web FE mengirim request auth dengan `withCredentials: true`, CORS production **tidak boleh** memakai wildcard origin. Origin harus spesifik, `credentials` harus diaktifkan bila flow memakai cookie/session, dan preflight harus lolos untuk header yang dipakai frontend.
+
+Contoh backend (Express.js):
 
 ```javascript
-// Contoh di backend (Express.js)
 app.use(
   cors({
     origin: "https://yourdomain.com",
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "X-Client-Type"],
   }),
 );
 ```
+
+Jika suatu endpoint benar-benar membutuhkan header `Authorization`, tambahkan hanya untuk endpoint/flow yang memang menggunakannya; jangan asumsikan semua request Web FE mengirim bearer token karena repo auth runtime saat ini justru membersihkan Authorization dari protected request flow.
+
+Checklist validasi CORS:
+
+- origin frontend production tercantum spesifik
+- credentialed requests diizinkan bila session/cookie dipakai
+- preflight `OPTIONS` lolos untuk `Content-Type` dan `X-Client-Type`
+- browser tidak menampilkan CORS/network error saat login atau bootstrap session
 
 ### 3. File Assets
 
@@ -220,7 +296,7 @@ scp -r build/* user@your-server:/var/www/infinitetrack/
 
 | Problem             | Solution                                   |
 | ------------------- | ------------------------------------------ |
-| API 404 Error       | Update `API_BASE_URL` di env build-time production atau `.env.production` lokal |
+| API 404 Error       | Update `API_BASE_URL` di `.env.production` |
 | Blank page          | Check console, verify assets path          |
 | 404 on refresh      | Configure server for SPA routing           |
 | Images not loading  | Verify `build/src/images/` exists          |
@@ -229,23 +305,66 @@ scp -r build/* user@your-server:/var/www/infinitetrack/
 
 ---
 
-## 📞 Emergency Contacts
+## 📞 Rollback & Incident Response
 
-Jika ada masalah serius saat deployment:
+Jika ada masalah serius saat deployment, gunakan decision tree berikut sebelum memilih rollback path.
 
-1. **Rollback:** Deploy versi build sebelumnya
-2. **Check Logs:** Browser console + Server logs
-3. **Verify Backend:** Pastikan backend accessible
-4. **Test Locally:** Reproduce issue di localhost
+### Decision Tree
+
+1. **Build gagal sebelum release branch / artifact dipromosikan**
+   - Jangan deploy paksa.
+   - Perbaiki build/config lebih dulu.
+   - Release belum valid, jadi rollback production belum relevan.
+
+2. **Artifact static sudah terdeploy, tetapi browser/runtime langsung broken**
+   - Cek apakah masalahnya berasal dari env/build contract (`API_BASE_URL`, wrong asset path, wrong output artifact).
+   - Jika ya, rollback ke deployment static sebelumnya atau redeploy artifact terakhir yang diketahui sehat.
+
+3. **Frontend baru naik, tetapi API/auth flow gagal**
+   - Pisahkan apakah masalahnya CORS / env base URL / backend outage.
+   - Jika penyebabnya frontend deploy/config baru, rollback frontend.
+   - Jika penyebabnya backend outage tanpa perubahan frontend, rollback frontend biasanya tidak menyelesaikan insiden; eskalasi backend.
+
+4. **Promotion `develop` -> `master` sudah merge tetapi release ternyata tidak sehat**
+   - Buat revert path yang jelas pada branch/release flow.
+   - Gunakan revert PR / commit rollback yang traceable, lalu pastikan hosting kembali menunjuk ke artifact/deployment yang sehat.
+
+### Minimum Rollback Evidence
+
+- [ ] Catat incident timestamp
+- [ ] Catat trigger rollback (contoh: blank page, auth fail, export fail, CORS/network error)
+- [ ] Catat rollback target (commit / PR / deployment ID / previous App Platform deployment)
+- [ ] Catat siapa yang menyetujui rollback
+- [ ] Jalankan post-rollback smoke minimal
+- [ ] Lampirkan evidence ke issue / PR / release note
+
+### Minimum Post-Rollback Smoke
+
+- [ ] Frontend domain kembali bisa dibuka
+- [ ] Halaman signin tampil
+- [ ] Endpoint protected yang dituju oleh `API_BASE_URL` production kembali reachable dan memberi auth-required response yang sesuai (misalnya anonymous `401`), bukan `404` / network error
+- [ ] Jika credentials tersedia, login + dashboard smoke diulang
+- [ ] Browser console / hosting logs tidak menunjukkan error rollback yang blocking
+
+### Quick Response Actions
+
+1. **Check Logs:** Browser console + hosting/server logs
+2. **Verify Backend:** Pastikan backend accessible sebelum menyalahkan frontend artifact
+3. **Test Locally:** Reproduce issue dari artifact/build branch bila perlu
+4. **Rollback:** gunakan deployment/commit terakhir yang sudah terbukti sehat, bukan snapshot yang belum punya smoke evidence
 
 ---
 
 ## 📝 Final Notes
 
-- ✅ Docker gateway workflow untuk local/staging-like verification sudah terdokumentasi
-- ✅ Verifikasi yang terbukti di worktree ini mencakup build FE, boot stack Docker dev, dan respons gateway HTTP 200
-- ⚠️ Production readiness tetap `REQUIRES REPO VERIFICATION`
-- ⚠️ Cloudinary env masih perlu disuplai saat smoke test backend lokal di Docker
-- ⚠️ Deploy ke hosting pilihan Anda tetap memerlukan validasi environment production terpisah
+- ✅ Baseline CI repo saat ini mencakup build verification untuk PR/push ke `develop` dan `master`; promotion PR ke `master` sekarang punya trigger workflow, tetapi required status check GitHub UI masih perlu diverifikasi
+- ✅ `master` adalah branch final yang dimaksudkan menjadi release / deploy source dalam workflow repo ini
+- ✅ Docker gateway workflow lokal sekarang memakai `BACKEND_IMAGE`, profile `dev`, profile `staging`, dan NGINX sebagai browser entrypoint
+- ⚠️ `Needs Verification`: required status check, branch protection GitHub UI, dan direct-push restriction masih perlu closure; capture 2026-07-04 via `gh api` tidak menemukan rule `required_status_checks` (lihat `docs/evidence/github-ruleset-evidence-2026-07-04.md`)
+- ✅ Source branch, build command, dan output directory pada static hosting production sudah terverifikasi (lihat `docs/evidence/do-app-platform-source-2026-07-04.md`)
+- ⚠️ `Needs Verification`: image backend lokal yang dipakai untuk Compose benar-benar listen pada port container `3005`
+- ⚠️ **TINGGAL:** Configure environment variables
+- ⚠️ **TINGGAL:** Deploy ke hosting pilihan Anda
+- ⚠️ **TINGGAL:** Jalankan post-deploy smoke checks sebelum menyebut snapshot ini production-ready
 
-**Lanjutkan deployment dengan verifikasi bertahap.**
+**Good luck dengan deployment! 🚀**

@@ -20,12 +20,14 @@
 ### Task 1: Add the official branch-promotion policy to repo guidance
 
 **Files:**
+
 - Modify: `AGENTS.md`
 - Test: policy text inspection in `AGENTS.md`
 
 - [ ] **Step 1: Inspect the current repo guidance to find the best insertion point**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -36,7 +38,9 @@ for i, line in enumerate(text, start=1):
         print(f"{i}: {line}")
 PY
 ```
+
 Expected:
+
 - Output shows the structure of `AGENTS.md` so you can place the workflow policy in a coherent location rather than appending it randomly.
 
 - [ ] **Step 2: Add a new section that defines branch roles and allowed merge paths**
@@ -56,16 +60,20 @@ This repo uses a branch-promotion model:
 - `master` is updated only by promoting a release-ready state from `develop`.
 
 ### Required merge path
+
 - `feature/*` -> PR review -> `develop`
 - `develop` -> controlled promotion -> `master`
 
 ### Release gate for `develop` -> `master`
+
 Promote to `master` only when:
+
 - the relevant changes in `develop` have already been reviewed
 - minimum verification for the release is passing
 - the `develop` snapshot is considered clean and release-ready
 
 ### Not allowed as the normal workflow
+
 - direct feature work on `develop`
 - direct feature work on `master`
 - direct feature branch merges to `master`
@@ -75,6 +83,7 @@ Promote to `master` only when:
 - [ ] **Step 3: Verify the new policy text is present and internally consistent**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -94,37 +103,47 @@ for item in required:
 print("branch policy text verified")
 PY
 ```
+
 Expected:
+
 - Script prints `branch policy text verified`.
 
 - [ ] **Step 4: Review the final diff for AGENTS-only workflow scope**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- AGENTS.md
 ```
+
 Expected:
+
 - Diff shows only the new branch-promotion guidance in `AGENTS.md` for this task.
 
 - [ ] **Step 5: Commit the repo guidance update**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add AGENTS.md
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "docs: define branch promotion workflow"
 ```
+
 Expected:
+
 - One commit containing only the authoritative workflow guidance update.
 
 ### Task 2: Add contributor-facing workflow documentation in the README
 
 **Files:**
+
 - Modify: `README.md`
 - Test: policy text inspection in `README.md`
 
 - [ ] **Step 1: Find the most appropriate README section for contribution workflow guidance**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -134,7 +153,9 @@ for i, line in enumerate(path.read_text().splitlines(), start=1):
         print(f"{i}: {line}")
 PY
 ```
+
 Expected:
+
 - Output gives you enough context to insert a concise workflow section in a logical place.
 
 - [ ] **Step 2: Add a concise contributor workflow section to the README**
@@ -152,6 +173,7 @@ This repository uses a branch-promotion workflow:
 - Treat `master` as the final clean branch that is updated only when `develop` is ready to deploy.
 
 In short:
+
 - `feature/*` -> `develop` via PR review
 - `develop` -> `master` via controlled release promotion
 ```
@@ -159,6 +181,7 @@ In short:
 - [ ] **Step 3: Verify the README now reflects the same branch model as AGENTS.md**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -176,31 +199,40 @@ for item in required:
 print("readme workflow text verified")
 PY
 ```
+
 Expected:
+
 - Script prints `readme workflow text verified`.
 
 - [ ] **Step 4: Review the final diff for README-only workflow scope**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- README.md
 ```
+
 Expected:
+
 - Diff shows only the new README branch-workflow section for this task.
 
 - [ ] **Step 5: Commit the contributor-facing workflow docs**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add README.md
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "docs: document branch promotion flow"
 ```
+
 Expected:
+
 - One commit containing only the README workflow update.
 
 ### Task 3: Cross-check the policy, document the current branch reality, and leave no ambiguity
 
 **Files:**
+
 - Modify if needed: `AGENTS.md`
 - Modify if needed: `README.md`
 - Test: combined policy verification
@@ -208,10 +240,13 @@ Expected:
 - [ ] **Step 1: Inspect the current branch topology so the docs match repo reality**
 
 Run:
+
 ```bash
 cd "E:/skrisi/clonefee/Infinite_Track_Fe" && git branch -a && echo SEP && git remote show origin
 ```
+
 Expected:
+
 - Output confirms the repo still has `develop`, `master`, and possibly `deploy` or other historical branches.
 - Use this only to make sure the docs do not claim branches were deleted if they still exist.
 
@@ -228,6 +263,7 @@ If the existing wording is already clear enough without this sentence, leave the
 - [ ] **Step 3: Verify the final documented workflow is explicit and non-contradictory**
 
 Run:
+
 ```bash
 python - <<'PY'
 from pathlib import Path
@@ -254,16 +290,21 @@ for forbidden in [
 print("workflow documentation cross-check passed")
 PY
 ```
+
 Expected:
+
 - Script prints `workflow documentation cross-check passed`.
 
 - [ ] **Step 4: Review the combined diff to ensure only workflow documentation changed**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" diff -- AGENTS.md README.md
 ```
+
 Expected:
+
 - Diff is limited to the branch workflow rule changes.
 
 - [ ] **Step 5: Commit the final workflow clarification if this task changed files**

@@ -1,333 +1,53 @@
 <div
-  class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+  class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
 >
-  <div
-    class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"
-  >
-    <div>
-      <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-        Summary Report
-      </h3>
-      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        Summary statistik kehadiran berdasarkan periode filter aktif
-      </p>
-    </div>
-    <div class="flex flex-wrap gap-x-3.5 gap-y-2">
-      <!-- Export Buttons -->
-      <div class="flex gap-2">
-        <!-- PDF Export -->
-        <button
-          @click="exportToPDF()"
-          :disabled="isExporting"
-          class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-          :title="`Download PDF Report (${period})`"
-        >
-          <svg
-            class="h-4 w-4 text-red-600"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-              clip-rule="evenodd"
-            ></path>
-          </svg>
-          <span class="hidden sm:inline">PDF</span>
-        </button>
+  <include src="../dashboard/dashboard-analytics-header.html"></include>
 
-        <!-- Excel Export -->
-        <button
-          @click="exportToExcel()"
-          :disabled="isExporting"
-          class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-          :title="`Download Excel Report (${period})`"
-        >
-          <svg
-            class="h-4 w-4 text-green-600"
-            fill="currentColor"
-            viewBox="0 0 20 20"
+  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+    <template x-for="card in cockpit.kpis" :key="card.key">
+      <section
+        class="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+      >
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <span
+              class="text-sm font-medium text-gray-500 dark:text-gray-400"
+              x-text="card.title"
+            ></span>
+          </div>
+          <span
+            class="inline-flex h-6 w-6 items-center justify-center"
+            :class="getCockpitKpiIconClass(card)"
+            x-html="getCockpitKpiIconSvg(card.meta.icon)"
+          ></span>
+        </div>
+        <h2
+          class="mb-2 text-3xl font-semibold text-gray-800 dark:text-white/90"
+          x-text="getCockpitKpiDisplayValue(card)"
+        ></h2>
+        <p
+          class="mb-4 min-h-[72px] text-sm leading-6 text-gray-500 dark:text-gray-400"
+          x-text="getCockpitKpiSupportText(card)"
+        ></p>
+        <div class="mt-auto flex items-center justify-between gap-3">
+          <span
+            class="text-sm text-gray-500 dark:text-gray-400"
+            x-text="getDashboardRangeLabel()"
+          ></span>
+          <span
+            class="flex items-center gap-1 text-sm font-medium"
+            :class="getCockpitKpiFooterClass(card)"
           >
-            <path
-              fill-rule="evenodd"
-              d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-              clip-rule="evenodd"
-            ></path>
-          </svg>
-          <span class="hidden sm:inline">Excel</span>
-        </button>
-      </div>
-
-      <!-- Period Filter Dropdown -->
-      <div class="flex items-center gap-2">
-        <select
-          x-model="period"
-          @change="onPeriodChange()"
-          class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]"
-          title="Filter periode untuk dashboard dan export"
-        >
-          <option value="all">All Time</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-      </div>
-
-      <!-- Refresh Button -->
-      <div>
-        <button
-          @click="loadSummaryData()"
-          class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-        >
-          <svg
-            class="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            ></path>
-          </svg>
-          <span class="hidden sm:inline">Refresh</span>
-        </button>
-      </div>
-    </div>
+            <span
+              class="inline-flex h-4 w-4 items-center justify-center"
+              x-html="getCockpitKpiStateIconSvg(card)"
+            ></span>
+            <span x-text="getCockpitKpiFooterLabel(card)"></span>
+          </span>
+        </div>
+      </section>
+    </template>
   </div>
 
-  <!-- Stats Cards Grid -->
-  <div
-    class="grid rounded-2xl border border-gray-200 bg-white sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 dark:border-gray-800 dark:bg-gray-900"
-  >
-    <!-- On Time Card -->
-    <div
-      class="border-b border-gray-200 px-6 py-5 sm:border-r xl:border-b-0 dark:border-gray-800"
-    >
-      <div class="mb-2 flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 dark:bg-green-500/20"
-        >
-          <svg
-            class="h-4 w-4 text-green-600 dark:text-green-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </div>
-        <span class="text-sm text-gray-500 dark:text-gray-400">On Time</span>
-      </div>
-      <div class="flex items-end gap-3">
-        <h4
-          class="text-2xl font-bold text-gray-800 dark:text-white/90"
-          x-text="cardSummaryData.onTime"
-        >
-          0
-        </h4>
-        <div>
-          <span
-            class="flex items-center gap-1 rounded-full bg-green-50 py-0.5 pr-2.5 pl-2 text-xs font-medium text-green-600 dark:bg-green-500/15 dark:text-green-500"
-          >
-            Good
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Late Card -->
-    <div
-      class="border-b border-gray-200 px-6 py-5 xl:border-r xl:border-b-0 dark:border-gray-800"
-    >
-      <div class="mb-2 flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 dark:bg-red-500/20"
-        >
-          <svg
-            class="h-4 w-4 text-red-600 dark:text-red-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 9.586V6z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </div>
-        <span class="text-sm text-gray-500 dark:text-gray-400">Late</span>
-      </div>
-      <div class="flex items-end gap-3">
-        <h4
-          class="text-2xl font-bold text-gray-800 dark:text-white/90"
-          x-text="cardSummaryData.late"
-        >
-          0
-        </h4>
-        <div>
-          <span
-            class="flex items-center gap-1 rounded-full bg-red-50 py-0.5 pr-2.5 pl-2 text-xs font-medium text-red-600 dark:bg-red-500/15 dark:text-red-500"
-          >
-            Alert
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Alpha Card -->
-    <div
-      class="border-b border-gray-200 px-6 py-5 sm:border-r sm:border-b-0 xl:border-r-0 2xl:border-r dark:border-gray-800"
-    >
-      <div class="mb-2 flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-500/20"
-        >
-          <svg
-            class="h-4 w-4 text-gray-600 dark:text-gray-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </div>
-        <span class="text-sm text-gray-500 dark:text-gray-400">Alpha</span>
-      </div>
-      <div class="flex items-end gap-3">
-        <h4
-          class="text-2xl font-bold text-gray-800 dark:text-white/90"
-          x-text="cardSummaryData.alpha"
-        >
-          0
-        </h4>
-        <div>
-          <span
-            class="flex items-center gap-1 rounded-full bg-gray-50 py-0.5 pr-2.5 pl-2 text-xs font-medium text-gray-600 dark:bg-gray-500/15 dark:text-gray-500"
-          >
-            Absent
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Work From Office Card -->
-    <div
-      class="border-b border-gray-200 px-6 py-5 sm:border-b-0 xl:border-r xl:border-b-0 2xl:border-b-0 dark:border-gray-800"
-    >
-      <div class="mb-2 flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/20"
-        >
-          <svg
-            class="h-4 w-4 text-blue-600 dark:text-blue-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
-            />
-          </svg>
-        </div>
-        <span class="text-sm text-gray-500 dark:text-gray-400">WFO</span>
-      </div>
-      <div class="flex items-end gap-3">
-        <h4
-          class="text-2xl font-bold text-gray-800 dark:text-white/90"
-          x-text="cardSummaryData.wfo"
-        >
-          0
-        </h4>
-        <div>
-          <span
-            class="flex items-center gap-1 rounded-full bg-blue-50 py-0.5 pr-2.5 pl-2 text-xs font-medium text-blue-600 dark:bg-blue-500/15 dark:text-blue-500"
-          >
-            Office
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Work From Home Card -->
-    <div
-      class="border-b border-gray-200 px-6 py-5 sm:border-r sm:border-b-0 xl:border-r-0 2xl:border-r dark:border-gray-800"
-    >
-      <div class="mb-2 flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-500/20"
-        >
-          <svg
-            class="h-4 w-4 text-orange-600 dark:text-orange-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h10a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
-            />
-          </svg>
-        </div>
-        <span class="text-sm text-gray-500 dark:text-gray-400">WFH</span>
-      </div>
-      <div class="flex items-end gap-3">
-        <h4
-          class="text-2xl font-bold text-gray-800 dark:text-white/90"
-          x-text="cardSummaryData.wfh"
-        >
-          0
-        </h4>
-        <div>
-          <span
-            class="flex items-center gap-1 rounded-full bg-orange-50 py-0.5 pr-2.5 pl-2 text-xs font-medium text-orange-600 dark:bg-orange-500/15 dark:text-orange-500"
-          >
-            Home
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Work From Anywhere Card -->
-    <div class="px-6 py-5">
-      <div class="mb-2 flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-500/20"
-        >
-          <svg
-            class="h-4 w-4 text-purple-600 dark:text-purple-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.944A5.965 5.965 0 0110 6c1.507 0 2.888.554 3.957 1.458L12.5 9H16V5.5l-1.742 1.742A6.969 6.969 0 0010 5C5.03 5 1 9.03 1 14c0 .342.02.678.057 1.008L3.073 13.6A5.983 5.983 0 014.332 8.944zM16.943 5.008L18.927 6.4A5.983 5.983 0 0115.668 11.056a5.965 5.965 0 01-5.668 2.944c-1.507 0-2.888-.554-3.957-1.458L7.5 11H4v3.5l1.742-1.742A6.969 6.969 0 0010 15c4.97 0 9-4.03 9-9 0-.342-.02-.678-.057-1.008z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </div>
-        <span class="text-sm text-gray-500 dark:text-gray-400">WFA</span>
-      </div>
-      <div class="flex items-end gap-3">
-        <h4
-          class="text-2xl font-bold text-gray-800 dark:text-white/90"
-          x-text="cardSummaryData.wfa"
-        >
-          0
-        </h4>
-        <div>
-          <span
-            class="flex items-center gap-1 rounded-full bg-purple-50 py-0.5 pr-2.5 pl-2 text-xs font-medium text-purple-600 dark:bg-purple-500/15 dark:text-purple-500"
-          >
-            Remote
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
+  <include src="../modal/export-report-modal.html" />
 </div>

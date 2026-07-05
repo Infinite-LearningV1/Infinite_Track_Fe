@@ -3,9 +3,48 @@ const glob = require("glob");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
-require("dotenv").config({
-  path: process.env.NODE_ENV === "production" ? ".env.production" : ".env",
-});
+require("dotenv").config();
+
+const projectRoot = __dirname;
+
+const INCLUDE_PATTERN =
+  /<include\s+src=["'](.+?)["']\s*\/?>\s*(?:<\/include>)?/gis;
+
+const processNestedHtml = (content, loaderContext, dir = null) =>
+  !INCLUDE_PATTERN.test(content)
+    ? content
+    : content.replace(INCLUDE_PATTERN, (m, src) => {
+        const filePath = path.resolve(
+          dir || path.dirname(loaderContext.resourcePath),
+          src,
+        );
+        loaderContext.dependency(filePath);
+        return processNestedHtml(
+          loaderContext.fs.readFileSync(filePath, "utf8"),
+          loaderContext,
+          path.dirname(filePath),
+        );
+      });
+
+// HTML generation
+const paths = [];
+const generateHTMLPlugins = () =>
+  glob.sync("src/*.html", { cwd: projectRoot }).map((dir) => {
+    const filename = path.basename(dir);
+
+    if (filename !== "404.html") {
+      paths.push(filename);
+    }
+
+    const template = path.join(projectRoot, "src", filename);
+
+    return new HtmlWebpackPlugin({
+      filename,
+      template,
+      favicon: path.join(projectRoot, "src", "images", "favicon.ico"),
+      inject: "body",
+    });
+  });
 
 const devServer = {
   static: {
@@ -21,17 +60,12 @@ const devServer = {
   proxy: [
     {
       context: ["/api"],
-      target:
-        process.env.WEBPACK_API_PROXY_TARGET || "http://localhost:3005",
+      target: process.env.WEBPACK_API_PROXY_TARGET || "http://localhost:3005",
       changeOrigin: true,
       secure: false,
       logLevel: "debug",
       onError: (err, req, res) => {
         console.log("Proxy Error:", err);
-        if (!res.headersSent) {
-          res.writeHead(502, { "Content-Type": "text/plain" });
-        }
-        res.end("Bad Gateway");
       },
       onProxyReq: (proxyReq, req, res) => {
         console.log("Proxying request to:", proxyReq.path);
@@ -40,44 +74,10 @@ const devServer = {
   ],
 };
 
-const INCLUDE_PATTERN =
-  /<include\s+src=["'](.+?)["']\s*\/?>\s*(?:<\/include>)?/gis;
-
-const processNestedHtml = (content, loaderContext, dir = null) =>
-  !INCLUDE_PATTERN.test(content)
-    ? content
-    : content.replace(INCLUDE_PATTERN, (m, src) => {
-        const filePath = path.resolve(dir || loaderContext.context, src);
-        loaderContext.dependency(filePath);
-        return processNestedHtml(
-          loaderContext.fs.readFileSync(filePath, "utf8"),
-          loaderContext,
-          path.dirname(filePath),
-        );
-      });
-
-// HTML generation
-const paths = [];
-const generateHTMLPlugins = () =>
-  glob.sync("./src/*.html").map((dir) => {
-    const filename = path.basename(dir);
-
-    if (filename !== "404.html") {
-      paths.push(filename);
-    }
-
-    return new HtmlWebpackPlugin({
-      filename,
-      template: `./src/${filename}`,
-      favicon: `./src/images/favicon.ico`,
-      inject: "body",
-    });
-  });
-
 module.exports = {
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
-  entry: "./src/js/index.js",
-  devServer: devServer,
+  context: projectRoot,
+  entry: path.join(projectRoot, "src", "js", "index.js"),
   module: {
     rules: [
       {
@@ -158,6 +158,9 @@ module.exports = {
       "process.env.REMEMBER_ME_DAYS": JSON.stringify(
         process.env.REMEMBER_ME_DAYS || "7",
       ),
+      "process.env.AUTH_CLIENT_TYPE": JSON.stringify(
+        process.env.AUTH_CLIENT_TYPE || "web",
+      ),
       "process.env.DEFAULT_LANGUAGE": JSON.stringify(
         process.env.DEFAULT_LANGUAGE || "id",
       ),
@@ -176,6 +179,7 @@ module.exports = {
     clean: true,
     assetModuleFilename: "[path][name][ext]",
   },
+  devServer,
   target: "web", // fix for "browserslist" error message
   stats: "errors-only", // suppress irrelevant log messages
 };

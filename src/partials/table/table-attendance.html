@@ -51,7 +51,9 @@
           >
             <button
               @click="changeSort('id')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('id')"
+              :class="isSortFieldSupported('id') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>User ID</span>
               <span x-text="getSortIcon('id')" class="text-primary"></span>
@@ -62,7 +64,9 @@
           >
             <button
               @click="changeSort('full_name')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('full_name')"
+              :class="isSortFieldSupported('full_name') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Full Name</span>
               <span
@@ -76,7 +80,9 @@
           >
             <button
               @click="changeSort('time_in')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('time_in')"
+              :class="isSortFieldSupported('time_in') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Time In</span>
               <span x-text="getSortIcon('time_in')" class="text-primary"></span>
@@ -87,7 +93,9 @@
           >
             <button
               @click="changeSort('time_out')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('time_out')"
+              :class="isSortFieldSupported('time_out') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Time Out</span>
               <span
@@ -111,7 +119,9 @@
           >
             <button
               @click="changeSort('status')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('status')"
+              :class="isSortFieldSupported('status') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Status</span>
               <span x-text="getSortIcon('status')" class="text-primary"></span>
@@ -193,7 +203,7 @@
                 title="View Location"
               >
                 <svg
-                  class="w-4 h-4 mr-1.5"
+                  class="mr-1.5 h-4 w-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -235,11 +245,11 @@
               <div class="flex items-center space-x-3">
                 <button
                   @click="confirmDelete(log.id_attendance)"
-                  class="inline-flex items-center justify-center w-8 h-8 text-red-600 bg-red-100 rounded-lg transition-colors hover:bg-red-200 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800/50"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-200 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800/50"
                   title="Delete attendance record"
                 >
                   <svg
-                    class="w-4 h-4"
+                    class="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

@@ -1,0 +1,242 @@
+<div
+  x-show="isExportModalOpen"
+  x-transition.opacity
+  @keydown.escape.window="closeExportModal()"
+  class="fixed inset-0 z-99999 flex items-center justify-center overflow-y-auto p-5"
+  style="display: none"
+>
+  <div
+    class="fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"
+    @click="closeExportModal()"
+  ></div>
+
+  <section
+    class="relative flex w-full max-w-[1080px] flex-col overflow-hidden rounded-3xl bg-white px-5 py-5 shadow-2xl sm:px-6 sm:py-6 lg:px-7 lg:py-6 dark:bg-gray-900"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="export-report-modal-title"
+  >
+    <button
+      type="button"
+      aria-label="Close export modal"
+      @click="closeExportModal()"
+      class="transition-color absolute top-5 right-5 z-999 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 sm:h-11 sm:w-11 dark:bg-white/[0.05] dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-gray-300"
+    >
+      <svg
+        class="fill-current"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill-rule="evenodd"
+          clip-rule="evenodd"
+          d="M6.04289 16.5418C5.65237 16.9323 5.65237 17.5655 6.04289 17.956C6.43342 18.3465 7.06658 18.3465 7.45711 17.956L11.9987 13.4144L16.5408 17.9565C16.9313 18.347 17.5645 18.347 17.955 17.9565C18.3455 17.566 18.3455 16.9328 17.955 16.5423L13.4129 12.0002L17.955 7.45808C18.3455 7.06756 18.3455 6.43439 17.955 6.04387C17.5645 5.65335 16.9313 5.65335 16.5408 6.04387L11.9987 10.586L7.45711 6.04439C7.06658 5.65386 6.43342 5.65386 6.04289 6.04439C5.65237 6.43491 5.65237 7.06808 6.04289 7.4586L10.5845 12.0002L6.04289 16.5418Z"
+          fill=""
+        />
+      </svg>
+    </button>
+
+    <div class="pr-12">
+      <h4
+        id="export-report-modal-title"
+        class="text-theme-xl mb-1.5 font-semibold text-gray-800 lg:text-2xl dark:text-white/90"
+      >
+        Export Attendance Report
+      </h4>
+      <p class="max-w-3xl text-sm leading-6 text-gray-500 dark:text-gray-400">
+        Choose the report format and data scope for the selected period.
+      </p>
+      <p
+        class="mt-1.5 text-xs font-medium tracking-[0.18em] text-gray-400 uppercase dark:text-gray-500"
+        x-text="getExportPeriodLabel()"
+      ></p>
+    </div>
+
+    <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+      <template x-for="card in exportFormatCards" :key="card.value">
+        <button
+          type="button"
+          @click="selectExportFormat(card.value)"
+          class="relative rounded-[28px] border bg-white px-5 py-5 text-left transition-all dark:bg-gray-900"
+          :class="selectedExportFormat === card.value
+            ? 'border-violet-400 shadow-[0_0_0_1px_rgba(139,92,246,0.35)] dark:border-violet-400'
+            : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'"
+        >
+          <span
+            class="absolute top-5 right-5 flex h-6 w-6 items-center justify-center rounded-full border"
+            :class="selectedExportFormat === card.value
+              ? 'border-violet-500 bg-violet-500 text-white'
+              : 'border-gray-300 bg-white text-transparent dark:border-gray-700 dark:bg-gray-900'"
+          >
+            <span class="h-2.5 w-2.5 rounded-full bg-current"></span>
+          </span>
+
+          <span
+            class="inline-flex h-14 w-14 items-center justify-center rounded-2xl"
+            :class="card.value === 'pdf'
+              ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300'
+              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300'"
+          >
+            <svg
+              x-show="card.value === 'pdf'"
+              class="h-7 w-7"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              style="display: none"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M4 4a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414A1 1 0 0116 6.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm7 1V3.5L14.5 7H13a2 2 0 01-2-2z"
+                clip-rule="evenodd"
+              ></path>
+            </svg>
+            <svg
+              x-show="card.value === 'excel'"
+              class="h-7 w-7"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              style="display: none"
+            >
+              <path
+                d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm1 3h10v2H5V6zm0 3h4v2H5V9zm0 3h4v2H5v-2zm6-3h4v2h-4V9zm0 3h4v2h-4v-2z"
+              ></path>
+            </svg>
+          </span>
+
+          <h5 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
+            <span x-text="card.title"></span>
+          </h5>
+          <p
+            class="mt-2.5 text-sm leading-6 text-gray-500 dark:text-gray-400"
+            x-text="card.description"
+          ></p>
+
+          <ul class="mt-4 space-y-2.5">
+            <template x-for="feature in card.features" :key="feature">
+              <li class="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-300">
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.415l-7.25 7.25a1 1 0 01-1.415 0l-3.25-3.25a1 1 0 111.415-1.414l2.543 2.542 6.543-6.542a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                  </svg>
+                </span>
+                <span x-text="feature"></span>
+              </li>
+            </template>
+          </ul>
+        </button>
+      </template>
+    </div>
+
+    <div class="mt-6 grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start">
+      <div class="rounded-[26px] border border-gray-200 px-5 py-5 dark:border-gray-800">
+        <h5 class="text-base font-semibold text-gray-900 dark:text-white">Export Scope</h5>
+        <div class="mt-4 space-y-3.5">
+          <template x-for="option in exportScopeOptions" :key="option.value">
+            <label class="flex cursor-pointer items-start gap-3" :class="option.enabled ? '' : 'cursor-not-allowed opacity-60'">
+              <input
+                type="radio"
+                name="export-scope"
+                class="sr-only"
+                :value="option.value"
+                :checked="selectedExportScope === option.value"
+                :disabled="!option.enabled"
+                @change="selectExportScope(option.value)"
+              />
+              <span
+                class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border"
+                :class="selectedExportScope === option.value
+                  ? 'border-violet-500 bg-violet-500 text-white'
+                  : 'border-gray-300 bg-white text-transparent dark:border-gray-700 dark:bg-gray-900'"
+              >
+                <span class="h-2 w-2 rounded-full bg-current"></span>
+              </span>
+              <span>
+                <span class="block text-sm font-medium text-gray-800 dark:text-gray-200" x-text="option.label"></span>
+                <span
+                  x-show="!option.enabled && option.note"
+                  class="mt-1 block text-xs leading-5 text-amber-600 dark:text-amber-400"
+                  x-text="option.note"
+                  style="display: none"
+                ></span>
+              </span>
+            </label>
+          </template>
+        </div>
+      </div>
+
+      <div class="rounded-[26px] border border-gray-200 px-5 py-5 dark:border-gray-800">
+        <h5 class="text-base font-semibold text-gray-900 dark:text-white">Additional Options</h5>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <template x-for="option in exportAdditionalOptions" :key="option.key">
+            <label class="flex cursor-pointer items-start gap-3" :class="option.enabled ? '' : 'cursor-not-allowed opacity-60'">
+              <input
+                type="checkbox"
+                class="mt-0.5 h-5 w-5 rounded border-gray-300 text-violet-600 focus:ring-violet-500 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900"
+                :checked="exportOptions[option.key]"
+                :disabled="!option.enabled"
+                @change="toggleExportOption(option.key)"
+              />
+              <span>
+                <span class="block text-sm font-medium text-gray-800 dark:text-gray-200" x-text="option.label"></span>
+                <span
+                  x-show="!option.enabled && option.note"
+                  class="mt-1 block text-xs leading-5 text-amber-600 dark:text-amber-400"
+                  x-text="option.note"
+                  style="display: none"
+                ></span>
+              </span>
+            </label>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] xl:items-end">
+      <div>
+        <div class="rounded-2xl border border-blue-100 bg-blue-50/80 px-4 py-3.5 text-sm leading-6 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+          Export is generated from validated attendance records for the selected period.
+        </div>
+
+        <div class="mt-4 min-h-[64px]">
+      <template x-if="isExporting">
+        <div>
+          <div class="mb-3 flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+            <span class="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-violet-500 border-t-transparent"></span>
+            <span x-text="exportProgressMessage || 'Preparing export file...'">Preparing export file...</span>
+          </div>
+          <div class="h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+            <div class="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"></div>
+          </div>
+        </div>
+      </template>
+      <template x-if="!isExporting && exportInlineError">
+        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200" x-text="exportInlineError"></div>
+      </template>
+    </div>
+
+        </div>
+      </div>
+
+      <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end xl:self-end">
+        <button
+          type="button"
+          @click="closeExportModal()"
+          class="flex w-full justify-center rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          @click="confirmExport()"
+          :disabled="!selectedExportFormat || isExporting"
+          class="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:from-violet-500 hover:to-fuchsia-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          <span x-text="isExporting ? 'Preparing export...' : 'Export Report'"></span>
+        </button>
+      </div>
+    </div>
+  </section>
+</div>

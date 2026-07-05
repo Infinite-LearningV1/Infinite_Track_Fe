@@ -87,3 +87,26 @@ Write `DOCS/ADR UPDATE REQUIRED` when work touches:
 - `docs/adr/ADR-006-env-build-and-deploy-runtime-truth.md`
 - `DEPLOYMENT.md`
 - `DEPLOYMENT-CHECKLIST.md`
+
+## Shared Context (Cross-Repo)
+
+Before cross-contract work, read the cockpit shared context outside this Web FE repository (`Deploy Infinite Track/Infinite Track/shared-context/`):
+
+- `API_CONTRACT.md`
+- `GLOBAL_STATUS.md`
+- `ROUTING_POLICY.md`
+- `QUALITY_GATE.md`
+- `DECISIONS.md`
+- `RISK_REGISTER.md`
+
+Official operating model: `Cowork -> Claude Desktop Host -> Claude Code CLI -> GitHub + Linear`.
+If repo/runtime/GitHub/Linear/docs differ, live repo/runtime is the highest factual source and GitHub + Linear are the active execution/evidence systems.
+Apply this file's Definition of Done together with the global evidence gate: diff/PR + fresh verification + review verdict.
+
+## Execution Model
+
+- Agents always work on an isolated branch inside a worktree.
+- The main branch held by the human/operator in the terminal remains `develop`; it is a pull/test/human validation surface, not an agent implementation surface.
+- Agent output returns to `develop` through PR/merge; then the human pulls and tests on `develop`.
+- `master` only receives fix/no-bug/release-ready results from `develop`.
+- Web FE branch model: `develop` is the QA/human validation branch; `master` is the deployment branch, so agents do not edit `develop` directly.

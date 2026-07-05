@@ -1,0 +1,290 @@
+<div
+  class="space-y-6"
+  x-data="{
+    get historicalOverviewSection() {
+      return cockpit.sections.find((section) => section.key === 'historicalOverview') || null;
+    },
+    get geofenceEvidenceSection() {
+      return cockpit.sections.find((section) => section.key === 'geofenceEvidence') || null;
+    },
+    get fahpRecapSection() {
+      return cockpit.sections.find((section) => section.key === 'fahpRecap') || null;
+    },
+    get liveOperationsMapSection() {
+      return cockpit.sections.find((section) => section.key === 'liveOperationsMap') || null;
+    }
+  }"
+>
+  <template x-if="liveOperationsMapSection">
+    <div class="space-y-6">
+      <section
+          class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+        >
+          <div class="space-y-4">
+            <div
+              class="relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+            >
+              <div
+                class="relative"
+              >
+
+                <div class="dashboard-live-map-shell relative isolate">
+                  <div
+                    id="dashboardMapView"
+                    class="relative z-0 h-[360px] w-full rounded-2xl border border-gray-200 bg-white shadow-sm xl:h-[400px] dark:border-gray-700 dark:bg-gray-950"
+                    style="z-index: 0"
+                    x-show="canRenderDashboardMap()"
+                  ></div>
+
+                  <div
+                    x-show="canRenderDashboardMap()"
+                    class="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 sm:p-4"
+                    style="z-index: 1200"
+                  >
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div class="rounded-2xl border border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm dark:border-gray-800/80 dark:bg-gray-950/92">
+                        <p class="text-base font-semibold text-gray-900 dark:text-white">
+                          Today Locations / Live Map
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                      <div class="rounded-2xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-gray-800/80 dark:bg-gray-950/92">
+                        <template x-for="mode in cockpit.hero.data?.modeSummary?.modes || []" :key="mode.key">
+                          <div class="flex items-center gap-3 py-1 text-xs text-gray-600 dark:text-gray-300">
+                            <span
+                              class="h-3 w-3 rounded-full shadow-sm"
+                              :style="`background-color: ${mode.color}`"
+                            ></span>
+                            <span class="w-9 font-semibold" x-text="mode.label"></span>
+                            <span class="text-gray-500 dark:text-gray-400" x-text="mode.description"></span>
+                          </div>
+                        </template>
+                      </div>
+
+                      <div class="grid grid-cols-2 gap-3 rounded-2xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm sm:grid-cols-4 dark:border-gray-800/80 dark:bg-gray-950/92">
+                        <div class="rounded-xl px-2 py-1">
+                          <p class="text-xs text-gray-500 dark:text-gray-400">Total Check-ins</p>
+                          <p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white" x-text="cockpit.hero.data?.modeSummary?.total || 0"></p>
+                        </div>
+                        <template x-for="mode in cockpit.hero.data?.modeSummary?.modes || []" :key="`${mode.key}-summary`">
+                          <div class="rounded-xl px-2 py-1">
+                            <p class="text-xs font-semibold" :style="`color: ${mode.color}`" x-text="mode.label"></p>
+                            <div class="mt-1 flex items-end gap-2">
+                              <span class="text-xl font-semibold text-gray-900 dark:text-white" x-text="mode.value"></span>
+                              <span class="text-xs font-semibold" :style="`color: ${mode.color}`" x-text="`${mode.percentage}%`"></span>
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+
+                  <template x-if="!canRenderDashboardMap()">
+                    <div
+                      class="flex h-[360px] w-full items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white/70 p-6 text-center text-sm font-medium text-gray-500 shadow-sm xl:h-[400px] dark:border-gray-700 dark:bg-gray-950/60 dark:text-gray-400"
+                    >
+                      <span x-text="cockpit.hero.message"></span>
+                    </div>
+                  </template>
+                </div>
+          </div>
+        </section>
+      </div>
+    </template>
+
+  <template x-if="historicalOverviewSection">
+    <div class="space-y-6">
+      <div class="dashboard-historical-overview-grid">
+        <template x-for="panel in historicalOverviewSection.panels" :key="panel.key">
+            <section
+              class="border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+              x-data="{
+                get isModeMixReady() { return panel.key === 'modeMix' && panel.state === 'ready' },
+                get hasTrendRanges() { return panel.key === 'historicalTrend' && panel.data?.ranges?.length },
+                get usesDetailedLayout() { return this.isModeMixReady || this.hasTrendRanges }
+              }"
+              :class="{
+                'rounded-2xl': isModeMixReady,
+                'rounded-2xl overflow-hidden': hasTrendRanges,
+                'rounded-3xl p-5': !usesDetailedLayout
+              }"
+            >
+              <template x-if="!usesDetailedLayout">
+                <div class="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h4
+                      class="text-base font-semibold text-gray-900 dark:text-white"
+                      x-text="panel.title"
+                    ></h4>
+                    <p
+                      class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                      x-text="panel.subtitle"
+                    ></p>
+                  </div>
+                  <span
+                    class="rounded-full px-2.5 py-1 text-xs font-medium"
+                    :class="{
+                      'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': panel.state === 'loading',
+                      'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': panel.state === 'ready',
+                      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': panel.state === 'empty',
+                      'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': panel.state === 'needsData',
+                      'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300': panel.state === 'backendRequired',
+                      'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': panel.state === 'error'
+                    }"
+                    x-text="panel.stateLabel"
+                  ></span>
+                </div>
+              </template>
+
+              <template
+                x-if="panel.key === 'historicalTrend' && panel.data?.ranges?.length"
+              >
+                <include src="./historical-trend-panel.html"></include>
+              </template>
+
+              <template x-if="isModeMixReady">
+                <include src="./attendance-mode-panel.html"></include>
+              </template>
+
+              <template x-if="!usesDetailedLayout">
+                <div
+                  class="flex min-h-[220px] flex-col justify-between rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <p
+                    class="text-sm leading-6 text-gray-600 dark:text-gray-300"
+                    x-text="panel.message"
+                  ></p>
+                  <p
+                    class="text-sm text-gray-500 dark:text-gray-400"
+                    x-text="panel.note || 'This panel remains visible while the backend contract catches up.'"
+                  ></p>
+                </div>
+              </template>
+            </section>
+          </template>
+        </div>
+      </div>
+    </template>
+
+  <template x-if="geofenceEvidenceSection || fahpRecapSection">
+    <div class="space-y-6">
+      <div class="grid gap-6 xl:grid-cols-1">
+        <template
+          x-for="groupedSection in [geofenceEvidenceSection, fahpRecapSection].filter(Boolean)"
+          :key="groupedSection.key"
+        >
+            <template x-for="panel in groupedSection.panels" :key="panel.key">
+              <section
+                class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+                x-data="{
+                  get isFuzzyAhpReady() {
+                    return panel.key === 'fuzzyAhp' && panel.state === 'ready' && Array.isArray(panel.data?.decisions) && panel.data.decisions.length;
+                  },
+                  get isGeofenceEvidenceReady() {
+                    return panel.key === 'geofenceEvidence' && panel.state === 'ready' && panel.data?.rawCounts;
+                  },
+                  get usesCustomReadyLayout() {
+                    return this.isFuzzyAhpReady || this.isGeofenceEvidenceReady;
+                  }
+                }"
+                :class="{
+                  'border-transparent bg-transparent p-0 shadow-none dark:border-transparent dark:bg-transparent': usesCustomReadyLayout
+                }"
+              >
+              <template x-if="!usesCustomReadyLayout">
+                <div class="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h4
+                    class="text-base font-semibold text-gray-900 dark:text-white"
+                    x-text="panel.title"
+                  ></h4>
+                  <p
+                    class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                    x-text="panel.subtitle"
+                  ></p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <template
+                    x-if="panel.key === 'fuzzyAhp' && panel.state !== 'ready'"
+                  >
+                    <nav class="flex max-w-full overflow-x-auto rounded-lg border border-violet-200 bg-violet-50 p-0.5 dark:border-violet-500/30 dark:bg-violet-500/10 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-violet-300 dark:[&::-webkit-scrollbar-thumb]:bg-violet-500 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1.5">
+                      <template x-for="option in panel.data?.typeOptions || []" :key="option.key">
+                        <button
+                          type="button"
+                          class="inline-flex min-w-[92px] items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors duration-200 ease-in-out"
+                          :class="fahpFilterState.type === option.key ? 'bg-brand-500 text-white shadow-[0_8px_18px_rgba(70,95,255,0.25)] dark:bg-brand-500 dark:text-white' : 'bg-transparent text-violet-700 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-200'"
+                          @click="loadFuzzyAhpDetail({ type: option.key })"
+                          x-text="option.title"
+                        ></button>
+                      </template>
+                    </nav>
+                  </template>
+                  <span
+                    class="rounded-full px-2.5 py-1 text-xs font-medium"
+                    :class="{
+                      'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': panel.state === 'loading',
+                      'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': panel.state === 'ready',
+                      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': panel.state === 'empty',
+                      'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': panel.state === 'needsData',
+                      'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300': panel.state === 'backendRequired',
+                      'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': panel.state === 'error'
+                    }"
+                    x-text="panel.stateLabel"
+                  ></span>
+                </div>
+                </div>
+              </template>
+
+              <template
+                x-if="panel.key === 'fuzzyAhp' && panel.state === 'ready' && Array.isArray(panel.data?.decisions) && panel.data.decisions.length"
+              >
+                <include src="./fuzzy-ahp-panel.html"></include>
+              </template>
+
+              <template
+                x-if="panel.key === 'geofenceEvidence' && panel.state === 'ready' && panel.data?.rawCounts"
+              >
+                <include src="./geofence-evidence-panel.html"></include>
+              </template>
+
+              <template
+                x-if="!usesCustomReadyLayout"
+              >
+                <div
+                  class="flex min-h-[220px] flex-col justify-between rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <div class="space-y-4">
+                    <p
+                      class="text-sm leading-6 text-gray-600 dark:text-gray-300"
+                      x-text="panel.message"
+                    ></p>
+                    <template
+                      x-if="Array.isArray(panel.data?.chips) && panel.data.chips.length"
+                    >
+                      <div class="flex flex-wrap gap-2">
+                        <template x-for="chip in panel.data.chips" :key="chip">
+                          <span
+                            class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300"
+                            x-text="chip"
+                          ></span>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                  <p
+                    class="text-sm text-gray-500 dark:text-gray-400"
+                    x-text="panel.note || 'This panel remains visible while the backend contract catches up.'"
+                  ></p>
+                </div>
+              </template>
+            </section>
+          </template>
+        </template>
+      </div>
+    </div>
+  </template>
+
+
+</div>

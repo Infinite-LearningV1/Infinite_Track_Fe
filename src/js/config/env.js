@@ -3,11 +3,28 @@
  * Mengakses environment variables yang telah diinjeksi oleh webpack
  */
 
+const ENV_VALUES = {
+  API_BASE_URL: process.env.API_BASE_URL,
+  API_AUTH_ENDPOINT: process.env.API_AUTH_ENDPOINT,
+  API_VERSION: process.env.API_VERSION,
+  APP_NAME: process.env.APP_NAME,
+  APP_VERSION: process.env.APP_VERSION,
+  APP_ENVIRONMENT: process.env.APP_ENVIRONMENT,
+  SESSION_TIMEOUT: process.env.SESSION_TIMEOUT,
+  REMEMBER_ME_DAYS: process.env.REMEMBER_ME_DAYS,
+  DEFAULT_LANGUAGE: process.env.DEFAULT_LANGUAGE,
+  TIMEZONE: process.env.TIMEZONE,
+  DEBUG_MODE: process.env.DEBUG_MODE,
+  LOG_LEVEL: process.env.LOG_LEVEL,
+};
+
+const readEnv = (key, fallback) => ENV_VALUES[key] || fallback;
+
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: process.env.API_BASE_URL || "/api",
-  AUTH_ENDPOINT: process.env.API_AUTH_ENDPOINT || "/auth",
-  VERSION: process.env.API_VERSION || "v1",
+  BASE_URL: readEnv("API_BASE_URL", "/api"),
+  AUTH_ENDPOINT: readEnv("API_AUTH_ENDPOINT", "/auth"),
+  VERSION: readEnv("API_VERSION", "v1"),
 
   // Computed URLs
   get AUTH_URL() {
@@ -22,12 +39,12 @@ export const API_CONFIG = {
     return `${this.AUTH_URL}/logout`;
   },
 
-  get REGISTER_URL() {
-    return `${this.AUTH_URL}/register`;
-  },
-
   get REFRESH_URL() {
     return `${this.AUTH_URL}/refresh`;
+  },
+
+  get REGISTER_URL() {
+    return `${this.AUTH_URL}/register`;
   },
 
   get PROFILE_URL() {
@@ -37,9 +54,9 @@ export const API_CONFIG = {
 
 // Application Configuration
 export const APP_CONFIG = {
-  NAME: process.env.APP_NAME || "Infinite Track",
-  VERSION: process.env.APP_VERSION || "2.0.1",
-  ENVIRONMENT: process.env.APP_ENVIRONMENT || "development",
+  NAME: readEnv("APP_NAME", "Infinite Track"),
+  VERSION: readEnv("APP_VERSION", "2.0.1"),
+  ENVIRONMENT: readEnv("APP_ENVIRONMENT", "development"),
 
   // Helper methods
   isDevelopment: () => APP_CONFIG.ENVIRONMENT === "development",
@@ -49,8 +66,16 @@ export const APP_CONFIG = {
 
 // Authentication Configuration
 export const AUTH_CONFIG = {
-  SESSION_TIMEOUT: parseInt(process.env.SESSION_TIMEOUT) || 3600000, // 1 hour in ms
-  REMEMBER_ME_DAYS: parseInt(process.env.REMEMBER_ME_DAYS) || 7,
+  SESSION_TIMEOUT: parseInt(readEnv("SESSION_TIMEOUT", "3600000"), 10) || 3600000, // 1 hour in ms
+  REMEMBER_ME_DAYS: parseInt(readEnv("REMEMBER_ME_DAYS", "7"), 10) || 7,
+  CLIENT_TYPE_HEADER: "X-Client-Type",
+  CLIENT_TYPE: "web",
+
+  get CLIENT_HEADERS() {
+    return {
+      [this.CLIENT_TYPE_HEADER]: this.CLIENT_TYPE,
+    };
+  },
 
   // Storage keys
   STORAGE_KEYS: {
@@ -64,14 +89,14 @@ export const AUTH_CONFIG = {
 
 // Localization Configuration
 export const LOCALE_CONFIG = {
-  DEFAULT_LANGUAGE: process.env.DEFAULT_LANGUAGE || "id",
-  TIMEZONE: process.env.TIMEZONE || "Asia/Jakarta",
+  DEFAULT_LANGUAGE: readEnv("DEFAULT_LANGUAGE", "id"),
+  TIMEZONE: readEnv("TIMEZONE", "Asia/Jakarta"),
 };
 
 // Debug Configuration
 export const DEBUG_CONFIG = {
-  MODE: process.env.DEBUG_MODE === "true",
-  LOG_LEVEL: process.env.LOG_LEVEL || "info",
+  MODE: readEnv("DEBUG_MODE", "false") === "true",
+  LOG_LEVEL: readEnv("LOG_LEVEL", "info"),
 
   // Helper methods
   shouldLog: (level) => {

@@ -1,4 +1,51 @@
 import { getSummaryReport } from "../../services/reportService.js";
+import { getDashboardAnalytics } from "../../services/dashboardAnalyticsService.js";
+import { getTodayLocations } from "../../services/todayLocationsService.js";
+import { getFuzzyAhpAnalysis } from "../../services/fuzzyAhpService.js";
+import { getGeofenceEvidence } from "../../services/geofenceEvidenceService.js";
+import {
+  buildDashboardSectionOrder,
+  createDashboardCockpitErrorState,
+  createDashboardCockpitLoadingState,
+  createDashboardCockpitStateFromSources,
+} from "../../services/dashboardCockpitService.js";
+import { classifyAuthFailure } from "../../services/authSessionRuntime.js";
+import { createHistoricalAnalyticsSliceState } from "../../services/dashboard/historicalAnalyticsSlice.js";
+import { createFahpRecapSliceState } from "../../services/dashboard/fahpRecapSlice.js";
+import { createGeofenceEvidenceSliceState } from "../../services/dashboard/geofenceEvidenceSlice.js";
+import { createLiveMapSliceState } from "../../services/dashboard/liveMapSlice.js";
+import {
+  buildDashboardRangeRequestParams,
+  createDefaultDashboardRange,
+  validateDashboardRange,
+} from "../../components/dashboardRange/dashboardRange.js";
+import {
+  applyDashboardAnalyticsPreset,
+  buildDashboardAnalyticsRangeDisplayValue,
+  connectDashboardAnalyticsDatePicker,
+  createDashboardAnalyticsHeaderState,
+  createDashboardAnalyticsPresetOptions,
+  openDashboardAnalyticsDatePicker,
+  resolveDashboardAnalyticsSelectedLabel,
+  syncDashboardAnalyticsDatePickerElement,
+  syncDashboardAnalyticsHeaderState,
+} from "../../components/dashboardRange/dashboardAnalyticsHeader.js";
+import { createHistoricalTrendViewState } from "../../components/historicalTrendPanel.js";
+import { createAttendanceModeViewState } from "../../components/attendanceModePanel.js";
+import { createFuzzyAhpViewState } from "../../components/fuzzyAhpPanel.js";
+import { createGeofenceEvidenceViewState } from "../../components/geofenceEvidencePanel.js";
+import {
+  applyDashboardPageSize,
+  applyDashboardPeriod,
+  applyDashboardSearch,
+  buildDashboardRequestParams,
+  createEmptyDashboardPagination,
+  normalizeDashboardPagination,
+} from "./dashboardTableState.js";
+import {
+  buildFahpRequestParams,
+  createDefaultFahpFilterState,
+} from "./fahpFilterState.js";
 import {
   generatePDFReport,
   generateExcelReport,
@@ -12,31 +59,85 @@ import {
   getInfoBadgeText,
 } from "../../utils/badgeHelpers.js";
 
+export function createDashboardPageState({
+  fetchHistorical,
+  fetchGeofence,
+  fetchLiveMap,
+  fetchFahpRecap,
+}) {
+  const resolveSliceState = async (fetchSlice) => {
+    try {
+      return await fetchSlice();
+    } catch (error) {
+      return {
+        status: "error",
+        error: error?.message || "Dashboard slice failed to load.",
+      };
+    }
+  };
+
+  return {
+    historicalSlice: { status: "loading" },
+    geofenceSlice: { status: "loading" },
+    liveMapSlice: { status: "loading" },
+    fahpSlice: { status: "loading" },
+    async loadDashboard() {
+      const [historicalSlice, geofenceSlice, liveMapSlice, fahpSlice] =
+        await Promise.all([
+          resolveSliceState(fetchHistorical),
+          resolveSliceState(fetchGeofence),
+          resolveSliceState(fetchLiveMap),
+          resolveSliceState(fetchFahpRecap),
+        ]);
+
+      this.historicalSlice = historicalSlice;
+      this.geofenceSlice = geofenceSlice;
+      this.liveMapSlice = liveMapSlice;
+      this.fahpSlice = fahpSlice;
+    },
+    async refreshFahpRecap(params) {
+      this.fahpSlice = { status: "loading" };
+      this.fahpSlice = await resolveSliceState(() => fetchFahpRecap(params));
+      return this.fahpSlice;
+    },
+  };
+}
+
 /**
  * Alpine.js component untuk dashboard functionality
  */
 export function dashboard() {
+  const defaultDashboardRange = createDefaultDashboardRange();
+  const defaultFahpFilterState = createDefaultFahpFilterState();
+
   return {
     // State management
     loading: false,
     error: null,
-    period: "all",
+    period: "monthly",
+    dashboardRangeState: { ...defaultDashboardRange },
+    dashboardRange: defaultDashboardRange.period,
+    dashboardRangeOptions: createDashboardAnalyticsPresetOptions(),
+    dashboardHeaderState: createDashboardAnalyticsHeaderState(
+      defaultDashboardRange,
+    ),
+    trendRange: "monthly",
+    activeTrendHoverIndex: null,
+    fahpFilterState: { ...defaultFahpFilterState },
 
     // Pagination state
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      total_records: 0,
-      has_prev_page: false,
-      has_next_page: false,
-      per_page: 5,
-    },
+    pagination: createEmptyDashboardPagination(5),
 
     // Filter state
     filters: {
-      period: "all",
+      period: "monthly",
+      from: null,
+      to: null,
       page: 1,
       limit: 5,
+      search: "",
+      sortBy: null,
+      sortOrder: "asc",
     },
 
     // Table state properties
@@ -44,11 +145,9 @@ export function dashboard() {
     errorMessage: null,
     attendanceData: [],
 
-    // Search and pagination properties
+    // Search state
     searchQuery: "",
     searchTimeout: null,
-    entriesPerPage: 5,
-    currentPage: 1,
 
     // Modal states (legacy)
     isDeleteModalOpen: false,
@@ -57,32 +156,125 @@ export function dashboard() {
 
     // Raw API data untuk export
     rawApiData: null,
+    dashboardAnalyticsResponse: null,
+    dashboardAnalyticsError: null,
+    todayLocations: null,
+    todayLocationsError: null,
+    fuzzyAhpResponse: null,
+    fuzzyAhpError: null,
+    geofenceEvidenceResponse: null,
+    geofenceEvidenceError: null,
+    pageState: null,
+    fetchSummaryReport: getSummaryReport,
+    fetchDashboardAnalytics: getDashboardAnalytics,
+    fetchTodayLocations: getTodayLocations,
+    fetchFuzzyAhpAnalysis: getFuzzyAhpAnalysis,
+    fetchGeofenceEvidence: getGeofenceEvidence,
 
     // Export state
     isExporting: false,
+    isExportModalOpen: false,
+    selectedExportFormat: "pdf",
+    selectedExportScope: "current_period",
+    exportProgressMessage: null,
+    exportInlineError: null,
+    exportOptions: {
+      includeSummaryStatistics: true,
+      includeDisciplineScore: true,
+      includeWorkModeDistribution: true,
+      includeLocationDescription: false,
+    },
+    exportUiCapabilities: {
+      scopeAllRecordsEnabled: false,
+      scopeFilteredOnlyEnabled: false,
+      optionSummaryStatisticsEnabled: false,
+      optionDisciplineScoreEnabled: false,
+      optionWorkModeDistributionEnabled: false,
+      optionLocationDescriptionEnabled: false,
+    },
+    exportFormatCards: [
+      {
+        value: "pdf",
+        title: "PDF Report",
+        description:
+          "Best for printable management summaries, thesis evidence, and formal reporting.",
+        features: [
+          "Executive summary",
+          "KPI cards",
+          "Statistic charts",
+          "Compact attendance table",
+        ],
+      },
+      {
+        value: "excel",
+        title: "Excel Workbook",
+        description:
+          "Best for detailed data analysis, filtering, and HR/admin review.",
+        features: [
+          "Summary sheet",
+          "Attendance report sheet",
+          "Discipline insight sheet",
+          "Filter-ready columns",
+        ],
+      },
+    ],
+    exportScopeOptions: [
+      {
+        value: "current_period",
+        label: "Current period",
+        enabled: true,
+        note: null,
+      },
+      {
+        value: "all_records",
+        label: "All records in selected period",
+        enabled: false,
+        note: "Backend contract decision required.",
+      },
+      {
+        value: "filtered_only",
+        label: "Filtered records only",
+        enabled: false,
+        note: "Backend contract decision required.",
+      },
+    ],
+    exportAdditionalOptions: [
+      {
+        key: "includeSummaryStatistics",
+        label: "Include summary statistics",
+        enabled: false,
+        note: "Shipped disabled until option-specific runtime contract is activated.",
+      },
+      {
+        key: "includeDisciplineScore",
+        label: "Include discipline score",
+        enabled: false,
+        note: "Shipped disabled until option-specific runtime contract is activated.",
+      },
+      {
+        key: "includeWorkModeDistribution",
+        label: "Include work mode distribution",
+        enabled: false,
+        note: "Shipped disabled until option-specific runtime contract is activated.",
+      },
+      {
+        key: "includeLocationDescription",
+        label: "Include location description",
+        enabled: false,
+        note: "Shipped disabled until option-specific runtime contract is activated.",
+      },
+    ],
 
     // Data properties
-    summaryData: {
-      summary: {
-        onTime: 0,
-        late: 0,
-        alpha: 0,
-        wfo: 0,
-        wfh: 0,
-        wfa: 0,
-      },
-      report: [],
-    },
-
-    // Summary data untuk card - terpengaruh period filter (cards update when period changes)
-    cardSummaryData: {
-      onTime: 1,
-      late: 15,
-      alpha: 0,
-      wfo: 13,
-      wfh: 1,
-      wfa: 2,
-    },
+    summaryData: null,
+    cockpit: createDashboardCockpitLoadingState(),
+    dashboardSectionOrder: buildDashboardSectionOrder(),
+    dashboardMap: null,
+    dashboardLeaflet: null,
+    dashboardMapTileLayer: null,
+    dashboardMapMarkerLayer: null,
+    dashboardMapRadiusLayer: null,
+    dashboardMapRenderToken: 0,
 
     // Summary statistics data untuk tabel - terpengaruh period filter
     summaryStatsData: {
@@ -94,257 +286,1249 @@ export function dashboard() {
       total_wfa: 0,
     },
 
-    // Analytics data (new)
-    analyticsData: {
-      discipline_index: 0,
-      performance_trend: "stable",
-      avg_work_hours: 0,
-    },
-
     // Report data for table display
     reportData: [],
 
     // Available period options
     periodOptions: [
-      { value: "all", label: "All Time" },
       { value: "daily", label: "Daily" },
       { value: "weekly", label: "Weekly" },
       { value: "monthly", label: "Monthly" },
+      { value: "range", label: "Custom Range" },
     ],
 
     // Sorting functionality
     currentSort: { field: null, direction: "asc" },
 
-    // Pagination (placeholder - should come from API)
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      per_page: 10,
-      total: 0,
-    },
-
     /**
      * Initialize component
      */
     async init() {
-      console.log("Dashboard component initialized");
+      this.pageState = createDashboardPageState({
+        fetchHistorical: async () => {
+          const requestParams = this.getDashboardAnalyticsRequestParams();
+          const response = await this.fetchDashboardAnalytics(requestParams);
+          const sliceState = createHistoricalAnalyticsSliceState(
+            response,
+            requestParams,
+          );
 
-      // Set some initial test data immediately
-      this.summaryData = {
-        summary: {
-          onTime: 1,
-          late: 15,
-          alpha: 0,
-          wfo: 13,
-          wfh: 1,
-          wfa: 2,
+          this.dashboardAnalyticsResponse = sliceState.response;
+          this.dashboardAnalyticsError = null;
+          this.rawApiData = {
+            ...(this.rawApiData || {}),
+            historicalAnalytics: sliceState,
+          };
+
+          return this.buildHistoricalSliceState(sliceState.response);
         },
-        report: [],
-      };
+        fetchGeofence: async () => {
+          const requestParams = this.getDashboardAnalyticsRequestParams();
+          const response = await this.fetchGeofenceEvidence(requestParams);
+          const sliceState = createGeofenceEvidenceSliceState(
+            response,
+            requestParams,
+          );
 
-      // Initial card summary data (akan diupdate dari API)
-      this.cardSummaryData = {
-        onTime: 1,
-        late: 15,
-        alpha: 0,
-        wfo: 13,
-        wfh: 1,
-        wfa: 2,
-      };
+          this.geofenceEvidenceResponse = sliceState.response;
+          this.geofenceEvidenceError = null;
+          this.rawApiData = {
+            ...(this.rawApiData || {}),
+            geofenceEvidence: sliceState,
+          };
 
-      this.analyticsData = {
-        discipline_index: 78.5,
-        performance_trend: "improving",
-        avg_work_hours: 8.2,
-      };
+          return this.buildGeofenceSliceState(sliceState.response);
+        },
+        fetchLiveMap: async () => {
+          const requestParams = this.getDashboardAnalyticsRequestParams();
+          const response = await this.fetchTodayLocations();
+          const sliceState = createLiveMapSliceState(response, requestParams);
 
-      console.log("Initial test data set:", this.summaryData);
+          this.todayLocations = sliceState;
+          this.todayLocationsError = null;
+          this.rawApiData = {
+            ...(this.rawApiData || {}),
+            todayLocations: sliceState,
+          };
 
+          return this.buildLiveMapSliceState(sliceState);
+        },
+        fetchFahpRecap: async (params = this.fahpFilterState) => {
+          const requestParams = buildFahpRequestParams(params);
+          const nextFilterState = {
+            ...createDefaultFahpFilterState(),
+            ...requestParams,
+          };
+          const response = await this.fetchFuzzyAhpAnalysis(requestParams);
+
+          this.fahpFilterState = nextFilterState;
+          this.fuzzyAhpResponse = response;
+          this.fuzzyAhpError = null;
+          this.rawApiData = {
+            ...(this.rawApiData || {}),
+            fahpRecap: createFahpRecapSliceState(response, requestParams),
+          };
+
+          return this.buildFahpSliceState(response);
+        },
+      });
+      this.syncDashboardHeaderState();
+      this.$nextTick?.(() => {
+        this.initDashboardDatePicker();
+      });
       await this.loadSummaryData();
     },
 
+    hasAvailableValue(value) {
+      if (value === null || value === undefined) {
+        return false;
+      }
+
+      return typeof value !== "string" || value.trim() !== "";
+    },
+
+    getOptionalBackendValue(value, fallback = null) {
+      return this.hasAvailableValue(value) ? value : fallback;
+    },
+
+    getSelectedTrendRange(panel) {
+      return this.getHistoricalTrendViewState(panel).selectedRange;
+    },
+
+    getHistoricalTrendViewState(panel) {
+      return createHistoricalTrendViewState(
+        panel,
+        this.trendRange,
+        this.activeTrendHoverIndex,
+      );
+    },
+
+    getFuzzyAhpViewState(panel, activeDecisionKey = null) {
+      return createFuzzyAhpViewState(panel, activeDecisionKey);
+    },
+
+    getGeofenceEvidenceViewState(panel) {
+      return createGeofenceEvidenceViewState(panel);
+    },
+
+    setActiveTrendHover(panel, event) {
+      const selectedRange = this.getSelectedTrendRange(panel);
+      const hoverPoints = Array.isArray(selectedRange?.hoverPoints)
+        ? selectedRange.hoverPoints
+        : [];
+      const plotArea = selectedRange?.plotArea || null;
+      const axisFrame = selectedRange?.axisFrame || {
+        translateX: 46,
+        width: 932,
+      };
+
+      if (!hoverPoints.length || !plotArea) {
+        this.activeTrendHoverIndex = null;
+        return;
+      }
+
+      const plotElement = event.currentTarget;
+      const bounds = plotElement?.getBoundingClientRect?.();
+
+      if (!bounds || bounds.width <= 0) {
+        this.activeTrendHoverIndex = null;
+        return;
+      }
+
+      const pointerX = Math.min(
+        Math.max(event.clientX - bounds.left, 0),
+        bounds.width,
+      );
+      const renderedX = (pointerX / bounds.width) * 1000;
+      const frameX = Number(axisFrame.translateX) || 46;
+      const frameWidth = Number(axisFrame.width) || 932;
+      const leftX = Number(plotArea.leftX);
+      const rightX = Number(plotArea.rightX);
+
+      let closestIndex = 0;
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      hoverPoints.forEach((point, index) => {
+        const pointX = Number(point?.x);
+        const renderedPointX =
+          Number.isFinite(pointX) &&
+          Number.isFinite(leftX) &&
+          Number.isFinite(rightX) &&
+          rightX > leftX
+            ? frameX + ((pointX - leftX) / (rightX - leftX)) * frameWidth
+            : frameX;
+        const distance = Math.abs(renderedPointX - renderedX);
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = index;
+        }
+      });
+
+      this.activeTrendHoverIndex = closestIndex;
+    },
+
+    clearActiveTrendHover() {
+      this.activeTrendHoverIndex = null;
+    },
+
+    getAttendanceModeViewState(panel) {
+      return createAttendanceModeViewState(panel);
+    },
+
+    buildHistoricalSliceState(response = this.dashboardAnalyticsResponse) {
+      if (response) {
+        return { status: "ready", response };
+      }
+
+      if (this.dashboardAnalyticsError) {
+        return {
+          status: "error",
+          error:
+            this.dashboardAnalyticsError?.message ||
+            "historical analytics unavailable",
+        };
+      }
+
+      return { status: "loading" };
+    },
+
+    buildGeofenceSliceState(response = this.geofenceEvidenceResponse) {
+      if (response) {
+        return { status: "ready", response };
+      }
+
+      if (this.geofenceEvidenceError) {
+        return {
+          status: "error",
+          error:
+            this.geofenceEvidenceError?.message ||
+            "geofence evidence unavailable",
+        };
+      }
+
+      return { status: "loading" };
+    },
+
+    buildLiveMapSliceState(response = this.todayLocations) {
+      if (response) {
+        return { status: "ready", response };
+      }
+
+      if (this.todayLocationsError) {
+        return {
+          status: "error",
+          error: this.todayLocationsError?.message || "live map unavailable",
+        };
+      }
+
+      return { status: "loading" };
+    },
+
+    buildFahpSliceState(response = this.fuzzyAhpResponse) {
+      if (response) {
+        return { status: "ready", response };
+      }
+
+      if (this.fuzzyAhpError) {
+        return {
+          status: "error",
+          error: this.fuzzyAhpError?.message || "fahp recap unavailable",
+        };
+      }
+
+      return { status: "loading" };
+    },
+
+    applySummaryResponse(
+      response,
+      analyticsResponse = null,
+      analyticsError = null,
+      todayLocationsResponse = null,
+      todayLocationsError = null,
+      fuzzyAhpResponse = null,
+      fuzzyAhpError = null,
+      geofenceEvidenceResponse = null,
+      geofenceEvidenceError = null,
+    ) {
+      if (!response?.summary) {
+        this.handleEmptyApiResponse();
+        return;
+      }
+
+      const mappedSummary = {
+        onTime: response.summary.total_ontime,
+        late: response.summary.total_late,
+        alpha: response.summary.total_alpha,
+        wfo: response.summary.total_wfo,
+        wfh: response.summary.total_wfh,
+        wfa: response.summary.total_wfa,
+      };
+      const reportData = response.report?.data || response.report || [];
+      const reportPagination = response.report?.pagination || {};
+      const analyticsRequestParams = this.getDashboardAnalyticsRequestParams();
+      const liveMapSlice =
+        todayLocationsResponse === null ||
+        typeof todayLocationsResponse === "undefined"
+          ? null
+          : createLiveMapSliceState(
+              todayLocationsResponse,
+              analyticsRequestParams,
+            );
+
+      this.cockpit = createDashboardCockpitStateFromSources({
+        reportResponse: response,
+        analyticsResponse,
+        analyticsError,
+        todayLocations: liveMapSlice,
+        todayLocationsError,
+        fuzzyAhpResponse,
+        fuzzyAhpError,
+        geofenceEvidenceResponse,
+        geofenceEvidenceError,
+      });
+      this.pagination = normalizeDashboardPagination(
+        reportPagination,
+        this.filters.limit,
+      );
+      this.attendanceData = reportData.map((item, index) => {
+        const latitude = this.getOptionalBackendValue(
+          item.location_details?.coordinates?.latitude,
+        );
+        const longitude = this.getOptionalBackendValue(
+          item.location_details?.coordinates?.longitude,
+        );
+        const radius = this.getOptionalBackendValue(
+          item.location_details?.radius,
+        );
+        const locationDescription = this.getOptionalBackendValue(
+          item.location_details?.description,
+        );
+
+        const attendanceId = this.getOptionalBackendValue(
+          item.attendance_id,
+          this.getOptionalBackendValue(item.id_attendance),
+        );
+        const rowKey =
+          attendanceId ||
+          this.getOptionalBackendValue(item.nip_nim) ||
+          this.getOptionalBackendValue(item.user_id) ||
+          `attendance_row_${index}`;
+
+        return {
+          ...item,
+          row_key: rowKey,
+          id_attendance: attendanceId,
+          id:
+            item.nip_nim ||
+            item.user_id ||
+            `EMP${String(index + 1).padStart(3, "0")}`,
+          full_name: this.getOptionalBackendValue(item.full_name),
+          role_name: this.getOptionalBackendValue(item.role),
+          time_in: this.getOptionalBackendValue(item.time_in),
+          time_out: this.getOptionalBackendValue(item.time_out),
+          work_hour: this.getOptionalBackendValue(item.work_hour),
+          status: this.getOptionalBackendValue(item.status),
+          information: this.getOptionalBackendValue(
+            item.location_details?.category,
+            this.getOptionalBackendValue(item.information),
+          ),
+          attendance_date: this.getOptionalBackendValue(item.attendance_date),
+          nip_nim: this.getOptionalBackendValue(item.nip_nim),
+          email: this.getOptionalBackendValue(item.email),
+          notes: this.getOptionalBackendValue(item.notes),
+          phone_number: this.getOptionalBackendValue(item.phone_number),
+          discipline_score: this.getOptionalBackendValue(item.discipline_score),
+          discipline_label: this.getOptionalBackendValue(item.discipline_label),
+          location: {
+            latitude,
+            longitude,
+            radius,
+            description: locationDescription,
+          },
+          location_description: locationDescription,
+          latitude,
+          longitude,
+        };
+      });
+      this.reportData = this.attendanceData;
+      this.summaryData = {
+        summary: mappedSummary,
+        report: reportData,
+      };
+      const historicalAnalyticsSlice = createHistoricalAnalyticsSliceState(
+        analyticsResponse,
+        analyticsRequestParams,
+      );
+
+      this.rawApiData = {
+        summary: response.summary,
+        report: response.report,
+        historicalAnalytics: historicalAnalyticsSlice,
+        todayLocations: liveMapSlice,
+        fahpRecap:
+          fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined"
+            ? null
+            : createFahpRecapSliceState(fuzzyAhpResponse, this.fahpFilterState),
+        geofenceEvidence: createGeofenceEvidenceSliceState(
+          geofenceEvidenceResponse,
+          analyticsRequestParams,
+        ),
+      };
+      this.dashboardAnalyticsResponse = historicalAnalyticsSlice.response;
+      this.dashboardAnalyticsError = analyticsError;
+      this.todayLocations = liveMapSlice;
+      this.todayLocationsError = todayLocationsError;
+      this.fuzzyAhpResponse = fuzzyAhpResponse;
+      this.fuzzyAhpError = fuzzyAhpError;
+      this.geofenceEvidenceResponse = geofenceEvidenceResponse;
+      this.geofenceEvidenceError = geofenceEvidenceError;
+      this.queueDashboardMapRender();
+    },
+
+    syncDashboardRangeState() {
+      const candidateRange = {
+        ...this.dashboardRangeState,
+        period: this.dashboardRange,
+      };
+      const validation = validateDashboardRange(candidateRange);
+
+      if (!validation.isValid) {
+        const fallbackRange = createDefaultDashboardRange();
+        this.dashboardRangeState = { ...fallbackRange };
+        this.dashboardRange = fallbackRange.period;
+        this.syncDashboardHeaderState();
+        return fallbackRange;
+      }
+
+      this.dashboardRangeState = candidateRange;
+      this.syncDashboardHeaderState();
+      return candidateRange;
+    },
+
+    syncDashboardHeaderState() {
+      this.dashboardHeaderState = syncDashboardAnalyticsHeaderState(
+        this.dashboardHeaderState,
+        this.dashboardRangeState,
+      );
+      this.syncDashboardDatePicker();
+      return this.dashboardHeaderState;
+    },
+
+    syncDashboardRangeFromReportPeriod() {
+      if (
+        this.filters.period === "range" &&
+        this.filters.from &&
+        this.filters.to
+      ) {
+        this.dashboardRange = "custom";
+        this.dashboardRangeState = {
+          period: "custom",
+          from: this.filters.from,
+          to: this.filters.to,
+        };
+        this.syncDashboardHeaderState();
+        return this.dashboardRangeState;
+      }
+
+      const mappedPeriod = {
+        daily: "today",
+        weekly: "current_week",
+        monthly: "current_month",
+      }[this.filters.period];
+
+      if (!mappedPeriod) {
+        return this.dashboardRangeState;
+      }
+
+      this.dashboardRange = mappedPeriod;
+      this.dashboardRangeState = {
+        period: mappedPeriod,
+        from: null,
+        to: null,
+      };
+      this.syncDashboardHeaderState();
+      return this.dashboardRangeState;
+    },
+
+    getDashboardAnalyticsRequestParams() {
+      return buildDashboardRangeRequestParams(this.syncDashboardRangeState());
+    },
+
+    getDashboardRangeLabel() {
+      return resolveDashboardAnalyticsSelectedLabel(this.dashboardRange);
+    },
+
+    getDashboardRangeDisplayLabel() {
+      return buildDashboardAnalyticsRangeDisplayValue(this.dashboardRangeState);
+    },
+
+    toggleDashboardRangeDropdown() {
+      this.dashboardHeaderState = {
+        ...this.dashboardHeaderState,
+        isDropdownOpen: !this.dashboardHeaderState.isDropdownOpen,
+      };
+    },
+
+    closeDashboardRangeDropdown() {
+      if (!this.dashboardHeaderState.isDropdownOpen) {
+        return;
+      }
+
+      this.dashboardHeaderState = {
+        ...this.dashboardHeaderState,
+        isDropdownOpen: false,
+      };
+    },
+
+    async selectDashboardRangeOption(period) {
+      const nextRange = applyDashboardAnalyticsPreset(
+        period,
+        this.dashboardRangeState,
+      );
+      this.dashboardRange = nextRange.period;
+      this.dashboardRangeState = { ...nextRange };
+      this.dashboardHeaderState = {
+        ...this.dashboardHeaderState,
+        isDropdownOpen: false,
+      };
+      this.syncDashboardHeaderState();
+      return this.onDashboardRangeChange();
+    },
+
+    setDashboardRangePreset(period) {
+      const nextRange = applyDashboardAnalyticsPreset(
+        period,
+        this.dashboardRangeState,
+      );
+      this.dashboardRange = nextRange.period;
+      this.dashboardRangeState = { ...nextRange };
+      this.syncDashboardHeaderState();
+
+      if (period !== "custom") {
+        return this.onDashboardRangeChange();
+      }
+
+      this.$nextTick?.(() => {
+        this.openDashboardDatePicker();
+      });
+
+      return Promise.resolve();
+    },
+
+    applyDashboardCustomRange(nextRange) {
+      this.dashboardRange = nextRange.period;
+      this.dashboardRangeState = { ...nextRange };
+      this.syncDashboardHeaderState();
+      return this.onDashboardRangeChange();
+    },
+
+    initDashboardDatePicker() {
+      const element = this.$refs?.dashboardAnalyticsDatePicker;
+      connectDashboardAnalyticsDatePicker(element, {
+        rangeState: this.dashboardRangeState,
+        onReady: (instance) => {
+          this.dashboardHeaderState.pickerInstance = instance;
+        },
+        onRangeApply: (nextRange) => {
+          this.applyDashboardCustomRange(nextRange);
+        },
+        onInvalid: (message) => {
+          this.showNotification(message, "warning");
+        },
+      });
+    },
+
+    syncDashboardDatePicker() {
+      syncDashboardAnalyticsDatePickerElement(
+        this.$refs?.dashboardAnalyticsDatePicker,
+        this.dashboardRangeState,
+      );
+    },
+
+    openDashboardDatePicker() {
+      openDashboardAnalyticsDatePicker(this.$refs?.dashboardAnalyticsDatePicker);
+    },
+
+    getCockpitKpiDisplayValue(card) {
+      if (card?.state === "ready") {
+        const value = card?.value || "—";
+        const displayUnit = card?.meta?.displayUnit;
+
+        return displayUnit ? `${value} ${displayUnit}` : value;
+      }
+
+      return {
+        loading: "Loading...",
+        empty: "No data",
+        needsData: "Needs data",
+        backendRequired: "Backend required",
+        error: "Error",
+      }[card?.state] || "—";
+    },
+
+    getCockpitKpiSupportText(card) {
+      if (card?.state === "ready") {
+        return (
+          card?.meta?.comparisonText ||
+          card.detail ||
+          "Explicit backend metric for the active period."
+        );
+      }
+
+      return card?.message || card?.stateLabel || "Metric unavailable.";
+    },
+
+    getCockpitKpiIconClass(card) {
+      return {
+        neutral: "text-brand-500 dark:text-brand-400",
+        warning: "text-warning-500 dark:text-orange-400",
+        info: "text-blue-500 dark:text-blue-400",
+        critical: "text-error-600 dark:text-error-500",
+      }[card?.meta?.tone] || "text-brand-500 dark:text-brand-400";
+    },
+
+    getCockpitKpiFooterClass(card) {
+      if (card?.state === "ready" && card?.meta?.trendTone) {
+        return {
+          positive: "text-success-600 dark:text-success-500",
+          negative: "text-error-600 dark:text-error-500",
+          neutral: "text-gray-500 dark:text-gray-400",
+        }[card.meta.trendTone] || "text-success-600 dark:text-success-500";
+      }
+
+      return {
+        loading: "text-blue-600 dark:text-blue-400",
+        ready: "text-success-600 dark:text-success-500",
+        empty: "text-gray-500 dark:text-gray-400",
+        needsData: "text-amber-600 dark:text-amber-400",
+        backendRequired: "text-violet-600 dark:text-violet-400",
+        error: "text-error-600 dark:text-error-500",
+      }[card?.state] || "text-gray-500 dark:text-gray-400";
+    },
+
+    getCockpitKpiFooterLabel(card) {
+      if (card?.state === "ready" && card?.meta?.trendLabel) {
+        return card.meta.trendLabel;
+      }
+
+      return card?.stateLabel || "Unavailable";
+    },
+
+    getCockpitKpiIconSvg(icon) {
+      return {
+        "calendar-check": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.75 2.75C7.75 2.33579 8.08579 2 8.5 2C8.91421 2 9.25 2.33579 9.25 2.75V4H14.75V2.75C14.75 2.33579 15.0858 2 15.5 2C15.9142 2 16.25 2.33579 16.25 2.75V4H17C18.6569 4 20 5.34315 20 7V18C20 19.6569 18.6569 21 17 21H7C5.34315 21 4 19.6569 4 18V7C4 5.34315 5.34315 4 7 4H7.75V2.75ZM5.5 9.5V18C5.5 18.8284 6.17157 19.5 7 19.5H17C17.8284 19.5 18.5 18.8284 18.5 18V9.5H5.5ZM7 5.5C6.17157 5.5 5.5 6.17157 5.5 7V8H18.5V7C18.5 6.17157 17.8284 5.5 17 5.5H7ZM15.0303 12.4697C15.3232 12.7626 15.3232 13.2374 15.0303 13.5303L11.5303 17.0303C11.2374 17.3232 10.7626 17.3232 10.4697 17.0303L8.96967 15.5303C8.67678 15.2374 8.67678 14.7626 8.96967 14.4697C9.26256 14.1768 9.73744 14.1768 10.0303 14.4697L11 15.4393L13.9697 12.4697C14.2626 12.1768 14.7374 12.1768 15.0303 12.4697Z" fill="currentColor"/></svg>`,
+        "alert-triangle": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.2892 3.86035C11.053 2.5396 12.947 2.5396 13.7108 3.86035L21.0592 16.5604C21.823 17.8811 20.876 19.5312 19.3483 19.5312H4.65167C3.12404 19.5312 2.17699 17.8811 2.94081 16.5604L10.2892 3.86035ZM12 8.75C11.5858 8.75 11.25 9.08579 11.25 9.5V13C11.25 13.4142 11.5858 13.75 12 13.75C12.4142 13.75 12.75 13.4142 12.75 13V9.5C12.75 9.08579 12.4142 8.75 12 8.75ZM12 16.5C11.4477 16.5 11 16.9477 11 17.5C11 18.0523 11.4477 18.5 12 18.5C12.5523 18.5 13 18.0523 13 17.5C13 16.9477 12.5523 16.5 12 16.5Z" fill="currentColor"/></svg>`,
+        activity: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12H7.5L9.5 7L13.5 17L15.5 12H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        "user-check": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 19C15.5 16.7909 13.2614 15 10.5 15C7.73858 15 5.5 16.7909 5.5 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 12C12.433 12 14 10.433 14 8.5C14 6.567 12.433 5 10.5 5C8.567 5 7 6.567 7 8.5C7 10.433 8.567 12 10.5 12Z" stroke="currentColor" stroke-width="1.5"/><path d="M16 11.5L17.5 13L20.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      }[icon] || "";
+    },
+
+    getCockpitKpiStateIconSvg(card) {
+      if (card?.state === "ready" && card?.meta?.trendDirection) {
+        return {
+          up: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 13.3339L7.9974 2.66634M4 6.66366L7.99987 2.66634L12 6.66366" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+          down: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 2.66602L7.9974 13.3336M4 9.33634L7.99987 13.3337L12 9.33634" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+        }[card.meta.trendDirection] || "";
+      }
+
+      return {
+        loading: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.66602V4.66602M8 11.3327V13.3327M13.3333 8L11.3333 8M4.66667 8L2.66667 8M11.7712 4.22852L10.357 5.64273M5.64298 10.357L4.22877 11.7712M11.7712 11.7715L10.357 10.3573M5.64298 5.64273L4.22877 4.22852" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        ready: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 2.66602L7.9974 13.3336M4 6.66334L7.99987 2.66602L12 6.66334" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+        empty: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        needsData: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 5.33333V8M8 10.6667H8.00667M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        backendRequired: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.5L13 5.25V10.75L8 13.5L3 10.75V5.25L8 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 5.83301V8.49967" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 10.833H8.00667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        error: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 13.3339L7.9974 2.66634M4 9.33652L7.99987 13.3338L12 9.33652" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+      }[card?.state] || "";
+    },
+
+    applyCockpitSurfaceState({
+      reportResponse,
+      analyticsResponse = this.dashboardAnalyticsResponse,
+      analyticsError = this.dashboardAnalyticsError,
+      todayLocations = this.todayLocations,
+      todayLocationsError = this.todayLocationsError,
+      fuzzyAhpResponse = this.fuzzyAhpResponse,
+      fuzzyAhpError = this.fuzzyAhpError,
+      geofenceEvidenceResponse = this.geofenceEvidenceResponse,
+      geofenceEvidenceError = this.geofenceEvidenceError,
+    } = {}) {
+      this.cockpit = createDashboardCockpitStateFromSources({
+        reportResponse,
+        analyticsResponse,
+        analyticsError,
+        todayLocations,
+        todayLocationsError,
+        fuzzyAhpResponse,
+        fuzzyAhpError,
+        geofenceEvidenceResponse,
+        geofenceEvidenceError,
+      });
+    },
+
+    applySummaryError(error) {
+      const message = error?.message || "Failed to load dashboard data.";
+      this.error = message;
+      this.errorMessage = message;
+      this.cockpit = createDashboardCockpitErrorState(message);
+      this.summaryData = null;
+      this.attendanceData = [];
+      this.rawApiData = null;
+      this.dashboardAnalyticsResponse = null;
+      this.dashboardAnalyticsError = error;
+      this.todayLocations = null;
+      this.todayLocationsError = null;
+      this.fuzzyAhpResponse = null;
+      this.fuzzyAhpError = null;
+      this.geofenceEvidenceResponse = null;
+      this.geofenceEvidenceError = null;
+      this.reportData = [];
+      this.pagination = createEmptyDashboardPagination(
+        this.pagination?.per_page || this.filters.limit,
+      );
+      this.queueDashboardMapRender();
+    },
+
+    validateSummaryReportFilters() {
+      if (this.filters.period !== "range") {
+        return { isValid: true, message: "" };
+      }
+
+      const from = String(this.filters.from ?? "").trim();
+      const to = String(this.filters.to ?? "").trim();
+
+      if (!from || !to) {
+        return {
+          isValid: false,
+          message: "range period requires from and to dates",
+        };
+      }
+
+      const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+      if (!datePattern.test(from) || !datePattern.test(to)) {
+        return {
+          isValid: false,
+          message:
+            "range period requires from and to dates in YYYY-MM-DD format",
+        };
+      }
+
+      const fromDate = new Date(`${from}T00:00:00.000Z`);
+      const toDate = new Date(`${to}T00:00:00.000Z`);
+
+      if (
+        Number.isNaN(fromDate.getTime()) ||
+        Number.isNaN(toDate.getTime()) ||
+        fromDate.toISOString().slice(0, 10) !== from ||
+        toDate.toISOString().slice(0, 10) !== to
+      ) {
+        return {
+          isValid: false,
+          message:
+            "range period requires from and to dates in YYYY-MM-DD format",
+        };
+      }
+
+      const rangeDays = (toDate.getTime() - fromDate.getTime()) / 86400000;
+      if (rangeDays < 0) {
+        return {
+          isValid: false,
+          message: "range period to date must be on or after from date",
+        };
+      }
+
+      if (rangeDays + 1 > 31) {
+        return {
+          isValid: false,
+          message: "range period cannot exceed 31 days",
+        };
+      }
+
+      this.filters.from = from;
+      this.filters.to = to;
+      return { isValid: true, message: "" };
+    },
+
+    applySummaryFilterValidationError(message) {
+      this.error = message;
+      this.errorMessage = message;
+      this.showNotification(message, "error");
+    },
+
+    getDashboardMapLocations() {
+      return Array.isArray(this.cockpit?.hero?.data?.locations)
+        ? this.cockpit.hero.data.locations
+        : [];
+    },
+
+    canRenderDashboardMap() {
+      return (
+        this.getDashboardMapLocations().length > 0 &&
+        this.cockpit?.hero?.state === "ready"
+      );
+    },
+
+    queueDashboardMapRender() {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      const renderToken = ++this.dashboardMapRenderToken;
+      const render = () => this.renderDashboardMap(renderToken);
+
+      if (typeof this.$nextTick === "function") {
+        this.$nextTick(render);
+        return;
+      }
+
+      window.setTimeout(render, 0);
+    },
+
+    async getDashboardLeaflet() {
+      if (this.dashboardLeaflet) {
+        return this.dashboardLeaflet;
+      }
+
+      if (typeof window !== "undefined" && window.L) {
+        this.dashboardLeaflet = window.L;
+        return this.dashboardLeaflet;
+      }
+
+      const leafletModule = await import("leaflet");
+      this.dashboardLeaflet = leafletModule.default || leafletModule;
+      return this.dashboardLeaflet;
+    },
+
+    isDashboardMapContainerConnected(container) {
+      if (!container) {
+        return false;
+      }
+
+      return container.isConnected !== false;
+    },
+
+    ensureDashboardMapLayers(L) {
+      if (!this.dashboardMapMarkerLayer) {
+        this.dashboardMapMarkerLayer = L.layerGroup().addTo(this.dashboardMap);
+      }
+
+      if (!this.dashboardMapRadiusLayer) {
+        this.dashboardMapRadiusLayer = L.layerGroup().addTo(this.dashboardMap);
+      }
+    },
+
+    clearDashboardMapLayers() {
+      this.dashboardMapMarkerLayer?.clearLayers?.();
+      this.dashboardMapRadiusLayer?.clearLayers?.();
+    },
+
+    ensureDashboardMap(L, container, firstLocation, defaultZoom) {
+      const activeContainer = this.dashboardMap?.getContainer?.();
+
+      if (
+        this.dashboardMap &&
+        activeContainer &&
+        activeContainer !== container
+      ) {
+        this.destroyDashboardMap();
+      }
+
+      if (!this.dashboardMap) {
+        this.dashboardMap = L.map(container, {
+          center: [firstLocation.latitude, firstLocation.longitude],
+          zoom: defaultZoom,
+          zoomControl: true,
+          attributionControl: true,
+          zoomAnimation: false,
+        });
+
+        this.dashboardMapTileLayer = L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+          },
+        ).addTo(this.dashboardMap);
+      }
+
+      this.ensureDashboardMapLayers(L);
+      return this.dashboardMap;
+    },
+
+    destroyDashboardMap() {
+      if (!this.dashboardMap) {
+        this.dashboardMapTileLayer = null;
+        this.dashboardMapMarkerLayer = null;
+        this.dashboardMapRadiusLayer = null;
+        return;
+      }
+
+      this.dashboardMap.stop?.();
+      this.clearDashboardMapLayers();
+      this.dashboardMap.off?.();
+      this.dashboardMap.remove();
+      this.dashboardMap = null;
+      this.dashboardMapTileLayer = null;
+      this.dashboardMapMarkerLayer = null;
+      this.dashboardMapRadiusLayer = null;
+    },
+
+    createDashboardMapMarkerIcon(L, location) {
+      const color = location.modeColor || "#2563eb";
+
+      return L.divIcon({
+        className: "dashboard-attendance-marker",
+        html: `<span style="--marker-color: ${color}" class="dashboard-attendance-marker__pin"></span>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+        popupAnchor: [0, -28],
+      });
+    },
+
+    createDashboardMapPopup(location) {
+      const content = document.createElement("div");
+      content.className = "space-y-2 text-sm";
+
+      const name = document.createElement("p");
+      name.className = "font-semibold text-gray-900";
+      name.textContent =
+        location.label || location.fullName || "Unknown Location";
+      content.appendChild(name);
+
+      const identity = document.createElement("p");
+      identity.className = "text-xs text-gray-600";
+      identity.textContent = `User: ${location.userName || location.fullName || "Unavailable"}`;
+      content.appendChild(identity);
+
+      const attendanceMeta = document.createElement("p");
+      attendanceMeta.className = "text-xs text-gray-600";
+      attendanceMeta.textContent = `Status: ${location.status || "Unavailable"} • Date: ${location.attendanceDate || "Unavailable"}`;
+      content.appendChild(attendanceMeta);
+
+      const workMode = document.createElement("p");
+      workMode.className = "text-xs text-gray-600";
+      workMode.textContent = `Mode: ${location.mode || location.information || "Unavailable"} • Time: ${location.timeIn || "-"} / ${location.timeOut || "-"}`;
+      content.appendChild(workMode);
+
+      const description = document.createElement("p");
+      description.className = "text-gray-600";
+      description.textContent = location.description || "Unavailable";
+      content.appendChild(description);
+
+      const coordinates = document.createElement("p");
+      coordinates.className = "text-xs text-gray-500";
+      coordinates.textContent = `Coordinates: ${location.latitude}, ${location.longitude}`;
+      content.appendChild(coordinates);
+
+      const sourceNote = document.createElement("p");
+      sourceNote.className = "text-xs text-gray-500";
+      sourceNote.textContent = location.sourceNote || "Unavailable";
+      content.appendChild(sourceNote);
+
+      if (location.trackingNote) {
+        const trackingNote = document.createElement("p");
+        trackingNote.className = "text-xs text-gray-500";
+        trackingNote.textContent = location.trackingNote;
+        content.appendChild(trackingNote);
+      }
+
+      const detailButton = document.createElement("button");
+      detailButton.type = "button";
+      detailButton.className =
+        "inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:border-blue-300 hover:text-blue-700";
+      detailButton.textContent = "View location details";
+      detailButton.addEventListener("click", () =>
+        this.openMapLocation(location),
+      );
+      content.appendChild(detailButton);
+
+      return content;
+    },
+
+    async renderDashboardMap(renderToken = this.dashboardMapRenderToken) {
+      if (typeof document === "undefined") {
+        return;
+      }
+
+      const container = document.getElementById("dashboardMapView");
+      const canRender = this.canRenderDashboardMap();
+      const locations = this.getDashboardMapLocations();
+
+      if (!container || !this.isDashboardMapContainerConnected(container)) {
+        this.destroyDashboardMap();
+        return;
+      }
+
+      if (!canRender) {
+        this.dashboardMap?.stop?.();
+        this.clearDashboardMapLayers();
+        return;
+      }
+
+      const L = await this.getDashboardLeaflet();
+
+      if (renderToken !== this.dashboardMapRenderToken) {
+        return;
+      }
+
+      if (
+        !this.canRenderDashboardMap() ||
+        !this.isDashboardMapContainerConnected(container)
+      ) {
+        return;
+      }
+
+      const firstLocation = locations[0];
+      const defaultZoom = locations.length === 1 ? 16 : 13;
+      const layers = [];
+      const map = this.ensureDashboardMap(
+        L,
+        container,
+        firstLocation,
+        defaultZoom,
+      );
+
+      if (!map) {
+        return;
+      }
+
+      map.stop?.();
+      this.clearDashboardMapLayers();
+
+      locations.forEach((location) => {
+        const marker = L.marker([location.latitude, location.longitude], {
+          icon: this.createDashboardMapMarkerIcon(L, location),
+        }).addTo(
+          this.dashboardMapMarkerLayer,
+        );
+        marker.bindPopup(this.createDashboardMapPopup(location));
+        layers.push(marker);
+
+        if (Number.isFinite(location.radius) && location.radius > 0) {
+          const radiusLayer = L.circle(
+            [location.latitude, location.longitude],
+            {
+              color: "#2563eb",
+              fillColor: "#2563eb",
+              fillOpacity: 0.1,
+              radius: location.radius,
+              weight: 2,
+            },
+          ).addTo(this.dashboardMapRadiusLayer);
+          layers.push(radiusLayer);
+        }
+      });
+
+      if (locations.length > 1) {
+        map.fitBounds(L.featureGroup(layers).getBounds(), {
+          padding: [32, 32],
+          animate: false,
+        });
+      } else {
+        map.setView(
+          [firstLocation.latitude, firstLocation.longitude],
+          defaultZoom,
+          { animate: false },
+        );
+      }
+
+      window.setTimeout(() => {
+        if (
+          renderToken !== this.dashboardMapRenderToken ||
+          !this.dashboardMap
+        ) {
+          return;
+        }
+
+        const activeContainer = this.dashboardMap.getContainer?.();
+
+        if (!this.isDashboardMapContainerConnected(activeContainer)) {
+          return;
+        }
+
+        this.dashboardMap.invalidateSize();
+      }, 0);
+    },
+
+    openMapLocation(location) {
+      this.viewLocation({
+        full_name: location.userName || location.fullName || location.label,
+        email: location.email,
+        role_name: location.roleName,
+        phone_number: location.phoneNumber,
+        status: location.status,
+        information: location.mode || location.information,
+        attendance_date: location.attendanceDate,
+        time_in: location.timeIn,
+        time_out: location.timeOut,
+        source: location.source,
+        source_note: location.sourceNote,
+        tracking_note: location.trackingNote,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        radius: location.radius,
+        location_description: location.description,
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          radius: location.radius,
+          description: location.description,
+        },
+      });
+    },
+
     /**
-     * Load summary data dari API - menggunakan period filter untuk semua tampilan dashboard
+     * Load summary data dari API - report/export uses filters.period; dashboard analytics uses dashboardRange.
      */
-    async loadSummaryData() {
+    async loadSummaryData({ includeTodayLocations = true } = {}) {
       this.loading = true;
       this.isLoading = true;
       this.error = null;
       this.errorMessage = null;
+      this.filters.search = String(this.searchQuery ?? "").trim();
 
-      try {
-        console.log(
-          `Loading dashboard data for page: ${this.filters.page}, search: ${this.searchQuery}, period: ${this.period}`,
-        );
-
-        // Gunakan period filter yang dipilih user untuk semua tampilan dashboard
-        // Saat search aktif, ambil dataset lebih besar agar filter client-side akurat
-        const effectiveLimit =
-          this.searchQuery && this.searchQuery.trim()
-            ? 100
-            : this.filters.limit;
-        const response = await getSummaryReport({
-          period: this.period, // Menggunakan period filter dari dropdown
-          page: this.filters.page,
-          limit: effectiveLimit,
-        });
-
-        console.log(`Dashboard API call made with period='${this.period}'`);
-
-        // Handle API response format dan mapping field names
-        if (response && response.summary) {
-          // Map API field names ke component field names
-          const mappedSummary = {
-            onTime: response.summary.total_ontime || 0,
-            late: response.summary.total_late || 0,
-            alpha: response.summary.total_alpha || 0,
-            wfo: response.summary.total_wfo || 0,
-            wfh: response.summary.total_wfh || 0,
-            wfa: response.summary.total_wfa || 0,
-          };
-
-          // Update card summary data (terpengaruh period filter)
-          this.cardSummaryData = { ...mappedSummary };
-          console.log(
-            `✅ Card summary data updated for period '${this.period}':`,
-            this.cardSummaryData,
-          );
-
-          // Extract analytics data
-          this.analyticsData = response.analytics || {
-            discipline_index: 0,
-            performance_trend: "stable",
-            avg_work_hours: 0,
-          };
-
-          // Extract report data dari nested structure
-          const reportData = response.report?.data || response.report || [];
-
-          // Update pagination data (dukung kedua skema penamaan dari backend)
-          const p = response.report?.pagination || {};
-          this.pagination = {
-            current_page: p.current_page || 1,
-            total_pages: p.total_pages || 1,
-            total_records:
-              typeof p.total_records !== "undefined"
-                ? p.total_records
-                : typeof p.total_items !== "undefined"
-                  ? p.total_items
-                  : 0,
-            has_prev_page:
-              typeof p.has_prev_page === "boolean"
-                ? p.has_prev_page
-                : p.current_page > 1,
-            has_next_page:
-              typeof p.has_next_page === "boolean"
-                ? p.has_next_page
-                : p.current_page < p.total_pages,
-            per_page:
-              typeof p.per_page !== "undefined"
-                ? p.per_page
-                : typeof p.items_per_page !== "undefined"
-                  ? p.items_per_page
-                  : effectiveLimit,
-          };
-          // Map report data to attendanceData format (matching exact API structure)
-          this.attendanceData = reportData.map((item, index) => ({
-            id_attendance: item.attendance_id || `attendance_${index}`,
-            id:
-              item.nip_nim ||
-              item.user_id ||
-              `EMP${String(index + 1).padStart(3, "0")}`,
-            full_name: item.full_name || "Unknown User",
-            role_name: item.role || "Employee",
-            time_in: item.time_in || null,
-            time_out: item.time_out || null,
-            work_hour:
-              item.work_hour ||
-              this.calculateWorkHours(item.time_in, item.time_out),
-            status: item.status || "Present",
-            information:
-              item.location_details?.category || item.information || "N/A",
-            attendance_date: item.attendance_date || null,
-            nip_nim: item.nip_nim || null,
-            email: item.email || null,
-            notes: item.notes || null,
-            phone_number: item.phone_number || null,
-            // Discipline data (new)
-            discipline_score: item.discipline_score || 0,
-            discipline_label: item.discipline_label || "Unknown",
-            // Location mapping - exact same structure as attendance table expects
-            location: {
-              latitude: item.location_details?.coordinates?.latitude || null,
-              longitude: item.location_details?.coordinates?.longitude || null,
-              radius: item.location_details?.radius || 100,
-              description:
-                item.location_details?.description || "Location not specified",
-            },
-            location_description:
-              item.location_details?.description || "Location not specified",
-            // Additional location details for compatibility
-            latitude: item.location_details?.coordinates?.latitude || null,
-            longitude: item.location_details?.coordinates?.longitude || null,
-            ...item, // spread any additional fields
-          }));
-
-          // Set reportData untuk tampilan tabel
-          if (this.searchQuery && this.searchQuery.trim()) {
-            // Saat searching: tampilkan hasil filter client-side dan nonaktifkan pagination server agar empty state benar
-            this.reportData = this.filteredAttendanceData;
-            const filteredCount = this.reportData.length;
-            this.pagination = {
-              current_page: 1,
-              total_pages: 1,
-              total_records: filteredCount,
-              per_page: filteredCount,
-              has_prev_page: false,
-              has_next_page: false,
-            };
-          } else {
-            this.reportData = this.attendanceData;
-          }
-          this.summaryData = {
-            summary: mappedSummary,
-            report: reportData,
-          };
-
-          // Simpan juga raw API response untuk export
-          this.rawApiData = {
-            summary: response.summary,
-            report: response.report,
-          };
-
-          console.log("Summary data loaded successfully:", this.summaryData);
-          console.log("Attendance data mapped:", this.attendanceData);
-        } else {
-          // No valid response data
-          console.warn("No valid data received from API");
-          this.handleEmptyApiResponse();
-        }
-      } catch (error) {
-        console.error("Error loading summary data:", error);
+      const filterValidation = this.validateSummaryReportFilters();
+      if (!filterValidation.isValid) {
         this.loading = false;
         this.isLoading = false;
-        this.errorMessage = error.message;
+        this.applySummaryFilterValidationError(filterValidation.message);
+        return false;
+      }
 
-        // Clear all data and show error state - no mock data fallback
-        this.summaryData = null;
-        this.attendanceData = [];
-        this.rawApiData = null; // Critical: No mock data for export
-        this.analyticsData = null;
-        this.reportData = [];
+      this.cockpit = createDashboardCockpitLoadingState();
 
-        // Reset pagination
-        this.pagination = {
-          current_page: 1,
-          total_pages: 1,
-          total_records: 0,
-          per_page: 5,
-          has_next_page: false,
-          has_prev_page: false,
+      try {
+        const dashboardRange = this.syncDashboardRangeState();
+
+        console.log(
+          `Loading dashboard data for page: ${this.filters.page}, search: ${this.filters.search}, report period: ${this.filters.period}, analytics range: ${dashboardRange.period}`,
+        );
+
+        const reportRequestParams = {
+          ...buildDashboardRequestParams(this.filters),
+          ...(this.filters.period === "range"
+            ? { from: this.filters.from, to: this.filters.to }
+            : {}),
+          sortBy: this.filters.sortBy,
+          sortOrder: this.filters.sortOrder,
         };
+        const analyticsRequestParams =
+          this.getDashboardAnalyticsRequestParams();
+        const fuzzyAhpRequestParams = buildFahpRequestParams(this.fahpFilterState);
+        const requests = [
+          this.fetchSummaryReport(reportRequestParams),
+          this.fetchDashboardAnalytics(analyticsRequestParams),
+          this.fetchGeofenceEvidence(analyticsRequestParams),
+          this.fetchFuzzyAhpAnalysis(fuzzyAhpRequestParams),
+        ];
 
-        // Show user-friendly error message
+        if (includeTodayLocations) {
+          requests.push(this.fetchTodayLocations());
+        }
+
+        const [
+          reportResult,
+          analyticsResult,
+          geofenceEvidenceResult,
+          fuzzyAhpResult,
+          todayLocationsResult,
+        ] = await Promise.allSettled(requests);
+
+        if (reportResult.status !== "fulfilled") {
+          throw reportResult.reason;
+        }
+
+        const analyticsResponse =
+          analyticsResult.status === "fulfilled" ? analyticsResult.value : null;
+        const analyticsError =
+          analyticsResult.status === "fulfilled"
+            ? null
+            : analyticsResult.reason;
+        const geofenceEvidenceResponse =
+          geofenceEvidenceResult.status === "fulfilled"
+            ? geofenceEvidenceResult.value
+            : null;
+        const geofenceEvidenceError =
+          geofenceEvidenceResult.status === "fulfilled"
+            ? null
+            : geofenceEvidenceResult.reason;
+        const fuzzyAhpResponse =
+          fuzzyAhpResult.status === "fulfilled" ? fuzzyAhpResult.value : null;
+        const fuzzyAhpError =
+          fuzzyAhpResult.status === "fulfilled" ? null : fuzzyAhpResult.reason;
+        const todayLocations = includeTodayLocations
+          ? todayLocationsResult.status === "fulfilled"
+            ? createLiveMapSliceState(
+                todayLocationsResult.value,
+                analyticsRequestParams,
+              )
+            : null
+          : this.todayLocations;
+        const todayLocationsError = includeTodayLocations
+          ? todayLocationsResult.status === "fulfilled"
+            ? null
+            : todayLocationsResult.reason
+          : this.todayLocationsError;
+
+        if (analyticsError) {
+          console.warn(
+            "Dashboard analytics request failed; keeping report rows and conservative cockpit state:",
+            analyticsError,
+          );
+        }
+
+        if (todayLocationsError && includeTodayLocations) {
+          console.warn(
+            "Today locations request failed; live map will stay truthful to the missing backend feed:",
+            todayLocationsError,
+          );
+        }
+
+        if (geofenceEvidenceError) {
+          console.warn(
+            "Geofence evidence request failed; evidence panel will stay truthful to the missing backend feed:",
+            geofenceEvidenceError,
+          );
+        }
+
+        if (fuzzyAhpError) {
+          console.warn(
+            "Fuzzy AHP request failed; decision panel will stay truthful to the missing backend feed:",
+            fuzzyAhpError,
+          );
+        }
+
+        console.log(
+          `Dashboard API calls made with report period='${this.filters.period}' and analytics range='${this.dashboardRange}'`,
+        );
+        this.applySummaryResponse(
+          reportResult.value,
+          analyticsResponse,
+          analyticsError,
+          todayLocations?.response ?? null,
+          todayLocationsError,
+          fuzzyAhpResponse,
+          fuzzyAhpError,
+          geofenceEvidenceResponse,
+          geofenceEvidenceError,
+        );
+        console.log("Summary data loaded successfully:", this.summaryData);
+        console.log("Attendance data mapped:", this.attendanceData);
+      } catch (error) {
+        const authFailure = classifyAuthFailure(error);
+
+        console.error("Error loading summary data:", error);
+        this.applySummaryError(error);
+
+        if (authFailure.kind === "refreshable" || authFailure.kind === "non_refreshable") {
+          console.warn(
+            "Dashboard summary request failed because the session is not valid; auth flow will handle user notification.",
+            authFailure,
+          );
+          return false;
+        }
+
         this.showNotification(
           "Failed to load dashboard data. Please check your connection and try again.",
           "error",
@@ -355,78 +1539,263 @@ export function dashboard() {
       }
     },
 
+    getExportTotalMetadata(pagination) {
+      if (Object.prototype.hasOwnProperty.call(pagination, "total_records")) {
+        return {
+          exists: true,
+          value: pagination.total_records,
+        };
+      }
+
+      if (Object.prototype.hasOwnProperty.call(pagination, "total_items")) {
+        return {
+          exists: true,
+          value: pagination.total_items,
+        };
+      }
+
+      return {
+        exists: false,
+        value: undefined,
+      };
+    },
+
+    extractExportReportRows(response) {
+      if (Array.isArray(response?.report)) {
+        return response.report;
+      }
+
+      if (Array.isArray(response?.report?.data)) {
+        return response.report.data;
+      }
+
+      return null;
+    },
+
+    getExportPagination(response) {
+      if (response?.report && !Array.isArray(response.report)) {
+        return response.report.pagination || {};
+      }
+
+      return response?.pagination || {};
+    },
+
     /**
-     * Load data khusus untuk export dengan period filter - ambil SEMUA data
+     * Check whether the fetched export dataset covers the reported total rows
+     * for the active period filter.
      */
+    ensureExportDatasetComplete(response) {
+      const reportRows = this.extractExportReportRows(response);
+      const fetchedRows = Array.isArray(reportRows) ? reportRows.length : 0;
+      const pagination = this.getExportPagination(response);
+      const totalMetadata = this.getExportTotalMetadata(pagination);
+      const totalRecordsRaw = totalMetadata.value;
+      const totalRecords = Number(totalRecordsRaw);
+
+      if (
+        !totalMetadata.exists ||
+        totalRecordsRaw === null ||
+        (typeof totalRecordsRaw === "string" &&
+          totalRecordsRaw.trim() === "") ||
+        !Number.isFinite(totalRecords) ||
+        totalRecords < 0 ||
+        !Number.isInteger(totalRecords)
+      ) {
+        throw new Error(
+          "Export data completeness could not be verified for the selected period.",
+        );
+      }
+
+      if (totalRecords !== fetchedRows) {
+        throw new Error(
+          "Export data is incomplete or inconsistent for the selected period. Please narrow the filter or use a backend export path that supports the full dataset.",
+        );
+      }
+    },
+
+    getCanonicalSummaryReportFiltersForExport() {
+      const validation = this.validateSummaryReportFilters();
+
+      if (!validation.isValid) {
+        throw new Error(
+          validation.message || "Invalid summary report period for export.",
+        );
+      }
+
+      return {
+        period: this.filters.period,
+        ...(this.filters.period === "range"
+          ? {
+              from: this.filters.from,
+              to: this.filters.to,
+            }
+          : {}),
+      };
+    },
+
     async loadExportData() {
       try {
-        console.log(`Loading export data with period: ${this.period}`);
+        const reportFilters = this.getCanonicalSummaryReportFiltersForExport();
 
-        const response = await getSummaryReport({
-          period: this.period, // Gunakan period yang dipilih user
-          page: 1, // Ambil dari halaman pertama
-          limit: 10000, // Ambil SEMUA data dengan limit besar
-          search: "", // Tidak ada search filter untuk export
+        console.log(
+          `Loading export payload for summary report period: ${reportFilters.period}`,
+        );
+
+        const response = await this.fetchSummaryReport({
+          ...reportFilters,
+          page: 1,
+          limit: 5000,
         });
 
         if (response && response.summary) {
-          // Update rawApiData untuk export
+          this.ensureExportDatasetComplete(response);
+
           const exportData = {
             summary: response.summary,
+            period_summary: response.period_summary,
+            export_scope_summary: response.export_scope_summary,
             report: response.report,
+            analytics: response.analytics,
           };
+          const exportTotalMetadata = this.getExportTotalMetadata(
+            this.getExportPagination(response),
+          );
+          const exportRows = this.extractExportReportRows(response) || [];
 
-          console.log(`Export data loaded successfully:`, {
-            period: this.period,
-            summaryStats: response.summary,
-            recordCount: response.report?.data?.length || 0,
-            totalRecords: response.report?.pagination?.total_records || 0,
-          });
+          console.log(
+            `Export payload loaded for selected summary report period:`,
+            {
+              range: reportFilters,
+              summaryStats: response.summary,
+              recordCount: exportRows.length,
+              totalRecords: exportTotalMetadata.value || 0,
+            },
+          );
 
           return exportData;
-        } else {
-          throw new Error("No valid export data received from API");
         }
+
+        throw new Error(
+          "Export payload is missing the required summary/report sections.",
+        );
       } catch (error) {
-        console.error("Error loading export data:", error);
+        console.error("Error loading export payload:", error);
         throw error;
       }
     },
 
-    /**
-     * Calculate work hours from check in and check out times
-     */
-    calculateWorkHours(checkIn, checkOut) {
-      if (!checkIn || !checkOut) return null;
+    hasRequiredExportStructure(exportData) {
+      return Boolean(
+        exportData?.summary &&
+        (exportData.report?.data || exportData.report) &&
+        typeof exportData.summary === "object",
+      );
+    },
 
-      try {
-        const timeIn = new Date(`2000-01-01T${checkIn}`);
-        const timeOut = new Date(`2000-01-01T${checkOut}`);
-        const diffMs = timeOut - timeIn;
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMinutes = Math.floor(
-          (diffMs % (1000 * 60 * 60)) / (1000 * 60),
+    async loadValidatedExportData(format) {
+      const exportData = await this.loadExportData();
+
+      if (!exportData || !exportData.summary || !exportData.report) {
+        console.error(
+          `Export payload is missing required sections for ${format}`,
         );
-
-        return `${diffHours}h ${diffMinutes}m`;
-      } catch (error) {
+        this.exportInlineError =
+          "The canonical export payload is missing required summary/report sections.";
+        this.showNotification(this.exportInlineError, "error");
         return null;
+      }
+
+      if (!this.hasRequiredExportStructure(exportData)) {
+        console.error(`Export payload failed structural checks for ${format}`);
+        this.exportInlineError = `The export payload is missing required summary/report structure for ${format} export.`;
+        this.showNotification(this.exportInlineError, "error");
+        return null;
+      }
+
+      console.log(
+        `Export payload passed structural checks for ${format} generation:`,
+        exportData,
+      );
+
+      return exportData;
+    },
+
+    async onDashboardRangeChange() {
+      console.log(
+        `Dashboard analytics range changed to: ${this.dashboardRange}`,
+      );
+
+      await this.loadSummaryData({ includeTodayLocations: false });
+
+      this.showNotification(
+        `Dashboard analytics updated untuk range: ${this.dashboardRange}`,
+        "info",
+      );
+    },
+
+    async loadFuzzyAhpDetail(params = this.fahpFilterState) {
+      const currentReportResponse = this.rawApiData
+        ? {
+            summary: this.rawApiData.summary,
+            report: this.rawApiData.report,
+          }
+        : {};
+
+      const requestParams = buildFahpRequestParams(params);
+      this.fahpFilterState = {
+        ...createDefaultFahpFilterState(),
+        ...requestParams,
+      };
+
+      this.fuzzyAhpError = null;
+      await this.applyCockpitSurfaceState({
+        reportResponse: currentReportResponse,
+        fuzzyAhpResponse: null,
+        fuzzyAhpError: null,
+      });
+
+      const fahpSlice = await this.pageState?.refreshFahpRecap(requestParams);
+
+      await this.applyCockpitSurfaceState({
+        reportResponse: currentReportResponse,
+        fuzzyAhpResponse: this.fuzzyAhpResponse,
+        fuzzyAhpError: this.fuzzyAhpError,
+      });
+
+      if (fahpSlice?.status === "error") {
+        const error = new Error(fahpSlice.error || "fahp recap unavailable");
+        this.fuzzyAhpResponse = null;
+        this.fuzzyAhpError = error;
+        await this.applyCockpitSurfaceState({
+          reportResponse: currentReportResponse,
+          fuzzyAhpResponse: null,
+          fuzzyAhpError: error,
+        });
+        console.warn(
+          "Fuzzy AHP request failed; decision panel will stay truthful to the missing backend feed:",
+          error,
+        );
       }
     },
 
     /**
-     * Handle period change - mempengaruhi semua tampilan dashboard
+     * Handle report/export period change - keeps filters.period as report/export owner.
      */
     async onPeriodChange() {
-      console.log(`🔄 Period filter changed to: ${this.period}`);
-      console.log("📊 Reloading dashboard data dengan period filter baru");
+      console.log(`Period filter changed to: ${this.filters.period}`);
+      console.log("Reloading report/export data dengan period filter baru");
 
-      // Period filter mempengaruhi SEMUA tampilan dashboard (cards, table, export)
-      // Reload data dashboard dengan period filter baru
-      await this.loadSummaryData();
+      this.filters = applyDashboardPeriod(this.filters, this.filters.period);
+      this.period = this.filters.period;
+      this.syncDashboardRangeFromReportPeriod();
+      const loaded = await this.loadSummaryData();
+
+      if (loaded === false) {
+        return;
+      }
 
       this.showNotification(
-        `Dashboard updated untuk period: ${this.period}`,
+        `Dashboard updated untuk period: ${this.filters.period}`,
         "info",
       );
     },
@@ -442,22 +1811,6 @@ export function dashboard() {
     },
 
     /**
-     * Get showing info text for pagination
-     */
-    get showingInfo() {
-      const { current_page, items_per_page, total_items } = this.paginationData;
-
-      if (total_items === 0) {
-        return "Showing 0 entries";
-      }
-
-      const start = (current_page - 1) * items_per_page + 1;
-      const end = Math.min(current_page * items_per_page, total_items);
-
-      return `Showing ${start} to ${end} of ${total_items} entries`;
-    },
-
-    /**
      * Get discipline score color class
      */
     getDisciplineScoreColor(score) {
@@ -465,52 +1818,150 @@ export function dashboard() {
       if (score >= 70) return "bg-blue-500"; // Good - Blue
       if (score >= 55) return "bg-yellow-500"; // Needs Improvement - Yellow
       return "bg-red-500"; // Poor - Red
-    } /**
+    },
+
+    resetExportModalState() {
+      this.selectedExportFormat = "pdf";
+      this.selectedExportScope = "current_period";
+      this.exportProgressMessage = null;
+      this.exportInlineError = null;
+      this.exportOptions = {
+        includeSummaryStatistics: true,
+        includeDisciplineScore: true,
+        includeWorkModeDistribution: true,
+        includeLocationDescription: false,
+      };
+    },
+
+    openExportModal() {
+      this.resetExportModalState();
+      this.isExportModalOpen = true;
+    },
+
+    closeExportModal() {
+      this.isExportModalOpen = false;
+      this.exportProgressMessage = null;
+      this.exportInlineError = null;
+    },
+
+    selectExportFormat(format) {
+      if (this.isExporting) {
+        return;
+      }
+
+      if (!["pdf", "excel"].includes(format)) {
+        this.exportInlineError = "Unsupported export format selected.";
+        return;
+      }
+
+      this.selectedExportFormat = format;
+      this.exportInlineError = null;
+    },
+
+    selectExportScope(scope) {
+      if (this.isExporting) {
+        return;
+      }
+
+      const option = this.exportScopeOptions.find((item) => item.value === scope);
+      if (!option || !option.enabled) {
+        return;
+      }
+
+      this.selectedExportScope = scope;
+      this.exportInlineError = null;
+    },
+
+    toggleExportOption(optionKey) {
+      if (this.isExporting) {
+        return;
+      }
+
+      const option = this.exportAdditionalOptions.find((item) => item.key === optionKey);
+      if (!option || !option.enabled) {
+        return;
+      }
+
+      this.exportOptions[optionKey] = !this.exportOptions[optionKey];
+      this.exportInlineError = null;
+    },
+
+    getExportPeriodLabel() {
+      if (this.filters.period === "range") {
+        const from = this.filters.from || "Unknown start";
+        const to = this.filters.to || "Unknown end";
+        return `Selected period: ${from} → ${to}`;
+      }
+
+      const option = this.periodOptions.find(
+        (item) => item.value === this.filters.period,
+      );
+      return `Selected period: ${option?.label || this.filters.period}`;
+    },
+
+    async confirmExport() {
+      if (this.isExporting) {
+        return false;
+      }
+
+      if (!this.selectedExportFormat) {
+        this.exportInlineError = "Select an export format before continuing.";
+        return false;
+      }
+
+      this.exportInlineError = null;
+
+      if (this.selectedExportFormat === "pdf") {
+        if (await this.exportToPDF()) {
+          this.closeExportModal();
+          return true;
+        }
+        return false;
+      }
+
+      if (this.selectedExportFormat === "excel") {
+        if (await this.exportToExcel()) {
+          this.closeExportModal();
+          return true;
+        }
+        return false;
+      }
+
+      this.exportInlineError = "Unsupported export format selected.";
+      return false;
+    },
+
+    async exportSelected(format) {
+      this.selectExportFormat(format);
+      return this.confirmExport();
+    },
+
+    /**
      * Download report as PDF
-     */,
+     */
     async downloadPDF() {
       try {
-        console.log(`Generating PDF report with period filter: ${this.period}`);
-
-        // Load fresh export data dengan period filter
-        const exportData = await this.loadExportData();
-
-        // Validasi bahwa kita memiliki data export yang valid
-        if (!exportData || !exportData.summary || !exportData.report) {
-          console.error("No valid export data available for PDF");
-          this.showNotification(
-            "Failed to load export data. Please try again.",
-            "error",
-          );
-          return;
-        }
-
-        // Validasi struktur data
-        const isValidApiData =
-          exportData.summary &&
-          (exportData.report.data || exportData.report) &&
-          typeof exportData.summary === "object";
-
-        if (!isValidApiData) {
-          console.error("Invalid export data structure for PDF");
-          this.showNotification(
-            "Invalid data structure for PDF export",
-            "error",
-          );
-          return;
-        }
-
+        this.exportProgressMessage = "Preparing export file...";
+        this.exportInlineError = null;
         console.log(
-          "Valid export data being sent to PDF generator:",
-          exportData,
+          `Generating PDF report with period filter: ${this.filters.period}`,
         );
-        generatePDFReport(exportData, this.period);
 
-        // Show success notification
+        const exportData = await this.loadValidatedExportData("PDF");
+        if (!exportData) {
+          return false;
+        }
+
+        generatePDFReport(exportData, this.filters.period);
         this.showNotification("PDF report downloaded successfully!", "success");
+        this.exportProgressMessage = null;
+        return true;
       } catch (error) {
         console.error("Error generating PDF:", error);
-        this.showNotification("Failed to generate PDF report", "error");
+        this.exportInlineError = error?.message || "Failed to generate PDF report";
+        this.exportProgressMessage = null;
+        this.showNotification(this.exportInlineError, "error");
+        return false;
       }
     },
     /**
@@ -518,52 +1969,30 @@ export function dashboard() {
      */
     async downloadExcel() {
       try {
+        this.exportProgressMessage = "Preparing export file...";
+        this.exportInlineError = null;
         console.log(
-          `Generating Excel report with period filter: ${this.period}`,
+          `Generating Excel report with period filter: ${this.filters.period}`,
         );
 
-        // Load fresh export data dengan period filter
-        const exportData = await this.loadExportData();
-
-        // Validasi bahwa kita memiliki data export yang valid
-        if (!exportData || !exportData.summary || !exportData.report) {
-          console.error("No valid export data available for Excel");
-          this.showNotification(
-            "Failed to load export data. Please try again.",
-            "error",
-          );
-          return;
+        const exportData = await this.loadValidatedExportData("Excel");
+        if (!exportData) {
+          return false;
         }
 
-        // Validasi struktur data
-        const isValidApiData =
-          exportData.summary &&
-          (exportData.report.data || exportData.report) &&
-          typeof exportData.summary === "object";
-
-        if (!isValidApiData) {
-          console.error("Invalid export data structure for Excel");
-          this.showNotification(
-            "Invalid data structure for Excel export",
-            "error",
-          );
-          return;
-        }
-
-        console.log(
-          "Valid export data being sent to Excel generator:",
-          exportData,
-        );
-        generateExcelReport(exportData, this.period);
-
-        // Show success notification
+        generateExcelReport(exportData, this.filters.period);
         this.showNotification(
           "Excel report downloaded successfully!",
           "success",
         );
+        this.exportProgressMessage = null;
+        return true;
       } catch (error) {
         console.error("Error generating Excel:", error);
-        this.showNotification("Failed to generate Excel report", "error");
+        this.exportInlineError = error?.message || "Failed to generate Excel report";
+        this.exportProgressMessage = null;
+        this.showNotification(this.exportInlineError, "error");
+        return false;
       }
     },
 
@@ -573,7 +2002,7 @@ export function dashboard() {
     async exportToPDF() {
       this.isExporting = true;
       try {
-        await this.downloadPDF();
+        return await this.downloadPDF();
       } finally {
         this.isExporting = false;
       }
@@ -585,7 +2014,7 @@ export function dashboard() {
     async exportToExcel() {
       this.isExporting = true;
       try {
-        await this.downloadExcel();
+        return await this.downloadExcel();
       } finally {
         this.isExporting = false;
       }
@@ -687,18 +2116,50 @@ export function dashboard() {
 
       // Siapkan payload untuk modal peta - exactly same structure as attendance table
       const locationPayload = {
-        fullName: attendanceItem.full_name || "Unknown User",
-        email: attendanceItem.email || "-",
-        position: attendanceItem.role_name || "-",
-        phoneNumber: attendanceItem.phone_number || "-",
-        latitude: attendanceItem.location?.latitude || attendanceItem.latitude,
+        fullName: this.getOptionalBackendValue(
+          attendanceItem.full_name,
+          "Unavailable",
+        ),
+        email: this.getOptionalBackendValue(
+          attendanceItem.email,
+          "Unavailable",
+        ),
+        position: this.getOptionalBackendValue(
+          attendanceItem.role_name,
+          "Unavailable",
+        ),
+        phoneNumber: this.getOptionalBackendValue(
+          attendanceItem.phone_number,
+          "Unavailable",
+        ),
+        status: this.getOptionalBackendValue(
+          attendanceItem.status,
+          "Unavailable",
+        ),
+        attendanceDate: this.getOptionalBackendValue(
+          attendanceItem.attendance_date,
+          "Unavailable",
+        ),
+        workMode: this.getOptionalBackendValue(
+          attendanceItem.information,
+          "Unavailable",
+        ),
+        latitude: attendanceItem.location?.latitude ?? attendanceItem.latitude,
         longitude:
-          attendanceItem.location?.longitude || attendanceItem.longitude,
-        radius: attendanceItem.location?.radius || attendanceItem.radius || 100,
-        description:
-          attendanceItem.location?.description ||
-          attendanceItem.location_description ||
-          "Lokasi absensi karyawan",
+          attendanceItem.location?.longitude ?? attendanceItem.longitude,
+        radius:
+          attendanceItem.location?.radius ?? attendanceItem.radius ?? null,
+        description: this.getOptionalBackendValue(
+          attendanceItem.location?.description,
+          this.getOptionalBackendValue(attendanceItem.location_description),
+        ),
+        sourceNote: this.getOptionalBackendValue(
+          attendanceItem.source_note,
+          "Unavailable",
+        ),
+        trackingNote: this.getOptionalBackendValue(
+          attendanceItem.tracking_note,
+        ),
       };
 
       console.log("Prepared location payload:", locationPayload);
@@ -710,7 +2171,10 @@ export function dashboard() {
       } else {
         console.warn("openMapDetailModal function not found");
         // Fallback: tampilkan koordinat dalam alert - exactly same as attendance table
-        if (locationPayload.latitude && locationPayload.longitude) {
+        if (
+          Number.isFinite(locationPayload.latitude) &&
+          Number.isFinite(locationPayload.longitude)
+        ) {
           alert(
             `Koordinat: ${locationPayload.latitude}, ${locationPayload.longitude}`,
           );
@@ -718,42 +2182,6 @@ export function dashboard() {
           alert("Koordinat lokasi tidak tersedia");
         }
       }
-    } /**
-     * Sorting functionality
-     */,
-    currentSort: { field: null, direction: "asc" },
-
-    changeSort(field) {
-      if (this.currentSort.field === field) {
-        this.currentSort.direction =
-          this.currentSort.direction === "asc" ? "desc" : "asc";
-      } else {
-        this.currentSort.field = field;
-        this.currentSort.direction = "asc";
-      }
-
-      // Here you can implement actual sorting logic
-      console.log("Sorting by:", field, this.currentSort.direction);
-    },
-
-    /**
-     * Get sort icon (exact same as attendance table)
-     */
-    getSortIcon(fieldName) {
-      if (this.currentSort.field !== fieldName) {
-        return ""; // No icon if field is not being sorted
-      }
-
-      return this.currentSort.direction === "asc" ? "↑" : "↓";
-    },
-    /**
-     * Pagination (placeholder - should come from API)
-     */
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      per_page: 10,
-      total: 0,
     },
 
     /**
@@ -847,222 +2275,71 @@ export function dashboard() {
      * Handle empty API response
      */
     handleEmptyApiResponse() {
-      console.warn(`API returned empty response for period: ${this.period}`);
+      console.warn(
+        `API returned empty response for period: ${this.filters.period}`,
+      );
 
-      // Reset card summary data hanya jika benar-benar error API
-      this.cardSummaryData = {
-        onTime: 0,
-        late: 0,
-        alpha: 0,
-        wfo: 0,
-        wfh: 0,
-        wfa: 0,
-      };
-
-      this.summaryData = {
-        summary: {
-          onTime: 0,
-          late: 0,
-          alpha: 0,
-          wfo: 0,
-          wfh: 0,
-          wfa: 0,
-        },
-        report: [],
-      };
-
-      this.analyticsData = {
-        discipline_index: 0,
-        performance_trend: "stable",
-        avg_work_hours: 0,
-      };
-
-      this.pagination = {
-        current_page: 1,
-        total_pages: 1,
-        total_records: 0,
-        per_page: 5,
-        has_next_page: false,
-        has_prev_page: false,
-      };
-
-      // Critical: No raw API data means no export capability
+      this.summaryData = null;
+      this.cockpit = createDashboardCockpitStateFromSources();
+      this.pagination = createEmptyDashboardPagination(this.filters.limit);
       this.rawApiData = null;
+      this.dashboardAnalyticsResponse = null;
+      this.dashboardAnalyticsError = null;
+      this.todayLocations = null;
+      this.todayLocationsError = null;
+      this.fuzzyAhpResponse = null;
+      this.fuzzyAhpError = null;
+      this.geofenceEvidenceResponse = null;
+      this.geofenceEvidenceError = null;
       this.attendanceData = [];
       this.reportData = [];
 
+      this.queueDashboardMapRender();
       this.showNotification("No data available from server", "info");
-    },
-
-    // =================== SEARCH AND PAGINATION FUNCTIONALITY ===================
-
-    /**
-     * Get filtered attendance data based on search query
-     */
-    get filteredAttendanceData() {
-      if (!this.searchQuery.trim()) {
-        return this.attendanceData;
-      }
-
-      const query = this.searchQuery.toLowerCase();
-      return this.attendanceData.filter((log) => {
-        // Safe string checking with fallbacks
-        const fullName = (log.full_name || "").toLowerCase();
-        const id = (log.id || "").toLowerCase();
-        const roleName = (log.role_name || "").toLowerCase();
-        const status = (log.status || "").toLowerCase();
-        const information = (log.information || "").toLowerCase();
-        const email = (log.email || "").toLowerCase();
-
-        return (
-          fullName.includes(query) ||
-          id.includes(query) ||
-          roleName.includes(query) ||
-          status.includes(query) ||
-          information.includes(query) ||
-          email.includes(query)
-        );
-      });
-    },
-
-    /**
-     * Get paginated attendance data
-     */
-    get paginatedAttendanceData() {
-      const filtered = this.filteredAttendanceData;
-      const startIndex = (this.currentPage - 1) * this.entriesPerPage;
-      const endIndex = startIndex + this.entriesPerPage;
-      return filtered.slice(startIndex, endIndex);
-    },
-
-    /**
-     * Get total pages
-     */
-    get totalPages() {
-      return Math.ceil(
-        this.filteredAttendanceData.length / this.entriesPerPage,
-      );
-    },
-
-    /**
-     * Get showing info text
-     */
-    get showingInfo() {
-      const filtered = this.filteredAttendanceData;
-      const total = filtered.length;
-
-      if (total === 0) {
-        return "Showing 0 entries";
-      }
-
-      const start = (this.currentPage - 1) * this.entriesPerPage + 1;
-      const end = Math.min(this.currentPage * this.entriesPerPage, total);
-
-      return `Showing ${start} to ${end} of ${total} entries`;
-    },
-
-    /**
-     * Handle search input change
-     */
-    onSearchChange() {
-      this.currentPage = 1; // Reset to first page when searching
-      this.filters.page = 1;
-      // Pencarian akan di-handle oleh debouncedSearch() via @input
-    },
-
-    /**
-     * Handle entries per page change
-     */
-    onEntriesPerPageChange() {
-      this.currentPage = 1; // Reset to first page when changing entries per page
-      console.log("Entries per page changed:", this.entriesPerPage);
-    },
-
-    /**
-     * Go to previous page
-     */
-    previousPage() {
-      if (this.currentPage > 1) {
-        this.currentPage--;
-      }
-    },
-
-    /**
-     * Go to next page
-     */
-    nextPage() {
-      if (this.currentPage < this.totalPages) {
-        this.currentPage++;
-      }
-    },
-
-    /**
-     * Go to specific page
-     */
-    goToPage(page) {
-      if (page >= 1 && page <= this.totalPages) {
-        this.currentPage = page;
-      }
-    },
-
-    /**
-     * Get page numbers for pagination
-     */
-    getPageNumbers() {
-      const pages = [];
-      const total = this.totalPages;
-      const current = this.currentPage;
-
-      if (total <= 7) {
-        // Show all pages if total is 7 or less
-        for (let i = 1; i <= total; i++) {
-          pages.push(i);
-        }
-      } else {
-        // Show first page
-        pages.push(1);
-
-        if (current > 4) {
-          pages.push("...");
-        }
-
-        // Show pages around current page
-        const start = Math.max(2, current - 1);
-        const end = Math.min(total - 1, current + 1);
-
-        for (let i = start; i <= end; i++) {
-          if (!pages.includes(i)) {
-            pages.push(i);
-          }
-        }
-
-        if (current < total - 3) {
-          pages.push("...");
-        }
-
-        // Show last page
-        if (!pages.includes(total)) {
-          pages.push(total);
-        }
-      }
-
-      return pages;
     },
 
     // Debounced search function
     debouncedSearch() {
       clearTimeout(this.searchTimeout);
       this.searchTimeout = setTimeout(() => {
-        this.filters.page = 1;
-        // searchQuery sudah di-bind oleh input; cukup reload data agar reportData & pagination disesuaikan
+        this.filters = applyDashboardSearch(this.filters, this.searchQuery);
         this.loadSummaryData();
       }, 1000);
     },
 
+    changeSort(field) {
+      const allowedSortFields = ["full_name", "status", "attendance_date"];
+      if (!allowedSortFields.includes(field)) {
+        return;
+      }
+
+      if (this.filters.sortBy === field) {
+        this.filters.sortOrder =
+          this.filters.sortOrder === "asc" ? "desc" : "asc";
+      } else {
+        this.filters.sortBy = field;
+        this.filters.sortOrder = "asc";
+      }
+
+      this.currentSort = {
+        field: this.filters.sortBy,
+        direction: this.filters.sortOrder,
+      };
+      this.filters.page = 1;
+      this.loadSummaryData();
+    },
+
+    getSortIcon(fieldName) {
+      if (this.currentSort.field !== fieldName) {
+        return "";
+      }
+
+      return this.currentSort.direction === "asc" ? "↑" : "↓";
+    },
+
     // Update filters limit and reload data
     changeEntriesPerPage(newLimit) {
-      this.filters.limit = Number(newLimit) || 5;
-      this.filters.page = 1; // Reset to first page
+      this.filters = applyDashboardPageSize(this.filters, newLimit);
       this.loadSummaryData();
     },
   };

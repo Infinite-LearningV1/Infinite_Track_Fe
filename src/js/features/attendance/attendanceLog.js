@@ -46,8 +46,16 @@ export function attendanceLogAlpineData() {
     isLoading: true,
     errorMessage: "",
 
-    // Search term untuk input
-    searchTerm: "",
+    // Sort fields that are actively supported by current backend contract
+    supportedSortFields: ["id", "full_name", "time_in", "time_out", "status"],
+
+    // Search input proxy -> single request state (filters.search)
+    get searchTerm() {
+      return this.filters.search;
+    },
+    set searchTerm(value) {
+      this.filters.search = value;
+    },
 
     // Modal states (legacy)
     isDeleteModalOpen: false,
@@ -84,6 +92,10 @@ export function attendanceLogAlpineData() {
           has_next_page: response.pagination?.has_next_page || false,
           per_page: response.pagination?.per_page || 10,
         };
+
+        if (response.pagination?.per_page) {
+          this.filters.limit = response.pagination.per_page;
+        }
       } catch (error) {
         this.errorMessage = error.message || "Gagal memuat data absensi";
         console.error("Error fetching attendance:", error);
@@ -113,7 +125,6 @@ export function attendanceLogAlpineData() {
 
       // Set timer baru untuk debounce 500ms
       this.searchTimer = setTimeout(() => {
-        this.filters.search = this.searchTerm; // Update filters dengan searchTerm
         this.filters.page = 1; // Reset ke halaman pertama
         this.fetchAttendance();
       }, 500);
@@ -131,6 +142,10 @@ export function attendanceLogAlpineData() {
      * @param {string} newSortBy - Field untuk sorting
      */
     changeSort(newSortBy) {
+      if (!this.isSortFieldSupported(newSortBy)) {
+        return;
+      }
+
       // Jika field sama, toggle order
       if (this.filters.sortBy === newSortBy) {
         this.filters.sortOrder =
@@ -153,6 +168,18 @@ export function attendanceLogAlpineData() {
         this.filters.page = newPage;
         this.fetchAttendance();
       }
+    },
+
+    /**
+     * Change entries per page (server-driven)
+     * @param {number|string} newLimit - Jumlah data per halaman
+     */
+    changeLimit(newLimit) {
+      const parsedLimit = Number(newLimit);
+      this.filters.limit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
+      this.filters.page = 1;
+      this.fetchAttendance();
     },
 
     /**
@@ -293,11 +320,19 @@ export function attendanceLogAlpineData() {
      * @returns {string} - Icon class atau empty string
      */
     getSortIcon(fieldName) {
+      if (!this.isSortFieldSupported(fieldName)) {
+        return "";
+      }
+
       if (this.filters.sortBy !== fieldName) {
         return ""; // Tidak ada icon jika field tidak sedang di-sort
       }
 
       return this.filters.sortOrder === "ASC" ? "↑" : "↓";
+    },
+
+    isSortFieldSupported(fieldName) {
+      return this.supportedSortFields.includes(fieldName);
     },
 
     // Avatar utility functions (imported from utils)

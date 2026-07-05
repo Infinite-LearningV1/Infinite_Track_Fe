@@ -207,3 +207,24 @@ Promote to `master` only when:
   - runtime/config assumptions that should be made explicit
 - Help distinguish **fix now** vs **follow-up later**. Do not blur them.
 - If the PR is acceptable to merge but leaves an important review theme only partially resolved, say so explicitly and recommend the Linear follow-up instead of silently downgrading the concern.
+
+## North Star Context (Cross-Repo)
+
+- Official operating model: `Cowork -> Claude Desktop Host -> Claude Code CLI -> GitHub + Linear`.
+- Cowork captures product collaboration and high-level intent.
+- Claude Desktop Host holds PM/cockpit context and decides routing.
+- Claude Code CLI executes repo work in isolated worktrees.
+- GitHub PRs and Linear issues are the active evidence/status systems.
+- Web FE adalah admin/reporting surface, bukan sumber kebenaran akhir untuk attendance, auth authority, atau reporting authority.
+- Backend adalah source of truth final; Web FE adalah konsumen kontrak backend.
+- Gunakan source-of-truth hierarchy: live repo/runtime > GitHub PR/diff/checks > Linear issue context > active cockpit docs > archived docs.
+- Untuk kerja lintas-kontrak, baca shared context cockpit (`Deploy Infinite Track/Infinite Track/shared-context/`), terutama:
+  - `API_CONTRACT.md`
+  - `GLOBAL_STATUS.md`
+  - `ROUTING_POLICY.md`
+  - `QUALITY_GATE.md`
+  - `DECISIONS.md`
+  - `RISK_REGISTER.md`
+- Jika repo/runtime/Linear/docs berbeda, live repo/runtime adalah sumber fakta tertinggi.
+- `develop` adalah branch QA/integration dan human validation; `master` adalah branch deploy/release. Agent bekerja di branch/worktree terisolasi dari `develop`, bukan langsung di `develop` atau `master`.
+- Issue hasil manual QA di `develop` harus kembali ke Linear, lalu diperbaiki melalui branch/worktree terisolasi dan PR GitHub sebelum dianggap selesai.

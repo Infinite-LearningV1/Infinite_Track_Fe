@@ -29,6 +29,7 @@
 ### Task 1: Verify production inputs before app creation
 
 **Files:**
+
 - Read-only verification: `E:/skrisi/clonefee/Infinite_Track_Fe/package.json`
 - Read-only verification: `E:/skrisi/clonefee/Infinite_Track_Fe/webpack.config.js`
 - Read-only verification: `E:/skrisi/clonefee/Infinite_Track_Fe/docs/superpowers/specs/2026-04-14-do-app-platform-static-site-production-design.md`
@@ -37,11 +38,15 @@
 - [ ] **Step 1: Verify the production build command is still correct**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" show master:package.json
 ```
+
 Expected:
+
 - Output contains a `build` script equivalent to:
+
   ```json
   "build": "cross-env NODE_ENV=production webpack --config webpack.config.js"
   ```
@@ -49,11 +54,15 @@ Expected:
 - [ ] **Step 2: Verify the static output directory is still `build`**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" show master:webpack.config.js
 ```
+
 Expected:
+
 - Output contains:
+
   ```js
   output: {
     filename: "bundle.js",
@@ -64,10 +73,13 @@ Expected:
 - [ ] **Step 3: Run a local production build as the preflight gate**
 
 Run:
+
 ```bash
 npm --prefix "E:/skrisi/clonefee/Infinite_Track_Fe" run build
 ```
+
 Expected:
+
 - Build completes successfully.
 - `E:/skrisi/clonefee/Infinite_Track_Fe/build` is regenerated.
 
@@ -91,12 +103,14 @@ TIMEZONE=Asia/Jakarta
 ```
 
 Expected:
+
 - No secret or private credential appears in the list.
 - `API_BASE_URL` points to the existing backend API domain.
 
 ### Task 2: Create the production App Platform static site
 
 **Files:**
+
 - External system: DigitalOcean App Platform
 - External system: GitHub repo `Infinite-LearningV1/Infinite_Track_Fe`
 - Test: DigitalOcean app creation result
@@ -123,18 +137,78 @@ Create the app with this structured configuration:
         "output_dir": "build",
         "environment_slug": "html",
         "envs": [
-          {"key": "API_BASE_URL", "value": "https://api.infinite-track.tech", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "APP_ENVIRONMENT", "value": "production", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "DEBUG_MODE", "value": "false", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "LOG_LEVEL", "value": "error", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "API_AUTH_ENDPOINT", "value": "/auth", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "API_VERSION", "value": "v1", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "APP_NAME", "value": "Infinite Track", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "APP_VERSION", "value": "2.0.1", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "SESSION_TIMEOUT", "value": "3600000", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "REMEMBER_ME_DAYS", "value": "7", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "DEFAULT_LANGUAGE", "value": "id", "scope": "BUILD_TIME", "type": "GENERAL"},
-          {"key": "TIMEZONE", "value": "Asia/Jakarta", "scope": "BUILD_TIME", "type": "GENERAL"}
+          {
+            "key": "API_BASE_URL",
+            "value": "https://api.infinite-track.tech",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "APP_ENVIRONMENT",
+            "value": "production",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "DEBUG_MODE",
+            "value": "false",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "LOG_LEVEL",
+            "value": "error",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "API_AUTH_ENDPOINT",
+            "value": "/auth",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "API_VERSION",
+            "value": "v1",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "APP_NAME",
+            "value": "Infinite Track",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "APP_VERSION",
+            "value": "2.0.1",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "SESSION_TIMEOUT",
+            "value": "3600000",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "REMEMBER_ME_DAYS",
+            "value": "7",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "DEFAULT_LANGUAGE",
+            "value": "id",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          },
+          {
+            "key": "TIMEZONE",
+            "value": "Asia/Jakarta",
+            "scope": "BUILD_TIME",
+            "type": "GENERAL"
+          }
         ]
       }
     ]
@@ -143,6 +217,7 @@ Create the app with this structured configuration:
 ```
 
 Expected:
+
 - App creation succeeds.
 - The app is configured as a static site, not a service.
 - Source branch is `master`.
@@ -150,12 +225,14 @@ Expected:
 - [ ] **Step 2: Record the created app ID and default URL**
 
 Expected:
+
 - The created app response includes an app ID.
 - The response includes a default App Platform URL that can be used before attaching a custom domain.
 
 - [ ] **Step 3: Verify that deploy-on-push is enabled only for `master`**
 
 Expected:
+
 - The app source config shows:
   ```text
   branch = master
@@ -166,6 +243,7 @@ Expected:
 ### Task 3: Verify the initial App Platform deployment
 
 **Files:**
+
 - External system: DigitalOcean App Platform deployment status
 - Test: initial deployment status and public URL reachability
 
@@ -173,39 +251,47 @@ Expected:
 
 Query the newly created app’s active deployment.
 Expected:
+
 - Deployment reaches a healthy or active state.
 - If build fails, capture the failing phase before any retry.
 
 - [ ] **Step 2: Verify the frontend loads from the default App Platform URL**
 
 Expected:
+
 - The entry page responds successfully.
 - Static assets such as CSS and JS bundles are served.
 
 - [ ] **Step 3: Verify that the frontend points to the backend public API domain**
 
 Use the deployed frontend and confirm the built bundle/runtime config reflects:
+
 ```text
 API_BASE_URL=https://api.infinite-track.tech
 ```
+
 Expected:
+
 - No production path still depends on local `/api` proxy assumptions.
 - No production path relies on `localhost`.
 
 - [ ] **Step 4: Verify no obvious development-mode fallback is active**
 
 Check the deployed behavior against the design constraints:
+
 - `APP_ENVIRONMENT=production`
 - `DEBUG_MODE=false`
 - `LOG_LEVEL=error`
 
 Expected:
+
 - Production build does not intentionally expose development-only behavior.
 - The deployment can be described as production-configured, even before custom-domain attachment.
 
 ### Task 4: Attach the production frontend domain
 
 **Files:**
+
 - External system: DigitalOcean App Platform domain config
 - External system: DigitalOcean DNS zone `infinite-track.tech`
 - Test: domain attachment status
@@ -213,35 +299,41 @@ Expected:
 - [ ] **Step 1: Choose the frontend production hostname**
 
 Use one of these approved patterns:
+
 ```text
 www.infinite-track.tech
 app.infinite-track.tech
 ```
 
 Expected:
+
 - The selected hostname does not conflict with the existing API hostname `api.infinite-track.tech`.
 
 - [ ] **Step 2: Attach the chosen frontend hostname to the App Platform app**
 
 Expected:
+
 - The app accepts the custom domain configuration.
 - TLS management is delegated to App Platform.
 
 - [ ] **Step 3: Verify the DNS requirements for the attached domain**
 
 Expected:
+
 - Required DNS records are visible from the app/domain configuration.
 - The frontend domain remains clearly separated from `api.infinite-track.tech`.
 
 - [ ] **Step 4: Wait for domain status to become ready or record what remains**
 
 Expected:
+
 - If the domain becomes active immediately, note that it is production-routable.
 - If DNS propagation remains pending, note the exact pending state and keep the default App Platform URL as the temporary access path.
 
 ### Task 5: Record the created production frontend surface
 
 **Files:**
+
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/DEPLOYMENT.md`
 - Modify: `E:/skrisi/clonefee/Infinite_Track_Fe/DEPLOYMENT-CHECKLIST.md`
 - Test: source inspection only
@@ -282,16 +374,20 @@ Add a checklist block like:
 - [ ] **Step 3: Commit the deployment-surface documentation update**
 
 Run:
+
 ```bash
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" add DEPLOYMENT.md DEPLOYMENT-CHECKLIST.md
 git -C "E:/skrisi/clonefee/Infinite_Track_Fe" commit -m "docs: record app platform frontend deployment"
 ```
+
 Expected:
+
 - One docs-only commit describing the new production frontend surface.
 
 ### Task 6: Final verification and handoff
 
 **Files:**
+
 - External system: DigitalOcean App Platform app info
 - External system: DigitalOcean domain info
 - Test: deployment verification summary
@@ -299,6 +395,7 @@ Expected:
 - [ ] **Step 1: Re-check the app state after domain and deploy setup**
 
 Expected:
+
 - App still reports a healthy deployment.
 - Source remains locked to `master`.
 
@@ -321,6 +418,7 @@ Outstanding follow-up:
 ```
 
 Expected:
+
 - Every field is filled with the real created state, or explicitly marked pending if DNS propagation is still in progress.
 
 - [ ] **Step 3: Commit any remaining intentional repo changes**
@@ -329,4 +427,5 @@ If only the docs in Task 5 changed, no extra commit is needed.
 If other repo files were intentionally modified during implementation, commit them explicitly with a scoped message.
 
 Expected:
+
 - Git history reflects only intentional repository changes.

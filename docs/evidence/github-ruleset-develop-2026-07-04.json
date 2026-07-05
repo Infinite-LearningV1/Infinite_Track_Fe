@@ -1,0 +1,43 @@
+{
+  "id": 14984857,
+  "name": "develop — integration gate",
+  "target": "branch",
+  "source_type": "Repository",
+  "source": "Infinite-LearningV1/Infinite_Track_Fe",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": { "exclude": [], "include": ["refs/heads/develop"] }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "required_reviewers": [],
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true,
+        "allowed_merge_methods": ["squash", "rebase"]
+      }
+    },
+    { "type": "required_linear_history" }
+  ],
+  "node_id": "RRS_lACqUmVwb3NpdG9yec47HIWczgDkppk",
+  "created_at": "2026-04-13T10:16:12.179+08:00",
+  "updated_at": "2026-04-13T12:26:14.795+08:00",
+  "bypass_actors": [
+    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }
+  ],
+  "current_user_can_bypass": "always",
+  "_links": {
+    "self": {
+      "href": "https://api.github.com/repos/Infinite-LearningV1/Infinite_Track_Fe/rulesets/14984857"
+    },
+    "html": {
+      "href": "https://github.com/Infinite-LearningV1/Infinite_Track_Fe/rules/14984857"
+    }
+  }
+}

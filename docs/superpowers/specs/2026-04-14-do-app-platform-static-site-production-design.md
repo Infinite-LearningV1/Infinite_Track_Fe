@@ -44,11 +44,13 @@ These facts mean the App Platform setup must treat **App Platform build-time env
 ## Why App Platform Static Site Is the Right Fit
 
 ### Operationally
+
 - It cleanly separates the frontend from the backend runtime.
 - It avoids self-managing Nginx or a separate frontend Droplet.
 - It matches the nature of the repo: build once, serve static assets.
 
 ### Architecturally
+
 - The frontend should be treated as a **build artifact**, not a long-running app server.
 - Backend Docker infrastructure stays focused on API/runtime concerns.
 - The frontend can have its own deploy cadence without sharing compute/runtime coupling with the backend.
@@ -56,68 +58,84 @@ These facts mean the App Platform setup must treat **App Platform build-time env
 ## Options Considered
 
 ### Option A — Separate Droplet + Nginx for frontend
+
 **Pros**
+
 - Full control.
 - Works with existing DO infrastructure patterns.
 
 **Cons**
+
 - Adds server-management burden for a static frontend.
 - Requires manual Nginx, TLS, and file-serving management.
 - Provides less value than a managed static platform for this repo.
 
 ### Option B — App Platform Static Site from `master` (**selected**)
+
 **Pros**
+
 - Clean separation from backend.
 - Correct hosting model for static frontend output.
 - Minimal operational burden.
 - Natural fit for future CI/CD deployment flow.
 
 **Cons**
+
 - Requires explicit production env injection discipline.
 - Production deploys must respect the branch/source-of-truth rules.
 
 ### Option C — Object storage + CDN artifact hosting
+
 **Pros**
+
 - Good for pure artifact distribution.
 - Strong separation.
 
 **Cons**
+
 - More artifact-pipeline-oriented than app-oriented.
 - Less convenient than App Platform for this repo’s current phase.
 
 ## Architecture
 
 ### Frontend
+
 - Hosted on **DigitalOcean App Platform Static Site**.
 - Built directly from the GitHub repo.
 - Production app follows only the `master` branch.
 - Build output directory is `build`.
 
 ### Backend
+
 - Remains on separate Docker-based infrastructure.
 - Continues to expose the public API endpoint independently.
 - Can keep its existing reverse-proxy model if currently needed.
 
 ### Relationship
+
 - The frontend talks to the backend through a public API base URL.
 - The frontend does not share runtime, server process, or deployment machine concerns with the backend.
 
 ## Production Deploy Contract
 
 ### App type
+
 - **DigitalOcean App Platform Static Site**
 
 ### Source
+
 - GitHub repository: `Infinite_Track_Fe`
 - Branch: `master`
 - Auto-deploy: enabled from `master`
 
 ### Build settings
+
 - Build command: `npm run build`
 - Output directory: `build`
 - Source directory: repository root
 
 ### Required production build-time env vars
+
 These values must be treated as **public-safe** and injected explicitly into the App Platform build:
 
 - `API_BASE_URL=<public backend API domain>`
@@ -126,6 +144,7 @@ These values must be treated as **public-safe** and injected explicitly into the
 - `LOG_LEVEL=error`
 
 ### Recommended additional env vars
+
 If the current bundle contract continues to rely on them, these may also be injected explicitly to avoid accidental fallback behavior:
 
 - `API_AUTH_ENDPOINT=/auth`
@@ -138,16 +157,19 @@ If the current bundle contract continues to rely on them, these may also be inje
 - `TIMEZONE=Asia/Jakarta`
 
 ### Security rule
+
 Only public-safe values may be injected into the frontend build. No backend secrets, private credentials, or internal-only tokens may be placed into App Platform env for this frontend app.
 
 ## Branch and Environment Rules
 
 ### `master`
+
 - Stable branch.
 - The only source branch for production frontend deployment.
 - Safe to auto-deploy from App Platform.
 
 ### Historical / auxiliary branches
+
 - Historical or auxiliary branches such as `deploy` may still exist in repository workflows.
 - They are not used as the App Platform production source.
 - They are not part of the primary frontend promotion workflow for this design.
@@ -155,14 +177,18 @@ Only public-safe values may be injected into the frontend build. No backend secr
 ## Rollout Design
 
 ### Phase A — Preflight
+
 Before creating the app, verify:
+
 - the repo builds with `npm run build`
 - the required production env values are known
 - no frontend env value depends on a private secret
 - `master` is the intended stable production source
 
 ### Phase B — Create the App Platform app
+
 Create a production static site app with:
+
 - repo-connected source
 - `master` branch
 - `npm run build`
@@ -170,7 +196,9 @@ Create a production static site app with:
 - production build-time env vars injected explicitly
 
 ### Phase C — Initial deployment verification
+
 After app creation, verify:
+
 - App Platform build succeeds
 - frontend entry page loads
 - static assets are served correctly
@@ -178,6 +206,7 @@ After app creation, verify:
 - no development-only fallback behavior is accidentally active in production
 
 ### Phase D — Domain attachment
+
 If the production frontend domain is ready, attach it to the App Platform app. If not, first validate using the default App Platform URL, then attach the custom domain afterward.
 
 ## Verification Criteria
@@ -203,16 +232,19 @@ The setup is considered correct only if all of the following are true:
 ## Risks
 
 ### Risk 1 — App Platform builds against a drifted repo contract
+
 The current repo still has documented/runtime drift around production env handling.
 
 **Mitigation:** inject explicit production env vars in App Platform and treat them as canonical for the app creation step.
 
 ### Risk 2 — Split behavior between `NODE_ENV` and `APP_ENVIRONMENT`
+
 Production build semantics can drift if app-level config is not explicitly set.
 
 **Mitigation:** explicitly inject `APP_ENVIRONMENT=production` during App Platform setup.
 
 ### Risk 3 — Wrong branch becomes deployment source
+
 If the app is connected to `deploy` or another non-stable branch, production behavior no longer matches branch governance.
 
 **Mitigation:** lock the app source to `master` only.
@@ -228,6 +260,7 @@ If the app is connected to `deploy` or another non-stable branch, production beh
 ## Out-of-Band Follow-Up
 
 After app creation, the next recommended work items are:
+
 - runtime contract cleanup in the repo itself
 - CI/CD baseline alignment for frontend production deployment
 - optional staging/static-site strategy for the `deploy` branch if needed later

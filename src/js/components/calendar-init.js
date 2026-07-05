@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const getModalEndDateEl = document.querySelector("#event-end-date");
     const getModalAddBtnEl = document.querySelector(".btn-add-event");
     const getModalUpdateBtnEl = document.querySelector(".btn-update-event");
+    const eventModal = document.getElementById("eventModal");
     const calendarsEvents = {
       Danger: "danger",
       Success: "success",
@@ -39,6 +40,18 @@ document.addEventListener("DOMContentLoaded", function () {
     // Calendar Elements and options
     /*=====================*/
     const calendarEl = document.querySelector("#calendar");
+
+    if (
+      !calendarEl ||
+      !eventModal ||
+      !getModalTitleEl ||
+      !getModalStartDateEl ||
+      !getModalEndDateEl ||
+      !getModalAddBtnEl ||
+      !getModalUpdateBtnEl
+    ) {
+      return;
+    }
 
     const calendarHeaderToolbar = {
       left: "prev,next addEventButton",
@@ -118,17 +131,17 @@ document.addEventListener("DOMContentLoaded", function () {
     // Modal Functions
     /*=====================*/
     const openModal = () => {
-      document.getElementById("eventModal").style.display = "flex";
+      eventModal.style.display = "flex";
     };
 
     const closeModal = () => {
-      document.getElementById("eventModal").style.display = "none";
+      eventModal.style.display = "none";
       resetModalFields();
     };
 
     // Close modal when clicking outside of it
     window.onclick = function (event) {
-      const modal = document.getElementById("eventModal");
+      const modal = eventModal;
       if (event.target === modal) {
         closeModal();
       }
@@ -277,7 +290,7 @@ document.addEventListener("DOMContentLoaded", function () {
     calendar.render();
 
     // Reset modal fields when hidden
-    document.getElementById("eventModal").addEventListener("click", (event) => {
+    eventModal.addEventListener("click", (event) => {
       if (event.target.classList.contains("modal-close-btn")) {
         closeModal();
       }
@@ -295,11 +308,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    document
-      .getElementById("eventModal")
-      .addEventListener("hidden.bs.modal", () => {
-        resetModalFields();
-      });
+    eventModal.addEventListener("hidden.bs.modal", () => {
+      resetModalFields();
+    });
 
     // Close modal when clicking on close button or outside modal
     document.querySelectorAll(".modal-close-btn").forEach((btn) => {
@@ -307,7 +318,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     window.addEventListener("click", (event) => {
-      if (event.target === document.getElementById("eventModal")) {
+      if (event.target === eventModal) {
         closeModal();
       }
     });

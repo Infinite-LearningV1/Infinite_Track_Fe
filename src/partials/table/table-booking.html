@@ -51,7 +51,9 @@
           >
             <button
               @click="changeSort('id')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('id')"
+              :class="isSortFieldSupported('id') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>ID</span>
               <span x-text="getSortIcon('id')" class="text-primary"></span>
@@ -62,7 +64,9 @@
           >
             <button
               @click="changeSort('employee_name')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('employee_name')"
+              :class="isSortFieldSupported('employee_name') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Employee</span>
               <span
@@ -76,7 +80,9 @@
           >
             <button
               @click="changeSort('employee_position')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('employee_position')"
+              :class="isSortFieldSupported('employee_position') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Position</span>
               <span
@@ -90,7 +96,9 @@
           >
             <button
               @click="changeSort('schedule_date')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('schedule_date')"
+              :class="isSortFieldSupported('schedule_date') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Schedule Date</span>
               <span
@@ -114,25 +122,32 @@
           >
             <button
               @click="changeSort('status')"
-              class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+              :disabled="!isSortFieldSupported('status')"
+              :class="isSortFieldSupported('status') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
             >
               <span>Status</span>
               <span x-text="getSortIcon('status')" class="text-primary"></span>
             </button>
           </th>
           <th
-           class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
-           <button
-               @click="changeSort('suitability_score')"
-               class="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
-           >
-               <span>Suitability</span>
-               <span x-text="getSortIcon('suitability_score')" class="text-primary"></span>
-           </button>
+            <button
+              @click="changeSort('suitability_score')"
+              :disabled="!isSortFieldSupported('suitability_score')"
+              :class="isSortFieldSupported('suitability_score') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
+              class="flex items-center space-x-1"
+            >
+              <span>Suitability</span>
+              <span
+                x-text="getSortIcon('suitability_score')"
+                class="text-primary"
+              ></span>
+            </button>
           </th>
           <th
-           class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
             Actions
           </th>
@@ -244,28 +259,39 @@
             </td>
             <!-- Suitability Score -->
             <td class="px-6 py-4 whitespace-nowrap">
-               <div class="space-y-1" x-show="booking.suitability_score !== null && booking.suitability_score !== undefined">
-                   <!-- Suitability Label -->
-                   <div
-                       class="text-sm font-medium text-gray-900 dark:text-white"
-                       x-text="booking.suitability_label || 'Not evaluated'"
-                   ></div>
-                   <!-- Progress Bar -->
-                   <div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-                       <div
-                           class="h-2 rounded-full transition-all duration-300"
-                           :class="getSuitabilityScoreColor(booking.suitability_score || 0)"
-                           :style="`width: ${Math.min(100, Math.max(0, booking.suitability_score || 0))}%`"
-                       ></div>
-                   </div>
-                   <!-- Score Text -->
-                   <div class="text-xs text-gray-500 dark:text-gray-400">
-                       <span x-text="`${(booking.suitability_score || 0).toFixed(2)}/100`"></span>
-                   </div>
-               </div>
-               <div x-show="booking.suitability_score === null || booking.suitability_score === undefined">
-                   <span class="text-xs text-gray-500 dark:text-gray-400">Not available</span>
-               </div>
+              <div
+                class="space-y-1"
+                x-show="booking.suitability_score !== null && booking.suitability_score !== undefined"
+              >
+                <!-- Suitability Label -->
+                <div
+                  class="text-sm font-medium text-gray-900 dark:text-white"
+                  x-text="booking.suitability_label || 'Not evaluated'"
+                ></div>
+                <!-- Progress Bar -->
+                <div
+                  class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700"
+                >
+                  <div
+                    class="h-2 rounded-full transition-all duration-300"
+                    :class="getSuitabilityScoreColor(booking.suitability_score || 0)"
+                    :style="`width: ${Math.min(100, Math.max(0, booking.suitability_score || 0))}%`"
+                  ></div>
+                </div>
+                <!-- Score Text -->
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                  <span
+                    x-text="`${(booking.suitability_score || 0).toFixed(2)}/100`"
+                  ></span>
+                </div>
+              </div>
+              <div
+                x-show="booking.suitability_score === null || booking.suitability_score === undefined"
+              >
+                <span class="text-xs text-gray-500 dark:text-gray-400"
+                  >Not available</span
+                >
+              </div>
             </td>
             <!-- Actions -->
             <td class="px-6 py-4 text-sm whitespace-nowrap">

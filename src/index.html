@@ -8,16 +8,17 @@
     />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>
-      Summary Report | InfiniteTrack - Tailwind CSS Admin Dashboard Template
+      Dashboard Analytics | InfiniteTrack - Tailwind CSS Admin Dashboard
+      Template
     </title>
   </head>
   <body
-    x-data="{ 
-      page: 'ecommerce', 
-      'loaded': true, 
-      'darkMode': false, 
-      'stickyMenu': false, 
-      'sidebarToggle': false, 
+    x-data="{
+      page: 'ecommerce',
+      'loaded': true,
+      'darkMode': false,
+      'stickyMenu': false,
+      'sidebarToggle': false,
       'scrollTop': false,
       // Alert Modal State
       isAlertModalOpen: false,
@@ -59,18 +60,6 @@
             <include src="./partials/alert/alert-templates.html" />
             <div id="alert-container"></div>
 
-            <!-- Loading State -->
-            <div x-show="loading" class="mb-6">
-              <div class="flex items-center justify-center p-8">
-                <div
-                  class="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
-                ></div>
-                <span class="ml-3 text-sm text-gray-600 dark:text-gray-400"
-                  >Loading summary data...</span
-                >
-              </div>
-            </div>
-
             <!-- Error State -->
             <div x-show="error" class="mb-6">
               <div class="rounded-md bg-red-50 p-4 dark:bg-red-900/20">
@@ -110,16 +99,14 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-12 gap-4 md:gap-6">
-              <div class="col-span-12">
+            <div class="space-y-6">
+              <div>
                 <include src="./partials/cards/stats-card-group.html" />
               </div>
-              <div class="col-span-12">
-                <!-- ====== Dashboard Report Table Start -->
-                <div>
-                  <include src="./partials/table/table-dashboard-report.html" />
-                </div>
-                <!-- ====== Dashboard Report Table End -->
+              <div>
+                <include
+                  src="./partials/dashboard/dashboard-cockpit-grid.html"
+                />
               </div>
             </div>
           </div>

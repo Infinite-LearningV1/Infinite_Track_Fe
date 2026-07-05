@@ -95,21 +95,21 @@ Pastikan konfigurasi berikut sesuai dengan kebutuhan.
 >
 > **Staging note:** repo ini tidak memiliki `.env.staging` committed. Kolom **Staging** di bawah hanya boleh dianggap placeholder governance. Jika environment staging dipakai, nilainya harus dikunci dan diverifikasi terpisah (`REQUIRES REPO VERIFICATION`).
 
-| Variable | Development (`.env.example`) | Staging | Production (`.env.production.example`) | Keterangan / source of truth |
-| --- | --- | --- | --- | --- |
-| `API_BASE_URL` | `/api` | `REQUIRES REPO VERIFICATION` | `https://api.infinite-track.tech/api` | **WAJIB** mencakup prefix API final untuk static production. Default fallback webpack tetap `/api`. |
-| `API_AUTH_ENDPOINT` | `/auth` | `REQUIRES REPO VERIFICATION` | `/auth` | Digabung dengan `API_BASE_URL` di `src/js/config/env.js`. |
-| `API_VERSION` | `v1` | `REQUIRES REPO VERIFICATION` | `v1` | Build-time public-safe. |
-| `APP_NAME` | `Infinite Track` | `REQUIRES REPO VERIFICATION` | `Infinite Track` | Label aplikasi di browser/runtime. |
-| `APP_VERSION` | `2.0.1` | `REQUIRES REPO VERIFICATION` | `2.0.1` | Versi aplikasi yang dibake ke bundle. |
-| `APP_ENVIRONMENT` | `development` | `REQUIRES REPO VERIFICATION` | `production` | Jangan samakan dengan `NODE_ENV`; ini adalah nilai aplikasi yang dibake ke bundle. |
-| `SESSION_TIMEOUT` | `3600000` | `REQUIRES REPO VERIFICATION` | `3600000` | Konfigurasi auth/session di frontend. |
-| `REMEMBER_ME_DAYS` | `7` | `REQUIRES REPO VERIFICATION` | `7` | Konfigurasi auth/session di frontend. |
-| `DEFAULT_LANGUAGE` | `id` | `REQUIRES REPO VERIFICATION` | `id` | Lokalisasi default. |
-| `TIMEZONE` | `Asia/Jakarta` | `REQUIRES REPO VERIFICATION` | `Asia/Jakarta` | Timezone default frontend. |
-| `DEBUG_MODE` | `true` | `REQUIRES REPO VERIFICATION` | `false` | Default fallback webpack adalah `false` bila env tidak diset. |
-| `LOG_LEVEL` | `info` | `REQUIRES REPO VERIFICATION` | `error` | Default fallback webpack adalah `info`. |
-| `AUTH_CLIENT_TYPE` | *(tidak ada di `.env.example`)* | `REQUIRES REPO VERIFICATION` | *(tidak ada di `.env.production.example`)* | Webpack masih menginjeksi fallback `web`, tetapi `src/js/config/env.js` saat ini hardcode `CLIENT_TYPE = "web"`; ini **belum** menjadi env contract efektif. |
+| Variable            | Development (`.env.example`)    | Staging                      | Production (`.env.production.example`)     | Keterangan / source of truth                                                                                                                                 |
+| ------------------- | ------------------------------- | ---------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `API_BASE_URL`      | `/api`                          | `REQUIRES REPO VERIFICATION` | `https://api.infinite-track.tech/api`      | **WAJIB** mencakup prefix API final untuk static production. Default fallback webpack tetap `/api`.                                                          |
+| `API_AUTH_ENDPOINT` | `/auth`                         | `REQUIRES REPO VERIFICATION` | `/auth`                                    | Digabung dengan `API_BASE_URL` di `src/js/config/env.js`.                                                                                                    |
+| `API_VERSION`       | `v1`                            | `REQUIRES REPO VERIFICATION` | `v1`                                       | Build-time public-safe.                                                                                                                                      |
+| `APP_NAME`          | `Infinite Track`                | `REQUIRES REPO VERIFICATION` | `Infinite Track`                           | Label aplikasi di browser/runtime.                                                                                                                           |
+| `APP_VERSION`       | `2.0.1`                         | `REQUIRES REPO VERIFICATION` | `2.0.1`                                    | Versi aplikasi yang dibake ke bundle.                                                                                                                        |
+| `APP_ENVIRONMENT`   | `development`                   | `REQUIRES REPO VERIFICATION` | `production`                               | Jangan samakan dengan `NODE_ENV`; ini adalah nilai aplikasi yang dibake ke bundle.                                                                           |
+| `SESSION_TIMEOUT`   | `3600000`                       | `REQUIRES REPO VERIFICATION` | `3600000`                                  | Konfigurasi auth/session di frontend.                                                                                                                        |
+| `REMEMBER_ME_DAYS`  | `7`                             | `REQUIRES REPO VERIFICATION` | `7`                                        | Konfigurasi auth/session di frontend.                                                                                                                        |
+| `DEFAULT_LANGUAGE`  | `id`                            | `REQUIRES REPO VERIFICATION` | `id`                                       | Lokalisasi default.                                                                                                                                          |
+| `TIMEZONE`          | `Asia/Jakarta`                  | `REQUIRES REPO VERIFICATION` | `Asia/Jakarta`                             | Timezone default frontend.                                                                                                                                   |
+| `DEBUG_MODE`        | `true`                          | `REQUIRES REPO VERIFICATION` | `false`                                    | Default fallback webpack adalah `false` bila env tidak diset.                                                                                                |
+| `LOG_LEVEL`         | `info`                          | `REQUIRES REPO VERIFICATION` | `error`                                    | Default fallback webpack adalah `info`.                                                                                                                      |
+| `AUTH_CLIENT_TYPE`  | _(tidak ada di `.env.example`)_ | `REQUIRES REPO VERIFICATION` | _(tidak ada di `.env.production.example`)_ | Webpack masih menginjeksi fallback `web`, tetapi `src/js/config/env.js` saat ini hardcode `CLIENT_TYPE = "web"`; ini **belum** menjadi env contract efektif. |
 
 **Last Verified (repo docs alignment):** 2026-07-02.
 
@@ -203,7 +203,7 @@ Frontend Web FE mengandalkan credentialed browser requests untuk auth/session ru
 Minimal contract yang harus dicatat di environment/backend docs:
 
 - origin frontend production harus spesifik, bukan wildcard
-- current production frontend origin harus dikunci sebagai URL final yang dilayani user, misalnya `https://infinite-track.tech` bila domain itu menjadi host Web FE production; jika platform hosting memakai domain berbeda, gunakan domain final tersebut secara eksplisit
+- current production frontend origin harus dikunci sebagai URL final yang dilayani user; current accepted Web FE production origin adalah `https://infinite-track.tech`
 - origin preview/staging tidak otomatis diwariskan ke production allowlist; tambahkan hanya bila environment itu memang dipakai dan sudah punya owner/evidence terpisah
 - jika session/cookie dipakai, `Access-Control-Allow-Credentials: true` wajib aktif dan backend tidak boleh memakai `Access-Control-Allow-Origin: *`
 - metode umum yang dipakai Web FE harus diizinkan: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
@@ -220,7 +220,7 @@ CORS_ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
 CORS_ALLOWED_HEADERS=Content-Type,X-Client-Type
 ```
 
-Jika production Web FE memakai domain lain, ganti `https://infinite-track.tech` dengan origin final yang benar. Jangan menambahkan path seperti `/signin.html` atau `/api` ke CORS origin; CORS origin hanya scheme + host + optional port.
+Final production Web FE origin saat ini adalah `https://infinite-track.tech`. Jangan menambahkan path seperti `/signin.html` atau `/api` ke CORS origin; CORS origin hanya scheme + host + optional port.
 
 Verification method setelah deploy/config change:
 

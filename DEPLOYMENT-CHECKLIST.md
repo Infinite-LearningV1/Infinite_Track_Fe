@@ -132,7 +132,7 @@ serve -s build -p 3000
 - [ ] Setup SSL certificate (HTTPS)
 - [x] ✅ Jika memakai DigitalOcean App Platform Static Site, source branch final adalah `master`, build command `npm run build`, dan output directory `build` (evidence: `docs/evidence/do-app-platform-source-2026-07-04.md`)
 - [ ] Promotion PR `develop` -> `master` punya evidence review + build yang cukup sebelum `master` diperlakukan release-ready; jangan asumsi workflow `build.yml` otomatis berjalan untuk target `master`
-- [ ] Test akses dari domain production
+- [x] ✅ Test akses dari domain production `https://infinite-track.tech` (evidence: `docs/evidence/post-deploy-smoke-2026-07-05.md`)
 
 #### DigitalOcean App Platform Verification (2026-07-02)
 

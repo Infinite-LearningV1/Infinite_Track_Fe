@@ -106,8 +106,14 @@
         <!-- Table Header -->
         <thead class="border-b border-gray-100 dark:border-gray-800">
           <tr>
-            <!-- Checkbox column: no header label, per the INF-248 locked contract -->
-            <th class="px-6 py-3 whitespace-nowrap"></th>
+            <!-- User ID column (owner decision: row checkbox removed as unused) -->
+            <th class="px-6 py-3 whitespace-nowrap">
+              <p
+                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                ID
+              </p>
+            </th>
             <th class="px-6 py-3 whitespace-nowrap">
               <p
                 class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
@@ -188,36 +194,12 @@
           <!-- User Rows -->
           <template x-for="user in paginatedUsers" :key="user.id">
             <tr>
-              <!-- Checkbox only, per the INF-248 locked contract (User ID removed) -->
-              <td
-                class="px-6 py-3 whitespace-nowrap"
-                x-data="{ checked: false }"
-              >
+              <!-- User ID (owner decision: row checkbox removed as unused) -->
+              <td class="px-6 py-3 whitespace-nowrap">
                 <span
-                  @click="checked = !checked"
-                  role="checkbox"
-                  tabindex="0"
-                  :aria-checked="checked"
-                  @keydown.enter.prevent="checked = !checked"
-                  @keydown.space.prevent="checked = !checked"
-                  :class="checked ? 'border-brand-500 bg-brand-500' : 'border-gray-300 bg-transparent dark:border-gray-700'"
-                  class="flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border-[1.25px] transition-colors"
-                >
-                  <svg
-                    x-show="checked"
-                    class="h-3 w-3 text-white"
-                    fill="none"
-                    viewBox="0 0 12 12"
-                  >
-                    <path
-                      d="M10 3L4.5 8.5L2 6"
-                      stroke="currentColor"
-                      stroke-width="1.6666"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    ></path>
-                  </svg>
-                </span>
+                  class="text-theme-sm font-medium text-gray-700 dark:text-gray-400"
+                  x-text="user.id"
+                ></span>
               </td>
 
               <!-- Pengguna: avatar (photo if available, else initials) + full name + email -->

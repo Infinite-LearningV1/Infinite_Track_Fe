@@ -17,8 +17,9 @@ function theadBlock(html) {
 
 const thead = theadBlock(table);
 
-test("all 6 named column headers are present (checkbox column carries no header label)", () => {
+test("all 7 named column headers are present", () => {
   const expectedHeaders = [
+    "ID",
     "Pengguna",
     "NIP/NIM",
     "Akses",
@@ -35,8 +36,9 @@ test("the Dibuat header is removed; the table has 7 columns total", () => {
   assert.doesNotMatch(thead, /Dibuat/);
 });
 
-test("the User ID header label is removed; the checkbox column has no visible header text", () => {
-  assert.doesNotMatch(thead, />User ID</);
+test("the row checkbox is removed (owner decision: unused without bulk actions)", () => {
+  assert.doesNotMatch(table, /x-data="\{\s*checked:\s*false\s*\}"/);
+  assert.doesNotMatch(table, /role="checkbox"/);
 });
 
 test("standalone Position, Email, and Phone Number headers are removed", () => {
@@ -81,9 +83,8 @@ test("no raw coordinate bindings appear anywhere in the table", () => {
   assert.doesNotMatch(table, /user\.longitude/);
 });
 
-test("first column cell holds only the row checkbox; User ID is removed from the table", () => {
-  assert.match(table, /x-data="\{\s*checked:\s*false\s*\}"/);
-  assert.doesNotMatch(table, /x-text="user\.id"/);
+test("first column cell renders the user id", () => {
+  assert.match(table, /x-text="user\.id"/);
 });
 
 test("Filter button is wired via the Task 3 partial include, not inlined", () => {

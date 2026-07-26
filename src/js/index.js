@@ -53,6 +53,10 @@ import {
 } from "./utils/authGuard.js";
 import { initRoleBasedAccess } from "./utils/roleBasedAccess.js";
 import { formatDate } from "./utils/dateTimeFormatter.js";
+import {
+  firstFiniteMapNumber,
+  hasFiniteCoordinates,
+} from "./utils/mapLocationTruth.js";
 import { userListAlpineData } from "./features/userManagement/userListSimple.js";
 import { userFormAlpineData } from "./features/userManagement/userForm.js";
 import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
@@ -149,16 +153,20 @@ Alpine.data("mapDetailModalState", () => ({
       email: user.email || "",
       position: user.position || user.position_name || "",
       phoneNumber: user.phoneNumber || user.phone || user.phone_number || "",
-      latitude: user.latitude || user.location?.latitude || user.lat || null,
-      longitude:
-        user.longitude ||
-        user.location?.longitude ||
-        user.lng ||
-        user.lon ||
-        null,
-      radius: user.radius || user.location?.radius || null,
+      latitude: firstFiniteMapNumber(
+        user.latitude,
+        user.location?.latitude,
+        user.lat,
+      ),
+      longitude: firstFiniteMapNumber(
+        user.longitude,
+        user.location?.longitude,
+        user.lng,
+        user.lon,
+      ),
+      radius: firstFiniteMapNumber(user.radius, user.location?.radius),
       description:
-        user.description || user.location?.description || user.address || "",
+        user.description ?? user.location?.description ?? user.address ?? "",
     };
 
     // Debug log untuk membantu troubleshooting
@@ -170,10 +178,7 @@ Alpine.data("mapDetailModalState", () => ({
 
     // Initialize map only if coordinates are available
     this.$nextTick(() => {
-      if (
-        this.selectedUserLocation.latitude &&
-        this.selectedUserLocation.longitude
-      ) {
+      if (hasFiniteCoordinates(this.selectedUserLocation)) {
         window.mapDetailModal.initializeMap(this.selectedUserLocation);
       }
     });

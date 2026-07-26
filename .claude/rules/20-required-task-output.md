@@ -23,3 +23,10 @@ Do not call a task done unless:
 - high-risk impact is called out when relevant
 - `DOCS/ADR UPDATE REQUIRED` is included for architecture-significant changes
 - review / PR / release / build notes are present when relevant
+- the linked Linear issue status matches the actual state of the work, or the response states that no Linear issue applies
+
+## Linear issue sync expectation
+- Merging a PR does not update Linear. Issue status must be set explicitly by whoever closes out the work.
+- A merged PR is not by itself proof of completion. Move an issue to `Done` only when its acceptance criteria are met, not when its branch lands.
+- If the work delivered an artifact but the acceptance criteria still require runtime or operational evidence, keep the issue open and name the missing evidence.
+- Reference the correct issue in the branch name. A branch citing an issue owned by another repo leaves the real work untracked and pollutes that repo's backlog.

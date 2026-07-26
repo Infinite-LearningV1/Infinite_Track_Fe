@@ -2,6 +2,7 @@ import {
   firstFiniteMapNumber,
   hasFiniteCoordinates,
 } from "../../utils/mapLocationTruth.js";
+import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 
 export const WFH_STATUS_AVAILABLE = "Tersedia";
 export const WFH_STATUS_UNSET = "Belum diatur";
@@ -16,13 +17,18 @@ export const WFH_STATUS_UNSET = "Belum diatur";
  * @param {object} [user]
  */
 export function normalizeWfhLocation(user = {}) {
+  const fullName = user.fullName || user.full_name || "";
+
   return {
     id: user.id ?? null,
-    fullName: user.fullName || user.full_name || "",
+    fullName,
     email: user.email || "",
     position: user.position || user.position_name || "",
     nipNim: user.nipNim || user.nip_nim || "",
     role: user.role || user.role_name || "",
+    photo: user.photo || null,
+    initials: getInitials(fullName),
+    avatarColor: getAvatarColor(fullName),
     latitude: firstFiniteMapNumber(user.latitude, user.location?.latitude),
     longitude: firstFiniteMapNumber(user.longitude, user.location?.longitude),
     radius: firstFiniteMapNumber(user.radius, user.location?.radius),

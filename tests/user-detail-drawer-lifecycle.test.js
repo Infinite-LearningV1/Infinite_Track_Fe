@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   WFH_STATUS_AVAILABLE,
   WFH_STATUS_UNSET,
+  createEmptyWfhLocation,
   createUserDetailDrawerLifecycle,
   normalizeWfhLocation,
   resolveWfhStatus,
@@ -400,6 +401,57 @@ test("MapDetailModal cancels pending deferred work on both entry points", () => 
 
   assert.match(initializeBody, /this\.cancelPendingTimers\(\);/);
   assert.match(destroyBody, /this\.cancelPendingTimers\(\);/);
+});
+
+test("normalizeWfhLocation passes through the user photo", () => {
+  const location = normalizeWfhLocation({
+    id: 9,
+    full_name: "Foto User",
+    photo: "https://res.cloudinary.com/demo/image/upload/v1/foto.jpg",
+  });
+
+  assert.equal(
+    location.photo,
+    "https://res.cloudinary.com/demo/image/upload/v1/foto.jpg",
+  );
+});
+
+test("normalizeWfhLocation defaults photo to null when absent", () => {
+  const location = normalizeWfhLocation({ id: 10, full_name: "Tanpa Foto" });
+
+  assert.equal(location.photo, null);
+});
+
+test("normalizeWfhLocation derives initials and avatarColor from the full name", () => {
+  const location = normalizeWfhLocation({
+    id: 11,
+    full_name: "Budi Santoso",
+  });
+
+  assert.equal(typeof location.initials, "string");
+  assert.ok(location.initials.length > 0);
+  assert.equal(typeof location.avatarColor, "string");
+  assert.ok(location.avatarColor.length > 0);
+});
+
+test("createEmptyWfhLocation still resolves initials/avatarColor for an empty name", () => {
+  const empty = createEmptyWfhLocation();
+
+  assert.equal(typeof empty.initials, "string");
+  assert.equal(typeof empty.avatarColor, "string");
+  assert.equal(empty.photo, null);
+});
+
+test("close resets photo so no stale avatar leaks between users", () => {
+  const adapter = createFakeMapAdapter();
+  const drawer = createUserDetailDrawerLifecycle({ mapAdapter: adapter });
+
+  drawer.open({ ...USER_WITH_LOCATION, photo: "https://example.com/a.jpg" });
+  assert.equal(drawer.selectedUserLocation.photo, "https://example.com/a.jpg");
+
+  drawer.close();
+
+  assert.equal(drawer.selectedUserLocation.photo, null);
 });
 
 test("resolveWfhStatus reports readiness from coordinates alone", () => {

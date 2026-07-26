@@ -71,6 +71,41 @@
 
     <!-- Drawer Body -->
     <div class="flex-1 space-y-6 p-6">
+      <!-- Profile header: avatar (photo if available, else initials) + name + email + role badge -->
+      <section class="flex items-center gap-4">
+        <template x-if="selectedUserLocation.photo">
+          <img
+            :src="getUserPhotoUrl(selectedUserLocation.photo)"
+            alt=""
+            class="h-16 w-16 rounded-full object-cover"
+            @error="selectedUserLocation.photo = null"
+          />
+        </template>
+        <template x-if="!selectedUserLocation.photo">
+          <div
+            class="flex h-16 w-16 items-center justify-center rounded-full text-lg font-medium"
+            :class="selectedUserLocation.avatarColor"
+          >
+            <span x-text="selectedUserLocation.initials"></span>
+          </div>
+        </template>
+        <div class="min-w-0">
+          <p
+            class="text-base font-semibold text-gray-900 dark:text-white"
+            x-text="selectedUserLocation.fullName || '-'"
+          ></p>
+          <p
+            class="text-sm text-gray-500 dark:text-gray-400"
+            x-text="selectedUserLocation.email || '-'"
+          ></p>
+          <span
+            class="text-theme-xs mt-1 inline-flex rounded-full px-2.5 py-0.5 font-medium"
+            :class="roleBadgeClass(selectedUserLocation.role)"
+            x-text="selectedUserLocation.role || '-'"
+          ></span>
+        </div>
+      </section>
+
       <!-- Identitas -->
       <section class="space-y-3">
         <h3
@@ -79,42 +114,10 @@
           Identitas
         </h3>
         <div>
-          <span class="text-sm text-gray-500 dark:text-gray-400">
-            Nama Lengkap
-          </span>
-          <p
-            class="text-base font-semibold text-gray-900 dark:text-white"
-            x-text="selectedUserLocation.fullName || '-'"
-          ></p>
-        </div>
-        <div>
-          <span class="text-sm text-gray-500 dark:text-gray-400">Email</span>
-          <p
-            class="text-base text-gray-900 dark:text-white"
-            x-text="selectedUserLocation.email || '-'"
-          ></p>
-        </div>
-        <div>
           <span class="text-sm text-gray-500 dark:text-gray-400">NIP/NIM</span>
           <p
             class="text-base text-gray-900 dark:text-white"
             x-text="selectedUserLocation.nipNim || '-'"
-          ></p>
-        </div>
-      </section>
-
-      <!-- Akses -->
-      <section class="space-y-3">
-        <h3
-          class="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
-        >
-          Akses
-        </h3>
-        <div>
-          <span class="text-sm text-gray-500 dark:text-gray-400">Role</span>
-          <p
-            class="text-base text-gray-900 dark:text-white"
-            x-text="selectedUserLocation.role || '-'"
           ></p>
         </div>
       </section>

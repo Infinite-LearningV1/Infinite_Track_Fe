@@ -10,6 +10,7 @@ import {
   getDivisions,
 } from "../../services/userService.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
+import { roleBadgeClass as roleBadgeClassUtil } from "../../utils/roleBadge.js";
 import { firstFiniteMapNumber } from "../../utils/mapLocationTruth.js";
 import {
   normalizeWfhLocation,
@@ -337,38 +338,17 @@ function userListAlpineData() {
     /**
      * Role badge color mapping for the Akses column.
      *
-     * Pure helper: deterministic, no side effects, no reliance on `this`.
-     * Colour is supplementary only — the badge always keeps `user.role` as
-     * its visible text (see the Akses cell binding), so this never becomes
-     * the sole carrier of status.
-     *
-     * Reuses the light-variant badge palettes already defined in
-     * src/badge.html (src/partials/badge/badge-01.html) rather than
-     * inventing a new one:
-     *   Admin      -> error   (bg-error-50 / text-error-600)
-     *   Management -> warning (bg-warning-50 / text-warning-600)
-     *   Employee   -> success (bg-success-50 / text-success-600)
-     *   Internship -> info / blue-light (bg-blue-light-50 / text-blue-light-500)
-     *   other/absent -> gray/light (bg-gray-100 / text-gray-700)
+     * Delegates to the shared src/js/utils/roleBadge.js util so the table
+     * and the Detail Pengguna drawer render the same palette from one
+     * source. Colour is supplementary only — the badge always keeps
+     * `user.role` as its visible text (see the Akses cell binding), so this
+     * never becomes the sole carrier of status.
      *
      * @param {string|null|undefined} role
      * @returns {string} full Tailwind class string (bg + text + dark variants)
      */
     roleBadgeClass(role) {
-      const palette = {
-        admin:
-          "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-500",
-        management:
-          "bg-warning-50 text-warning-600 dark:bg-warning-500/15 dark:text-orange-400",
-        employee:
-          "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-500",
-        internship:
-          "bg-blue-light-50 text-blue-light-500 dark:bg-blue-light-500/15 dark:text-blue-light-500",
-      };
-      const fallback =
-        "bg-gray-100 text-gray-700 dark:bg-white/5 dark:text-white/80";
-      const key = (role || "").toString().trim().toLowerCase();
-      return palette[key] || fallback;
+      return roleBadgeClassUtil(role);
     },
 
     /**

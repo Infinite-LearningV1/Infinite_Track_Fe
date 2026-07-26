@@ -61,6 +61,7 @@ import { userListAlpineData } from "./features/userManagement/userListSimple.js"
 import { userFormAlpineData } from "./features/userManagement/userForm.js";
 import { createFocusTrap } from "./utils/focusTrap.js";
 import { createUserDetailDrawerLifecycle } from "./features/userManagement/userDetailDrawerLifecycle.js";
+import { roleBadgeClass as roleBadgeClassUtil } from "./utils/roleBadge.js";
 import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
@@ -251,6 +252,21 @@ Alpine.data("userDetailDrawerState", () => {
 
     handleDrawerTab(event) {
       focusTrap?.handleKeydown(event);
+    },
+
+    /**
+     * Role badge color mapping for the drawer's profile header badge.
+     *
+     * Delegates to the shared src/js/utils/roleBadge.js util so the drawer
+     * renders the same palette as the table's Akses column regardless of
+     * whether the drawer partial happens to be mounted inside the table's
+     * Alpine scope.
+     *
+     * @param {string|null|undefined} role
+     * @returns {string} full Tailwind class string (bg + text + dark variants)
+     */
+    roleBadgeClass(role) {
+      return roleBadgeClassUtil(role);
     },
 
     syncDrawerState() {

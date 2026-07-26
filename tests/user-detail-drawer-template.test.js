@@ -82,6 +82,45 @@ test("the drawer never claims live or current employee location", () => {
   assert.doesNotMatch(drawer, /current location/i);
 });
 
+test("the profile header renders a photo avatar when selectedUserLocation.photo is present, gated by x-if", () => {
+  assert.match(drawer, /<template\s+x-if="selectedUserLocation\.photo">/);
+  assert.match(
+    drawer,
+    /<img[^>]*:src="getUserPhotoUrl\(selectedUserLocation\.photo\)"[^>]*>/,
+  );
+  assert.match(drawer, /@error="selectedUserLocation\.photo = null"/);
+});
+
+test("the profile header falls back to the initials circle when selectedUserLocation.photo is absent, gated by x-if", () => {
+  assert.match(drawer, /<template\s+x-if="!selectedUserLocation\.photo">/);
+  assert.match(drawer, /:class="selectedUserLocation\.avatarColor"/);
+  assert.match(drawer, /x-text="selectedUserLocation\.initials"/);
+});
+
+test("the profile header shows a role badge pill bound to roleBadgeClass", () => {
+  assert.match(drawer, /:class="roleBadgeClass\(selectedUserLocation\.role\)"/);
+  assert.match(
+    drawer,
+    /x-text="selectedUserLocation\.role \|\| '-'"[^]*?<\/span>/,
+  );
+});
+
+test("the profile header carries the name and email so Identitas drops the duplicate rows", () => {
+  assert.match(drawer, /x-text="selectedUserLocation\.fullName \|\| '-'"/);
+  assert.match(drawer, /x-text="selectedUserLocation\.email \|\| '-'"/);
+  assert.doesNotMatch(drawer, />Nama Lengkap</);
+  assert.doesNotMatch(drawer, />Email</);
+});
+
+test("NIP/NIM stays in Identitas", () => {
+  assert.match(drawer, />NIP\/NIM</);
+  assert.match(drawer, /x-text="selectedUserLocation\.nipNim \|\| '-'"/);
+});
+
+test("the Akses section is removed now that role lives in the header badge", () => {
+  assert.doesNotMatch(drawer, />Akses</);
+});
+
 test("index.js registers the drawer state and injects a real map adapter", () => {
   assert.match(indexSource, /Alpine\.data\("userDetailDrawerState"/);
   assert.match(indexSource, /createUserDetailDrawerLifecycle\(/);

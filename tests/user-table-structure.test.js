@@ -17,9 +17,8 @@ function theadBlock(html) {
 
 const thead = theadBlock(table);
 
-test("all 8 approved column headers are present", () => {
+test("all 7 named column headers are present (checkbox column carries no header label)", () => {
   const expectedHeaders = [
-    "User ID",
     "Pengguna",
     "NIP/NIM",
     "Akses",
@@ -31,6 +30,10 @@ test("all 8 approved column headers are present", () => {
   for (const label of expectedHeaders) {
     assert.match(thead, new RegExp(label), `missing header: ${label}`);
   }
+});
+
+test("the User ID header label is removed; the checkbox column has no visible header text", () => {
+  assert.doesNotMatch(thead, />User ID</);
 });
 
 test("standalone Position, Email, and Phone Number headers are removed", () => {
@@ -74,9 +77,9 @@ test("no raw coordinate bindings appear anywhere in the table", () => {
   assert.doesNotMatch(table, /user\.longitude/);
 });
 
-test("checkbox and User ID share a single first cell", () => {
+test("first column cell holds only the row checkbox; User ID is removed from the table", () => {
   assert.match(table, /x-data="\{\s*checked:\s*false\s*\}"/);
-  assert.match(table, /x-text="user\.id"/);
+  assert.doesNotMatch(table, /x-text="user\.id"/);
 });
 
 test("Filter button is wired via the Task 3 partial include, not inlined", () => {
@@ -95,4 +98,25 @@ test("entries selector and Tambah User link stay functional", () => {
   assert.match(table, /x-model="entriesPerPage"/);
   assert.match(table, /@change="onEntriesPerPageChange\(\)"/);
   assert.match(table, /Tambah User/);
+});
+
+test("the card title 'Manajemen Pengguna' is removed; the search input takes its place", () => {
+  assert.doesNotMatch(table, /Manajemen Pengguna/);
+  assert.match(table, /x-model="searchQuery"/);
+});
+
+test("the Show entries selector moved out of the header band into the pagination footer, below the table", () => {
+  const tableCloseIndex = table.indexOf("</table>");
+  const entriesModelIndex = table.indexOf('x-model="entriesPerPage"');
+  assert.ok(tableCloseIndex !== -1, "table close tag not found");
+  assert.ok(entriesModelIndex !== -1, "entries selector not found");
+  assert.ok(
+    entriesModelIndex > tableCloseIndex,
+    "entries selector should now render after the table, in the pagination footer",
+  );
+});
+
+test("the Akses badge binds roleBadgeClass(user.role) while keeping the role text visible", () => {
+  assert.match(table, /:class="roleBadgeClass\(user\.role\)"/);
+  assert.match(table, /x-text="user\.role \|\| '-'"/);
 });

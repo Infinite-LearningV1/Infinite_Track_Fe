@@ -98,3 +98,47 @@ test("availableDivisions feeds the Divisi select via x-for and is disabled when 
   assert.match(filterPartial, /x-for="division in availableDivisions"/);
   assert.match(filterPartial, /:disabled="availableDivisions\.length === 0"/);
 });
+
+test("popover panel uses the owner-supplied dark mode token pattern", () => {
+  assert.match(filterPartial, /rounded-xl/);
+  assert.match(filterPartial, /border border-gray-200/);
+  assert.match(filterPartial, /bg-white/);
+  assert.match(filterPartial, /shadow-lg/);
+  assert.match(filterPartial, /dark:border-gray-700/);
+  assert.match(filterPartial, /dark:bg-gray-900/);
+  // The old rounded-2xl/dark:border-gray-800 pairing must be gone, not just
+  // coexisting alongside the new tokens.
+  assert.doesNotMatch(filterPartial, /rounded-2xl/);
+  assert.doesNotMatch(filterPartial, /dark:border-gray-800/);
+});
+
+test("Role, Divisi, and Status Lokasi WFH selects each carry the dark input convention", () => {
+  const selectBlocks = filterPartial.match(/<select[\s\S]*?<\/select>/g) || [];
+  assert.equal(selectBlocks.length, 3, "expected exactly 3 selects");
+  for (const select of selectBlocks) {
+    assert.match(select, /dark:border-gray-700/);
+    assert.match(select, /dark:bg-gray-900/);
+    assert.match(select, /dark:text-white\/90/);
+  }
+});
+
+test("Filter trigger and Reset button hovers use the dark:hover:bg-white/5 token", () => {
+  assert.doesNotMatch(filterPartial, /dark:hover:bg-white\/\[0\.03\]/);
+  const hoverMatches = filterPartial.match(/dark:hover:bg-white\/5/g) || [];
+  assert.ok(
+    hoverMatches.length >= 2,
+    "expected the Filter trigger and Reset button to both use dark:hover:bg-white/5",
+  );
+});
+
+test("Reset button border/background/text follow the owner-supplied dark pattern", () => {
+  const resetButtonMatch = filterPartial.match(
+    /<button[^>]*@click="resetFilters\(\)"[^>]*>/,
+  );
+  assert.ok(resetButtonMatch, "Reset button not found");
+  const resetButton = resetButtonMatch[0];
+  assert.match(resetButton, /border-gray-300/);
+  assert.match(resetButton, /dark:border-gray-700/);
+  assert.match(resetButton, /dark:bg-gray-800/);
+  assert.match(resetButton, /dark:text-gray-400/);
+});

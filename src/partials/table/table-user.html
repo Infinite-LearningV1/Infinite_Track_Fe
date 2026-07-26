@@ -41,63 +41,41 @@
   x-show="!isLoading && !errorMessage"
   class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-4 dark:border-gray-800 dark:bg-white/[0.03]"
 >
-  <!-- Header band: title + search + filter slot + entries + Tambah User -->
+  <!-- Header band: search (title's former spot) + filter slot + Tambah User -->
   <div
     class="mb-4 flex flex-col gap-5 px-6 sm:flex-row sm:items-center sm:justify-between"
   >
-    <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-      Manajemen Pengguna
-    </h3>
+    <!-- Search Input (takes the place of the removed card title; the
+         page-level breadcrumb still carries that label) -->
+    <div class="relative">
+      <span
+        class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2"
+      >
+        <svg
+          class="h-5 w-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          ></path>
+        </svg>
+      </span>
+      <input
+        type="text"
+        placeholder="Cari berdasarkan nama, email, atau NIP..."
+        x-model="searchQuery"
+        @input="onSearchChange()"
+        class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pr-4 pl-12 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-800 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30"
+      />
+    </div>
 
     <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-      <!-- Search Input -->
-      <div class="relative">
-        <span
-          class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2"
-        >
-          <svg
-            class="h-5 w-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            ></path>
-          </svg>
-        </span>
-        <input
-          type="text"
-          placeholder="Cari berdasarkan nama, email, atau NIP..."
-          x-model="searchQuery"
-          @input="onSearchChange()"
-          class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pr-4 pl-12 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden xl:w-[300px] dark:border-gray-800 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30"
-        />
-      </div>
-
       <include src="./user-table-filter.html"></include>
-
-      <!-- Show entries -->
-      <div class="flex items-center gap-2">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300"
-          >Show</label
-        >
-        <select
-          x-model="entriesPerPage"
-          @change="onEntriesPerPageChange()"
-          class="focus:ring-brand-500 focus:border-brand-500 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
-        >
-          <option value="5">5</option>
-          <option value="10">10</option>
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
-        <span class="text-sm text-gray-700 dark:text-gray-300">entries</span>
-      </div>
 
       <!-- Add User Button -->
       <a
@@ -128,13 +106,8 @@
         <!-- Table Header -->
         <thead class="border-b border-gray-100 dark:border-gray-800">
           <tr>
-            <th class="px-6 py-3 whitespace-nowrap">
-              <p
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-              >
-                User ID
-              </p>
-            </th>
+            <!-- Checkbox column: no header label, per the INF-248 locked contract -->
+            <th class="px-6 py-3 whitespace-nowrap"></th>
             <th class="px-6 py-3 whitespace-nowrap">
               <p
                 class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
@@ -222,42 +195,36 @@
           <!-- User Rows -->
           <template x-for="user in paginatedUsers" :key="user.id">
             <tr>
-              <!-- Checkbox + User ID -->
+              <!-- Checkbox only, per the INF-248 locked contract (User ID removed) -->
               <td
                 class="px-6 py-3 whitespace-nowrap"
                 x-data="{ checked: false }"
               >
-                <div class="flex items-center gap-3">
-                  <span
-                    @click="checked = !checked"
-                    role="checkbox"
-                    tabindex="0"
-                    :aria-checked="checked"
-                    @keydown.enter.prevent="checked = !checked"
-                    @keydown.space.prevent="checked = !checked"
-                    :class="checked ? 'border-brand-500 bg-brand-500' : 'border-gray-300 bg-transparent dark:border-gray-700'"
-                    class="flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border-[1.25px] transition-colors"
+                <span
+                  @click="checked = !checked"
+                  role="checkbox"
+                  tabindex="0"
+                  :aria-checked="checked"
+                  @keydown.enter.prevent="checked = !checked"
+                  @keydown.space.prevent="checked = !checked"
+                  :class="checked ? 'border-brand-500 bg-brand-500' : 'border-gray-300 bg-transparent dark:border-gray-700'"
+                  class="flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border-[1.25px] transition-colors"
+                >
+                  <svg
+                    x-show="checked"
+                    class="h-3 w-3 text-white"
+                    fill="none"
+                    viewBox="0 0 12 12"
                   >
-                    <svg
-                      x-show="checked"
-                      class="h-3 w-3 text-white"
-                      fill="none"
-                      viewBox="0 0 12 12"
-                    >
-                      <path
-                        d="M10 3L4.5 8.5L2 6"
-                        stroke="currentColor"
-                        stroke-width="1.6666"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      ></path>
-                    </svg>
-                  </span>
-                  <span
-                    class="text-theme-sm text-gray-500 dark:text-gray-400"
-                    x-text="user.id"
-                  ></span>
-                </div>
+                    <path
+                      d="M10 3L4.5 8.5L2 6"
+                      stroke="currentColor"
+                      stroke-width="1.6666"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
+                  </svg>
+                </span>
               </td>
 
               <!-- Pengguna: avatar + full name + email -->
@@ -290,10 +257,11 @@
                 ></span>
               </td>
 
-              <!-- Akses: role badge -->
+              <!-- Akses: role badge (color is supplementary; status is text-carried) -->
               <td class="px-6 py-3 whitespace-nowrap">
                 <span
-                  class="text-theme-xs rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 dark:bg-white/5 dark:text-gray-400"
+                  class="text-theme-xs rounded-full px-2 py-0.5 font-medium"
+                  :class="roleBadgeClass(user.role)"
                   x-text="user.role || '-'"
                 ></span>
               </td>
@@ -430,7 +398,28 @@
       </div>
 
       <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-        <div>
+        <div class="flex items-center gap-4">
+          <!-- Show entries (moved here from the header band) -->
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >Show</label
+            >
+            <select
+              x-model="entriesPerPage"
+              @change="onEntriesPerPageChange()"
+              class="focus:ring-brand-500 focus:border-brand-500 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
+            >
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span class="text-sm text-gray-700 dark:text-gray-300"
+              >entries</span
+            >
+          </div>
+
           <p
             class="text-sm text-gray-700 dark:text-gray-300"
             x-text="showingInfo"

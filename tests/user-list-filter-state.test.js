@@ -211,3 +211,60 @@ test("availableDivisions starts as an empty array before init() populates it", (
   const data = userListAlpineData();
   assert.deepEqual(data.availableDivisions, []);
 });
+
+test("roleBadgeClass maps each known role to a distinct badge.html-derived palette", () => {
+  const data = userListAlpineData();
+
+  const adminClass = data.roleBadgeClass("Admin");
+  const managementClass = data.roleBadgeClass("Management");
+  const employeeClass = data.roleBadgeClass("Employee");
+  const internshipClass = data.roleBadgeClass("Internship");
+
+  assert.match(adminClass, /bg-error-50/);
+  assert.match(adminClass, /text-error-600/);
+  assert.match(adminClass, /dark:bg-error-500\/15/);
+
+  assert.match(managementClass, /bg-warning-50/);
+  assert.match(managementClass, /text-warning-600/);
+  assert.match(managementClass, /dark:bg-warning-500\/15/);
+
+  assert.match(employeeClass, /bg-success-50/);
+  assert.match(employeeClass, /text-success-600/);
+  assert.match(employeeClass, /dark:bg-success-500\/15/);
+
+  assert.match(internshipClass, /bg-blue-light-50/);
+  assert.match(internshipClass, /text-blue-light-500/);
+  assert.match(internshipClass, /dark:bg-blue-light-500\/15/);
+
+  // All four known roles must resolve to visibly distinct palettes.
+  const distinct = new Set([
+    adminClass,
+    managementClass,
+    employeeClass,
+    internshipClass,
+  ]);
+  assert.equal(distinct.size, 4);
+});
+
+test("roleBadgeClass matching is case-insensitive", () => {
+  const data = userListAlpineData();
+  assert.equal(data.roleBadgeClass("admin"), data.roleBadgeClass("Admin"));
+  assert.equal(
+    data.roleBadgeClass("MANAGEMENT"),
+    data.roleBadgeClass("Management"),
+  );
+});
+
+test("roleBadgeClass falls back to the gray/light palette for unknown or absent roles", () => {
+  const data = userListAlpineData();
+  const unknownClass = data.roleBadgeClass("SomeOtherRole");
+  const emptyClass = data.roleBadgeClass("");
+  const nullClass = data.roleBadgeClass(null);
+  const undefinedClass = data.roleBadgeClass(undefined);
+
+  for (const cls of [unknownClass, emptyClass, nullClass, undefinedClass]) {
+    assert.match(cls, /bg-gray-100/);
+    assert.match(cls, /text-gray-700/);
+    assert.match(cls, /dark:bg-white\/5/);
+  }
+});

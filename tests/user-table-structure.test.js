@@ -79,8 +79,11 @@ test("checkbox and User ID share a single first cell", () => {
   assert.match(table, /x-text="user\.id"/);
 });
 
-test("Filter button slot placeholder is present for Task 3", () => {
-  assert.match(table, /<!--\s*Filter button \(Task 3\)\s*-->/);
+test("Filter button is wired via the Task 3 partial include, not inlined", () => {
+  assert.match(
+    table,
+    /<include\s+src=["']\.\/user-table-filter\.html["']\s*>\s*<\/include>/,
+  );
 });
 
 test("search input keeps its existing searchQuery binding", () => {

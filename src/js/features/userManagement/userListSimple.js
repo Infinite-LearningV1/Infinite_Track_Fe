@@ -11,7 +11,6 @@ import {
 } from "../../services/userService.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import { firstFiniteMapNumber } from "../../utils/mapLocationTruth.js";
-import { formatDate } from "../../utils/dateTimeFormatter.js";
 import {
   normalizeWfhLocation,
   resolveWfhStatus,
@@ -27,7 +26,7 @@ function userListAlpineData() {
     users: [],
     isLoading: false,
     errorMessage: "",
-    entriesPerPage: 5,
+    entriesPerPage: 10,
     currentPage: 1,
     searchQuery: "", // Modal states
     isDeleteModalOpen: false,
@@ -165,7 +164,8 @@ function userListAlpineData() {
           nipNim: user.nip_nim || user.nipNim,
           phoneNumber: user.phone || user.phoneNumber,
           division: user.division_name || user.division || null,
-          createdAt: user.created_at || user.createdAt || null, // Location data mapping from nested location object
+          photo: user.photo || null,
+          // Location data mapping from nested location object
           // Finite-number coercion, not truthiness: a coordinate of exactly 0
           // is configured data and must not collapse to null.
           latitude: firstFiniteMapNumber(user.location?.latitude),
@@ -378,16 +378,6 @@ function userListAlpineData() {
      */
     wfhStatusFor(user) {
       return resolveWfhStatus(normalizeWfhLocation(user));
-    } /**
-     * Formatted "Dibuat" (created date) for the table's Dibuat column.
-     *
-     * Returns "-" when the backend omitted createdAt; never invents a date.
-     */,
-    formattedCreatedAt(user) {
-      if (!user || !user.createdAt) {
-        return "-";
-      }
-      return formatDate(user.createdAt);
     } /**
      * Menangani aksi edit pengguna
      */,

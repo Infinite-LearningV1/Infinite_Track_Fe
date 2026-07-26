@@ -18,44 +18,31 @@ function makeUser(overrides = {}) {
     fullName: "Default User",
     role: "Admin",
     division: null,
-    createdAt: null,
     latitude: null,
     longitude: null,
     ...overrides,
   };
 }
 
-test("row mapping source: division and createdAt fall back to null, never invented defaults", () => {
+test("row mapping source: division falls back to null, never invented defaults", () => {
   assert.match(
     listSource,
     /division:\s*user\.division_name\s*\|\|\s*user\.division\s*\|\|\s*null/,
   );
-  assert.match(
-    listSource,
-    /createdAt:\s*user\.created_at\s*\|\|\s*user\.createdAt\s*\|\|\s*null/,
-  );
 });
 
-test("formattedCreatedAt returns '-' when createdAt is absent", () => {
-  const data = userListAlpineData();
-  assert.equal(data.formattedCreatedAt(makeUser({ createdAt: null })), "-");
-  assert.equal(
-    data.formattedCreatedAt(makeUser({ createdAt: undefined })),
-    "-",
-  );
+test("row mapping source: createdAt/formattedCreatedAt are removed (no created_at field from the API)", () => {
+  assert.doesNotMatch(listSource, /createdAt/);
+  assert.doesNotMatch(listSource, /formattedCreatedAt/);
 });
 
-test("formattedCreatedAt formats a present createdAt via formatDate", () => {
-  const data = userListAlpineData();
-  const iso = "2025-06-06T16:35:07.000Z";
-  const expectedLocalDate = new Date(iso);
-  const expected = [
-    String(expectedLocalDate.getDate()).padStart(2, "0"),
-    String(expectedLocalDate.getMonth() + 1).padStart(2, "0"),
-    expectedLocalDate.getFullYear(),
-  ].join("-");
+test("row mapping source: photo falls back to null, never invented defaults", () => {
+  assert.match(listSource, /photo:\s*user\.photo\s*\|\|\s*null/);
+});
 
-  assert.equal(data.formattedCreatedAt(makeUser({ createdAt: iso })), expected);
+test("entriesPerPage defaults to 10", () => {
+  const data = userListAlpineData();
+  assert.equal(data.entriesPerPage, 10);
 });
 
 test("filter state defaults: drafts, appliedFilters, and popover start closed/empty", () => {

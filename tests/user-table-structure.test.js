@@ -17,19 +17,22 @@ function theadBlock(html) {
 
 const thead = theadBlock(table);
 
-test("all 7 named column headers are present (checkbox column carries no header label)", () => {
+test("all 6 named column headers are present (checkbox column carries no header label)", () => {
   const expectedHeaders = [
     "Pengguna",
     "NIP/NIM",
     "Akses",
     "Organisasi",
     "Lokasi WFH",
-    "Dibuat",
     "Aksi",
   ];
   for (const label of expectedHeaders) {
     assert.match(thead, new RegExp(label), `missing header: ${label}`);
   }
+});
+
+test("the Dibuat header is removed; the table has 7 columns total", () => {
+  assert.doesNotMatch(thead, /Dibuat/);
 });
 
 test("the User ID header label is removed; the checkbox column has no visible header text", () => {
@@ -49,8 +52,8 @@ test("email renders inside the Pengguna cell, alongside full name", () => {
   );
 });
 
-test("Dibuat column binds formattedCreatedAt(user)", () => {
-  assert.match(table, /x-text="formattedCreatedAt\(user\)"/);
+test("formattedCreatedAt is no longer bound anywhere in the table", () => {
+  assert.doesNotMatch(table, /formattedCreatedAt/);
 });
 
 test("Organisasi shows position primary and division secondary, both with '-' fallbacks", () => {
@@ -58,8 +61,9 @@ test("Organisasi shows position primary and division secondary, both with '-' fa
   assert.match(table, /x-text="user\.division \|\| '-'"/);
 });
 
-test("empty state colspan stays 8", () => {
-  assert.match(table, /colspan="8"/);
+test("empty state colspan is 7 after removing the Dibuat column", () => {
+  assert.match(table, /colspan="7"/);
+  assert.doesNotMatch(table, /colspan="8"/);
 });
 
 test("Detail, Edit, and Delete controls remain with accessible labels", () => {
@@ -119,4 +123,16 @@ test("the Show entries selector moved out of the header band into the pagination
 test("the Akses badge binds roleBadgeClass(user.role) while keeping the role text visible", () => {
   assert.match(table, /:class="roleBadgeClass\(user\.role\)"/);
   assert.match(table, /x-text="user\.role \|\| '-'"/);
+});
+
+test("Pengguna cell renders a photo avatar when user.photo is present, gated by x-if", () => {
+  assert.match(table, /<template\s+x-if="user\.photo">/);
+  assert.match(table, /<img[^>]*:src="getUserPhotoUrl\(user\.photo\)"[^>]*>/);
+  assert.match(table, /@error="user\.photo = null"/);
+});
+
+test("Pengguna cell falls back to the initials circle when user.photo is absent, gated by x-if", () => {
+  assert.match(table, /<template\s+x-if="!user\.photo">/);
+  assert.match(table, /:class="user\.avatarColor"/);
+  assert.match(table, /x-text="user\.initials"/);
 });

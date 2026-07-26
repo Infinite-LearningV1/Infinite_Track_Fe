@@ -147,13 +147,6 @@
               <p
                 class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
               >
-                Dibuat
-              </p>
-            </th>
-            <th class="px-6 py-3 whitespace-nowrap">
-              <p
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-              >
                 Aksi
               </p>
             </th>
@@ -165,7 +158,7 @@
           <!-- Empty State -->
           <tr x-show="!isLoading && paginatedUsers.length === 0">
             <td
-              colspan="8"
+              colspan="7"
               class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
             >
               <div class="flex flex-col items-center gap-3">
@@ -227,15 +220,26 @@
                 </span>
               </td>
 
-              <!-- Pengguna: avatar + full name + email -->
+              <!-- Pengguna: avatar (photo if available, else initials) + full name + email -->
               <td class="px-6 py-3 whitespace-nowrap">
                 <div class="flex items-center gap-3">
-                  <div
-                    class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium"
-                    :class="user.avatarColor"
-                  >
-                    <span x-text="user.initials"></span>
-                  </div>
+                  <template x-if="user.photo">
+                    <img
+                      :src="getUserPhotoUrl(user.photo)"
+                      alt=""
+                      class="h-10 w-10 rounded-full object-cover"
+                      @error="user.photo = null"
+                      loading="lazy"
+                    />
+                  </template>
+                  <template x-if="!user.photo">
+                    <div
+                      class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium"
+                      :class="user.avatarColor"
+                    >
+                      <span x-text="user.initials"></span>
+                    </div>
+                  </template>
                   <div>
                     <p
                       class="text-theme-sm font-medium text-gray-800 dark:text-white/90"
@@ -284,14 +288,6 @@
                   class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
                   :class="wfhStatusFor(user) === 'Tersedia' ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'"
                   x-text="wfhStatusFor(user)"
-                ></span>
-              </td>
-
-              <!-- Dibuat -->
-              <td class="px-6 py-3 whitespace-nowrap">
-                <span
-                  class="text-theme-sm text-gray-500 dark:text-gray-400"
-                  x-text="formattedCreatedAt(user)"
                 ></span>
               </td>
 

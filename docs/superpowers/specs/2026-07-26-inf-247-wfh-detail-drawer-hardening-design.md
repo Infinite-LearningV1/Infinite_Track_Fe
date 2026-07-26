@@ -176,9 +176,12 @@ All tests use `node --test`, matching the repository's existing style.
 | `tests/escape-html.test.js` (new)                        | escaping of `<`, `>`, `&`, `"`, `'`; popup source calls `escapeHtml` on both untrusted fields                                                                                                                       |
 | `tests/focus-trap.test.js` (new)                         | `getFocusableEdges` first/last resolution, empty and single-element cases                                                                                                                                           |
 
-Reopen ×10 is additionally confirmed in the browser preview against real Leaflet, with console
-output captured as evidence. The unit test proves the lifecycle contract; only the browser
-proves real Leaflet agrees.
+Reopen ×10 must still be confirmed in the browser preview against real Leaflet, with console
+output captured as evidence. That step has **not** been performed: the backend returns 401 and no
+authenticated session could be created, so the drawer could not be exercised. The unit tests prove
+the lifecycle contract, including that deferred map initialization is cancelled on close; only the
+browser proves real Leaflet agrees. `REQUIRES REPO VERIFICATION` — this remains an outstanding,
+required check.
 
 ## Verification plan
 

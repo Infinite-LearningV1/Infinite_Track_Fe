@@ -322,8 +322,9 @@ elements.
 
 - Consumes: nothing from earlier tasks.
 - Produces:
-  - `FOCUSABLE_SELECTOR: string` — CSS selector for focusable descendants.
-  - `getFocusableEdges(elements: Iterable) => { first: Element|null, last: Element|null }` — skips elements carrying a `hidden` attribute.
+  - `FOCUSABLE_SELECTOR: string` — CSS selector for focusable descendants, excluding `input[type="hidden"]`.
+  - `isElementRendered(element) => boolean` — predicate that checks `hidden` attribute, inline `style.display === "none"` (for Alpine `x-show` support), and `offsetParent !== null` when available.
+  - `getFocusableEdges(elements: Iterable, isVisible: Function) => { first: Element|null, last: Element|null }` — skips elements where `isVisible(element)` returns false; defaults to `isElementRendered`.
   - `createFocusTrap(container: Element) => { activate(): void, handleKeydown(event): void, deactivate(): void }`.
 
 - [ ] **Step 1: Write the failing test**
@@ -405,30 +406,61 @@ Expected: FAIL — `Cannot find module` for `../src/js/utils/focusTrap.js`.
 
 - [ ] **Step 3: Write the implementation**
 
-Create `src/js/utils/focusTrap.js`:
+Create `src/js/utils/focusTrap.js`. Filtering on rendered visibility (not the `hidden` attribute alone) is required because Alpine `x-show` hides elements via inline `display:none` while leaving them in the DOM, so elements carrying focusable selectors can still match even when visually hidden:
 
 ```js
 export const FOCUSABLE_SELECTOR = [
   "a[href]",
   "button:not([disabled])",
-  "input:not([disabled])",
+  'input:not([disabled]):not([type="hidden"])',
   "select:not([disabled])",
   "textarea:not([disabled])",
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
 /**
+ * Check if an element is rendered and therefore focusable.
+ *
+ * Returns false for elements with the hidden attribute, inline display:none,
+ * or no offsetParent (not laid out in the document). Kept simple to work
+ * with plain test objects that may lack these properties.
+ *
+ * @param {Element} element
+ * @returns {boolean}
+ */
+export function isElementRendered(element) {
+  if (!element) {
+    return false;
+  }
+
+  if (element.hasAttribute?.("hidden")) {
+    return false;
+  }
+
+  if (element.style?.display === "none") {
+    return false;
+  }
+
+  if (typeof element.offsetParent !== "undefined") {
+    return element.offsetParent !== null;
+  }
+
+  return true;
+}
+
+/**
  * Resolve the first and last focusable elements of a collection.
  *
- * Kept free of DOM APIs beyond hasAttribute so it can be unit tested with
- * plain objects — this repository has no jsdom.
+ * Kept free of DOM APIs beyond hasAttribute and style access so it can be
+ * unit tested with plain objects — this repository has no jsdom.
  *
  * @param {Iterable<Element>|null|undefined} elements
+ * @param {Function} [isVisible=isElementRendered] Predicate to filter visible elements.
  * @returns {{ first: Element|null, last: Element|null }}
  */
-export function getFocusableEdges(elements) {
+export function getFocusableEdges(elements, isVisible = isElementRendered) {
   const visible = Array.from(elements ?? []).filter((element) => {
-    return !element?.hasAttribute?.("hidden");
+    return isVisible(element);
   });
 
   if (visible.length === 0) {

@@ -51,3 +51,28 @@ test("the feature no longer invents radius or description defaults", () => {
   assert.doesNotMatch(listSource, /radius:\s*user\.radius\s*\|\|\s*100/);
   assert.doesNotMatch(listSource, /Lokasi pengguna/);
 });
+
+test("the row mapper coerces coordinates by finiteness, not truthiness", () => {
+  // A latitude, longitude or radius of exactly 0 is configured data. Truthy
+  // `||` chains would map it to null and surface it as "Belum diatur".
+  assert.doesNotMatch(
+    listSource,
+    /latitude:\s*user\.location\?\.latitude\s*\|\|/,
+  );
+  assert.doesNotMatch(
+    listSource,
+    /longitude:\s*user\.location\?\.longitude\s*\|\|/,
+  );
+  assert.doesNotMatch(listSource, /radius:\s*user\.location\?\.radius\s*\|\|/);
+
+  assert.match(
+    listSource,
+    /firstFiniteMapNumber\(user\.location\?\.latitude\)/,
+  );
+  assert.match(
+    listSource,
+    /firstFiniteMapNumber\(user\.location\?\.longitude\)/,
+  );
+  assert.match(listSource, /firstFiniteMapNumber\(user\.location\?\.radius\)/);
+  assert.match(listSource, /firstFiniteMapNumber.*mapLocationTruth\.js/s);
+});

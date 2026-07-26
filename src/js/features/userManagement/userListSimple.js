@@ -9,6 +9,7 @@ import {
   deleteUser,
 } from "../../services/userService.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
+import { firstFiniteMapNumber } from "../../utils/mapLocationTruth.js";
 import {
   normalizeWfhLocation,
   resolveWfhStatus,
@@ -112,9 +113,11 @@ function userListAlpineData() {
           position: user.position_name || user.position,
           nipNim: user.nip_nim || user.nipNim,
           phoneNumber: user.phone || user.phoneNumber, // Location data mapping from nested location object
-          latitude: user.location?.latitude || null,
-          longitude: user.location?.longitude || null,
-          radius: user.location?.radius || null,
+          // Finite-number coercion, not truthiness: a coordinate of exactly 0
+          // is configured data and must not collapse to null.
+          latitude: firstFiniteMapNumber(user.location?.latitude),
+          longitude: firstFiniteMapNumber(user.location?.longitude),
+          radius: firstFiniteMapNumber(user.location?.radius),
           description: user.location?.description || null,
           categoryName: user.location?.category_name || null,
           locationId: user.location?.location_id || null,

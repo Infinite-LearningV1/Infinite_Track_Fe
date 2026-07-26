@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   WFH_STATUS_AVAILABLE,
@@ -35,6 +38,112 @@ function createFakeMapAdapter() {
     destroy() {
       live = false;
       calls.push({ type: "destroy" });
+    },
+  };
+}
+
+/**
+ * Hand-rolled clock: a queue of pending callbacks flushed on demand.
+ * No timers and no fake-timer dependency — the point is to control
+ * *completion* ordering, which a synchronous fake can never express.
+ */
+function createManualClock() {
+  let nextId = 1;
+  const pending = new Map();
+
+  return {
+    get pendingCount() {
+      return pending.size;
+    },
+    schedule(callback) {
+      const id = nextId;
+      nextId += 1;
+      pending.set(id, callback);
+      return id;
+    },
+    cancel(id) {
+      if (id !== null && id !== undefined) {
+        pending.delete(id);
+      }
+    },
+    flush() {
+      let guard = 0;
+
+      while (pending.size > 0) {
+        guard += 1;
+        if (guard > 100) {
+          throw new Error("clock did not settle");
+        }
+
+        const [id, callback] = pending.entries().next().value;
+        pending.delete(id);
+        callback();
+      }
+    },
+  };
+}
+
+/**
+ * Asynchronous map adapter modelled on MapDetailModal: construction of the
+ * map is deferred (the real one waits 300ms for the drawer animation) and a
+ * follow-up resize is deferred again. Like Leaflet, initializing over a still
+ * live container throws.
+ *
+ * destroy() cancels pending deferred work — that is exactly the guarantee
+ * MapDetailModal must provide, and without it a close that lands before the
+ * timer fires leaves a live map behind.
+ */
+function createDeferredFakeMapAdapter(clock) {
+  const calls = [];
+  let live = false;
+  let pendingInit = null;
+  let pendingResize = null;
+
+  function cancelPending() {
+    clock.cancel(pendingInit);
+    pendingInit = null;
+    clock.cancel(pendingResize);
+    pendingResize = null;
+  }
+
+  function teardown() {
+    if (live) {
+      live = false;
+      calls.push({ type: "destroy" });
+    }
+  }
+
+  return {
+    calls,
+    get isLive() {
+      return live;
+    },
+    countOf(type) {
+      return calls.filter((call) => call.type === type).length;
+    },
+    initialize(location) {
+      cancelPending();
+      teardown();
+
+      pendingInit = clock.schedule(() => {
+        pendingInit = null;
+
+        if (live) {
+          throw new Error("Map container is already initialized");
+        }
+
+        live = true;
+        calls.push({ type: "initialize", location });
+
+        pendingResize = clock.schedule(() => {
+          pendingResize = null;
+          calls.push({ type: "resize" });
+        });
+      });
+    },
+    destroy() {
+      cancelPending();
+      teardown();
     },
   };
 }
@@ -199,6 +308,98 @@ test("normalizeWfhLocation accepts both snake_case and camelCase identity fields
   assert.equal(fromCamel.nipNim, "2");
   assert.equal(fromCamel.role, "Employee");
   assert.equal(fromCamel.position, "Staff");
+});
+
+test("a close before deferred map construction completes leaves no live map", () => {
+  const clock = createManualClock();
+  const adapter = createDeferredFakeMapAdapter(clock);
+  const drawer = createUserDetailDrawerLifecycle({ mapAdapter: adapter });
+
+  drawer.open(USER_WITH_LOCATION);
+  assert.equal(
+    clock.pendingCount,
+    1,
+    "map construction should still be pending",
+  );
+
+  drawer.close();
+  clock.flush();
+
+  assert.equal(adapter.isLive, false, "a map survived the close");
+  assert.equal(adapter.countOf("initialize"), 0);
+  assert.equal(clock.pendingCount, 0);
+});
+
+test("open, close, reopen and then flush ends with exactly one live map", () => {
+  const clock = createManualClock();
+  const adapter = createDeferredFakeMapAdapter(clock);
+  const drawer = createUserDetailDrawerLifecycle({ mapAdapter: adapter });
+
+  drawer.open(USER_WITH_LOCATION);
+  drawer.close();
+  drawer.open({ ...USER_WITH_LOCATION, id: 8 });
+
+  assert.doesNotThrow(() => clock.flush(), /already initialized/);
+
+  assert.equal(adapter.countOf("initialize"), 1);
+  assert.equal(adapter.isLive, true);
+  assert.equal(
+    adapter.calls[0].location.id,
+    8,
+    "the stale user's map was built",
+  );
+  assert.equal(clock.pendingCount, 0);
+});
+
+test("deferred reopen cycles never leave a stale map or double-initialize", () => {
+  const clock = createManualClock();
+  const adapter = createDeferredFakeMapAdapter(clock);
+  const drawer = createUserDetailDrawerLifecycle({ mapAdapter: adapter });
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    drawer.open({ ...USER_WITH_LOCATION, id: attempt });
+    assert.doesNotThrow(() => clock.flush(), `attempt ${attempt}`);
+    assert.equal(adapter.isLive, true, `map not live on attempt ${attempt}`);
+
+    drawer.close();
+    clock.flush();
+    assert.equal(adapter.isLive, false, `stale map on attempt ${attempt}`);
+  }
+
+  assert.equal(adapter.countOf("initialize"), 10);
+  assert.equal(adapter.countOf("destroy"), 10);
+});
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const mapDetailModalSource = readFileSync(
+  join(repoRoot, "src", "js", "components", "modal", "mapDetailModal.js"),
+  "utf8",
+);
+
+test("MapDetailModal stores its deferred timer handles instead of dropping them", () => {
+  assert.match(mapDetailModalSource, /this\.pendingInitTimer = null;/);
+  assert.match(mapDetailModalSource, /this\.pendingResizeTimer = null;/);
+  assert.match(mapDetailModalSource, /this\.pendingInitTimer = setTimeout\(/);
+  assert.match(mapDetailModalSource, /this\.pendingResizeTimer = setTimeout\(/);
+});
+
+test("MapDetailModal cancels pending deferred work on both entry points", () => {
+  assert.match(mapDetailModalSource, /clearTimeout\(this\.pendingInitTimer\)/);
+  assert.match(
+    mapDetailModalSource,
+    /clearTimeout\(this\.pendingResizeTimer\)/,
+  );
+
+  const initializeBody = mapDetailModalSource.slice(
+    mapDetailModalSource.indexOf("initializeMap(locationData)"),
+    mapDetailModalSource.indexOf("destroyMap()"),
+  );
+  const destroyBody = mapDetailModalSource.slice(
+    mapDetailModalSource.indexOf("destroyMap() {"),
+  );
+
+  assert.match(initializeBody, /this\.cancelPendingTimers\(\);/);
+  assert.match(destroyBody, /this\.cancelPendingTimers\(\);/);
 });
 
 test("resolveWfhStatus reports readiness from coordinates alone", () => {

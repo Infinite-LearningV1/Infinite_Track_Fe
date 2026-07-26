@@ -158,7 +158,7 @@
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
-            Koordinat
+            Lokasi WFH
           </th>
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
@@ -257,40 +257,46 @@
             >
               <span x-text="user.phoneNumber || '-'"></span>
             </td>
-            <!-- Koordinat -->
+            <!-- Lokasi WFH -->
             <td class="px-6 py-4 text-sm whitespace-nowrap">
-              <button
-                @click="openMapDetailModal(user)"
-                :disabled="!user.latitude || !user.longitude"
-                class="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                :class="user.latitude && user.longitude ? 'text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50' : 'text-gray-400 bg-gray-100 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-500'"
-                title="View Location"
-              >
-                <svg
-                  class="mr-1.5 h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  ></path>
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  ></path>
-                </svg>
-                View
-              </button>
+              <span
+                class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
+                :class="wfhStatusFor(user) === 'Tersedia' ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'"
+                x-text="wfhStatusFor(user)"
+              ></span>
             </td>
             <!-- Actions -->
             <td class="px-6 py-4 text-sm whitespace-nowrap">
               <div class="flex items-center space-x-3">
+                <!-- Detail Button -->
+                <button
+                  type="button"
+                  @click="openUserDetailDrawer(user)"
+                  :aria-label="`Lihat detail pengguna ${user.fullName}`"
+                  class="focus:ring-brand-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors hover:bg-blue-200 focus:ring-2 focus:outline-none dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50"
+                  title="Detail Pengguna"
+                >
+                  <svg
+                    class="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    ></path>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    ></path>
+                  </svg>
+                </button>
                 <!-- Edit Button -->
                 <a
                   :href="`form-user.html?id=${user.id}`"

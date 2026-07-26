@@ -9,6 +9,10 @@ import {
   deleteUser,
 } from "../../services/userService.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
+import {
+  normalizeWfhLocation,
+  resolveWfhStatus,
+} from "./userDetailDrawerLifecycle.js";
 
 /**
  * Data dan metode Alpine.js untuk komponen daftar pengguna
@@ -249,40 +253,12 @@ function userListAlpineData() {
     },
 
     /**
-     * Open map detail modal - using global modal function
+     * WFH readiness label for the table's Lokasi WFH column.
+     *
+     * Coordinates stay out of the table; the drawer owns location detail.
      */
-    openMapDetailModal(user) {
-      console.log("Opening map detail modal for user:", user);
-
-      // Prepare payload for global map modal
-      const locationPayload = {
-        fullName: user.fullName || user.full_name || "Unknown User",
-        email: user.email || "-",
-        position: user.position || user.position_name || "-",
-        phoneNumber: user.phoneNumber || user.phone || "-",
-        latitude: user.latitude || null,
-        longitude: user.longitude || null,
-        radius: user.radius || 100, // Default radius 100m
-        description: user.description || "Lokasi pengguna",
-        categoryName: user.categoryName || "",
-      };
-
-      console.log("Mapped location data:", locationPayload);
-
-      // Call global function to open map modal
-      if (typeof window.openMapDetailModal === "function") {
-        window.openMapDetailModal(locationPayload);
-      } else {
-        console.warn("openMapDetailModal function not found");
-        // Fallback: show coordinates in alert
-        if (locationPayload.latitude && locationPayload.longitude) {
-          alert(
-            `Koordinat: ${locationPayload.latitude}, ${locationPayload.longitude}`,
-          );
-        } else {
-          alert("Koordinat lokasi tidak tersedia");
-        }
-      }
+    wfhStatusFor(user) {
+      return resolveWfhStatus(normalizeWfhLocation(user));
     } /**
      * Menangani aksi edit pengguna
      */,

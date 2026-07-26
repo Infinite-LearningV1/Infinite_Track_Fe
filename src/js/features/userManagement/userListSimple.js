@@ -7,9 +7,11 @@ import {
   getUsers,
   updateUser,
   deleteUser,
+  getDivisions,
 } from "../../services/userService.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import { firstFiniteMapNumber } from "../../utils/mapLocationTruth.js";
+import { formatDate } from "../../utils/dateTimeFormatter.js";
 import {
   normalizeWfhLocation,
   resolveWfhStatus,
@@ -33,28 +35,77 @@ function userListAlpineData() {
     isDeleting: false,
     deleteConfirmText: "",
 
+    // Filter popover state (draft fields, edited before Apply)
+    isFilterOpen: false,
+    filterRole: "",
+    filterDivision: "",
+    filterWfhStatus: "",
+    // Applied filters actually used by filteredUsers; "" means no filter.
+    appliedFilters: {
+      role: "",
+      division: "",
+      wfhStatus: "",
+    },
+    // Divisions loaded via getDivisions() during init(); stays [] on failure.
+    availableDivisions: [],
+
     /**
      * Inisialisasi komponen
      */
     async init() {
       console.log("Initializing user list component...");
       await this.fetchUsers();
+
+      try {
+        this.availableDivisions = (await getDivisions()) || [];
+      } catch (error) {
+        console.warn("Failed to load divisions for filter:", error);
+        this.availableDivisions = [];
+      }
     } /**
      * Computed: Filtered users berdasarkan search query
      */,
     get filteredUsers() {
-      if (!this.searchQuery || this.searchQuery.trim() === "") {
-        return this.users;
+      let result = this.users;
+
+      if (this.searchQuery && this.searchQuery.trim() !== "") {
+        const query = this.searchQuery.toLowerCase().trim();
+        result = result.filter((user) => {
+          // Search dalam fullName dan nipNim
+          const fullName = (user.fullName || "").toLowerCase();
+          const nipNim = (user.nipNim || "").toLowerCase();
+
+          return fullName.includes(query) || nipNim.includes(query);
+        });
       }
 
-      const query = this.searchQuery.toLowerCase().trim();
-      return this.users.filter((user) => {
-        // Search dalam fullName dan nipNim
-        const fullName = (user.fullName || "").toLowerCase();
-        const nipNim = (user.nipNim || "").toLowerCase();
+      if (this.appliedFilters.role) {
+        result = result.filter(
+          (user) => user.role === this.appliedFilters.role,
+        );
+      }
 
-        return fullName.includes(query) || nipNim.includes(query);
-      });
+      if (this.appliedFilters.division) {
+        result = result.filter(
+          (user) => user.division === this.appliedFilters.division,
+        );
+      }
+
+      if (this.appliedFilters.wfhStatus) {
+        result = result.filter(
+          (user) => this.wfhStatusFor(user) === this.appliedFilters.wfhStatus,
+        );
+      }
+
+      return result;
+    } /**
+     * Computed: Unique, sorted, non-empty roles from loaded users
+     */,
+    get availableRoles() {
+      const roles = new Set(
+        this.users.map((user) => user.role).filter((role) => !!role),
+      );
+      return Array.from(roles).sort();
     } /**
      * Computed: Paginated users untuk ditampilkan
      */,
@@ -112,7 +163,9 @@ function userListAlpineData() {
           role: user.role_name || user.role,
           position: user.position_name || user.position,
           nipNim: user.nip_nim || user.nipNim,
-          phoneNumber: user.phone || user.phoneNumber, // Location data mapping from nested location object
+          phoneNumber: user.phone || user.phoneNumber,
+          division: user.division_name || user.division || null,
+          createdAt: user.created_at || user.createdAt || null, // Location data mapping from nested location object
           // Finite-number coercion, not truthiness: a coordinate of exactly 0
           // is configured data and must not collapse to null.
           latitude: firstFiniteMapNumber(user.location?.latitude),
@@ -193,6 +246,32 @@ function userListAlpineData() {
       // Reset ke halaman pertama ketika entries per page berubah
       this.currentPage = 1;
     } /**
+     * Menerapkan filter draft (Role/Divisi/Status Lokasi WFH) ke appliedFilters,
+     * menutup popover, dan mereset halaman ke 1.
+     */,
+    applyFilters() {
+      this.appliedFilters = {
+        role: this.filterRole,
+        division: this.filterDivision,
+        wfhStatus: this.filterWfhStatus,
+      };
+      this.isFilterOpen = false;
+      this.currentPage = 1;
+    } /**
+     * Mengosongkan filter draft dan appliedFilters, mereset halaman ke 1.
+     * State popover (terbuka/tertutup) tidak diubah.
+     */,
+    resetFilters() {
+      this.filterRole = "";
+      this.filterDivision = "";
+      this.filterWfhStatus = "";
+      this.appliedFilters = {
+        role: "",
+        division: "",
+        wfhStatus: "",
+      };
+      this.currentPage = 1;
+    } /**
      * Mendapatkan array nomor halaman untuk pagination
      * Logic super fleksibel berdasarkan total data dan entries per page
      */,
@@ -262,6 +341,16 @@ function userListAlpineData() {
      */
     wfhStatusFor(user) {
       return resolveWfhStatus(normalizeWfhLocation(user));
+    } /**
+     * Formatted "Dibuat" (created date) for the table's Dibuat column.
+     *
+     * Returns "-" when the backend omitted createdAt; never invents a date.
+     */,
+    formattedCreatedAt(user) {
+      if (!user || !user.createdAt) {
+        return "-";
+      }
+      return formatDate(user.createdAt);
     } /**
      * Menangani aksi edit pengguna
      */,

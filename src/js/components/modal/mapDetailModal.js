@@ -5,6 +5,7 @@
 
 import L from "leaflet";
 import { hasFiniteCoordinates } from "../../utils/mapLocationTruth.js";
+import { escapeHtml } from "../../utils/escapeHtml.js";
 
 class MapDetailModal {
   constructor() {
@@ -83,7 +84,7 @@ class MapDetailModal {
         // Add popup to marker
         const popupContent = `
           <div class="p-2">
-            <h4 class="font-semibold text-gray-900 mb-1">${locationData.fullName}</h4>
+            <h4 class="font-semibold text-gray-900 mb-1">${escapeHtml(locationData.fullName)}</h4>
             <p class="text-sm text-gray-600 mb-1">
               <strong>Koordinat:</strong><br>
               ${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}
@@ -101,7 +102,7 @@ class MapDetailModal {
               locationData.description
                 ? `
               <p class="text-sm text-gray-600">
-                <strong>Deskripsi:</strong> ${locationData.description}
+                <strong>Deskripsi:</strong> ${escapeHtml(locationData.description)}
               </p>
             `
                 : ""

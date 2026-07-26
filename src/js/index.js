@@ -59,6 +59,8 @@ import {
 } from "./utils/mapLocationTruth.js";
 import { userListAlpineData } from "./features/userManagement/userListSimple.js";
 import { userFormAlpineData } from "./features/userManagement/userForm.js";
+import { createFocusTrap } from "./utils/focusTrap.js";
+import { createUserDetailDrawerLifecycle } from "./features/userManagement/userDetailDrawerLifecycle.js";
 import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
@@ -202,6 +204,62 @@ Alpine.data("mapDetailModalState", () => ({
     };
   },
 }));
+
+// Detail Pengguna drawer state for Management Pengguna
+Alpine.data("userDetailDrawerState", () => {
+  const lifecycle = createUserDetailDrawerLifecycle({
+    mapAdapter: {
+      initialize(location) {
+        window.mapDetailModal.initializeMap(location);
+      },
+      destroy() {
+        window.mapDetailModal.destroyMap();
+      },
+    },
+  });
+
+  let focusTrap = null;
+
+  return {
+    isUserDetailDrawerOpen: false,
+    selectedUserLocation: lifecycle.selectedUserLocation,
+    wfhStatus: lifecycle.wfhStatus,
+
+    openUserDetailDrawer(user) {
+      lifecycle.open(user);
+      this.syncDrawerState();
+
+      this.$nextTick(() => {
+        const panel = this.$refs.userDetailDrawerPanel;
+
+        if (!panel) {
+          return;
+        }
+
+        focusTrap = createFocusTrap(panel);
+        focusTrap.activate();
+      });
+    },
+
+    closeUserDetailDrawer() {
+      lifecycle.close();
+      this.syncDrawerState();
+
+      focusTrap?.deactivate();
+      focusTrap = null;
+    },
+
+    handleDrawerTab(event) {
+      focusTrap?.handleKeydown(event);
+    },
+
+    syncDrawerState() {
+      this.isUserDetailDrawerOpen = lifecycle.isOpen;
+      this.selectedUserLocation = lifecycle.selectedUserLocation;
+      this.wfhStatus = lifecycle.wfhStatus;
+    },
+  };
+});
 
 // Global Alpine.js state for Booking Map Modal
 Alpine.data("bookingMapModalState", () => ({

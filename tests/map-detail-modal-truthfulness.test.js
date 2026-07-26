@@ -20,8 +20,8 @@ const dashboardMapModal = readFileSync(
   join(root, "src", "partials", "modal", "map-detail-modal.html"),
   "utf8",
 );
-const userMapModal = readFileSync(
-  join(root, "src", "partials", "modal", "user-map-modal.html"),
+const userDetailDrawer = readFileSync(
+  join(root, "src", "partials", "modal", "user-detail-drawer.html"),
   "utf8",
 );
 
@@ -77,7 +77,7 @@ test("map detail modal source and templates keep zero coordinates visible", () =
     /if \(!locationData\.latitude \|\| !locationData\.longitude\)/,
   );
 
-  for (const templateSource of [dashboardMapModal, userMapModal]) {
+  for (const templateSource of [dashboardMapModal, userDetailDrawer]) {
     assert.match(
       templateSource,
       /Number\.isFinite\(selectedUserLocation\.latitude\) \? selectedUserLocation\.latitude : '-'/,

@@ -90,6 +90,18 @@ export function createFocusTrap(container) {
 
       const active = container.ownerDocument?.activeElement;
 
+      // Focus can escape the container entirely — e.g. a click on non-focusable
+      // text moves activeElement to <body>. Without this re-entry path Tab would
+      // walk the page behind the dialog, and containment could never self-heal.
+      if (
+        typeof container.contains === "function" &&
+        !container.contains(active)
+      ) {
+        event.preventDefault();
+        first.focus();
+        return;
+      }
+
       if (event.shiftKey && active === first) {
         event.preventDefault();
         last.focus();

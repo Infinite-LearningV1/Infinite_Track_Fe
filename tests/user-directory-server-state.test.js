@@ -46,6 +46,53 @@ test("fetchUsers renders exactly the server page and trusts server pagination", 
   assert.equal(data.showingInfo, "Showing 11 to 20 of 21 entries");
 });
 
+test("fetchUsers preserves compatibility fields for drawer and modal consumers", async () => {
+  const data = userListAlpineData({
+    getUsers: async () =>
+      paginatedResult({
+        data: [
+          {
+            id: 12,
+            full_name: "Compatibility User",
+            phone: "081234567890",
+            location: {
+              latitude: "0",
+              longitude: "119.875",
+              radius: "125",
+              description: "Home office",
+              category_name: "Residence",
+              location_id: 44,
+            },
+          },
+        ],
+        pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      }),
+  });
+
+  await data.fetchUsers();
+
+  assert.deepEqual(
+    {
+      phoneNumber: data.users[0].phoneNumber,
+      latitude: data.users[0].latitude,
+      longitude: data.users[0].longitude,
+      radius: data.users[0].radius,
+      description: data.users[0].description,
+      categoryName: data.users[0].categoryName,
+      locationId: data.users[0].locationId,
+    },
+    {
+      phoneNumber: "081234567890",
+      latitude: 0,
+      longitude: 119.875,
+      radius: 125,
+      description: "Home office",
+      categoryName: "Residence",
+      locationId: 44,
+    },
+  );
+});
+
 test("only the newest request may update directory state", async () => {
   const resolvers = [];
   const data = userListAlpineData({

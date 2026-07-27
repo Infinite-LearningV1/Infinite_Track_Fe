@@ -488,10 +488,18 @@ function userListAlpineData(overrides = {}) {
           this.pagination.totalPages > 0 &&
           this.currentPage > this.pagination.totalPages
         ) {
+          const retainedPage = this.pagination.page;
           this.currentPage = this.pagination.totalPages;
           this.syncUrl("replace");
+          const recoveryRequestId = this.latestRequestId + 1;
           const recovered = await this.fetchUsers();
-          if (!recovered) return;
+          if (!recovered) {
+            if (this.latestRequestId === recoveryRequestId) {
+              this.currentPage = retainedPage;
+              this.syncUrl("replace");
+            }
+            return;
+          }
         } else if (this.pagination.totalPages === 0) {
           this.currentPage = 1;
           this.syncUrl("replace");

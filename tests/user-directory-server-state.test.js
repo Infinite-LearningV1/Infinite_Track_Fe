@@ -649,7 +649,7 @@ test("confirmDeleteUser leaves rows server-authored across a failed delayed refr
   assert.deepEqual(successes, []);
 });
 
-test("a failed trailing-page recovery shows no delete success", async (t) => {
+test("a failed trailing-page recovery rolls state and URL back without delete success", async (t) => {
   t.mock.method(console, "error", () => {});
   const requestedPages = [];
   const errors = [];
@@ -680,7 +680,7 @@ test("a failed trailing-page recovery shows no delete success", async (t) => {
   await data.confirmDeleteUser();
 
   assert.deepEqual(requestedPages, [3, 2]);
-  assert.equal(data.currentPage, 2);
+  assert.equal(data.currentPage, 3);
   assert.deepEqual(data.users, []);
   assert.deepEqual(data.pagination, {
     page: 3,
@@ -694,6 +694,7 @@ test("a failed trailing-page recovery shows no delete success", async (t) => {
   assert.deepEqual(successes, []);
   assert.deepEqual(browser.calls, [
     ["replace", "/management-user.html?page=2"],
+    ["replace", "/management-user.html?page=3"],
   ]);
 });
 

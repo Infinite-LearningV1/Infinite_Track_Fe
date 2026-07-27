@@ -365,3 +365,128 @@ test("search waits 300 ms and only requests the latest value", async () => {
   await scheduled[1].fn();
   assert.equal(calls.at(-1).search, "alice");
 });
+
+test("entries, apply filters, reset filters, and sort each push URL state", async () => {
+  const browser = createBrowser("");
+  const requests = [];
+  const data = userListAlpineData({
+    browser,
+    getUsers: async (params) => {
+      requests.push(params);
+      return paginatedResult({
+        pagination: {
+          page: params.page,
+          limit: params.limit,
+          total: 40,
+          totalPages: 4,
+        },
+      });
+    },
+    getRoles: async () => [],
+    getDivisions: async () => [],
+  });
+  await data.init();
+  browser.calls.length = 0;
+  requests.length = 0;
+
+  data.entriesPerPage = "20";
+  await data.onEntriesPerPageChange();
+
+  data.filterRole = "2";
+  data.filterDivision = "7";
+  data.filterWfhStatus = "integrity_error";
+  await data.applyFilters();
+
+  await data.resetFilters();
+  await data.toggleSort("email");
+
+  assert.deepEqual(
+    browser.calls,
+    [
+      ["push", "/management-user.html?limit=20"],
+      [
+        "push",
+        "/management-user.html?limit=20&role=2&division=7&location_status=integrity_error",
+      ],
+      ["push", "/management-user.html?limit=20"],
+      [
+        "push",
+        "/management-user.html?limit=20&sortBy=email&sortOrder=ASC",
+      ],
+    ],
+  );
+  assert.deepEqual(requests, [
+    {
+      page: 1,
+      limit: 20,
+      sortBy: "created_at",
+      sortOrder: "DESC",
+    },
+    {
+      page: 1,
+      limit: 20,
+      role: 2,
+      division: 7,
+      location_status: "integrity_error",
+      sortBy: "created_at",
+      sortOrder: "DESC",
+    },
+    {
+      page: 1,
+      limit: 20,
+      sortBy: "created_at",
+      sortOrder: "DESC",
+    },
+    {
+      page: 1,
+      limit: 20,
+      sortBy: "email",
+      sortOrder: "ASC",
+    },
+  ]);
+});
+
+test("unsupported sort keys write no history and make no request", async () => {
+  const browser = createBrowser("");
+  const requests = [];
+  const data = userListAlpineData({
+    browser,
+    getUsers: async (params) => {
+      requests.push(params);
+      return paginatedResult();
+    },
+  });
+
+  await data.toggleSort("password");
+
+  assert.deepEqual(browser.calls, []);
+  assert.deepEqual(requests, []);
+  assert.equal(data.sortBy, "created_at");
+  assert.equal(data.sortOrder, "DESC");
+});
+
+test("destroy cancels pending search and removes the popstate listener", async () => {
+  const browser = createBrowser("");
+  const scheduled = [];
+  const data = userListAlpineData({
+    browser,
+    setTimeout: (fn, delay) => {
+      scheduled.push({ fn, delay, cancelled: false });
+      return scheduled.length - 1;
+    },
+    clearTimeout: (id) => {
+      scheduled[id].cancelled = true;
+    },
+    getUsers: async () => paginatedResult(),
+    getRoles: async () => [],
+    getDivisions: async () => [],
+  });
+  await data.init();
+
+  data.searchQuery = "alice";
+  data.onSearchChange();
+  data.destroy();
+
+  assert.equal(scheduled[0].cancelled, true);
+  assert.equal(browser.listeners.has("popstate"), false);
+});

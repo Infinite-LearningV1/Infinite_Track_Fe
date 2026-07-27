@@ -201,7 +201,7 @@ function userListAlpineData(overrides = {}) {
         const result = await services.getUsers(
           toUserDirectoryRequestParams(this),
         );
-        if (requestId !== this.latestRequestId) return;
+        if (requestId !== this.latestRequestId) return false;
 
         this.users = result.data.map(mapDirectoryUser);
         this.pagination = result.pagination;
@@ -209,13 +209,15 @@ function userListAlpineData(overrides = {}) {
         this.entriesPerPage = result.pagination.limit;
 
         console.log("Successfully fetched users:", this.users);
+        return true;
       } catch (error) {
-        if (requestId !== this.latestRequestId) return;
+        if (requestId !== this.latestRequestId) return false;
         console.error("Error fetching users:", error);
         this.errorMessage = error.message;
 
         // Tampilkan modal error
         this.showErrorModal(error.message);
+        return false;
       } finally {
         if (requestId === this.latestRequestId) this.isLoading = false;
       }
@@ -478,7 +480,22 @@ function userListAlpineData(overrides = {}) {
         this.closeDeleteModal();
 
         // Refresh user list
-        await this.fetchUsers();
+        const refreshed = await this.fetchUsers();
+        if (!refreshed) return;
+
+        if (
+          this.currentPage > 1 &&
+          this.pagination.totalPages > 0 &&
+          this.currentPage > this.pagination.totalPages
+        ) {
+          this.currentPage = this.pagination.totalPages;
+          this.syncUrl("replace");
+          const recovered = await this.fetchUsers();
+          if (!recovered) return;
+        } else if (this.pagination.totalPages === 0) {
+          this.currentPage = 1;
+          this.syncUrl("replace");
+        }
 
         // Tampilkan pesan sukses
         this.showSuccessModal(`Pengguna "${userFullName}" berhasil dihapus.`);

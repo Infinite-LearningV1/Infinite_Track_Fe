@@ -12,6 +12,30 @@ function paginatedResult(overrides = {}) {
   };
 }
 
+function createBrowser(search = "") {
+  const listeners = new Map();
+  const calls = [];
+  return {
+    location: { pathname: "/management-user.html", search, hash: "" },
+    history: {
+      pushState(_state, _title, url) {
+        calls.push(["push", url]);
+      },
+      replaceState(_state, _title, url) {
+        calls.push(["replace", url]);
+      },
+    },
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    removeEventListener(type) {
+      listeners.delete(type);
+    },
+    calls,
+    listeners,
+  };
+}
+
 test("fetchUsers renders exactly the server page and trusts server pagination", async () => {
   const calls = [];
   const data = userListAlpineData({
@@ -186,4 +210,158 @@ test("a rejected division request does not block users or role options", async (
   assert.deepEqual(data.availableDivisions, []);
   assert.equal(data.roleOptionsError, false);
   assert.equal(data.divisionOptionsError, true);
+});
+
+test("filters send stable IDs and canonical WFH status", async () => {
+  const calls = [];
+  const data = userListAlpineData({
+    getUsers: async (params) => {
+      calls.push(params);
+      return paginatedResult({
+        pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      });
+    },
+    browser: null,
+  });
+  data.currentPage = 4;
+  data.filterRole = "2";
+  data.filterDivision = "7";
+  data.filterWfhStatus = "integrity_error";
+
+  await data.applyFilters();
+
+  assert.equal(data.currentPage, 1);
+  assert.deepEqual(calls.at(-1), {
+    page: 1,
+    limit: 10,
+    role: 2,
+    division: 7,
+    location_status: "integrity_error",
+    sortBy: "created_at",
+    sortOrder: "DESC",
+  });
+});
+
+test("toggleSort activates ascending then toggles direction", async () => {
+  const calls = [];
+  const data = userListAlpineData({
+    getUsers: async (params) => {
+      calls.push(params);
+      return paginatedResult();
+    },
+    browser: null,
+  });
+
+  await data.toggleSort("full_name");
+  await data.toggleSort("full_name");
+
+  assert.deepEqual(
+    calls.map(({ sortBy, sortOrder }) => ({ sortBy, sortOrder })),
+    [
+      { sortBy: "full_name", sortOrder: "ASC" },
+      { sortBy: "full_name", sortOrder: "DESC" },
+    ],
+  );
+});
+
+test("init restores URL query before the first request", async () => {
+  const browser = createBrowser(
+    "?page=2&limit=20&search=alice&role=3&sortBy=nip_nim&sortOrder=ASC",
+  );
+  const calls = [];
+  const data = userListAlpineData({
+    browser,
+    getUsers: async (params) => {
+      calls.push(params);
+      return paginatedResult({
+        pagination: { page: 2, limit: 20, total: 21, totalPages: 2 },
+      });
+    },
+    getRoles: async () => [],
+    getDivisions: async () => [],
+  });
+
+  await data.init();
+
+  assert.deepEqual(calls[0], {
+    page: 2,
+    limit: 20,
+    search: "alice",
+    role: 3,
+    sortBy: "nip_nim",
+    sortOrder: "ASC",
+  });
+  assert.ok(browser.listeners.has("popstate"));
+});
+
+test("history mode is push for explicit actions, replace for search, and none for popstate", async () => {
+  const browser = createBrowser("");
+  const calls = [];
+  const scheduled = [];
+  const data = userListAlpineData({
+    browser,
+    setTimeout: (fn, delay) => {
+      scheduled.push({ fn, delay });
+      return scheduled.length - 1;
+    },
+    clearTimeout: () => {},
+    getUsers: async (params) => {
+      calls.push(params);
+      return paginatedResult({
+        pagination: {
+          page: params.page,
+          limit: params.limit,
+          total: 30,
+          totalPages: 3,
+        },
+      });
+    },
+    getRoles: async () => [],
+    getDivisions: async () => [],
+  });
+  await data.init();
+  browser.calls.length = 0;
+
+  await data.goToPage(2);
+  assert.equal(browser.calls.at(-1)[0], "push");
+
+  data.searchQuery = "alice";
+  data.onSearchChange();
+  await scheduled.at(-1).fn();
+  assert.equal(browser.calls.at(-1)[0], "replace");
+
+  const historyCount = browser.calls.length;
+  browser.location.search = "?page=3";
+  await browser.listeners.get("popstate")();
+  assert.equal(browser.calls.length, historyCount);
+  assert.equal(calls.at(-1).page, 3);
+});
+
+test("search waits 300 ms and only requests the latest value", async () => {
+  const scheduled = [];
+  const calls = [];
+  const data = userListAlpineData({
+    browser: null,
+    setTimeout: (fn, delay) => {
+      scheduled.push({ fn, delay, cancelled: false });
+      return scheduled.length - 1;
+    },
+    clearTimeout: (id) => {
+      scheduled[id].cancelled = true;
+    },
+    getUsers: async (params) => {
+      calls.push(params);
+      return paginatedResult();
+    },
+  });
+
+  data.searchQuery = "a";
+  data.onSearchChange();
+  data.searchQuery = "alice";
+  data.onSearchChange();
+
+  assert.equal(scheduled[0].cancelled, true);
+  assert.equal(scheduled[1].delay, 300);
+  await scheduled[1].fn();
+  assert.equal(calls.at(-1).search, "alice");
 });

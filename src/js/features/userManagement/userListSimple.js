@@ -12,7 +12,12 @@ import {
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import { roleBadgeClass as roleBadgeClassUtil } from "../../utils/roleBadge.js";
 import { firstFiniteMapNumber } from "../../utils/mapLocationTruth.js";
-import { toUserDirectoryRequestParams } from "./userDirectoryQuery.js";
+import {
+  parseUserDirectoryQuery,
+  serializeUserDirectoryQuery,
+  toUserDirectoryRequestParams,
+  USER_DIRECTORY_SORT_KEYS,
+} from "./userDirectoryQuery.js";
 import {
   normalizeWfhLocation,
   resolveWfhStatus,
@@ -52,6 +57,14 @@ function userListAlpineData(overrides = {}) {
     getDivisions: overrides.getDivisions || getDivisions,
     deleteUser: overrides.deleteUser || deleteUser,
   };
+  const browser =
+    overrides.browser !== undefined
+      ? overrides.browser
+      : typeof window !== "undefined"
+        ? window
+        : null;
+  const schedule = overrides.setTimeout || globalThis.setTimeout;
+  const cancelSchedule = overrides.clearTimeout || globalThis.clearTimeout;
 
   return {
     // State management
@@ -65,6 +78,8 @@ function userListAlpineData(overrides = {}) {
     sortBy: "created_at",
     sortOrder: "DESC",
     latestRequestId: 0,
+    searchTimer: null,
+    popstateHandler: null,
 
     // Modal states
     isDeleteModalOpen: false,
@@ -93,7 +108,51 @@ function userListAlpineData(overrides = {}) {
      */
     async init() {
       console.log("Initializing user list component...");
+      if (browser) {
+        this.applyUrlState({ fetch: false });
+        this.popstateHandler = async () => {
+          await this.applyUrlState();
+        };
+        browser.addEventListener("popstate", this.popstateHandler);
+      }
       await Promise.all([this.fetchUsers(), this.loadReferenceData()]);
+    },
+
+    applyParsedQuery(parsed) {
+      this.currentPage = parsed.currentPage;
+      this.entriesPerPage = parsed.entriesPerPage;
+      this.searchQuery = parsed.searchQuery;
+      this.appliedFilters = { ...parsed.appliedFilters };
+      this.filterRole = parsed.appliedFilters.role;
+      this.filterDivision = parsed.appliedFilters.division;
+      this.filterWfhStatus = parsed.appliedFilters.locationStatus;
+      this.sortBy = parsed.sortBy;
+      this.sortOrder = parsed.sortOrder;
+    },
+
+    async applyUrlState({ fetch = true } = {}) {
+      if (!browser) return;
+      this.applyParsedQuery(
+        parseUserDirectoryQuery(new URLSearchParams(browser.location.search)),
+      );
+      if (fetch) await this.fetchUsers();
+    },
+
+    syncUrl(mode) {
+      if (!browser || mode === "none") return;
+      const query = serializeUserDirectoryQuery(
+        this,
+        new URLSearchParams(browser.location.search),
+      ).toString();
+      const url = `${browser.location.pathname}${query ? `?${query}` : ""}${browser.location.hash || ""}`;
+      browser.history[`${mode}State`]({}, "", url);
+    },
+
+    destroy() {
+      if (this.searchTimer !== null) cancelSchedule(this.searchTimer);
+      if (browser && this.popstateHandler) {
+        browser.removeEventListener("popstate", this.popstateHandler);
+      }
     },
 
     async loadReferenceData() {
@@ -170,10 +229,11 @@ function userListAlpineData(overrides = {}) {
     /**
      * Navigasi ke halaman tertentu
      */
-    goToPage(page) {
-      if (page >= 1 && page <= this.totalPages) {
-        this.currentPage = page;
-      }
+    async goToPage(page) {
+      if (this.isLoading || page < 1 || page > this.totalPages) return;
+      this.currentPage = page;
+      this.syncUrl("push");
+      await this.fetchUsers();
     },
 
     /**
@@ -195,23 +255,25 @@ function userListAlpineData(overrides = {}) {
      * Handler untuk perubahan search query
      */,
     onSearchChange() {
-      console.log("Search query changed:", this.searchQuery);
-
-      // Reset ke halaman pertama ketika search berubah
-      this.currentPage = 1;
+      if (this.searchTimer !== null) cancelSchedule(this.searchTimer);
+      this.searchTimer = schedule(async () => {
+        this.currentPage = 1;
+        this.syncUrl("replace");
+        await this.fetchUsers();
+      }, 300);
     } /**
      * Handler untuk perubahan entries per page
      */,
-    onEntriesPerPageChange() {
-      console.log(`Entries per page changed to: ${this.entriesPerPage}`);
-
-      // Reset ke halaman pertama ketika entries per page berubah
+    async onEntriesPerPageChange() {
+      this.entriesPerPage = Number(this.entriesPerPage);
       this.currentPage = 1;
+      this.syncUrl("push");
+      await this.fetchUsers();
     } /**
      * Menerapkan filter draft (Role/Divisi/Status Lokasi WFH) ke appliedFilters,
      * menutup popover, dan mereset halaman ke 1.
      */,
-    applyFilters() {
+    async applyFilters() {
       this.appliedFilters = {
         role: this.filterRole,
         division: this.filterDivision,
@@ -219,11 +281,13 @@ function userListAlpineData(overrides = {}) {
       };
       this.isFilterOpen = false;
       this.currentPage = 1;
+      this.syncUrl("push");
+      await this.fetchUsers();
     } /**
      * Mengosongkan filter draft dan appliedFilters, mereset halaman ke 1.
      * State popover (terbuka/tertutup) tidak diubah.
      */,
-    resetFilters() {
+    async resetFilters() {
       this.filterRole = "";
       this.filterDivision = "";
       this.filterWfhStatus = "";
@@ -233,6 +297,18 @@ function userListAlpineData(overrides = {}) {
         locationStatus: "",
       };
       this.currentPage = 1;
+      this.syncUrl("push");
+      await this.fetchUsers();
+    },
+
+    async toggleSort(key) {
+      if (this.isLoading || !USER_DIRECTORY_SORT_KEYS.includes(key)) return;
+      this.sortOrder =
+        this.sortBy === key && this.sortOrder === "ASC" ? "DESC" : "ASC";
+      this.sortBy = key;
+      this.currentPage = 1;
+      this.syncUrl("push");
+      await this.fetchUsers();
     } /**
      * Mendapatkan array nomor halaman untuk pagination
      * Logic super fleksibel berdasarkan total data dan entries per page

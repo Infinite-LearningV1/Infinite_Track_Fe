@@ -465,6 +465,71 @@ test("unsupported sort keys write no history and make no request", async () => {
   assert.equal(data.sortOrder, "DESC");
 });
 
+test("confirmDeleteUser leaves rows server-authored across a failed delayed refresh", async (t) => {
+  t.mock.method(console, "error", () => {});
+  let rejectRefresh;
+  let signalRefreshStarted;
+  const refreshStarted = new Promise((resolve) => {
+    signalRefreshStarted = resolve;
+  });
+  const deletedIds = [];
+  const errors = [];
+  const data = userListAlpineData({
+    browser: null,
+    deleteUser: async (id) => {
+      deletedIds.push(id);
+    },
+    getUsers: () => {
+      signalRefreshStarted();
+      return new Promise((_resolve, reject) => {
+        rejectRefresh = reject;
+      });
+    },
+  });
+  data.users = [
+    { id: 11, fullName: "Alice" },
+    { id: 12, fullName: "Bob" },
+  ];
+  data.pagination = { page: 3, limit: 10, total: 21, totalPages: 2 };
+  data.currentPage = 3;
+  data.userToDelete = data.users[0];
+  data.isDeleteModalOpen = true;
+  data.showErrorModal = (message) => errors.push(message);
+  data.showSuccessModal = () => {};
+
+  const confirmation = data.confirmDeleteUser();
+  await refreshStarted;
+
+  assert.deepEqual(deletedIds, [11]);
+  assert.deepEqual(
+    data.users.map((user) => user.id),
+    [11, 12],
+  );
+  assert.equal(data.currentPage, 3);
+  assert.deepEqual(data.pagination, {
+    page: 3,
+    limit: 10,
+    total: 21,
+    totalPages: 2,
+  });
+
+  rejectRefresh(new Error("refresh unavailable"));
+  await confirmation;
+
+  assert.deepEqual(
+    data.users.map((user) => user.id),
+    [11, 12],
+  );
+  assert.equal(data.currentPage, 3);
+  assert.deepEqual(data.pagination, {
+    page: 3,
+    limit: 10,
+    total: 21,
+    totalPages: 2,
+  });
+  assert.deepEqual(errors, ["refresh unavailable"]);
+});
+
 test("destroy cancels pending search and removes the popstate listener", async () => {
   const browser = createBrowser("");
   const scheduled = [];

@@ -474,17 +474,6 @@ function userListAlpineData(overrides = {}) {
       try {
         await services.deleteUser(this.userToDelete.id);
 
-        // Hapus user dari array lokal
-        this.users = this.users.filter(
-          (user) => user.id !== this.userToDelete.id,
-        );
-
-        // Adjust current page jika diperlukan
-        const totalPages = this.totalPages;
-        if (this.currentPage > totalPages && totalPages > 0) {
-          this.currentPage = totalPages;
-        }
-
         // Tutup modal
         this.closeDeleteModal();
 

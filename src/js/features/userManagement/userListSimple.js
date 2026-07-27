@@ -5,31 +5,60 @@
 
 import {
   getUsers,
-  updateUser,
   deleteUser,
+  getRoles,
   getDivisions,
 } from "../../services/userService.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import { roleBadgeClass as roleBadgeClassUtil } from "../../utils/roleBadge.js";
-import { firstFiniteMapNumber } from "../../utils/mapLocationTruth.js";
+import { toUserDirectoryRequestParams } from "./userDirectoryQuery.js";
 import {
   normalizeWfhLocation,
   resolveWfhStatus,
 } from "./userDetailDrawerLifecycle.js";
 
+function mapDirectoryUser(user) {
+  const fullName = user.full_name || user.fullName || "";
+  return {
+    ...user,
+    fullName,
+    role: user.role_name || user.role || null,
+    position: user.position_name || user.position || null,
+    nipNim: user.nip_nim || user.nipNim || null,
+    division: user.division_name || user.division || null,
+    photo: user.photo || null,
+    locationStatus: user.location_status || null,
+    initials: getInitials(fullName),
+    avatarColor: getAvatarColor(fullName),
+  };
+}
+
 /**
  * Data dan metode Alpine.js untuk komponen daftar pengguna
  * @returns {Object} - Objek yang berisi state dan metode Alpine.js
  */
-function userListAlpineData() {
+function userListAlpineData(overrides = {}) {
+  const services = {
+    getUsers: overrides.getUsers || getUsers,
+    getRoles: overrides.getRoles || getRoles,
+    getDivisions: overrides.getDivisions || getDivisions,
+    deleteUser: overrides.deleteUser || deleteUser,
+  };
+
   return {
     // State management
     users: [],
+    pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
     isLoading: false,
     errorMessage: "",
     entriesPerPage: 10,
     currentPage: 1,
-    searchQuery: "", // Modal states
+    searchQuery: "",
+    sortBy: "created_at",
+    sortOrder: "DESC",
+    latestRequestId: 0,
+
+    // Modal states
     isDeleteModalOpen: false,
     userToDelete: null,
     isDeleting: false,
@@ -40,164 +69,93 @@ function userListAlpineData() {
     filterRole: "",
     filterDivision: "",
     filterWfhStatus: "",
-    // Applied filters actually used by filteredUsers; "" means no filter.
+    // Applied filters use stable backend values; "" means no filter.
     appliedFilters: {
       role: "",
       division: "",
-      wfhStatus: "",
+      locationStatus: "",
     },
-    // Divisions loaded via getDivisions() during init(); stays [] on failure.
+    availableRoles: [],
     availableDivisions: [],
+    roleOptionsError: false,
+    divisionOptionsError: false,
 
     /**
      * Inisialisasi komponen
      */
     async init() {
       console.log("Initializing user list component...");
-      await this.fetchUsers();
+      await Promise.all([this.fetchUsers(), this.loadReferenceData()]);
+    },
 
-      try {
-        this.availableDivisions = (await getDivisions()) || [];
-      } catch (error) {
-        console.warn("Failed to load divisions for filter:", error);
-        this.availableDivisions = [];
-      }
-    } /**
-     * Computed: Filtered users berdasarkan search query
-     */,
-    get filteredUsers() {
-      let result = this.users;
-
-      if (this.searchQuery && this.searchQuery.trim() !== "") {
-        const query = this.searchQuery.toLowerCase().trim();
-        result = result.filter((user) => {
-          // Search dalam fullName dan nipNim
-          const fullName = (user.fullName || "").toLowerCase();
-          const nipNim = (user.nipNim || "").toLowerCase();
-
-          return fullName.includes(query) || nipNim.includes(query);
-        });
-      }
-
-      if (this.appliedFilters.role) {
-        result = result.filter(
-          (user) => user.role === this.appliedFilters.role,
-        );
-      }
-
-      if (this.appliedFilters.division) {
-        result = result.filter(
-          (user) => user.division === this.appliedFilters.division,
-        );
-      }
-
-      if (this.appliedFilters.wfhStatus) {
-        result = result.filter(
-          (user) => this.wfhStatusFor(user) === this.appliedFilters.wfhStatus,
-        );
-      }
-
-      return result;
-    } /**
-     * Computed: Unique, sorted, non-empty roles from loaded users
-     */,
-    get availableRoles() {
-      const roles = new Set(
-        this.users.map((user) => user.role).filter((role) => !!role),
-      );
-      return Array.from(roles).sort();
-    } /**
-     * Computed: Paginated users untuk ditampilkan
-     */,
-    get paginatedUsers() {
-      const start = (this.currentPage - 1) * this.entriesPerPage;
-      const end = start + this.entriesPerPage;
-      return this.filteredUsers.slice(start, end);
+    async loadReferenceData() {
+      const [rolesResult, divisionsResult] = await Promise.allSettled([
+        services.getRoles(),
+        services.getDivisions(),
+      ]);
+      this.availableRoles =
+        rolesResult.status === "fulfilled" ? rolesResult.value || [] : [];
+      this.availableDivisions =
+        divisionsResult.status === "fulfilled"
+          ? divisionsResult.value || []
+          : [];
+      this.roleOptionsError = rolesResult.status === "rejected";
+      this.divisionOptionsError = divisionsResult.status === "rejected";
     },
 
     /**
-     * Computed: Total halaman berdasarkan data yang ada
+     * Computed: Total halaman berdasarkan pagination server
      */
     get totalPages() {
-      const totalData = this.filteredUsers.length;
-      if (totalData === 0) return 0;
-      return Math.ceil(totalData / this.entriesPerPage);
+      return this.pagination.totalPages;
     },
     /**
-     * Computed: Info showing entries dengan logika fleksibel
+     * Computed: Info showing entries berdasarkan pagination server
      */
     get showingInfo() {
-      const totalData = this.filteredUsers.length;
+      const { page, limit, total } = this.pagination;
 
-      if (totalData === 0) {
-        return "Showing 0 to 0 of 0 entries";
+      if (this.users.length === 0) {
+        return `Showing 0 to 0 of ${total} entries`;
       }
 
-      const start = (this.currentPage - 1) * this.entriesPerPage + 1;
-      const end = Math.min(this.currentPage * this.entriesPerPage, totalData);
+      const start = (page - 1) * limit + 1;
+      const end = Math.min(page * limit, total);
 
-      return `Showing ${start} to ${end} of ${totalData} entries`;
+      return `Showing ${start} to ${end} of ${total} entries`;
     },
 
     /**
      * Mengambil data pengguna dari API
      */
-    async fetchUsers() {
-      try {
-        this.isLoading = true;
-        this.errorMessage = "";
+    async fetchUsers({ historyMode = "none" } = {}) {
+      const requestId = ++this.latestRequestId;
+      this.isLoading = true;
+      this.errorMessage = "";
 
+      try {
         console.log("Fetching users from API...");
 
-        // Panggil API tanpa parameter
-        const users = await getUsers();
-        this.users = users || [];
+        const result = await services.getUsers(
+          toUserDirectoryRequestParams(this),
+        );
+        if (requestId !== this.latestRequestId) return;
+
+        this.users = result.data.map(mapDirectoryUser);
+        this.pagination = result.pagination;
+        this.currentPage = result.pagination.page;
+        this.entriesPerPage = result.pagination.limit;
 
         console.log("Successfully fetched users:", this.users);
-        console.log("Raw API response:", users);
-        console.log("Sample user data:", users[0] || "No users found"); // Transform data untuk menambahkan computed properties dan normalisasi field names
-        this.users = this.users.map((user) => ({
-          ...user,
-          // Normalisasi field names untuk kompatibilitas dengan template
-          fullName: user.full_name || user.fullName,
-          role: user.role_name || user.role,
-          position: user.position_name || user.position,
-          nipNim: user.nip_nim || user.nipNim,
-          phoneNumber: user.phone || user.phoneNumber,
-          division: user.division_name || user.division || null,
-          photo: user.photo || null,
-          // Location data mapping from nested location object
-          // Finite-number coercion, not truthiness: a coordinate of exactly 0
-          // is configured data and must not collapse to null.
-          latitude: firstFiniteMapNumber(user.location?.latitude),
-          longitude: firstFiniteMapNumber(user.location?.longitude),
-          radius: firstFiniteMapNumber(user.location?.radius),
-          description: user.location?.description || null,
-          categoryName: user.location?.category_name || null,
-          locationId: user.location?.location_id || null,
-          // Computed properties
-          initials: getInitials(user.full_name || user.fullName),
-          avatarColor: getAvatarColor(user.full_name || user.fullName),
-        }));
-
-        console.log(
-          "Transformed user data:",
-          this.users[0] || "No users after transform",
-        );
-
-        // Reset current page jika melebihi total pages
-        if (this.currentPage > this.totalPages && this.totalPages > 0) {
-          this.currentPage = 1;
-        }
       } catch (error) {
+        if (requestId !== this.latestRequestId) return;
         console.error("Error fetching users:", error);
         this.errorMessage = error.message;
-        this.users = [];
 
         // Tampilkan modal error
         this.showErrorModal(error.message);
       } finally {
-        this.isLoading = false;
+        if (requestId === this.latestRequestId) this.isLoading = false;
       }
     },
 
@@ -230,7 +188,6 @@ function userListAlpineData() {
      */,
     onSearchChange() {
       console.log("Search query changed:", this.searchQuery);
-      console.log(`Filtered results: ${this.filteredUsers.length} items`);
 
       // Reset ke halaman pertama ketika search berubah
       this.currentPage = 1;
@@ -239,10 +196,6 @@ function userListAlpineData() {
      */,
     onEntriesPerPageChange() {
       console.log(`Entries per page changed to: ${this.entriesPerPage}`);
-      console.log(`Total data: ${this.filteredUsers.length}`);
-      console.log(
-        `New total pages will be: ${Math.ceil(this.filteredUsers.length / this.entriesPerPage)}`,
-      );
 
       // Reset ke halaman pertama ketika entries per page berubah
       this.currentPage = 1;
@@ -254,7 +207,7 @@ function userListAlpineData() {
       this.appliedFilters = {
         role: this.filterRole,
         division: this.filterDivision,
-        wfhStatus: this.filterWfhStatus,
+        locationStatus: this.filterWfhStatus,
       };
       this.isFilterOpen = false;
       this.currentPage = 1;
@@ -269,7 +222,7 @@ function userListAlpineData() {
       this.appliedFilters = {
         role: "",
         division: "",
-        wfhStatus: "",
+        locationStatus: "",
       };
       this.currentPage = 1;
     } /**
@@ -314,7 +267,7 @@ function userListAlpineData() {
       }
 
       console.log(
-        `Pagination Info: Total Data=${this.filteredUsers.length}, Entries/Page=${this.entriesPerPage}, Total Pages=${totalPages}, Current Page=${this.currentPage}, Showing Pages=[${pages.join(",")}]`,
+        `Pagination Info: Total Data=${this.pagination.total}, Entries/Page=${this.entriesPerPage}, Total Pages=${totalPages}, Current Page=${this.currentPage}, Showing Pages=[${pages.join(",")}]`,
       );
       return pages;
     } /**
@@ -418,7 +371,7 @@ function userListAlpineData() {
         this.userToDelete.fullName || this.userToDelete.full_name || "Pengguna";
 
       try {
-        await deleteUser(this.userToDelete.id);
+        await services.deleteUser(this.userToDelete.id);
 
         // Hapus user dari array lokal
         this.users = this.users.filter(

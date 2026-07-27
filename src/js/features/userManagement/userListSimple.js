@@ -5,6 +5,7 @@
 
 import {
   getUsers,
+  getUserById,
   deleteUser,
   getRoles,
   getDivisions,
@@ -48,6 +49,7 @@ function mapDirectoryUser(user) {
 function userListAlpineData(overrides = {}) {
   const services = {
     getUsers: overrides.getUsers || getUsers,
+    getUserById: overrides.getUserById || getUserById,
     getRoles: overrides.getRoles || getRoles,
     getDivisions: overrides.getDivisions || getDivisions,
     deleteUser: overrides.deleteUser || deleteUser,
@@ -75,6 +77,9 @@ function userListAlpineData(overrides = {}) {
     latestRequestId: 0,
     searchTimer: null,
     popstateHandler: null,
+    latestDetailRequestId: 0,
+    detailLoadingUserId: null,
+    detailErrorMessage: "",
 
     // Modal states
     isDeleteModalOpen: false,
@@ -95,6 +100,8 @@ function userListAlpineData(overrides = {}) {
     },
     availableRoles: [],
     availableDivisions: [],
+    roleOptionsLoading: true,
+    divisionOptionsLoading: true,
     roleOptionsError: false,
     divisionOptionsError: false,
 
@@ -127,6 +134,7 @@ function userListAlpineData(overrides = {}) {
 
     async applyUrlState({ fetch = true } = {}) {
       if (!browser) return;
+      this.cancelPendingSearch();
       this.applyParsedQuery(
         parseUserDirectoryQuery(new URLSearchParams(browser.location.search)),
       );
@@ -144,13 +152,17 @@ function userListAlpineData(overrides = {}) {
     },
 
     destroy() {
-      if (this.searchTimer !== null) cancelSchedule(this.searchTimer);
+      this.cancelPendingSearch();
       if (browser && this.popstateHandler) {
         browser.removeEventListener("popstate", this.popstateHandler);
       }
     },
 
     async loadReferenceData() {
+      this.roleOptionsLoading = true;
+      this.divisionOptionsLoading = true;
+      this.roleOptionsError = false;
+      this.divisionOptionsError = false;
       const [rolesResult, divisionsResult] = await Promise.allSettled([
         services.getRoles(),
         services.getDivisions(),
@@ -163,6 +175,8 @@ function userListAlpineData(overrides = {}) {
           : [];
       this.roleOptionsError = rolesResult.status === "rejected";
       this.divisionOptionsError = divisionsResult.status === "rejected";
+      this.roleOptionsLoading = false;
+      this.divisionOptionsLoading = false;
     },
 
     /**
@@ -185,6 +199,21 @@ function userListAlpineData(overrides = {}) {
       const end = Math.min(page * limit, total);
 
       return `Showing ${start} to ${end} of ${total} entries`;
+    },
+    get emptyStateMessage() {
+      const hasActiveCriteria =
+        this.searchQuery.trim() ||
+        this.appliedFilters.role ||
+        this.appliedFilters.division ||
+        this.appliedFilters.locationStatus;
+
+      if (hasActiveCriteria) {
+        return "Tidak ada pengguna yang cocok dengan pencarian atau filter aktif.";
+      }
+      if (this.pagination.total > 0) {
+        return "Halaman ini tidak berisi data pengguna.";
+      }
+      return "Belum ada data pengguna.";
     },
 
     /**
@@ -227,7 +256,15 @@ function userListAlpineData(overrides = {}) {
      * Navigasi ke halaman tertentu
      */
     async goToPage(page) {
-      if (this.isLoading || page < 1 || page > this.totalPages) return;
+      this.cancelPendingSearch();
+      if (
+        this.isLoading ||
+        page === this.currentPage ||
+        page < 1 ||
+        page > this.totalPages
+      ) {
+        return;
+      }
       this.currentPage = page;
       this.syncUrl("push");
       await this.fetchUsers();
@@ -251,17 +288,27 @@ function userListAlpineData(overrides = {}) {
     } /**
      * Handler untuk perubahan search query
      */,
+    cancelPendingSearch() {
+      if (this.searchTimer === null) return;
+      cancelSchedule(this.searchTimer);
+      this.searchTimer = null;
+    },
     onSearchChange() {
-      if (this.searchTimer !== null) cancelSchedule(this.searchTimer);
-      this.searchTimer = schedule(async () => {
+      this.cancelPendingSearch();
+      let timer = null;
+      timer = schedule(async () => {
+        if (this.searchTimer !== timer) return;
+        this.searchTimer = null;
         this.currentPage = 1;
         this.syncUrl("replace");
         await this.fetchUsers();
       }, 300);
+      this.searchTimer = timer;
     } /**
      * Handler untuk perubahan entries per page
      */,
     async onEntriesPerPageChange() {
+      this.cancelPendingSearch();
       this.entriesPerPage = Number(this.entriesPerPage);
       this.currentPage = 1;
       this.syncUrl("push");
@@ -271,6 +318,7 @@ function userListAlpineData(overrides = {}) {
      * menutup popover, dan mereset halaman ke 1.
      */,
     async applyFilters() {
+      this.cancelPendingSearch();
       this.appliedFilters = {
         role: this.filterRole,
         division: this.filterDivision,
@@ -285,6 +333,7 @@ function userListAlpineData(overrides = {}) {
      * State popover (terbuka/tertutup) tidak diubah.
      */,
     async resetFilters() {
+      this.cancelPendingSearch();
       this.filterRole = "";
       this.filterDivision = "";
       this.filterWfhStatus = "";
@@ -299,6 +348,7 @@ function userListAlpineData(overrides = {}) {
     },
 
     async toggleSort(key) {
+      this.cancelPendingSearch();
       if (this.isLoading || !USER_DIRECTORY_SORT_KEYS.includes(key)) return;
       this.sortOrder =
         this.sortBy === key && this.sortOrder === "ASC" ? "DESC" : "ASC";
@@ -361,6 +411,34 @@ function userListAlpineData(overrides = {}) {
         `Pagination Info: Total Data=${this.pagination.total}, Entries/Page=${this.entriesPerPage}, Total Pages=${totalPages}, Current Page=${this.currentPage}, Showing Pages=[${pages.join(",")}]`,
       );
       return pages;
+    },
+
+    isDetailLoadingFor(userId) {
+      return this.detailLoadingUserId === userId;
+    },
+
+    async openUserDetails(userId) {
+      const requestId = ++this.latestDetailRequestId;
+      this.detailLoadingUserId = userId;
+      this.detailErrorMessage = "";
+
+      try {
+        const user = await services.getUserById(userId);
+        if (requestId !== this.latestDetailRequestId) return false;
+        this.openUserDetailDrawer(user);
+        return true;
+      } catch (error) {
+        if (requestId !== this.latestDetailRequestId) return false;
+        console.error("Error fetching user detail:", error);
+        this.detailErrorMessage =
+          error.message || "Gagal mengambil detail pengguna.";
+        this.showErrorModal(this.detailErrorMessage);
+        return false;
+      } finally {
+        if (requestId === this.latestDetailRequestId) {
+          this.detailLoadingUserId = null;
+        }
+      }
     } /**
      * Menangani aksi view pengguna
      */,

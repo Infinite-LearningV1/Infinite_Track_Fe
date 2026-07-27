@@ -47,13 +47,37 @@
         <select
           id="userTableFilterRole"
           x-model="filterRole"
-          class="focus:ring-brand-500 focus:border-brand-500 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+          :disabled="roleOptionsLoading || roleOptionsError"
+          class="focus:ring-brand-500 focus:border-brand-500 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
         >
           <option value="">Semua</option>
+          <template x-if="roleOptionsError && filterRole">
+            <option
+              :value="filterRole"
+              x-text="`Role ID ${filterRole} (filter aktif)`"
+            ></option>
+          </template>
           <template x-for="role in availableRoles" :key="role.id">
             <option :value="String(role.id)" x-text="role.name"></option>
           </template>
         </select>
+        <p
+          x-show="roleOptionsLoading"
+          class="mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+        >
+          Memuat pilihan role...
+        </p>
+        <p
+          x-show="roleOptionsError"
+          role="alert"
+          class="text-error-600 dark:text-error-400 mt-1.5 text-xs"
+        >
+          Pilihan role gagal dimuat.
+          <span
+            x-show="filterRole"
+            x-text="`Filter Role ID ${filterRole} tetap aktif.`"
+          ></span>
+        </p>
       </div>
 
       <!-- Divisi -->
@@ -66,10 +90,16 @@
         <select
           id="userTableFilterDivision"
           x-model="filterDivision"
-          :disabled="availableDivisions.length === 0"
+          :disabled="divisionOptionsLoading || divisionOptionsError"
           class="focus:ring-brand-500 focus:border-brand-500 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
         >
           <option value="">Semua</option>
+          <template x-if="divisionOptionsError && filterDivision">
+            <option
+              :value="filterDivision"
+              x-text="`Divisi ID ${filterDivision} (filter aktif)`"
+            ></option>
+          </template>
           <template x-for="division in availableDivisions" :key="division.id">
             <option
               :value="String(division.id)"
@@ -77,6 +107,23 @@
             ></option>
           </template>
         </select>
+        <p
+          x-show="divisionOptionsLoading"
+          class="mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+        >
+          Memuat pilihan divisi...
+        </p>
+        <p
+          x-show="divisionOptionsError"
+          role="alert"
+          class="text-error-600 dark:text-error-400 mt-1.5 text-xs"
+        >
+          Pilihan divisi gagal dimuat.
+          <span
+            x-show="filterDivision"
+            x-text="`Filter Divisi ID ${filterDivision} tetap aktif.`"
+          ></span>
+        </p>
       </div>
 
       <!-- Status Lokasi WFH -->

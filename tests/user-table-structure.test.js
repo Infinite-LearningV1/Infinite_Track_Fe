@@ -69,7 +69,7 @@ test("empty state colspan is 7 after removing the Dibuat column", () => {
 });
 
 test("Detail, Edit, and Delete controls remain with accessible labels", () => {
-  assert.match(table, /openUserDetailDrawer\(user\)/);
+  assert.match(table, /openUserDetails\(user\.id\)/);
   assert.match(
     table,
     /:aria-label="`Lihat detail pengguna \$\{user\.fullName\}`"/,
@@ -103,6 +103,14 @@ test("entries selector and Tambah User link stay functional", () => {
   assert.match(table, /x-model="entriesPerPage"/);
   assert.match(table, /@change="onEntriesPerPageChange\(\)"/);
   assert.match(table, /Tambah User/);
+});
+
+test("entries selector offers only the canonical 10, 20, 50, and 100 page sizes", () => {
+  const optionValues = [
+    ...table.matchAll(/<option value="(\d+)">\d+<\/option>/g),
+  ].map((match) => Number(match[1]));
+
+  assert.deepEqual(optionValues, [10, 20, 50, 100]);
 });
 
 test("the card title 'Manajemen Pengguna' is removed; the search input takes its place", () => {
@@ -154,8 +162,18 @@ test("pagination uses server-derived display data and loading-safe controls", ()
   );
   assert.match(
     table,
-    /@click="goToPage\(pageNum\)"[\s\S]{0,200}:disabled="isLoading"/,
+    /@click="goToPage\(pageNum\)"[\s\S]{0,200}:disabled="isLoading \|\| pageNum === currentPage"/,
   );
+});
+
+test("detail loading is exposed on the selected row action", () => {
+  assert.match(table, /:disabled="isDetailLoadingFor\(user\.id\)"/);
+  assert.match(table, /:aria-busy="isDetailLoadingFor\(user\.id\)"/);
+});
+
+test("successful empty rows render the state-derived truthful message", () => {
+  assert.match(table, /x-text="emptyStateMessage"/);
+  assert.doesNotMatch(table, /x-show="searchQuery"/);
 });
 
 test("the Akses badge binds roleBadgeClass(user.role) while keeping the role text visible", () => {

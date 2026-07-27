@@ -104,9 +104,40 @@ test("availableRoles feeds the Role select via x-for", () => {
   assert.match(filterPartial, /x-for="role in availableRoles"/);
 });
 
-test("availableDivisions feeds the Divisi select via x-for and is disabled when empty", () => {
+test("reference controls expose loading and failure instead of silently appearing empty", () => {
+  assert.match(
+    filterPartial,
+    /id="userTableFilterRole"[\s\S]{0,250}:disabled="roleOptionsLoading \|\| roleOptionsError"/,
+  );
   assert.match(filterPartial, /x-for="division in availableDivisions"/);
-  assert.match(filterPartial, /:disabled="availableDivisions\.length === 0"/);
+  assert.match(
+    filterPartial,
+    /id="userTableFilterDivision"[\s\S]{0,250}:disabled="divisionOptionsLoading \|\| divisionOptionsError"/,
+  );
+  assert.match(filterPartial, /x-show="roleOptionsLoading"/);
+  assert.match(filterPartial, /x-show="roleOptionsError"/);
+  assert.match(filterPartial, /x-show="divisionOptionsLoading"/);
+  assert.match(filterPartial, /x-show="divisionOptionsError"/);
+  assert.doesNotMatch(
+    filterPartial,
+    /:disabled="availableDivisions\.length === 0"/,
+  );
+});
+
+test("failed reference data preserves active role and division query indicators", () => {
+  assert.match(
+    filterPartial,
+    /x-if="roleOptionsError && filterRole"[\s\S]*:value="filterRole"/,
+  );
+  assert.match(
+    filterPartial,
+    /x-if="divisionOptionsError && filterDivision"[\s\S]*:value="filterDivision"/,
+  );
+  assert.match(filterPartial, /Role ID \$\{filterRole\} \(filter aktif\)/);
+  assert.match(
+    filterPartial,
+    /Divisi ID \$\{filterDivision\} \(filter aktif\)/,
+  );
 });
 
 test("popover panel uses the owner-supplied dark mode token pattern", () => {

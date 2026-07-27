@@ -30,8 +30,8 @@ test("the table never renders raw coordinates", () => {
   assert.doesNotMatch(table, /user\.latitude\s*\+\s*/);
 });
 
-test("the detail control opens the drawer and is labelled for assistive tech", () => {
-  assert.match(table, /openUserDetailDrawer\(user\)/);
+test("the detail control fetches full detail by ID and is labelled for assistive tech", () => {
+  assert.match(table, /openUserDetails\(user\.id\)/);
   assert.match(
     table,
     /:aria-label="`Lihat detail pengguna \$\{user\.fullName\}`"/,

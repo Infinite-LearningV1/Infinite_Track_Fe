@@ -5,7 +5,23 @@ import { userListAlpineData } from "../src/js/features/userManagement/userListSi
 
 function paginatedResult(overrides = {}) {
   return {
-    data: [{ id: 11, full_name: "Alice", location_status: "configured" }],
+    data: [
+      {
+        id: 11,
+        full_name: "Alice",
+        email: "alice@example.com",
+        role_name: "Employee",
+        position_name: "Staff",
+        program_name: null,
+        division_name: "Engineering",
+        nip_nim: "EMP-011",
+        photo: null,
+        photo_updated_at: null,
+        location_status: "configured",
+        created_at: "2026-07-20T00:00:00.000Z",
+        updated_at: "2026-07-20T00:00:00.000Z",
+      },
+    ],
     pagination: { page: 2, limit: 10, total: 21, totalPages: 3 },
     message: "Users fetched successfully",
     ...overrides,
@@ -115,6 +131,145 @@ test("fetchUsers preserves compatibility fields for drawer and modal consumers",
       locationId: 44,
     },
   );
+});
+
+test("a slim list row fetches full detail by ID before opening the drawer", async () => {
+  const slimUser = {
+    id: 47,
+    full_name: "Slim Projection",
+    email: "slim@example.com",
+    role_name: "Employee",
+    position_name: "Engineer",
+    program_name: null,
+    division_name: "Technology",
+    nip_nim: "EMP-047",
+    photo: null,
+    photo_updated_at: null,
+    location_status: "configured",
+    created_at: "2026-07-20T00:00:00.000Z",
+    updated_at: "2026-07-20T00:00:00.000Z",
+  };
+  const fullDetail = {
+    id: 47,
+    full_name: "Slim Projection",
+    email: "slim@example.com",
+    role_name: "Employee",
+    position_name: "Engineer",
+    program_name: null,
+    division_name: "Technology",
+    nip_nim: "EMP-047",
+    phone: "081234567890",
+    photo: null,
+    photo_updated_at: null,
+    location: {
+      location_id: 91,
+      latitude: -5.147665,
+      longitude: 119.432732,
+      radius: 100,
+      description: "Rumah",
+      category_name: "Work From Home",
+    },
+    created_at: "2026-07-20T00:00:00.000Z",
+    updated_at: "2026-07-20T00:00:00.000Z",
+  };
+  const requestedIds = [];
+  const opened = [];
+  const data = userListAlpineData({
+    browser: null,
+    getUsers: async () =>
+      paginatedResult({
+        data: [slimUser],
+        pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      }),
+    getUserById: async (id) => {
+      requestedIds.push(id);
+      return fullDetail;
+    },
+  });
+  data.openUserDetailDrawer = (user) => opened.push(user);
+
+  await data.fetchUsers();
+  assert.equal("location" in data.users[0], false);
+
+  const detailRequest = data.openUserDetails(data.users[0].id);
+  assert.equal(data.detailLoadingUserId, 47);
+  await detailRequest;
+
+  assert.deepEqual(requestedIds, [47]);
+  assert.deepEqual(opened, [fullDetail]);
+  assert.equal(data.detailLoadingUserId, null);
+  assert.equal(data.detailErrorMessage, "");
+});
+
+test("an older detail response cannot replace a newer drawer selection", async () => {
+  const pending = [];
+  const opened = [];
+  const data = userListAlpineData({
+    browser: null,
+    getUserById: (id) =>
+      new Promise((resolve, reject) => pending.push({ id, resolve, reject })),
+  });
+  data.openUserDetailDrawer = (user) => opened.push(user);
+
+  const first = data.openUserDetails(11);
+  const second = data.openUserDetails(12);
+
+  pending[1].resolve({
+    id: 12,
+    full_name: "Newest User",
+    phone: "081200000012",
+    location: {
+      location_id: 112,
+      latitude: -5.1,
+      longitude: 119.4,
+      radius: 100,
+      description: "Newest home",
+      category_name: "Work From Home",
+    },
+  });
+  await second;
+  pending[0].resolve({
+    id: 11,
+    full_name: "Stale User",
+    phone: "081200000011",
+    location: {
+      location_id: 111,
+      latitude: -5.2,
+      longitude: 119.5,
+      radius: 100,
+      description: "Stale home",
+      category_name: "Work From Home",
+    },
+  });
+  await first;
+
+  assert.deepEqual(
+    opened.map((user) => user.id),
+    [12],
+  );
+  assert.equal(data.detailLoadingUserId, null);
+  assert.equal(data.detailErrorMessage, "");
+});
+
+test("a current detail failure clears loading and reports the error without opening the drawer", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const errors = [];
+  const opened = [];
+  const data = userListAlpineData({
+    browser: null,
+    getUserById: async () => {
+      throw new Error("Detail pengguna gagal dimuat.");
+    },
+  });
+  data.showErrorModal = (message) => errors.push(message);
+  data.openUserDetailDrawer = (user) => opened.push(user);
+
+  await data.openUserDetails(11);
+
+  assert.equal(data.detailLoadingUserId, null);
+  assert.equal(data.detailErrorMessage, "Detail pengguna gagal dimuat.");
+  assert.deepEqual(errors, ["Detail pengguna gagal dimuat."]);
+  assert.deepEqual(opened, []);
 });
 
 test("only the newest request may update directory state", async () => {
@@ -268,6 +423,34 @@ test("a rejected division request does not block users or role options", async (
   assert.deepEqual(data.availableRoles, [{ id: 2, name: "Admin" }]);
   assert.deepEqual(data.availableDivisions, []);
   assert.equal(data.roleOptionsError, false);
+  assert.equal(data.divisionOptionsError, true);
+});
+
+test("failed reference data keeps active URL filters visible and leaves loading state truthfully", async () => {
+  const browser = createBrowser("?role=9&division=7");
+  const data = userListAlpineData({
+    browser,
+    getUsers: async () => paginatedResult(),
+    getRoles: async () => {
+      throw new Error("roles unavailable");
+    },
+    getDivisions: async () => {
+      throw new Error("divisions unavailable");
+    },
+  });
+
+  await data.init();
+
+  assert.equal(data.filterRole, "9");
+  assert.equal(data.filterDivision, "7");
+  assert.deepEqual(data.appliedFilters, {
+    role: "9",
+    division: "7",
+    locationStatus: "",
+  });
+  assert.equal(data.roleOptionsLoading, false);
+  assert.equal(data.divisionOptionsLoading, false);
+  assert.equal(data.roleOptionsError, true);
   assert.equal(data.divisionOptionsError, true);
 });
 
@@ -425,6 +608,153 @@ test("search waits 300 ms and only requests the latest value", async () => {
   assert.equal(calls.at(-1).search, "alice");
 });
 
+test("popstate cancels pending search without a delayed reset, request, or history write", async () => {
+  const browser = createBrowser("?page=2&search=before");
+  const scheduled = [];
+  const requests = [];
+  const data = userListAlpineData({
+    browser,
+    setTimeout: (fn, delay) => {
+      scheduled.push({ fn, delay, cancelled: false });
+      return scheduled.length - 1;
+    },
+    clearTimeout: (id) => {
+      scheduled[id].cancelled = true;
+    },
+    getUsers: async (params) => {
+      requests.push(params);
+      return paginatedResult({
+        pagination: {
+          page: params.page,
+          limit: params.limit,
+          total: 40,
+          totalPages: 4,
+        },
+      });
+    },
+    getRoles: async () => [],
+    getDivisions: async () => [],
+  });
+  await data.init();
+  requests.length = 0;
+  browser.calls.length = 0;
+
+  data.searchQuery = "pending";
+  data.onSearchChange();
+  browser.location.search = "?page=3&search=restored";
+  await browser.listeners.get("popstate")();
+  await scheduled[0].fn();
+
+  assert.equal(scheduled[0].cancelled, true);
+  assert.equal(data.searchQuery, "restored");
+  assert.equal(data.currentPage, 3);
+  assert.deepEqual(requests, [
+    {
+      page: 3,
+      limit: 10,
+      search: "restored",
+      sortBy: "created_at",
+      sortOrder: "DESC",
+    },
+  ]);
+  assert.deepEqual(browser.calls, []);
+});
+
+test("explicit directory interactions cancel pending search without duplicate work", async (t) => {
+  const cases = [
+    {
+      name: "page navigation",
+      prepare(data) {
+        data.currentPage = 2;
+        data.pagination = {
+          page: 2,
+          limit: 10,
+          total: 30,
+          totalPages: 3,
+        };
+      },
+      act(data) {
+        return data.goToPage(3);
+      },
+    },
+    {
+      name: "page size",
+      prepare(data) {
+        data.entriesPerPage = "20";
+      },
+      act(data) {
+        return data.onEntriesPerPageChange();
+      },
+    },
+    {
+      name: "apply filters",
+      prepare(data) {
+        data.filterRole = "2";
+      },
+      act(data) {
+        return data.applyFilters();
+      },
+    },
+    {
+      name: "reset filters",
+      prepare(data) {
+        data.filterRole = "2";
+        data.appliedFilters.role = "2";
+      },
+      act(data) {
+        return data.resetFilters();
+      },
+    },
+    {
+      name: "sort",
+      prepare() {},
+      act(data) {
+        return data.toggleSort("full_name");
+      },
+    },
+  ];
+
+  for (const scenario of cases) {
+    await t.test(scenario.name, async () => {
+      const browser = createBrowser("");
+      const scheduled = [];
+      const requests = [];
+      const data = userListAlpineData({
+        browser,
+        setTimeout: (fn, delay) => {
+          scheduled.push({ fn, delay, cancelled: false });
+          return scheduled.length - 1;
+        },
+        clearTimeout: (id) => {
+          scheduled[id].cancelled = true;
+        },
+        getUsers: async (params) => {
+          requests.push(params);
+          return paginatedResult({
+            pagination: {
+              page: params.page,
+              limit: params.limit,
+              total: 30,
+              totalPages: 3,
+            },
+          });
+        },
+      });
+      scenario.prepare(data);
+      data.searchQuery = "pending";
+      data.onSearchChange();
+
+      await scenario.act(data);
+      await scheduled[0].fn();
+
+      assert.equal(scheduled[0].cancelled, true);
+      assert.equal(requests.length, 1);
+      assert.equal(browser.calls.length, 1);
+      assert.equal(browser.calls[0][0], "push");
+    });
+  }
+});
+
 test("entries, apply filters, reset filters, and sort each push URL state", async () => {
   const browser = createBrowser("");
   const requests = [];
@@ -522,6 +852,45 @@ test("unsupported sort keys write no history and make no request", async () => {
   assert.deepEqual(requests, []);
   assert.equal(data.sortBy, "created_at");
   assert.equal(data.sortOrder, "DESC");
+});
+
+test("goToPage ignores the current page without requesting or writing history", async () => {
+  const browser = createBrowser("?page=2");
+  const requests = [];
+  const data = userListAlpineData({
+    browser,
+    getUsers: async (params) => {
+      requests.push(params);
+      return paginatedResult();
+    },
+  });
+  data.currentPage = 2;
+  data.pagination = { page: 2, limit: 10, total: 30, totalPages: 3 };
+
+  await data.goToPage(2);
+
+  assert.deepEqual(requests, []);
+  assert.deepEqual(browser.calls, []);
+});
+
+test("empty-state copy distinguishes active criteria, an empty page, and an empty directory", () => {
+  const data = userListAlpineData({ browser: null });
+
+  data.appliedFilters.role = "2";
+  assert.equal(
+    data.emptyStateMessage,
+    "Tidak ada pengguna yang cocok dengan pencarian atau filter aktif.",
+  );
+
+  data.appliedFilters.role = "";
+  data.pagination = { page: 3, limit: 10, total: 20, totalPages: 2 };
+  assert.equal(
+    data.emptyStateMessage,
+    "Halaman ini tidak berisi data pengguna.",
+  );
+
+  data.pagination = { page: 1, limit: 10, total: 0, totalPages: 0 };
+  assert.equal(data.emptyStateMessage, "Belum ada data pengguna.");
 });
 
 test("deleting the last row on a trailing page refetches the last valid page", async () => {

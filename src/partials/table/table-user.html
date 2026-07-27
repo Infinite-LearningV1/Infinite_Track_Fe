@@ -213,12 +213,7 @@
                     d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
                   ></path>
                 </svg>
-                <div class="text-center">
-                  <span x-show="searchQuery"
-                    >No users found matching your search.</span
-                  >
-                  <span x-show="!searchQuery">No users available.</span>
-                </div>
+                <p class="text-center" x-text="emptyStateMessage"></p>
               </div>
             </td>
           </tr>
@@ -311,12 +306,15 @@
                   <!-- Detail Button -->
                   <button
                     type="button"
-                    @click="openUserDetailDrawer(user)"
+                    @click="openUserDetails(user.id)"
+                    :disabled="isDetailLoadingFor(user.id)"
+                    :aria-busy="isDetailLoadingFor(user.id)"
                     :aria-label="`Lihat detail pengguna ${user.fullName}`"
-                    class="focus:ring-brand-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors hover:bg-blue-200 focus:ring-2 focus:outline-none dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50"
+                    class="focus:ring-brand-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors hover:bg-blue-200 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50"
                     title="Detail Pengguna"
                   >
                     <svg
+                      x-show="!isDetailLoadingFor(user.id)"
                       class="h-4 w-4"
                       fill="none"
                       stroke="currentColor"
@@ -334,6 +332,27 @@
                         stroke-linejoin="round"
                         stroke-width="2"
                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      ></path>
+                    </svg>
+                    <svg
+                      x-show="isDetailLoadingFor(user.id)"
+                      class="h-4 w-4 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="9"
+                        stroke="currentColor"
+                        stroke-width="3"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M12 3a9 9 0 00-9 9h3a6 6 0 016-6V3z"
                       ></path>
                     </svg>
                   </button>
@@ -420,9 +439,8 @@
               :disabled="isLoading"
               class="focus:ring-brand-500 focus:border-brand-500 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             >
-              <option value="5">5</option>
               <option value="10">10</option>
-              <option value="25">25</option>
+              <option value="20">20</option>
               <option value="50">50</option>
               <option value="100">100</option>
             </select>
@@ -452,7 +470,7 @@
           <template x-for="pageNum in getPageNumbers()" :key="pageNum">
             <button
               @click="goToPage(pageNum)"
-              :disabled="isLoading"
+              :disabled="isLoading || pageNum === currentPage"
               :class="pageNum === currentPage ? 'bg-brand-500 text-white border-brand-500' : 'bg-white dark:bg-white/[0.03] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/[0.05]'"
               class="rounded-lg border px-4 py-2 text-sm font-medium"
               x-text="pageNum"

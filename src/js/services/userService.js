@@ -17,25 +17,62 @@ import { authRequest } from "./authRequest.js";
  * @param {string} params.search - Kata kunci pencarian
  * @param {string} params.sortBy - Field untuk sorting
  * @param {string} params.sortOrder - Urutan sorting (ASC/DESC)
- * @returns {Promise<Array>} - Promise yang resolve dengan array pengguna atau reject dengan error
+ * @returns {Promise<{data: Array, pagination: Object|null, message: string}>} - Promise yang resolve dengan envelope pengguna atau reject dengan error
  */
+export function buildUserListUrl(baseUrl, origin, params = {}) {
+  const url = new URL(`${baseUrl}/users`, origin);
+  const orderedKeys = [
+    "page",
+    "limit",
+    "search",
+    "role",
+    "program",
+    "division",
+    "position",
+    "location_status",
+    "sortBy",
+    "sortOrder",
+  ];
+
+  for (const key of orderedKeys) {
+    const rawValue = params[key];
+    const value = typeof rawValue === "string" ? rawValue.trim() : rawValue;
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.append(key, String(value));
+    }
+  }
+  return url;
+}
+
+export function normalizeUserListResponse(payload) {
+  if (!payload || payload.success !== true || !Array.isArray(payload.data)) {
+    throw new Error(payload?.message || "Respons daftar pengguna tidak valid.");
+  }
+  if (payload.pagination !== undefined) {
+    const pagination = payload.pagination;
+    const valid =
+      Number.isInteger(pagination?.page) &&
+      Number.isInteger(pagination?.limit) &&
+      Number.isInteger(pagination?.total) &&
+      Number.isInteger(pagination?.totalPages);
+    if (!valid) throw new Error("Pagination pengguna tidak valid.");
+  }
+  return {
+    data: payload.data,
+    pagination: payload.pagination || null,
+    message: payload.message || "",
+  };
+}
+
 async function getUsers(params = {}) {
   try {
     envLog("debug", "Fetching users with params:", params);
 
-    // Bangun URL dengan query parameters
-    const url = new URL(`${API_CONFIG.BASE_URL}/users`, window.location.origin);
-
-    // Tambahkan parameter query jika ada
-    if (params.search) {
-      url.searchParams.append("search", params.search);
-    }
-    if (params.sortBy) {
-      url.searchParams.append("sortBy", params.sortBy);
-    }
-    if (params.sortOrder) {
-      url.searchParams.append("sortOrder", params.sortOrder);
-    }
+    const url = buildUserListUrl(
+      API_CONFIG.BASE_URL,
+      window.location.origin,
+      params,
+    );
 
     envLog("debug", "Requesting users from URL:", url.toString());
 
@@ -45,17 +82,9 @@ async function getUsers(params = {}) {
       url: url.toString(),
     });
 
-    // Periksa response dari backend
-    if (response.data && response.data.success === true) {
-      const users = response.data.data;
-      envLog("debug", "Successfully fetched users:", users);
-      return users;
-    } else {
-      // Jika backend mengembalikan success: false
-      const errorMessage =
-        response.data.message || "Gagal mengambil data pengguna";
-      throw new Error(errorMessage);
-    }
+    const userListResponse = normalizeUserListResponse(response.data);
+    envLog("debug", "Successfully fetched users:", userListResponse.data);
+    return userListResponse;
   } catch (error) {
     envLog("error", "Error fetching users:", error);
 
@@ -269,7 +298,7 @@ async function checkEmailAvailability(email, excludeUserId = null) {
     envLog("debug", "Checking email availability:", email);
 
     // Get all users and check if email exists
-    const users = await getUsers();
+    const { data: users } = await getUsers();
     const existingUser = users.find(
       (user) =>
         user.email.toLowerCase() === email.toLowerCase() &&
@@ -294,7 +323,7 @@ async function checkNipNimAvailability(nipNim, excludeUserId = null) {
     envLog("debug", "Checking NIP/NIM availability:", nipNim);
 
     // Get all users and check if NIP/NIM exists
-    const users = await getUsers();
+    const { data: users } = await getUsers();
     const existingUser = users.find(
       (user) =>
         (user.nip_nim || user.nipNim) === nipNim &&

@@ -138,6 +138,44 @@ test("only the newest request may update directory state", async () => {
   assert.equal(data.isLoading, false);
 });
 
+test("a stale rejected request cannot overwrite the newest directory state", async () => {
+  const pending = [];
+  const errors = [];
+  const data = userListAlpineData({
+    browser: null,
+    getUsers: () =>
+      new Promise((resolve, reject) => pending.push({ resolve, reject })),
+  });
+  data.showErrorModal = (message) => errors.push(message);
+
+  const first = data.fetchUsers();
+  const second = data.fetchUsers();
+  pending[1].resolve(
+    paginatedResult({
+      data: [{ id: 2 }],
+      pagination: { page: 2, limit: 10, total: 21, totalPages: 3 },
+    }),
+  );
+  await second;
+  pending[0].reject(new Error("stale page failed"));
+  await first;
+
+  assert.deepEqual(
+    data.users.map((user) => user.id),
+    [2],
+  );
+  assert.deepEqual(data.pagination, {
+    page: 2,
+    limit: 10,
+    total: 21,
+    totalPages: 3,
+  });
+  assert.equal(data.currentPage, 2);
+  assert.equal(data.errorMessage, "");
+  assert.equal(data.isLoading, false);
+  assert.deepEqual(errors, []);
+});
+
 test("a current request failure retains the previous successful rows", async (t) => {
   t.mock.method(console, "error", () => {});
   const data = userListAlpineData({
@@ -488,9 +526,10 @@ test("unsupported sort keys write no history and make no request", async () => {
 
 test("deleting the last row on a trailing page refetches the last valid page", async () => {
   const requestedPages = [];
+  const browser = createBrowser("?page=3");
   let call = 0;
   const data = userListAlpineData({
-    browser: null,
+    browser,
     deleteUser: async () => {},
     getUsers: async (params) => {
       requestedPages.push(params.page);
@@ -519,6 +558,9 @@ test("deleting the last row on a trailing page refetches the last valid page", a
     data.users.map((user) => user.id),
     [20],
   );
+  assert.deepEqual(browser.calls, [
+    ["replace", "/management-user.html?page=2"],
+  ]);
 });
 
 test("deleting the final directory row stays on page one", async () => {
@@ -605,6 +647,54 @@ test("confirmDeleteUser leaves rows server-authored across a failed delayed refr
   });
   assert.deepEqual(errors, ["refresh unavailable"]);
   assert.deepEqual(successes, []);
+});
+
+test("a failed trailing-page recovery shows no delete success", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const requestedPages = [];
+  const errors = [];
+  const successes = [];
+  const browser = createBrowser("?page=3");
+  let call = 0;
+  const data = userListAlpineData({
+    browser,
+    deleteUser: async () => {},
+    getUsers: async (params) => {
+      requestedPages.push(params.page);
+      call += 1;
+      if (call === 1) {
+        return paginatedResult({
+          data: [],
+          pagination: { page: 3, limit: 10, total: 20, totalPages: 2 },
+        });
+      }
+      throw new Error("page 2 unavailable");
+    },
+  });
+  data.currentPage = 3;
+  data.users = [{ id: 21, fullName: "Trailing User" }];
+  data.userToDelete = data.users[0];
+  data.showErrorModal = (message) => errors.push(message);
+  data.showSuccessModal = (message) => successes.push(message);
+
+  await data.confirmDeleteUser();
+
+  assert.deepEqual(requestedPages, [3, 2]);
+  assert.equal(data.currentPage, 2);
+  assert.deepEqual(data.users, []);
+  assert.deepEqual(data.pagination, {
+    page: 3,
+    limit: 10,
+    total: 20,
+    totalPages: 2,
+  });
+  assert.equal(data.errorMessage, "page 2 unavailable");
+  assert.equal(data.isLoading, false);
+  assert.deepEqual(errors, ["page 2 unavailable"]);
+  assert.deepEqual(successes, []);
+  assert.deepEqual(browser.calls, [
+    ["replace", "/management-user.html?page=2"],
+  ]);
 });
 
 test("destroy cancels pending search and removes the popstate listener", async () => {

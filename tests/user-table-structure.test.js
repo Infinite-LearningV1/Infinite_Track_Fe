@@ -121,6 +121,43 @@ test("the Show entries selector moved out of the header band into the pagination
   );
 });
 
+test("the table renders the server page directly without client pagination", () => {
+  assert.match(table, /x-for="user in users"/);
+  assert.doesNotMatch(table, /paginatedUsers/);
+  assert.doesNotMatch(table, /filteredUsers/);
+});
+
+test("only truthful backend-supported visible columns are sortable", () => {
+  assert.match(table, /@click="toggleSort\('full_name'\)"/);
+  assert.match(table, /@click="toggleSort\('nip_nim'\)"/);
+  assert.match(table, /:aria-sort="sortAriaValue\('full_name'\)"/);
+  assert.match(table, /:aria-sort="sortAriaValue\('nip_nim'\)"/);
+  assert.doesNotMatch(table, /toggleSort\('role'\)/);
+  assert.doesNotMatch(table, /toggleSort\('division'\)/);
+  assert.doesNotMatch(table, /toggleSort\('location_status'\)/);
+});
+
+test("pagination uses server-derived display data and loading-safe controls", () => {
+  assert.match(table, /x-text="showingInfo"/);
+  assert.match(table, /x-for="pageNum in getPageNumbers\(\)"/);
+  assert.match(
+    table,
+    /x-model="entriesPerPage"[\s\S]{0,200}:disabled="isLoading"/,
+  );
+  assert.match(
+    table,
+    /@click="toggleSort\('full_name'\)"[\s\S]{0,200}:disabled="isLoading"/,
+  );
+  assert.match(
+    table,
+    /@click="toggleSort\('nip_nim'\)"[\s\S]{0,200}:disabled="isLoading"/,
+  );
+  assert.match(
+    table,
+    /@click="goToPage\(pageNum\)"[\s\S]{0,200}:disabled="isLoading"/,
+  );
+});
+
 test("the Akses badge binds roleBadgeClass(user.role) while keeping the role text visible", () => {
   assert.match(table, /:class="roleBadgeClass\(user\.role\)"/);
   assert.match(table, /x-text="user\.role \|\| '-'"/);

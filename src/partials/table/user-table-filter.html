@@ -50,18 +50,18 @@
           class="focus:ring-brand-500 focus:border-brand-500 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
         >
           <option value="">Semua</option>
-          <template x-for="role in availableRoles" :key="role">
-            <option :value="role" x-text="role"></option>
+          <template x-for="role in availableRoles" :key="role.id">
+            <option :value="String(role.id)" x-text="role.name"></option>
           </template>
         </select>
       </div>
 
-      <!-- Divisi / Program -->
+      <!-- Divisi -->
       <div>
         <label
           for="userTableFilterDivision"
           class="text-theme-xs mb-1.5 block font-medium text-gray-700 dark:text-gray-300"
-          >Divisi / Program</label
+          >Divisi</label
         >
         <select
           id="userTableFilterDivision"
@@ -71,7 +71,10 @@
         >
           <option value="">Semua</option>
           <template x-for="division in availableDivisions" :key="division.id">
-            <option :value="division.name" x-text="division.name"></option>
+            <option
+              :value="String(division.id)"
+              x-text="division.name"
+            ></option>
           </template>
         </select>
       </div>
@@ -89,8 +92,8 @@
           class="focus:ring-brand-500 focus:border-brand-500 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
         >
           <option value="">Semua</option>
-          <option value="Tersedia">Tersedia</option>
-          <option value="Belum diatur">Belum diatur</option>
+          <option value="configured">Tersedia</option>
+          <option value="integrity_error">Perlu diperbaiki</option>
         </select>
       </div>
 

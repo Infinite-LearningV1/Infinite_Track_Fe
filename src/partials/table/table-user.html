@@ -116,23 +116,41 @@
                 </p>
               </div>
             </th>
-            <th class="px-6 py-3 whitespace-nowrap">
-              <div class="flex items-center">
-                <p
-                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >
-                  Pengguna
-                </p>
-              </div>
+            <th
+              class="px-6 py-3 whitespace-nowrap"
+              :aria-sort="sortAriaValue('full_name')"
+            >
+              <button
+                type="button"
+                @click="toggleSort('full_name')"
+                :disabled="isLoading"
+                aria-label="Urutkan berdasarkan nama pengguna"
+                class="text-theme-xs inline-flex items-center gap-1 font-medium text-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400"
+              >
+                <span>Pengguna</span>
+                <span
+                  aria-hidden="true"
+                  x-text="sortIndicator('full_name')"
+                ></span>
+              </button>
             </th>
-            <th class="px-6 py-3 whitespace-nowrap">
-              <div class="flex items-center">
-                <p
-                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >
-                  NIP/NIM
-                </p>
-              </div>
+            <th
+              class="px-6 py-3 whitespace-nowrap"
+              :aria-sort="sortAriaValue('nip_nim')"
+            >
+              <button
+                type="button"
+                @click="toggleSort('nip_nim')"
+                :disabled="isLoading"
+                aria-label="Urutkan berdasarkan NIP atau NIM"
+                class="text-theme-xs inline-flex items-center gap-1 font-medium text-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400"
+              >
+                <span>NIP/NIM</span>
+                <span
+                  aria-hidden="true"
+                  x-text="sortIndicator('nip_nim')"
+                ></span>
+              </button>
             </th>
             <th class="px-6 py-3 whitespace-nowrap">
               <div class="flex items-center">
@@ -176,7 +194,7 @@
         <!-- Table Body -->
         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
           <!-- Empty State -->
-          <tr x-show="!isLoading && paginatedUsers.length === 0">
+          <tr x-show="!isLoading && users.length === 0">
             <td
               colspan="7"
               class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
@@ -206,7 +224,7 @@
           </tr>
 
           <!-- User Rows -->
-          <template x-for="user in paginatedUsers" :key="user.id">
+          <template x-for="user in users" :key="user.id">
             <tr>
               <!-- User ID (owner decision: row checkbox removed as unused) -->
               <td class="px-6 py-3 whitespace-nowrap">
@@ -282,7 +300,7 @@
               <td class="px-6 py-3 whitespace-nowrap">
                 <span
                   class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
-                  :class="wfhStatusFor(user) === 'Tersedia' ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'"
+                  :class="wfhStatusClassFor(user)"
                   x-text="wfhStatusFor(user)"
                 ></span>
               </td>
@@ -373,7 +391,7 @@
       <div class="flex flex-1 justify-between sm:hidden">
         <button
           @click="goToPage(currentPage - 1)"
-          :disabled="currentPage <= 1"
+          :disabled="isLoading || currentPage <= 1"
           :class="currentPage > 1 ? 'hover:bg-gray-50 dark:hover:bg-white/[0.03] text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
           class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-700 dark:bg-white/[0.03]"
         >
@@ -381,7 +399,7 @@
         </button>
         <button
           @click="goToPage(currentPage + 1)"
-          :disabled="currentPage >= totalPages"
+          :disabled="isLoading || currentPage >= totalPages"
           :class="currentPage < totalPages ? 'hover:bg-gray-50 dark:hover:bg-white/[0.03] text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
           class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-700 dark:bg-white/[0.03]"
         >
@@ -399,6 +417,7 @@
             <select
               x-model="entriesPerPage"
               @change="onEntriesPerPageChange()"
+              :disabled="isLoading"
               class="focus:ring-brand-500 focus:border-brand-500 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             >
               <option value="5">5</option>
@@ -422,7 +441,7 @@
           <!-- Previous Button -->
           <button
             @click="goToPage(currentPage - 1)"
-            :disabled="currentPage <= 1"
+            :disabled="isLoading || currentPage <= 1"
             :class="currentPage > 1 ? 'hover:bg-gray-50 dark:hover:bg-white/[0.03] text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
             class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-700 dark:bg-white/[0.03]"
           >
@@ -430,12 +449,10 @@
           </button>
 
           <!-- Page Numbers -->
-          <template
-            x-for="pageNum in Array.from({length: Math.min(5, totalPages)}, (_, i) => Math.max(1, currentPage - 2) + i).filter(num => num <= totalPages)"
-            :key="pageNum"
-          >
+          <template x-for="pageNum in getPageNumbers()" :key="pageNum">
             <button
               @click="goToPage(pageNum)"
+              :disabled="isLoading"
               :class="pageNum === currentPage ? 'bg-brand-500 text-white border-brand-500' : 'bg-white dark:bg-white/[0.03] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/[0.05]'"
               class="rounded-lg border px-4 py-2 text-sm font-medium"
               x-text="pageNum"
@@ -445,7 +462,7 @@
           <!-- Next Button -->
           <button
             @click="goToPage(currentPage + 1)"
-            :disabled="currentPage >= totalPages"
+            :disabled="isLoading || currentPage >= totalPages"
             :class="currentPage < totalPages ? 'hover:bg-gray-50 dark:hover:bg-white/[0.03] text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
             class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-700 dark:bg-white/[0.03]"
           >

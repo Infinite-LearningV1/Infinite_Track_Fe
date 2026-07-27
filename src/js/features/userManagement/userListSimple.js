@@ -18,11 +18,6 @@ import {
   toUserDirectoryRequestParams,
   USER_DIRECTORY_SORT_KEYS,
 } from "./userDirectoryQuery.js";
-import {
-  normalizeWfhLocation,
-  resolveWfhStatus,
-} from "./userDetailDrawerLifecycle.js";
-
 function mapDirectoryUser(user) {
   const fullName = user.full_name || user.fullName || "";
   return {
@@ -309,6 +304,16 @@ function userListAlpineData(overrides = {}) {
       this.currentPage = 1;
       this.syncUrl("push");
       await this.fetchUsers();
+    },
+
+    sortAriaValue(key) {
+      if (this.sortBy !== key) return "none";
+      return this.sortOrder === "ASC" ? "ascending" : "descending";
+    },
+
+    sortIndicator(key) {
+      if (this.sortBy !== key) return "↕";
+      return this.sortOrder === "ASC" ? "↑" : "↓";
     } /**
      * Mendapatkan array nomor halaman untuk pagination
      * Logic super fleksibel berdasarkan total data dan entries per page
@@ -394,7 +399,19 @@ function userListAlpineData(overrides = {}) {
      * Coordinates stay out of the table; the drawer owns location detail.
      */
     wfhStatusFor(user) {
-      return resolveWfhStatus(normalizeWfhLocation(user));
+      if (user.locationStatus === "configured") return "Tersedia";
+      if (user.locationStatus === "integrity_error") return "Perlu diperbaiki";
+      return "Status tidak diketahui";
+    },
+
+    wfhStatusClassFor(user) {
+      if (user.locationStatus === "configured") {
+        return "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400";
+      }
+      if (user.locationStatus === "integrity_error") {
+        return "bg-error-50 text-error-700 dark:bg-error-500/15 dark:text-error-400";
+      }
+      return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
     } /**
      * Menangani aksi edit pengguna
      */,

@@ -207,11 +207,11 @@ function userListAlpineData(overrides = {}) {
         this.appliedFilters.division ||
         this.appliedFilters.locationStatus;
 
-      if (hasActiveCriteria) {
-        return "Tidak ada pengguna yang cocok dengan pencarian atau filter aktif.";
-      }
       if (this.pagination.total > 0) {
         return "Halaman ini tidak berisi data pengguna.";
+      }
+      if (hasActiveCriteria) {
+        return "Tidak ada pengguna yang cocok dengan pencarian atau filter aktif.";
       }
       return "Belum ada data pengguna.";
     },

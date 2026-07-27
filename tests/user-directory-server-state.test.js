@@ -893,6 +893,29 @@ test("empty-state copy distinguishes active criteria, an empty page, and an empt
   assert.equal(data.emptyStateMessage, "Belum ada data pengguna.");
 });
 
+test("out-of-range server metadata takes precedence over active search and filters", async () => {
+  const data = userListAlpineData({
+    browser: null,
+    getUsers: async () =>
+      paginatedResult({
+        data: [],
+        pagination: { page: 3, limit: 10, total: 20, totalPages: 2 },
+      }),
+  });
+  data.currentPage = 3;
+  data.searchQuery = "alice";
+  data.appliedFilters.role = "2";
+
+  await data.fetchUsers();
+
+  assert.deepEqual(data.users, []);
+  assert.equal(data.currentPage, 3);
+  assert.equal(
+    data.emptyStateMessage,
+    "Halaman ini tidak berisi data pengguna.",
+  );
+});
+
 test("deleting the last row on a trailing page refetches the last valid page", async () => {
   const requestedPages = [];
   const browser = createBrowser("?page=3");

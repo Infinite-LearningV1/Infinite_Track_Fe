@@ -55,16 +55,26 @@ test("Role, Divisi, and Status Lokasi WFH selects bind their x-model state", () 
   assert.match(filterPartial, /x-model="filterWfhStatus"/);
 });
 
-test("Divisi options bind division.name, not division.id", () => {
-  assert.match(filterPartial, /:value="division\.name"/);
-  assert.doesNotMatch(filterPartial, /:value="division\.id"/);
+test("role and division filters submit stable IDs", () => {
+  assert.match(
+    filterPartial,
+    /x-for="role in availableRoles"[\s\S]*:value="String\(role\.id\)"/,
+  );
+  assert.match(
+    filterPartial,
+    /x-for="division in availableDivisions"[\s\S]*:value="String\(division\.id\)"/,
+  );
 });
 
-test("Status Lokasi WFH exposes exact Tersedia and Belum diatur options", () => {
-  assert.match(filterPartial, /value="Tersedia"/);
-  assert.match(filterPartial, />Tersedia</);
-  assert.match(filterPartial, /value="Belum diatur"/);
-  assert.match(filterPartial, />Belum diatur</);
+test("the organization filter truthfully says Divisi", () => {
+  assert.match(filterPartial, />Divisi</);
+  assert.doesNotMatch(filterPartial, /Divisi\s*\/\s*Program/);
+});
+
+test("WFH filter uses canonical backend keys", () => {
+  assert.match(filterPartial, /value="configured">Tersedia/);
+  assert.match(filterPartial, /value="integrity_error">Perlu diperbaiki/);
+  assert.doesNotMatch(filterPartial, /value="Belum diatur"/);
 });
 
 test("footer buttons wire Reset to resetFilters() and Apply to applyFilters()", () => {
@@ -82,7 +92,7 @@ test("Role, Divisi, and Status Lokasi WFH selects each have a visible label", ()
   assert.match(filterPartial, /for="userTableFilterRole"[\s\S]{0,200}>Role</);
   assert.match(
     filterPartial,
-    /for="userTableFilterDivision"[\s\S]{0,200}>Divisi \/ Program</,
+    /for="userTableFilterDivision"[\s\S]{0,200}>Divisi</,
   );
   assert.match(
     filterPartial,
@@ -94,9 +104,40 @@ test("availableRoles feeds the Role select via x-for", () => {
   assert.match(filterPartial, /x-for="role in availableRoles"/);
 });
 
-test("availableDivisions feeds the Divisi select via x-for and is disabled when empty", () => {
+test("reference controls expose loading and failure instead of silently appearing empty", () => {
+  assert.match(
+    filterPartial,
+    /id="userTableFilterRole"[\s\S]{0,250}:disabled="roleOptionsLoading \|\| roleOptionsError"/,
+  );
   assert.match(filterPartial, /x-for="division in availableDivisions"/);
-  assert.match(filterPartial, /:disabled="availableDivisions\.length === 0"/);
+  assert.match(
+    filterPartial,
+    /id="userTableFilterDivision"[\s\S]{0,250}:disabled="divisionOptionsLoading \|\| divisionOptionsError"/,
+  );
+  assert.match(filterPartial, /x-show="roleOptionsLoading"/);
+  assert.match(filterPartial, /x-show="roleOptionsError"/);
+  assert.match(filterPartial, /x-show="divisionOptionsLoading"/);
+  assert.match(filterPartial, /x-show="divisionOptionsError"/);
+  assert.doesNotMatch(
+    filterPartial,
+    /:disabled="availableDivisions\.length === 0"/,
+  );
+});
+
+test("failed reference data preserves active role and division query indicators", () => {
+  assert.match(
+    filterPartial,
+    /x-if="roleOptionsError && filterRole"[\s\S]*:value="filterRole"/,
+  );
+  assert.match(
+    filterPartial,
+    /x-if="divisionOptionsError && filterDivision"[\s\S]*:value="filterDivision"/,
+  );
+  assert.match(filterPartial, /Role ID \$\{filterRole\} \(filter aktif\)/);
+  assert.match(
+    filterPartial,
+    /Divisi ID \$\{filterDivision\} \(filter aktif\)/,
+  );
 });
 
 test("popover panel uses the owner-supplied dark mode token pattern", () => {

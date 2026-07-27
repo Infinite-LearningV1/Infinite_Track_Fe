@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { userListAlpineData } from "../src/js/features/userManagement/userListSimple.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const table = readFileSync(
@@ -29,8 +30,8 @@ test("the table never renders raw coordinates", () => {
   assert.doesNotMatch(table, /user\.latitude\s*\+\s*/);
 });
 
-test("the detail control opens the drawer and is labelled for assistive tech", () => {
-  assert.match(table, /openUserDetailDrawer\(user\)/);
+test("the detail control fetches full detail by ID and is labelled for assistive tech", () => {
+  assert.match(table, /openUserDetails\(user\.id\)/);
   assert.match(
     table,
     /:aria-label="`Lihat detail pengguna \$\{user\.fullName\}`"/,
@@ -43,7 +44,7 @@ test("the superseded map modal entry point is gone from the table", () => {
 
 test("the feature exposes wfhStatusFor and no longer builds a modal payload", () => {
   assert.match(listSource, /wfhStatusFor\(user\)/);
-  assert.match(listSource, /resolveWfhStatus\(/);
+  assert.match(listSource, /wfhStatusClassFor\(user\)/);
   assert.doesNotMatch(listSource, /openMapDetailModal/);
 });
 
@@ -75,4 +76,26 @@ test("the row mapper coerces coordinates by finiteness, not truthiness", () => {
   );
   assert.match(listSource, /firstFiniteMapNumber\(user\.location\?\.radius\)/);
   assert.match(listSource, /firstFiniteMapNumber.*mapLocationTruth\.js/s);
+});
+
+test("integrity_error is explicit and never rendered as Belum diatur", () => {
+  const data = userListAlpineData();
+  assert.equal(
+    data.wfhStatusFor({ locationStatus: "integrity_error" }),
+    "Perlu diperbaiki",
+  );
+  assert.equal(data.wfhStatusFor({ locationStatus: "configured" }), "Tersedia");
+  assert.equal(
+    data.wfhStatusFor({ locationStatus: "other" }),
+    "Status tidak diketahui",
+  );
+  assert.match(
+    data.wfhStatusClassFor({ locationStatus: "integrity_error" }),
+    /error/,
+  );
+  assert.match(
+    data.wfhStatusClassFor({ locationStatus: "configured" }),
+    /success/,
+  );
+  assert.match(data.wfhStatusClassFor({ locationStatus: "other" }), /gray/);
 });

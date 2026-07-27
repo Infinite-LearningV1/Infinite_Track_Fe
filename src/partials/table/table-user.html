@@ -116,23 +116,41 @@
                 </p>
               </div>
             </th>
-            <th class="px-6 py-3 whitespace-nowrap">
-              <div class="flex items-center">
-                <p
-                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >
-                  Pengguna
-                </p>
-              </div>
+            <th
+              class="px-6 py-3 whitespace-nowrap"
+              :aria-sort="sortAriaValue('full_name')"
+            >
+              <button
+                type="button"
+                @click="toggleSort('full_name')"
+                :disabled="isLoading"
+                aria-label="Urutkan berdasarkan nama pengguna"
+                class="text-theme-xs inline-flex items-center gap-1 font-medium text-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400"
+              >
+                <span>Pengguna</span>
+                <span
+                  aria-hidden="true"
+                  x-text="sortIndicator('full_name')"
+                ></span>
+              </button>
             </th>
-            <th class="px-6 py-3 whitespace-nowrap">
-              <div class="flex items-center">
-                <p
-                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >
-                  NIP/NIM
-                </p>
-              </div>
+            <th
+              class="px-6 py-3 whitespace-nowrap"
+              :aria-sort="sortAriaValue('nip_nim')"
+            >
+              <button
+                type="button"
+                @click="toggleSort('nip_nim')"
+                :disabled="isLoading"
+                aria-label="Urutkan berdasarkan NIP atau NIM"
+                class="text-theme-xs inline-flex items-center gap-1 font-medium text-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400"
+              >
+                <span>NIP/NIM</span>
+                <span
+                  aria-hidden="true"
+                  x-text="sortIndicator('nip_nim')"
+                ></span>
+              </button>
             </th>
             <th class="px-6 py-3 whitespace-nowrap">
               <div class="flex items-center">
@@ -176,7 +194,7 @@
         <!-- Table Body -->
         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
           <!-- Empty State -->
-          <tr x-show="!isLoading && paginatedUsers.length === 0">
+          <tr x-show="!isLoading && users.length === 0">
             <td
               colspan="7"
               class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
@@ -195,18 +213,13 @@
                     d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
                   ></path>
                 </svg>
-                <div class="text-center">
-                  <span x-show="searchQuery"
-                    >No users found matching your search.</span
-                  >
-                  <span x-show="!searchQuery">No users available.</span>
-                </div>
+                <p class="text-center" x-text="emptyStateMessage"></p>
               </div>
             </td>
           </tr>
 
           <!-- User Rows -->
-          <template x-for="user in paginatedUsers" :key="user.id">
+          <template x-for="user in users" :key="user.id">
             <tr>
               <!-- User ID (owner decision: row checkbox removed as unused) -->
               <td class="px-6 py-3 whitespace-nowrap">
@@ -282,7 +295,7 @@
               <td class="px-6 py-3 whitespace-nowrap">
                 <span
                   class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
-                  :class="wfhStatusFor(user) === 'Tersedia' ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'"
+                  :class="wfhStatusClassFor(user)"
                   x-text="wfhStatusFor(user)"
                 ></span>
               </td>
@@ -293,12 +306,15 @@
                   <!-- Detail Button -->
                   <button
                     type="button"
-                    @click="openUserDetailDrawer(user)"
+                    @click="openUserDetails(user.id)"
+                    :disabled="isDetailLoadingFor(user.id)"
+                    :aria-busy="isDetailLoadingFor(user.id)"
                     :aria-label="`Lihat detail pengguna ${user.fullName}`"
-                    class="focus:ring-brand-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors hover:bg-blue-200 focus:ring-2 focus:outline-none dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50"
+                    class="focus:ring-brand-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors hover:bg-blue-200 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50"
                     title="Detail Pengguna"
                   >
                     <svg
+                      x-show="!isDetailLoadingFor(user.id)"
                       class="h-4 w-4"
                       fill="none"
                       stroke="currentColor"
@@ -316,6 +332,27 @@
                         stroke-linejoin="round"
                         stroke-width="2"
                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      ></path>
+                    </svg>
+                    <svg
+                      x-show="isDetailLoadingFor(user.id)"
+                      class="h-4 w-4 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="9"
+                        stroke="currentColor"
+                        stroke-width="3"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M12 3a9 9 0 00-9 9h3a6 6 0 016-6V3z"
                       ></path>
                     </svg>
                   </button>
@@ -373,7 +410,7 @@
       <div class="flex flex-1 justify-between sm:hidden">
         <button
           @click="goToPage(currentPage - 1)"
-          :disabled="currentPage <= 1"
+          :disabled="isLoading || currentPage <= 1"
           :class="currentPage > 1 ? 'hover:bg-gray-50 dark:hover:bg-white/[0.03] text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
           class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-700 dark:bg-white/[0.03]"
         >
@@ -381,7 +418,7 @@
         </button>
         <button
           @click="goToPage(currentPage + 1)"
-          :disabled="currentPage >= totalPages"
+          :disabled="isLoading || currentPage >= totalPages"
           :class="currentPage < totalPages ? 'hover:bg-gray-50 dark:hover:bg-white/[0.03] text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
           class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-700 dark:bg-white/[0.03]"
         >
@@ -399,11 +436,11 @@
             <select
               x-model="entriesPerPage"
               @change="onEntriesPerPageChange()"
+              :disabled="isLoading"
               class="focus:ring-brand-500 focus:border-brand-500 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             >
-              <option value="5">5</option>
               <option value="10">10</option>
-              <option value="25">25</option>
+              <option value="20">20</option>
               <option value="50">50</option>
               <option value="100">100</option>
             </select>
@@ -422,7 +459,7 @@
           <!-- Previous Button -->
           <button
             @click="goToPage(currentPage - 1)"
-            :disabled="currentPage <= 1"
+            :disabled="isLoading || currentPage <= 1"
             :class="currentPage > 1 ? 'hover:bg-gray-50 dark:hover:bg-white/[0.03] text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
             class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-700 dark:bg-white/[0.03]"
           >
@@ -430,12 +467,10 @@
           </button>
 
           <!-- Page Numbers -->
-          <template
-            x-for="pageNum in Array.from({length: Math.min(5, totalPages)}, (_, i) => Math.max(1, currentPage - 2) + i).filter(num => num <= totalPages)"
-            :key="pageNum"
-          >
+          <template x-for="pageNum in getPageNumbers()" :key="pageNum">
             <button
               @click="goToPage(pageNum)"
+              :disabled="isLoading || pageNum === currentPage"
               :class="pageNum === currentPage ? 'bg-brand-500 text-white border-brand-500' : 'bg-white dark:bg-white/[0.03] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/[0.05]'"
               class="rounded-lg border px-4 py-2 text-sm font-medium"
               x-text="pageNum"
@@ -445,7 +480,7 @@
           <!-- Next Button -->
           <button
             @click="goToPage(currentPage + 1)"
-            :disabled="currentPage >= totalPages"
+            :disabled="isLoading || currentPage >= totalPages"
             :class="currentPage < totalPages ? 'hover:bg-gray-50 dark:hover:bg-white/[0.03] text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
             class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-700 dark:bg-white/[0.03]"
           >

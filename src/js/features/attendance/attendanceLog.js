@@ -1,6 +1,6 @@
 /**
- * Attendance Log Feature
- * Mengelola state dan logika untuk halaman log absensi
+ * Attendance audit list state.
+ * The Backend owns row order, pagination, filters, and totals.
  */
 
 import {
@@ -23,6 +23,28 @@ import {
   getInfoBadgeClass,
   getInfoBadgeText,
 } from "../../utils/badgeHelpers.js";
+import {
+  ATTENDANCE_PAGE_SIZES,
+  DEFAULT_ATTENDANCE_QUERY,
+  parseAttendanceDirectoryQuery,
+  serializeAttendanceDirectoryQuery,
+  toAttendanceRequestParams,
+} from "./attendanceDirectoryQuery.js";
+import { normalizeAttendanceListRow } from "./attendanceListRow.js";
+
+const emptyPagination = () => ({
+  current_page: 1,
+  total_pages: 1,
+  total_records: 0,
+  records_per_page: 10,
+  has_prev_page: false,
+  has_next_page: false,
+});
+
+const cloneDefaultQuery = () => ({
+  ...DEFAULT_ATTENDANCE_QUERY,
+  appliedFilters: { ...DEFAULT_ATTENDANCE_QUERY.appliedFilters },
+});
 
 export function normalizeAttendanceListResponse(response = {}) {
   const pagination = response.pagination ?? {};
@@ -42,7 +64,7 @@ export function normalizeAttendanceListResponse(response = {}) {
 
 export function buildAttendanceLocation(attendanceItem = {}) {
   return {
-    fullName: attendanceItem.full_name ?? "",
+    fullName: attendanceItem.fullName ?? attendanceItem.full_name ?? "",
     latitude: firstFiniteMapNumber(
       attendanceItem.location?.latitude,
       attendanceItem.latitude,
@@ -62,148 +84,245 @@ export function buildAttendanceLocation(attendanceItem = {}) {
   };
 }
 
-/**
- * Alpine.js data untuk halaman attendance log
- * @returns {Object} - Alpine.js data object
- */
 export function attendanceLogAlpineData(overrides = {}) {
   const services = {
     getAttendanceLog: overrides.getAttendanceLog || getAttendanceLog,
     deleteAttendance: overrides.deleteAttendance || deleteAttendance,
   };
+  const browser =
+    overrides.browser !== undefined
+      ? overrides.browser
+      : typeof window !== "undefined"
+        ? window
+        : null;
   const schedule = overrides.setTimeout || globalThis.setTimeout;
   const cancelSchedule = overrides.clearTimeout || globalThis.clearTimeout;
 
   return {
-    // State data
-    attendanceData: [],
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      total_records: 0,
-      has_prev_page: false,
-      has_next_page: false,
-      records_per_page: 10,
+    rows: [],
+    pagination: emptyPagination(),
+    appliedQuery: cloneDefaultQuery(),
+    draftFilters: { ...DEFAULT_ATTENDANCE_QUERY.appliedFilters },
+    tableState: {
+      loading: false,
+      error: "",
+      hasSuccessfulPage: false,
     },
-    filters: {
-      search: "",
-      page: 1,
-      limit: 10,
-    },
-    isLoading: true,
-    errorMessage: "",
+    latestListRequestId: 0,
+    searchTimer: null,
+    popstateHandler: null,
 
-    // Search input proxy -> single request state (filters.search)
+    // Transitional template aliases. Canonical state remains the properties
+    // above and is the only state sent to the server.
+    get attendanceData() {
+      return this.rows;
+    },
+    set attendanceData(value) {
+      this.rows = value;
+    },
+    get filters() {
+      return this.appliedQuery;
+    },
+    get searchQuery() {
+      return this.appliedQuery.search;
+    },
+    set searchQuery(value) {
+      this.appliedQuery.search = value ?? "";
+    },
     get searchTerm() {
-      return this.filters.search;
+      return this.searchQuery;
     },
     set searchTerm(value) {
-      this.filters.search = value;
+      this.searchQuery = value;
+    },
+    get isLoading() {
+      return this.tableState.loading;
+    },
+    get errorMessage() {
+      return this.tableState.error;
     },
 
-    // Modal states (legacy)
     isDeleteModalOpen: false,
     deleteConfirmMessage: "",
     deleteTargetId: null,
     isDeleting: false,
 
-    // Debounce timer untuk search
-    searchTimer: null,
-
-    /**
-     * Initialize component
-     */
     async init() {
+      if (browser) {
+        this.applyUrlState({ fetch: false });
+        const current = browser.location.search.replace(/^\?/, "");
+        const canonical = serializeAttendanceDirectoryQuery(
+          this.appliedQuery,
+          new URLSearchParams(browser.location.search),
+        ).toString();
+        if (canonical !== current) this.syncUrl("replace");
+        this.popstateHandler = async () => {
+          await this.applyUrlState();
+        };
+        browser.addEventListener("popstate", this.popstateHandler);
+      }
       await this.fetchAttendance();
     },
 
-    /**
-     * Fetch attendance data dari API
-     */
+    applyParsedQuery(parsed) {
+      this.appliedQuery = {
+        ...parsed,
+        appliedFilters: { ...parsed.appliedFilters },
+      };
+      this.draftFilters = { ...parsed.appliedFilters };
+    },
+
+    async applyUrlState({ fetch = true } = {}) {
+      if (!browser) return false;
+      this.cancelPendingSearch();
+      this.applyParsedQuery(
+        parseAttendanceDirectoryQuery(
+          new URLSearchParams(browser.location.search),
+        ),
+      );
+      if (fetch) return this.fetchAttendance();
+      return true;
+    },
+
+    syncUrl(mode = "none") {
+      if (!browser || mode === "none") return;
+      const query = serializeAttendanceDirectoryQuery(
+        this.appliedQuery,
+        new URLSearchParams(browser.location.search),
+      ).toString();
+      const url = `${browser.location.pathname}${query ? `?${query}` : ""}${browser.location.hash || ""}`;
+      browser.history[`${mode}State`]({}, "", url);
+    },
+
+    destroy() {
+      this.cancelPendingSearch();
+      if (browser && this.popstateHandler) {
+        browser.removeEventListener("popstate", this.popstateHandler);
+        this.popstateHandler = null;
+      }
+    },
+
     async fetchAttendance() {
+      const requestId = ++this.latestListRequestId;
+      this.tableState.loading = true;
+      this.tableState.error = "";
+
       try {
-        this.isLoading = true;
-        this.errorMessage = "";
+        const response = await services.getAttendanceLog(
+          toAttendanceRequestParams(this.appliedQuery),
+        );
+        if (requestId !== this.latestListRequestId) return false;
 
-        const response = await services.getAttendanceLog({ ...this.filters });
-        const normalizedResponse = normalizeAttendanceListResponse(response);
-
-        // Update data dan pagination
-        this.attendanceData = normalizedResponse.data;
-        this.pagination = normalizedResponse.pagination;
-        this.filters.limit = normalizedResponse.pagination.records_per_page;
+        const normalized = normalizeAttendanceListResponse(response);
+        this.rows = normalized.data.map(normalizeAttendanceListRow);
+        this.pagination = normalized.pagination;
+        this.appliedQuery.page = normalized.pagination.current_page;
+        this.appliedQuery.limit = normalized.pagination.records_per_page;
+        this.tableState.hasSuccessfulPage = true;
+        return true;
       } catch (error) {
-        this.errorMessage = error.message || "Gagal memuat data absensi";
+        if (requestId !== this.latestListRequestId) return false;
+        this.tableState.error = error.message || "Gagal memuat data absensi";
         console.error("Error fetching attendance:", error);
-
-        // Tampilkan modal error
-        if (typeof window.showAlertModal === "function") {
-          window.showAlertModal({
+        if (typeof globalThis.window?.showAlertModal === "function") {
+          globalThis.window.showAlertModal({
             type: "danger",
             title: "Gagal Memuat Data Absensi",
-            message: this.errorMessage,
+            message: this.tableState.error,
             buttonText: "OK",
           });
         }
+        return false;
       } finally {
-        this.isLoading = false;
+        if (requestId === this.latestListRequestId) {
+          this.tableState.loading = false;
+        }
       }
     },
 
-    /**
-     * Handle search input dengan debounce
-     */
+    cancelPendingSearch() {
+      if (this.searchTimer === null) return;
+      cancelSchedule(this.searchTimer);
+      this.searchTimer = null;
+    },
+
+    onSearchChange() {
+      this.cancelPendingSearch();
+      let timer = null;
+      timer = schedule(async () => {
+        if (this.searchTimer !== timer) return;
+        this.searchTimer = null;
+        this.appliedQuery.page = 1;
+        this.syncUrl("replace");
+        await this.fetchAttendance();
+      }, 300);
+      this.searchTimer = timer;
+    },
+
     handleSearchInput() {
-      // Clear timer sebelumnya
-      if (this.searchTimer) {
-        cancelSchedule(this.searchTimer);
-      }
-
-      // Set timer baru untuk debounce 500ms
-      this.searchTimer = schedule(() => {
-        this.filters.page = 1; // Reset ke halaman pertama
-        this.fetchAttendance();
-      }, 500);
+      this.onSearchChange();
     },
 
-    /**
-     * Debounced search function untuk x-model
-     */
     debouncedSearch() {
-      this.handleSearchInput();
+      this.cancelPendingSearch();
+      let timer = null;
+      timer = schedule(async () => {
+        if (this.searchTimer !== timer) return;
+        this.searchTimer = null;
+        this.appliedQuery.page = 1;
+        this.syncUrl("replace");
+        await this.fetchAttendance();
+      }, 500);
+      this.searchTimer = timer;
     },
 
-    /**
-     * Change page
-     * @param {number} newPage - Nomor halaman baru
-     */
-    changePage(newPage) {
-      if (newPage >= 1 && newPage <= this.pagination.total_pages) {
-        this.filters.page = newPage;
-        return this.fetchAttendance();
+    async changePage(newPage) {
+      this.cancelPendingSearch();
+      if (
+        this.tableState.loading ||
+        newPage === this.appliedQuery.page ||
+        newPage < 1 ||
+        newPage > this.pagination.total_pages
+      ) {
+        return false;
       }
-    },
-
-    /**
-     * Change entries per page (server-driven)
-     * @param {number|string} newLimit - Jumlah data per halaman
-     */
-    changeLimit(newLimit) {
-      const parsedLimit = Number(newLimit);
-      this.filters.limit =
-        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
-      this.filters.page = 1;
+      this.appliedQuery.page = newPage;
+      this.syncUrl("push");
       return this.fetchAttendance();
     },
 
-    /**
-     * Confirm delete menggunakan alert modal (warning) + OK/Batal
-     * @param {string} attendanceId - ID absensi yang akan dihapus
-     */
+    async changeLimit(newLimit) {
+      this.cancelPendingSearch();
+      const parsed = Number(newLimit);
+      this.appliedQuery.limit = ATTENDANCE_PAGE_SIZES.includes(parsed)
+        ? parsed
+        : DEFAULT_ATTENDANCE_QUERY.limit;
+      this.appliedQuery.page = 1;
+      this.syncUrl("push");
+      return this.fetchAttendance();
+    },
+
+    async applyFilters() {
+      this.cancelPendingSearch();
+      this.appliedQuery.appliedFilters = { ...this.draftFilters };
+      this.appliedQuery.page = 1;
+      this.syncUrl("push");
+      return this.fetchAttendance();
+    },
+
+    async resetFilters() {
+      this.cancelPendingSearch();
+      this.draftFilters = { ...DEFAULT_ATTENDANCE_QUERY.appliedFilters };
+      this.appliedQuery.appliedFilters = { ...this.draftFilters };
+      this.appliedQuery.page = 1;
+      this.syncUrl("push");
+      return this.fetchAttendance();
+    },
+
     confirmDelete(attendanceId) {
       this.deleteTargetId = attendanceId;
-      if (typeof window.showAlertModal === "function") {
-        window.showAlertModal({
+      if (typeof globalThis.window?.showAlertModal === "function") {
+        globalThis.window.showAlertModal({
           type: "warning",
           title: "Konfirmasi Hapus Data",
           message:
@@ -215,114 +334,53 @@ export function attendanceLogAlpineData(overrides = {}) {
       }
     },
 
-    /**
-     * Execute delete attendance (dipanggil via alert confirm OK)
-     */
     async executeDelete() {
       if (!this.deleteTargetId || this.isDeleting) return;
-
       this.isDeleting = true;
-
       try {
         await services.deleteAttendance(this.deleteTargetId);
-
-        // Reset target
         this.deleteTargetId = null;
-
-        // Tampilkan alert inline sukses
-        if (typeof window.showInlineAlert === "function") {
-          window.showInlineAlert({
-            type: "success",
-            title: "Data Absensi Dihapus",
-            message: "Data absensi berhasil dihapus dari sistem.",
-          });
-        }
-
-        // Refresh data
+        globalThis.window?.showInlineAlert?.({
+          type: "success",
+          title: "Data Absensi Dihapus",
+          message: "Data absensi berhasil dihapus dari sistem.",
+        });
         await this.fetchAttendance();
       } catch (error) {
         console.error("Error deleting attendance:", error);
-
-        // Reset target
         this.deleteTargetId = null;
-
-        // Tampilkan alert inline error
-        if (typeof window.showInlineAlert === "function") {
-          window.showInlineAlert({
-            type: "danger",
-            title: "Gagal Menghapus Data",
-            message:
-              error.message || "Terjadi kesalahan saat menghapus data absensi.",
-          });
-        }
+        globalThis.window?.showInlineAlert?.({
+          type: "danger",
+          title: "Gagal Menghapus Data",
+          message:
+            error.message || "Terjadi kesalahan saat menghapus data absensi.",
+        });
       } finally {
         this.isDeleting = false;
       }
     },
 
-    /**
-     * View location detail
-     * @param {Object} attendanceItem - Data attendance item
-     */
     viewLocation(attendanceItem) {
-      if (!this.hasAttendanceCoordinates(attendanceItem)) {
-        return;
-      }
-
-      const locationPayload = buildAttendanceLocation(attendanceItem);
-
-      if (typeof window.openMapDetailModal === "function") {
-        window.openMapDetailModal(locationPayload);
-      }
+      if (!this.hasAttendanceCoordinates(attendanceItem)) return;
+      globalThis.window?.openMapDetailModal?.(
+        buildAttendanceLocation(attendanceItem),
+      );
     },
 
-    /**
-     * Format datetime menggunakan utility function
-     * @param {string} isoString - ISO date string
-     * @returns {string} - Formatted datetime
-     */
-    formatDateTime(isoString) {
-      return formatDateTime(isoString);
-    },
-
-    /**
-     * Get status badge class (using universal badge helper)
-     */
-    getStatusBadgeClass(status) {
-      return getStatusBadgeClass(status);
-    },
-
-    /**
-     * Get status badge text (using universal badge helper)
-     */
-    getStatusBadgeText(status) {
-      return getStatusBadgeText(status);
-    },
-
-    /**
-     * Get information badge class (using universal badge helper)
-     */
-    getInfoBadgeClass(info) {
-      return getInfoBadgeClass(info);
-    },
-
-    /**
-     * Get information badge text (using universal badge helper)
-     */
+    getStatusBadgeClass,
+    getStatusBadgeText,
+    getInfoBadgeClass,
     getInfoBadgeText(info) {
       return info ? getInfoBadgeText(info) : "-";
     },
-
     hasAttendanceCoordinates(log) {
       return hasFiniteCoordinates({
         latitude: firstFiniteMapNumber(log.location?.latitude, log.latitude),
         longitude: firstFiniteMapNumber(log.location?.longitude, log.longitude),
       });
     },
-
-    // Avatar utility functions (imported from utils)
     getInitials,
-    getAvatarColor, // Formatting functions for templates
+    getAvatarColor,
     formatDateTime,
     formatTime,
     formatDate,

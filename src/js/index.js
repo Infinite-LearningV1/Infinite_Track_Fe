@@ -22,7 +22,7 @@ import "./components/calendar-init.js";
 import "./components/image-resize";
 import "./components/modal/modalAlert.js";
 import "./components/modal/deleteModal.js";
-import "./components/modal/mapDetailModal.js";
+import { MapDetailModal } from "./components/modal/mapDetailModal.js";
 import "./components/modal/bookingMapModal.js";
 import "./components/logoutComponent.js";
 import "./utils/storageManager.js";
@@ -92,6 +92,7 @@ window.attendanceManagementPageData = attendanceManagementPageData;
 window.bookingListAlpineData = bookingListAlpineData;
 window.backendOperationalSettingsAlpineData =
   backendOperationalSettingsAlpineData;
+window.attendanceDetailMap = new MapDetailModal("attendanceDetailMapContainer");
 
 // Expose utility functions to window for use in HTML
 window.getUserPhotoUrl = getUserPhotoUrl;

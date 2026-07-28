@@ -32,6 +32,8 @@ import {
   validateAttendanceDateRange,
 } from "./attendanceDirectoryQuery.js";
 import { normalizeAttendanceListRow } from "./attendanceListRow.js";
+import { createAttendanceDetailDrawerLifecycle } from "./attendanceDetailDrawerLifecycle.js";
+import { createFocusTrap } from "../../utils/focusTrap.js";
 
 const emptyPagination = () => ({
   current_page: 1,
@@ -98,6 +100,19 @@ export function attendanceLogAlpineData(overrides = {}) {
         : null;
   const schedule = overrides.setTimeout || globalThis.setTimeout;
   const cancelSchedule = overrides.clearTimeout || globalThis.clearTimeout;
+  const focusTrapFactory = overrides.createFocusTrap || createFocusTrap;
+  const detailLifecycle = createAttendanceDetailDrawerLifecycle({
+    mapAdapter: overrides.mapAdapter || {
+      initialize(location) {
+        globalThis.window?.attendanceDetailMap?.initializeMap(location);
+      },
+      destroy() {
+        globalThis.window?.attendanceDetailMap?.destroyMap();
+      },
+    },
+  });
+  let attendanceDrawerFocusTrap = null;
+  let attendanceDrawerPresentationId = 0;
 
   return {
     rows: [],
@@ -114,6 +129,16 @@ export function attendanceLogAlpineData(overrides = {}) {
     popstateHandler: null,
     isFilterOpen: false,
     filterValidationMessage: "",
+    isAttendanceDetailDrawerOpen: false,
+    selectedAttendanceDetail: detailLifecycle.detail,
+    detailState: {
+      selectedId: null,
+      requestId: 0,
+      loading: false,
+      error: "",
+      unavailable: false,
+      detail: null,
+    },
 
     get searchQuery() {
       return this.appliedQuery.search;
@@ -203,10 +228,73 @@ export function attendanceLogAlpineData(overrides = {}) {
 
     destroy() {
       this.cancelPendingSearch();
+      attendanceDrawerPresentationId += 1;
+      detailLifecycle.close();
+      this.isAttendanceDetailDrawerOpen = false;
+      this.selectedAttendanceDetail = detailLifecycle.detail;
+      attendanceDrawerFocusTrap?.deactivate();
+      attendanceDrawerFocusTrap = null;
       if (browser && this.popstateHandler) {
         browser.removeEventListener("popstate", this.popstateHandler);
         this.popstateHandler = null;
       }
+    },
+
+    openAttendanceDrawerShell() {
+      attendanceDrawerPresentationId += 1;
+      const presentationId = attendanceDrawerPresentationId;
+      detailLifecycle.openShell();
+      this.isAttendanceDetailDrawerOpen = true;
+      this.selectedAttendanceDetail = detailLifecycle.detail;
+
+      const activateFocusTrap = () => {
+        if (
+          presentationId !== attendanceDrawerPresentationId ||
+          !this.isAttendanceDetailDrawerOpen ||
+          attendanceDrawerFocusTrap
+        ) {
+          return;
+        }
+
+        const panel = this.$refs?.attendanceDetailDrawerPanel;
+        if (!panel) return;
+
+        attendanceDrawerFocusTrap = focusTrapFactory(panel);
+        attendanceDrawerFocusTrap.activate();
+      };
+
+      return typeof this.$nextTick === "function"
+        ? this.$nextTick(activateFocusTrap)
+        : activateFocusTrap();
+    },
+
+    replaceAttendanceDrawerDetail(detail) {
+      const presentationId = attendanceDrawerPresentationId;
+      const replaceDetail = () => {
+        if (presentationId !== attendanceDrawerPresentationId) return false;
+        const replaced = detailLifecycle.replace(detail);
+        this.selectedAttendanceDetail = detailLifecycle.detail;
+        return replaced;
+      };
+
+      return typeof this.$nextTick === "function"
+        ? this.$nextTick(replaceDetail)
+        : replaceDetail();
+    },
+
+    closeAttendanceDrawer() {
+      if (!this.isAttendanceDetailDrawerOpen) return;
+
+      attendanceDrawerPresentationId += 1;
+      detailLifecycle.close();
+      this.isAttendanceDetailDrawerOpen = false;
+      this.selectedAttendanceDetail = detailLifecycle.detail;
+      attendanceDrawerFocusTrap?.deactivate();
+      attendanceDrawerFocusTrap = null;
+    },
+
+    handleAttendanceDrawerTab(event) {
+      attendanceDrawerFocusTrap?.handleKeydown(event);
     },
 
     async fetchAttendance() {

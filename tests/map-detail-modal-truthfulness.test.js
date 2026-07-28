@@ -24,6 +24,10 @@ const userDetailDrawer = readFileSync(
   join(root, "src", "partials", "modal", "user-detail-drawer.html"),
   "utf8",
 );
+const attendanceDetailDrawer = readFileSync(
+  join(root, "src", "partials", "modal", "attendance-detail-drawer.html"),
+  "utf8",
+);
 
 test("map location helpers preserve zero coordinates and reject empty values", () => {
   assert.equal(coerceFiniteMapNumber(0), 0);
@@ -99,4 +103,141 @@ test("map detail modal source and templates keep zero coordinates visible", () =
       /!Number\.isFinite\(selectedUserLocation\.latitude\) \|\| !Number\.isFinite\(selectedUserLocation\.longitude\)/,
     );
   }
+});
+
+test("MapDetailModal resolves and passes its own container element to Leaflet", async () => {
+  const originalWindow = globalThis.window;
+  const originalDocument = globalThis.document;
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const container = { id: "attendanceDetailMapContainer" };
+  const mapCalls = [];
+  const timers = [];
+
+  globalThis.window = { screen: {}, devicePixelRatio: 1 };
+  globalThis.document = {
+    documentElement: { style: {} },
+    createElement() {
+      return {
+        style: {},
+        getContext() {
+          return {};
+        },
+        getElementsByTagName() {
+          return [];
+        },
+      };
+    },
+    head: { appendChild() {} },
+    getElementById(id) {
+      assert.equal(id, "attendanceDetailMapContainer");
+      return container;
+    },
+  };
+  globalThis.setTimeout = (callback) => {
+    const timer = { callback, cancelled: false };
+    timers.push(timer);
+    return timer;
+  };
+  globalThis.clearTimeout = (timer) => {
+    timer.cancelled = true;
+  };
+
+  try {
+    const { MapDetailModal } = await import(
+      `../src/js/components/modal/mapDetailModal.js?container-test=${Date.now()}`
+    );
+    const leaflet = {
+      map(target) {
+        mapCalls.push(target);
+        return {
+          removeLayer() {},
+          remove() {},
+          setView() {},
+          invalidateSize() {},
+        };
+      },
+      tileLayer() {
+        return { addTo() {} };
+      },
+      divIcon() {
+        return {};
+      },
+      marker() {
+        return {
+          addTo() {
+            return this;
+          },
+          bindPopup() {},
+          openPopup() {},
+        };
+      },
+    };
+    const modal = new MapDetailModal("attendanceDetailMapContainer", {
+      leaflet,
+      document: globalThis.document,
+    });
+
+    modal.initializeMap({
+      fullName: "Ayu",
+      latitude: 0,
+      longitude: 119.8,
+      radius: null,
+      description: "",
+    });
+    timers[0].callback();
+
+    assert.deepEqual(mapCalls, [container]);
+  } finally {
+    globalThis.window = originalWindow;
+    globalThis.document = originalDocument;
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
+test("MapDetailModal timer cancellation is isolated per instance", async () => {
+  const originalWindow = globalThis.window;
+  const originalDocument = globalThis.document;
+  const originalClearTimeout = globalThis.clearTimeout;
+  globalThis.window = { screen: {}, devicePixelRatio: 1 };
+  globalThis.document = {
+    documentElement: { style: {} },
+    createElement: () => ({
+      style: {},
+      getContext: () => ({}),
+      getElementsByTagName: () => [],
+    }),
+    head: { appendChild() {} },
+  };
+
+  try {
+    const { MapDetailModal } = await import(
+      `../src/js/components/modal/mapDetailModal.js?timer-test=${Date.now()}`
+    );
+    const cancelled = [];
+    globalThis.clearTimeout = (timer) => cancelled.push(timer.owner);
+    const first = new MapDetailModal("first");
+    const second = new MapDetailModal("second");
+    first.pendingInitTimer = { owner: "first" };
+    second.pendingInitTimer = { owner: "second" };
+
+    first.cancelPendingTimers();
+
+    assert.deepEqual(cancelled, ["first"]);
+    assert.deepEqual(second.pendingInitTimer, { owner: "second" });
+  } finally {
+    globalThis.window = originalWindow;
+    globalThis.document = originalDocument;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
+test("attendance detail map styling uses a shared location-map selector", () => {
+  assert.match(modalSource, /\[data-location-map\]/);
+  assert.doesNotMatch(
+    modalSource,
+    /#attendanceDetailMapContainer\s+\.leaflet-control-zoom/,
+  );
+  assert.match(attendanceDetailDrawer, /data-location-map/);
 });

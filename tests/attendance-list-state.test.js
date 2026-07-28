@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { attendanceLogAlpineData } from "../src/js/features/attendance/attendanceLog.js";
 
@@ -15,6 +16,14 @@ const attendancePage = (data = [], pagination = {}) => ({
     ...pagination,
   },
 });
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
 
 test("fetchAttendance sends current server query and keeps server row order", async () => {
   const calls = [];
@@ -75,6 +84,51 @@ test("changeLimit resets to the first page and makes one server request", async 
   assert.deepEqual(calls, [{ search: "", page: 1, limit: 25 }]);
 });
 
+test("changePage returns the request promise and completes one request", async () => {
+  const pending = deferred();
+  const calls = [];
+  const component = attendanceLogAlpineData({
+    getAttendanceLog: (params) => {
+      calls.push(params);
+      return pending.promise;
+    },
+  });
+  component.pagination.total_pages = 5;
+
+  const request = component.changePage(2);
+  pending.resolve(attendancePage([], { current_page: 2 }));
+  await Promise.resolve();
+
+  assert.equal(typeof request?.then, "function");
+  await request;
+
+  assert.equal(component.pagination.current_page, 2);
+  assert.deepEqual(calls, [{ search: "", page: 2, limit: 10 }]);
+});
+
+test("changeLimit returns the request promise and completes one request", async () => {
+  const pending = deferred();
+  const calls = [];
+  const component = attendanceLogAlpineData({
+    getAttendanceLog: (params) => {
+      calls.push(params);
+      return pending.promise;
+    },
+  });
+
+  const request = component.changeLimit(25);
+  pending.resolve(
+    attendancePage([], { current_page: 1, records_per_page: 25 }),
+  );
+  await Promise.resolve();
+
+  assert.equal(typeof request?.then, "function");
+  await request;
+
+  assert.equal(component.pagination.records_per_page, 25);
+  assert.deepEqual(calls, [{ search: "", page: 1, limit: 25 }]);
+});
+
 test("debounced search resets to the first page and makes one server request", async () => {
   const calls = [];
   const scheduled = [];
@@ -100,4 +154,73 @@ test("debounced search resets to the first page and makes one server request", a
 
   assert.equal(component.filters.page, 1);
   assert.deepEqual(calls, [{ search: "employee-42", page: 1, limit: 10 }]);
+});
+
+test("rapid debounced searches cancel the stale timer and request only the latest query", async () => {
+  const calls = [];
+  const timers = [];
+  const component = attendanceLogAlpineData({
+    setTimeout: (callback, delay) => {
+      const timer = { callback, delay, cancelled: false };
+      timers.push(timer);
+      return timer;
+    },
+    clearTimeout: (timer) => {
+      timer.cancelled = true;
+    },
+    getAttendanceLog: async (params) => {
+      calls.push(params);
+      return attendancePage([], { current_page: params.page });
+    },
+  });
+  component.filters.page = 4;
+  component.filters.search = "first";
+  component.debouncedSearch();
+  component.filters.search = "latest";
+  component.debouncedSearch();
+
+  assert.equal(timers.length, 2);
+  assert.equal(timers[0].cancelled, true);
+  assert.equal(timers[1].cancelled, false);
+
+  if (!timers[0].cancelled) await timers[0].callback();
+  await timers[1].callback();
+
+  assert.deepEqual(calls, [{ search: "latest", page: 1, limit: 10 }]);
+});
+
+test("executeDelete uses the injected delete service before refreshing server rows", async () => {
+  const deletedIds = [];
+  const refreshCalls = [];
+  const originalWindow = globalThis.window;
+  globalThis.window = { showInlineAlert: () => {} };
+
+  try {
+    const component = attendanceLogAlpineData({
+      deleteAttendance: async (id) => deletedIds.push(id),
+      getAttendanceLog: async (params) => {
+        refreshCalls.push(params);
+        return attendancePage();
+      },
+    });
+    component.deleteTargetId = 42;
+
+    await component.executeDelete();
+
+    assert.deepEqual(deletedIds, [42]);
+    assert.deepEqual(refreshCalls, [{ search: "", page: 1, limit: 10 }]);
+  } finally {
+    globalThis.window = originalWindow;
+  }
+});
+
+test("attendance table has no calls to removed local sorting APIs", () => {
+  const template = readFileSync(
+    new URL("../src/partials/table/table-attendance.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(template, /changeSort\(/);
+  assert.doesNotMatch(template, /getSortIcon\(/);
+  assert.doesNotMatch(template, /isSortFieldSupported\(/);
 });

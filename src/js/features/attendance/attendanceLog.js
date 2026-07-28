@@ -153,7 +153,7 @@ export function attendanceLogAlpineData(overrides = {}) {
     changePage(newPage) {
       if (newPage >= 1 && newPage <= this.pagination.total_pages) {
         this.filters.page = newPage;
-        this.fetchAttendance();
+        return this.fetchAttendance();
       }
     },
 
@@ -166,7 +166,7 @@ export function attendanceLogAlpineData(overrides = {}) {
       this.filters.limit =
         Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
       this.filters.page = 1;
-      this.fetchAttendance();
+      return this.fetchAttendance();
     },
 
     /**

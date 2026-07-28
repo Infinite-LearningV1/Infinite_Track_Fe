@@ -49,60 +49,22 @@
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
-            <button
-              @click="changeSort('id')"
-              :disabled="!isSortFieldSupported('id')"
-              :class="isSortFieldSupported('id') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>User ID</span>
-              <span x-text="getSortIcon('id')" class="text-primary"></span>
-            </button>
+            User ID
           </th>
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
-            <button
-              @click="changeSort('full_name')"
-              :disabled="!isSortFieldSupported('full_name')"
-              :class="isSortFieldSupported('full_name') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Full Name</span>
-              <span
-                x-text="getSortIcon('full_name')"
-                class="text-primary"
-              ></span>
-            </button>
+            Full Name
           </th>
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
-            <button
-              @click="changeSort('time_in')"
-              :disabled="!isSortFieldSupported('time_in')"
-              :class="isSortFieldSupported('time_in') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Time In</span>
-              <span x-text="getSortIcon('time_in')" class="text-primary"></span>
-            </button>
+            Time In
           </th>
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
-            <button
-              @click="changeSort('time_out')"
-              :disabled="!isSortFieldSupported('time_out')"
-              :class="isSortFieldSupported('time_out') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Time Out</span>
-              <span
-                x-text="getSortIcon('time_out')"
-                class="text-primary"
-              ></span>
-            </button>
+            Time Out
           </th>
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
@@ -117,15 +79,7 @@
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
-            <button
-              @click="changeSort('status')"
-              :disabled="!isSortFieldSupported('status')"
-              :class="isSortFieldSupported('status') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Status</span>
-              <span x-text="getSortIcon('status')" class="text-primary"></span>
-            </button>
+            Status
           </th>
           <th
             class="px-6 py-3 text-center text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"

@@ -2,6 +2,13 @@
 
 This repository is a Web FE admin/dashboard application built as a multi-page HTML + Alpine.js app with Webpack/PostCSS, Tailwind CSS, Axios, and Leaflet. This file is for **code review only**. Codex should act as a **formal GitHub PR reviewer**, not as the primary builder or implementer.
 
+## Authorized implementation exception
+
+For **INF-271 only**, Codex is explicitly authorized to act as the implementation
+agent in the isolated `feature/inf-271-wfa-settings-rejection-flow` worktree.
+This exception does not change the review-only role for other issues and does not
+permit direct change work on `develop` or `master`.
+
 ## Branch promotion workflow
 
 This repo uses a branch-promotion model:

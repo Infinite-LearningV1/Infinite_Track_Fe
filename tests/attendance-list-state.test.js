@@ -266,10 +266,13 @@ test("successful delete refreshes authoritative server state", async () => {
 test("failed delete clears submitting state and retains the server list", async () => {
   const initialRows = [{ id_attendance: 42, full_name: "Alpha" }];
   const refreshCalls = [];
+  const errorCalls = [];
   const originalWindow = globalThis.window;
+  const originalConsoleError = console.error;
   globalThis.window = { showInlineAlert: () => {} };
 
   try {
+    console.error = (...args) => errorCalls.push(args);
     const component = attendanceLogAlpineData({
       deleteAttendance: async () => {
         throw new Error("delete failed");
@@ -288,7 +291,9 @@ test("failed delete clears submitting state and retains the server list", async 
     assert.equal(component.isDeleting, false);
     assert.equal(component.attendanceData, initialRows);
     assert.deepEqual(refreshCalls, []);
+    assert.equal(errorCalls.length, 1);
   } finally {
+    console.error = originalConsoleError;
     globalThis.window = originalWindow;
   }
 });

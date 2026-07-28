@@ -40,6 +40,28 @@ export function normalizeAttendanceListResponse(response = {}) {
   };
 }
 
+export function buildAttendanceLocation(attendanceItem = {}) {
+  return {
+    fullName: attendanceItem.full_name ?? "",
+    latitude: firstFiniteMapNumber(
+      attendanceItem.location?.latitude,
+      attendanceItem.latitude,
+    ),
+    longitude: firstFiniteMapNumber(
+      attendanceItem.location?.longitude,
+      attendanceItem.longitude,
+    ),
+    radius: firstFiniteMapNumber(
+      attendanceItem.location?.radius,
+      attendanceItem.radius,
+    ),
+    description:
+      attendanceItem.location?.description ??
+      attendanceItem.location_description ??
+      "",
+  };
+}
+
 /**
  * Alpine.js data untuk halaman attendance log
  * @returns {Object} - Alpine.js data object
@@ -242,38 +264,10 @@ export function attendanceLogAlpineData(overrides = {}) {
         return;
       }
 
-      // Siapkan payload untuk modal peta
-      const locationPayload = {
-        fullName: attendanceItem.full_name || "Unknown User",
-        email: attendanceItem.email || "-",
-        position: attendanceItem.role_name || "-",
-        phoneNumber: attendanceItem.phone_number || "-",
-        latitude: firstFiniteMapNumber(
-          attendanceItem.location?.latitude,
-          attendanceItem.latitude,
-        ),
-        longitude: firstFiniteMapNumber(
-          attendanceItem.location?.longitude,
-          attendanceItem.longitude,
-        ),
-        radius: attendanceItem.location?.radius || attendanceItem.radius || 100, // Default radius 100m
-        description:
-          attendanceItem.location?.description ||
-          attendanceItem.location_description ||
-          "Lokasi absensi karyawan",
-      };
+      const locationPayload = buildAttendanceLocation(attendanceItem);
 
-      // Call global function untuk membuka modal peta
       if (typeof window.openMapDetailModal === "function") {
         window.openMapDetailModal(locationPayload);
-      } else {
-        console.warn("openMapDetailModal function not found");
-        // Fallback: tampilkan koordinat dalam alert
-        if (hasFiniteCoordinates(locationPayload)) {
-          alert(
-            `Koordinat: ${locationPayload.latitude}, ${locationPayload.longitude}`,
-          );
-        }
       }
     },
 

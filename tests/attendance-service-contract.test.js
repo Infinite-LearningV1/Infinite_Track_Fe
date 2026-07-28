@@ -99,6 +99,20 @@ test("getAttendanceById accepts attendance ID 0", async () => {
   assert.strictEqual(result, responseData);
 });
 
+test('getAttendanceById accepts attendance ID string "0"', async () => {
+  let requestConfig;
+  const responseData = { id_attendance: "0", full_name: "Ayu Lestari" };
+
+  const result = await getAttendanceById("0", async (config) => {
+    requestConfig = config;
+    return { data: responseData };
+  });
+
+  assert.equal(requestConfig.url, "/api/attendance/0");
+  assert.equal(requestConfig.method, "get");
+  assert.strictEqual(result, responseData);
+});
+
 for (const missingId of [undefined, null, "", "   "]) {
   test(`getAttendanceById rejects missing ID ${String(missingId)} before requesting`, async () => {
     let requestCount = 0;
@@ -183,4 +197,21 @@ test("list and delete calls retain Backend validation metadata", async (t) => {
     assert.equal(error.code, "E_VALIDATION");
     return true;
   });
+});
+
+test("deleteAttendance preserves the successful request and response contract", async () => {
+  let requestConfig;
+  const responseData = {
+    success: true,
+    message: "Data absensi berhasil dihapus",
+  };
+
+  const result = await deleteAttendance(42, async (config) => {
+    requestConfig = config;
+    return { data: responseData };
+  });
+
+  assert.equal(requestConfig.url, "/api/attendance/42");
+  assert.equal(requestConfig.method, "delete");
+  assert.strictEqual(result, responseData);
 });

@@ -8,6 +8,10 @@ import {
   updateBookingStatus,
   deleteBooking,
 } from "../../services/bookingService.js";
+import {
+  extractBookingCollection,
+  normalizeBooking,
+} from "./bookingList.contract.js";
 import { formatDateTime, formatDate } from "../../utils/dateTimeFormatter.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import {
@@ -142,39 +146,9 @@ export function bookingListAlpineData() {
 
         const response = await getBookings(this.filters);
 
-        // Handle different API response structures
-        const bookingsData = response.data?.bookings || response.bookings || [];
-        const paginationData =
-          response.data?.pagination || response.pagination || {};
-
-        // Map API response to expected template format
-        this.bookings = bookingsData.map((booking) => ({
-          // Map API fields to template expected fields
-          id: booking.booking_id || booking.id,
-          employee_name: booking.user_full_name || booking.employee_name,
-          employee_id: booking.user_nip_nim || booking.employee_id,
-          employee_email: booking.user_email || booking.employee_email,
-          employee_position:
-            booking.user_position_name || booking.employee_position,
-          employee_role: booking.user_role_name || booking.employee_role,
-          start_date: booking.schedule_date || booking.start_date,
-          end_date: booking.schedule_date || booking.end_date, // Same as start for single day booking
-          schedule_date: booking.schedule_date,
-          status: booking.status,
-          location_name:
-            booking.location?.description || booking.location_name || "N/A",
-          location_latitude: booking.location?.latitude || booking.latitude,
-          location_longitude: booking.location?.longitude || booking.longitude,
-          location_radius: booking.location?.radius || booking.radius || 100,
-          notes: booking.notes || booking.note || "",
-          created_at: booking.created_at,
-          processed_at: booking.processed_at,
-          approved_by: booking.approved_by,
-          suitability_score: booking.suitability_score,
-          suitability_label: booking.suitability_label,
-          // Keep original data for reference
-          original: booking,
-        }));
+        const { bookings: bookingsData, pagination: paginationData } =
+          extractBookingCollection(response);
+        this.bookings = bookingsData.map(normalizeBooking);
 
         // Handle pagination with fallbacks
         this.pagination = {
@@ -358,7 +332,7 @@ export function bookingListAlpineData() {
           booking.location_name || booking.notes || "Lokasi booking WFA",
         latitude: booking.location_latitude,
         longitude: booking.location_longitude,
-        radius: booking.location_radius || 100, // Default radius 100m
+        radius: booking.radiusSnapshot,
 
         // Complete booking data for modal
         id: booking.id,
@@ -436,7 +410,7 @@ export function bookingListAlpineData() {
         phoneNumber: "",
         latitude: location.latitude,
         longitude: location.longitude,
-        radius: location.radius || 100,
+        radius: location.radius ?? null,
         description: location.description || "",
       };
 

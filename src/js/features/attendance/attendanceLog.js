@@ -20,6 +20,22 @@ import {
   getInfoBadgeText,
 } from "../../utils/badgeHelpers.js";
 
+export function normalizeAttendanceListResponse(response = {}) {
+  const pagination = response.pagination ?? {};
+  return {
+    data: Array.isArray(response.data) ? response.data : [],
+    pagination: {
+      current_page: pagination.current_page ?? 1,
+      total_pages: pagination.total_pages ?? 1,
+      total_records: pagination.total_records ?? 0,
+      records_per_page:
+        pagination.records_per_page ?? pagination.per_page ?? 10,
+      has_prev_page: pagination.has_prev_page ?? false,
+      has_next_page: pagination.has_next_page ?? false,
+    },
+  };
+}
+
 /**
  * Alpine.js data untuk halaman attendance log
  * @returns {Object} - Alpine.js data object
@@ -34,7 +50,7 @@ export function attendanceLogAlpineData() {
       total_records: 0,
       has_prev_page: false,
       has_next_page: false,
-      per_page: 10,
+      records_per_page: 10,
     },
     filters: {
       search: "",
@@ -81,21 +97,12 @@ export function attendanceLogAlpineData() {
         this.errorMessage = "";
 
         const response = await getAttendanceLog(this.filters);
+        const normalizedResponse = normalizeAttendanceListResponse(response);
 
         // Update data dan pagination
-        this.attendanceData = response.data || [];
-        this.pagination = {
-          current_page: response.pagination?.current_page || 1,
-          total_pages: response.pagination?.total_pages || 1,
-          total_records: response.pagination?.total_records || 0,
-          has_prev_page: response.pagination?.has_prev_page || false,
-          has_next_page: response.pagination?.has_next_page || false,
-          per_page: response.pagination?.per_page || 10,
-        };
-
-        if (response.pagination?.per_page) {
-          this.filters.limit = response.pagination.per_page;
-        }
+        this.attendanceData = normalizedResponse.data;
+        this.pagination = normalizedResponse.pagination;
+        this.filters.limit = normalizedResponse.pagination.records_per_page;
       } catch (error) {
         this.errorMessage = error.message || "Gagal memuat data absensi";
         console.error("Error fetching attendance:", error);

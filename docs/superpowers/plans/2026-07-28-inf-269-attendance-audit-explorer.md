@@ -12,11 +12,15 @@
 
 - Start only after the INF-268 plan is implemented and verified.
 - Create `feature/inf-269-attendance-audit-explorer` from the verified `feature/inf-268-attendance-truthfulness` HEAD in its own isolated worktree.
-- Scope is Web FE only. INF-267 is external: contract fixtures may prove serialization/normalization, but runtime search/filter/sort/detail remains `Needs Verification` until the compatible Backend exists.
+- Scope is Web FE only. INF-267 is external: contract fixtures may prove enabled request serialization/normalization, but runtime search/filter/detail remains `Needs Verification` until the compatible Backend exists.
 - Do not locally filter, sort, slice, synthesize totals, widen a list row into detail, or invent location/profile data.
-- Canonical public query keys are `page`, `limit`, `search`, `from`, `to`, `mode`, `status`, `checkout_state`, `sortBy`, and `sortOrder`.
+- Enabled public query keys are `page`, `limit`, `search`, `from`, `to`, `mode`, `status`, and `checkout_state`. `sortBy` and `sortOrder` remain future Backend-contract parameters only.
 - Mode values are `WFO`, `WFH`, `WFA`; checkout-state values are `completed`, `open`; status keys must stay aligned with the canonical Attendance badge/Backend contract.
 - Follow TDD task-by-task and make small commits. Required final gates are focused tests, production build, `git diff --check`, scope review, and full-suite comparison to the inherited baseline.
+
+### Execution amendment — 2026-07-28
+
+Final INF-268 review and live INF-267 describe `attendance_date`, `time_in`, `time_out`, `full_name`, `status`, and optional `created_at` as candidate keys, not an authoritative sortable-field allowlist. The visual seven-column redesign, filters, detail, and delete work may proceed against contract fixtures, but sort query parsing, serialization, request mapping, public state, and controls are disabled until INF-267 locks that allowlist. Preserve `sortBy` and `sortOrder` only as future Backend-contract parameters in the design; they are not currently enabled FE behavior. Sorting is `Needs Verification` / Pending INF-267 rather than a runtime-test target.
 
 ---
 
@@ -67,7 +71,7 @@ Expected: PASS. Stop if the inherited Attendance baseline is not green.
 
 - [ ] **Step 1: Write failing parse, validation, serialization, and request tests**
 
-The test matrix must cover defaults, allowlists, strict dates, preservation of unrelated URL keys, omission of defaults, and snake-case Backend mapping:
+The test matrix must cover defaults, strict dates, preservation of unrelated URL keys, omission of defaults, snake-case Backend mapping, and discarding provisional sort parameters:
 
 ```js
 test("parses the complete canonical query", () => {
@@ -86,6 +90,23 @@ test("parses the complete canonical query", () => {
   });
 });
 
+test("discards provisional sort URL parameters from state and requests", () => {
+  const parsed = parseAttendanceDirectoryQuery(
+    new URLSearchParams("sortBy=attendance_date&sortOrder=ASC"),
+  );
+
+  assert.equal(parsed.sortBy, "");
+  assert.equal(parsed.sortOrder, "");
+  assert.equal(
+    serializeAttendanceDirectoryQuery(parsed, new URLSearchParams()).has(
+      "sortBy",
+    ),
+    false,
+  );
+  assert.equal("sortBy" in toAttendanceRequestParams(parsed), false);
+  assert.equal("sortOrder" in toAttendanceRequestParams(parsed), false);
+});
+
 test("rejects incomplete and reversed date drafts", () => {
   assert.deepEqual(
     validateAttendanceDateRange({ from: "2026-07-02", to: "" }),
@@ -97,7 +118,7 @@ test("rejects incomplete and reversed date drafts", () => {
 });
 ```
 
-Assert `toAttendanceRequestParams()` emits `checkout_state`, never `checkoutState`, and includes allowlisted sort only.
+Assert `toAttendanceRequestParams()` emits `checkout_state`, never `checkoutState`, and omits `sortBy` and `sortOrder`. Provisional or unsupported sort URL parameters must not become serialized state or request parameters.
 
 - [ ] **Step 2: Run and confirm RED**
 
@@ -113,13 +134,7 @@ Export:
 export const ATTENDANCE_PAGE_SIZES = Object.freeze([10, 25, 50, 100]);
 export const ATTENDANCE_MODES = Object.freeze(["WFO", "WFH", "WFA"]);
 export const ATTENDANCE_CHECKOUT_STATES = Object.freeze(["completed", "open"]);
-export const ATTENDANCE_SORT_KEYS = Object.freeze([
-  "attendance_date",
-  "full_name",
-  "time_in",
-  "time_out",
-  "status",
-]);
+export const ATTENDANCE_SORT_KEYS = Object.freeze([]);
 export const DEFAULT_ATTENDANCE_QUERY = Object.freeze({
   page: 1,
   limit: 10,
@@ -131,8 +146,8 @@ export const DEFAULT_ATTENDANCE_QUERY = Object.freeze({
     status: "",
     checkoutState: "",
   }),
-  sortBy: "attendance_date",
-  sortOrder: "DESC",
+  sortBy: "",
+  sortOrder: "",
 });
 export function parseAttendanceDirectoryQuery(searchParams) {}
 export function serializeAttendanceDirectoryQuery(
@@ -143,7 +158,7 @@ export function toAttendanceRequestParams(state) {}
 export function validateAttendanceDateRange(filters) {}
 ```
 
-Use a managed-key list so unrelated query/hash state survives serialization. Invalid URL values fall back safely; invalid draft dates block Apply without mutating applied state. Add an assertion that `DEFAULT_ATTENDANCE_QUERY` has exactly the shape above and that parsing an empty query returns a fresh nested `appliedFilters` object rather than mutating the frozen default.
+Use a managed-key list so unrelated query/hash state survives serialization. Exclude `sortBy` and `sortOrder` from that managed list until INF-267 locks an authoritative allowlist, so provisional sort URL parameters are discarded rather than preserved or serialized. Invalid URL values fall back safely; invalid draft dates block Apply without mutating applied state. Add an assertion that `DEFAULT_ATTENDANCE_QUERY` has exactly the shape above and that parsing an empty query returns a fresh nested `appliedFilters` object rather than mutating the frozen default.
 
 - [ ] **Step 4: Run query tests and confirm GREEN**
 
@@ -170,7 +185,7 @@ git commit -m "feat(attendance): define audit query contract"
 Extract URL construction into a pure export so it is testable without mocking Axios:
 
 ```js
-test("buildAttendanceListUrl serializes every defined public parameter", () => {
+test("buildAttendanceListUrl serializes every enabled public parameter", () => {
   assert.equal(
     buildAttendanceListUrl("http://api.test/api", {
       page: 2,
@@ -181,10 +196,8 @@ test("buildAttendanceListUrl serializes every defined public parameter", () => {
       mode: "WFH",
       status: "late",
       checkout_state: "open",
-      sortBy: "attendance_date",
-      sortOrder: "DESC",
     }),
-    "http://api.test/api/attendance?page=2&limit=25&search=Ayu&from=2026-07-01&to=2026-07-31&mode=WFH&status=late&checkout_state=open&sortBy=attendance_date&sortOrder=DESC",
+    "http://api.test/api/attendance?page=2&limit=25&search=Ayu&from=2026-07-01&to=2026-07-31&mode=WFH&status=late&checkout_state=open",
   );
 });
 ```
@@ -300,7 +313,7 @@ In `tests/attendance-list-row.test.js`, lock the slim INF-267 list fixture above
 }
 ```
 
-The mapper accepts `mode` as the canonical field and `information` only as the documented transition alias. It copies only list fields, uses `firstFiniteMapNumber` for coordinates, and never adds email, notes, radius, description, booking ID, or other detail-only fields. Cover URL hydration, popstate, push/replace semantics, search cancellation before paging/filter/sort/page-size, and keeping the last successful rows visible on a list error.
+The mapper accepts `mode` as the canonical field and `information` only as the documented transition alias. It copies only list fields, uses `firstFiniteMapNumber` for coordinates, and never adds email, notes, radius, description, booking ID, or other detail-only fields. Cover URL hydration, popstate, push/replace semantics, search cancellation before paging/filter/page-size, provisional sort URL discard, and keeping the last successful rows visible on a list error. The state exposes no public sort behavior while the list remains server-authored.
 
 - [ ] **Step 2: Run and confirm RED**
 
@@ -395,7 +408,7 @@ git add src/partials/table/attendance-table-filter.html src/management-attendanc
 git commit -m "feat(attendance): add combined audit filters"
 ```
 
-### Task 5: Redesign the audit table and real server sort controls
+### Task 5: Redesign the audit table without sort controls
 
 **Files:**
 
@@ -404,7 +417,7 @@ git commit -m "feat(attendance): add combined audit filters"
 - Create: `tests/attendance-audit-table.test.js`
 - Modify: `tests/attendance-audit-state.test.js`
 
-- [ ] **Step 1: Write failing seven-column, keyboard, and sort tests**
+- [ ] **Step 1: Write failing seven-column, keyboard, and static-header tests**
 
 Assert the fixed labels and absence of old columns:
 
@@ -424,7 +437,7 @@ assert.doesNotMatch(table, />User ID</);
 assert.doesNotMatch(table, />Koordinat</);
 ```
 
-Assert rows have `tabindex="0"`, Enter/Space handlers, and a visible focus class; action controls call `.stop`. Assert only allowlisted headings call `toggleSort`, with `aria-sort` derived from applied state. Add state tests proving sort resets page, syncs URL, and fetches once. Add an error/retry assertion: after one successful page followed by a failed refresh, the table still renders the previous `rows`, exposes the request error with `role="alert"`, and a `retryAttendanceList()` button refetches the unchanged `appliedQuery`.
+Assert rows have `tabindex="0"`, Enter/Space handlers, and a visible focus class; action controls call `.stop`. Assert all seven headers are static and contain no `toggleSort`, `aria-sort`, or sort-arrow markup. Add a regression test proving there is no decorative sort affordance while INF-267's authoritative allowlist is pending. Add an error/retry assertion: after one successful page followed by a failed refresh, the table still renders the previous `rows`, exposes the request error with `role="alert"`, and a `retryAttendanceList()` button refetches the unchanged `appliedQuery`.
 
 - [ ] **Step 2: Run and confirm RED**
 
@@ -436,7 +449,7 @@ Expected: FAIL on the legacy nine-column table.
 
 Render exactly the seven approved columns from normalized list keys (`idAttendance`, `fullName`, `nipNim`, `roleName`, `attendanceDate`, `timeIn`, `timeOut`, `workHour`, `mode`, `status`, `checkoutState`, `location`). Row click/Enter/Space calls `openAttendanceDetail(log.idAttendance)`. Overflow action menu owns permanent delete and stops propagation.
 
-Implement `toggleSort`, `sortAriaValue`, and `sortIndicator` using `ATTENDANCE_SORT_KEYS`; do not reorder `rows`. Distinguish no records, no match, and out-of-range empty page through a pure `emptyStateMessage` getter. Do not hide the last successful table merely because `tableState.error` is set: render an error/retry banner above the retained rows, and show an error-only state only when no successful page has ever loaded. `retryAttendanceList()` delegates to `fetchAttendance()` without changing query/history.
+Use static headers only; do not implement `toggleSort`, `sortAriaValue`, `sortIndicator`, `aria-sort`, or sort arrows. Do not reorder `rows`. Distinguish no records, no match, and out-of-range empty page through a pure `emptyStateMessage` getter. Do not hide the last successful table merely because `tableState.error` is set: render an error/retry banner above the retained rows, and show an error-only state only when no successful page has ever loaded. `retryAttendanceList()` delegates to `fetchAttendance()` without changing query/history.
 
 - [ ] **Step 4: Run table/state tests**
 
@@ -732,9 +745,9 @@ Expected: only INF-269 Web FE implementation/tests/docs; no Backend or unrelated
 
 - [ ] **Step 6: Runtime verification boundary**
 
-If INF-267-compatible Backend is available, run `npm run start` and verify authenticated desktop and narrow layouts for URL hydration, search, Apply/Clear filters, server sort, pagination, detail race/error, map reopen, delete recovery, popstate, keyboard, and focus. Capture screenshots.
+If INF-267-compatible Backend is available, run `npm run start` and verify authenticated desktop and narrow layouts for URL hydration, search, Apply/Clear filters, pagination, detail race/error, map reopen, delete recovery, popstate, keyboard, and focus. Capture screenshots. Report sorting as `Needs Verification` / Pending INF-267 authoritative allowlist; do not present it as runtime-tested.
 
-If the compatible Backend is unavailable, record these runtime paths as `Needs Verification`; do not use client fixtures or mock success as runtime proof.
+If the compatible Backend is unavailable, record the listed runtime paths as `Needs Verification`; sorting remains `Needs Verification` / Pending INF-267 in either case. Do not use client fixtures or mock success as runtime proof.
 
 - [ ] **Step 7: Commit formatting/evidence-only changes if any**
 

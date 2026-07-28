@@ -31,7 +31,7 @@ The base includes the approved Management Pengguna table/filter/drawer language 
 
 ## External contract boundary
 
-INF-267 remains owned by Backend and is not implemented or modified here. The Web FE adapter targets these public parameters:
+INF-267 remains owned by Backend and is not implemented or modified here. The Web FE adapter's **future Backend contract** targets these public parameters:
 
 ```text
 page
@@ -45,6 +45,12 @@ checkout_state
 sortBy
 sortOrder
 ```
+
+### Execution amendment — 2026-07-28
+
+The INF-267 fields `attendance_date`, `time_in`, `time_out`, `full_name`, `status`, and optional `created_at` are candidate keys, not an authoritative sortable-field allowlist. Therefore `sortBy` and `sortOrder` remain documented above as future Backend-contract parameters, but are not enabled Web FE behavior in this execution.
+
+The approved visual seven-column redesign, combined filters, detail drawer, and permanent-delete recovery may proceed against contract fixtures. Until INF-267 locks an authoritative sort allowlist, the Web FE must disable sort query parsing, URL serialization, request mapping, public state, controls, and decorative sort affordances. Focused tests must prove provisional or unsupported sort URL parameters are discarded rather than becoming state or request parameters. Sorting remains `Needs Verification` / Pending INF-267, even if the compatible Backend is otherwise available.
 
 The expected list response remains the Attendance pagination envelope:
 
@@ -64,7 +70,7 @@ The expected list response remains the Attendance pagination envelope:
 
 Detail is loaded only from `GET /api/attendance/:id`. Permanent deletion remains `DELETE /api/attendance/:id`.
 
-Until INF-267 is available, contract fixtures and focused tests may validate request serialization and response normalization. Runtime filter, sort, and detail evidence must remain `Needs Verification`; no client fallback may simulate missing Backend behavior.
+Until INF-267 is available, contract fixtures and focused tests may validate the enabled request serialization and response normalization. Runtime filter and detail evidence must remain `Needs Verification`; sorting is additionally Pending INF-267's authoritative allowlist. No client fallback may simulate missing Backend behavior.
 
 ## Stage 1: INF-268 truthfulness cleanup
 
@@ -114,11 +120,9 @@ to
 mode
 status
 checkoutState
-sortBy
-sortOrder
 ```
 
-URL parsing and serialization use Backend public names. Search, applied filters, sorting, and page-size changes reset page to 1. Paging, opening detail, and deletion preserve all applied criteria.
+The future Backend contract reserves `sortBy` and `sortOrder`, but they are not present in current FE query state. URL parsing and serialization use only the enabled Backend public names; provisional sort parameters are discarded. Search, applied filters, and page-size changes reset page to 1. Paging, opening detail, and deletion preserve all applied criteria.
 
 List rows and pagination metadata come directly from the Backend response. The browser performs no row filtering, sorting, slicing, total calculation, or detail widening.
 
@@ -161,7 +165,7 @@ Pegawai | Tanggal | Kehadiran | Mode | Status | Lokasi | Aksi
 - **Lokasi:** compact availability or label; never raw coordinates.
 - **Aksi:** shared overflow pattern with permanent delete only.
 
-Only INF-267 allowlisted fields are sortable. Sort controls write request state; arrows reflect applied Backend order. Unsupported columns have no sort affordance.
+All seven headers are static in this execution: no `toggleSort`, `aria-sort`, sort arrows, or other sort affordance is rendered. Sort controls may be designed only after INF-267 locks its authoritative allowlist; candidate response keys are insufficient authorization to invent them.
 
 ### Row interaction and detail drawer
 
@@ -238,7 +242,7 @@ Implementation follows TDD. Focused coverage includes:
 - draft versus applied filter behavior;
 - search debounce and cross-interaction cancellation;
 - server-authored rows and pagination;
-- allowlisted sort state;
+- provisional sort URL parameters discarded from state and requests, with no decorative sort affordance;
 - list and detail stale-response races;
 - realistic slim-list versus full-detail fixtures;
 - table/detail/delete error boundaries;
@@ -269,4 +273,4 @@ The accepted stacked baseline currently has 511 tests: 491 pass and 20 unrelated
 
 INF-268 is complete when its focused tests and build pass and the current page is truthful against the current Backend.
 
-INF-269 code can be complete against the locked contract when focused tests, build, review, and static accessibility/responsive contracts pass. It is not runtime-verified until INF-267 is available and desktop/narrow authenticated evidence confirms search, combined filters, sorting, pagination, detail, map, delete, and history behavior.
+INF-269 code can be complete against the locked enabled contract when focused tests, build, review, and static accessibility/responsive contracts pass. It is not runtime-verified until INF-267 is available and desktop/narrow authenticated evidence confirms search, combined filters, pagination, detail, map, delete, and history behavior. Sorting remains `Needs Verification` / Pending INF-267 until its authoritative allowlist is locked and separately implemented.

@@ -48,3 +48,12 @@ test("booking feature uses explicit approval and opens rejection as separate com
   assert.match(js, /openRejectBooking\(booking\)/);
   assert.doesNotMatch(js, /updateBookingStatus/);
 });
+
+test("booking detail renders WFA request and rejection context without a default radius", async () => {
+  const modal = await source("src/partials/modal/booking-map-modal.html");
+  assert.match(modal, /Alasan pengajuan/);
+  assert.match(modal, /Alasan penolakan/);
+  assert.match(modal, /Radius booking/);
+  assert.match(modal, /Tidak tersedia/);
+  assert.doesNotMatch(modal, /\|\|\s*100/);
+});

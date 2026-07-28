@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  createBookingLocationDetail,
   extractBookingCollection,
   normalizeBooking,
   resolveBookingRadius,
@@ -86,4 +87,43 @@ test("zero coordinates and radius stay valid Backend values", () => {
   assert.equal(booking.location_latitude, 0);
   assert.equal(booking.location_longitude, 0);
   assert.equal(booking.radiusSnapshot, 0);
+});
+
+test("booking detail includes request and rejection context", () => {
+  const detail = createBookingLocationDetail({
+    id: 42,
+    employee_name: "Ayu",
+    employee_id: "EMP-42",
+    status: "rejected",
+    schedule_date: "2026-08-10",
+    location_name: "Client office",
+    location_latitude: -0.9,
+    location_longitude: 119.87,
+    notes: "Project meeting",
+    requestReason: { id: 1, label: "Client meeting" },
+    requestOtherReason: "",
+    rejectionReason: { id: 2, label: "Policy mismatch" },
+    rejectionNote: "Outside policy",
+    radiusSnapshot: 150,
+    processed_at: "2026-08-01T10:00:00Z",
+  });
+
+  assert.equal(detail.requestReasonLabel, "Client meeting");
+  assert.equal(detail.rejectionReasonLabel, "Policy mismatch");
+  assert.equal(detail.radiusSnapshot, 150);
+  assert.equal(detail.rejectionNote, "Outside policy");
+  assert.equal(detail.processedAt, "2026-08-01T10:00:00Z");
+});
+
+test("legacy booking detail renders unavailable fields without invented values", () => {
+  const detail = createBookingLocationDetail({
+    id: 9,
+    employee_name: "Legacy User",
+    radiusSnapshot: null,
+  });
+
+  assert.equal(detail.requestReasonLabel, "");
+  assert.equal(detail.rejectionReasonLabel, "");
+  assert.equal(detail.radiusSnapshot, null);
+  assert.equal(detail.radius, null);
 });

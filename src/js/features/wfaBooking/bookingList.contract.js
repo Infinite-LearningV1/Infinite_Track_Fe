@@ -100,7 +100,33 @@ function normalizeBooking(booking = {}) {
   };
 }
 
+function createBookingLocationDetail(booking = {}) {
+  return {
+    title: `Lokasi Booking - ${booking.employee_name || "Employee"}`,
+    description: booking.location_name || booking.notes || "Lokasi booking WFA",
+    latitude: booking.location_latitude,
+    longitude: booking.location_longitude,
+    radius: booking.radiusSnapshot ?? null,
+    id: booking.id ?? null,
+    employee_name: booking.employee_name ?? "",
+    employee_id: booking.employee_id ?? "",
+    status: booking.status ?? "",
+    start_date: booking.start_date ?? null,
+    end_date: booking.end_date ?? null,
+    schedule_date: booking.schedule_date ?? null,
+    location_name: booking.location_name ?? "",
+    notes: booking.notes || "",
+    requestReasonLabel: booking.requestReason?.label || "",
+    requestOtherReason: booking.requestOtherReason || "",
+    rejectionReasonLabel: booking.rejectionReason?.label || "",
+    rejectionNote: booking.rejectionNote || "",
+    radiusSnapshot: booking.radiusSnapshot ?? null,
+    processedAt: booking.processed_at || null,
+  };
+}
+
 export {
+  createBookingLocationDetail,
   extractBookingCollection,
   normalizeBooking,
   normalizeBookingReason,

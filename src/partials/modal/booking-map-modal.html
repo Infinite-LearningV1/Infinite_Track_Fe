@@ -126,6 +126,72 @@
                 x-text="selectedBookingLocation.notes || '-'"
               ></p>
             </div>
+            <div>
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Alasan pengajuan
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedBookingLocation.requestReasonLabel || 'Tidak tersedia'"
+              ></p>
+            </div>
+            <div x-show="selectedBookingLocation.requestOtherReason">
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Keterangan alasan Lainnya
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedBookingLocation.requestOtherReason"
+              ></p>
+            </div>
+            <div>
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Radius booking
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="Number.isFinite(selectedBookingLocation.radiusSnapshot) ? `${selectedBookingLocation.radiusSnapshot} meter` : 'Tidak tersedia'"
+              ></p>
+            </div>
+            <div x-show="selectedBookingLocation.status === 'rejected'">
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Alasan penolakan
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedBookingLocation.rejectionReasonLabel || 'Tidak tersedia'"
+              ></p>
+            </div>
+            <div x-show="selectedBookingLocation.status === 'rejected'">
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Catatan penolakan
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="selectedBookingLocation.rejectionNote || 'Tidak ada keterangan tambahan'"
+              ></p>
+            </div>
+            <div x-show="selectedBookingLocation.processedAt">
+              <label
+                class="text-sm font-medium text-gray-600 dark:text-gray-400"
+              >
+                Diproses pada
+              </label>
+              <p
+                class="text-base text-gray-900 dark:text-white"
+                x-text="formatDateTime(selectedBookingLocation.processedAt)"
+              ></p>
+            </div>
           </div>
         </div>
 
@@ -192,13 +258,13 @@
             <div
               id="bookingMapContainer"
               class="h-full w-full bg-gray-100 dark:bg-gray-800"
-              x-show="selectedBookingLocation.latitude && selectedBookingLocation.longitude"
+              x-show="Number.isFinite(selectedBookingLocation.latitude) && Number.isFinite(selectedBookingLocation.longitude)"
             >
               <!-- Map will be rendered here -->
             </div>
             <div
               class="flex h-full w-full items-center justify-center bg-gray-100 dark:bg-gray-800"
-              x-show="!selectedBookingLocation.latitude || !selectedBookingLocation.longitude"
+              x-show="!Number.isFinite(selectedBookingLocation.latitude) || !Number.isFinite(selectedBookingLocation.longitude)"
             >
               <div class="text-center">
                 <svg

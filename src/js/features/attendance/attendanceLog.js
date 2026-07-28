@@ -14,6 +14,10 @@ import {
 } from "../../utils/dateTimeFormatter.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import {
+  firstFiniteMapNumber,
+  hasFiniteCoordinates,
+} from "../../utils/mapLocationTruth.js";
+import {
   getStatusBadgeClass,
   getStatusBadgeText,
   getInfoBadgeClass,
@@ -234,15 +238,24 @@ export function attendanceLogAlpineData(overrides = {}) {
      * @param {Object} attendanceItem - Data attendance item
      */
     viewLocation(attendanceItem) {
+      if (!this.hasAttendanceCoordinates(attendanceItem)) {
+        return;
+      }
+
       // Siapkan payload untuk modal peta
       const locationPayload = {
         fullName: attendanceItem.full_name || "Unknown User",
         email: attendanceItem.email || "-",
         position: attendanceItem.role_name || "-",
         phoneNumber: attendanceItem.phone_number || "-",
-        latitude: attendanceItem.location?.latitude || attendanceItem.latitude,
-        longitude:
-          attendanceItem.location?.longitude || attendanceItem.longitude,
+        latitude: firstFiniteMapNumber(
+          attendanceItem.location?.latitude,
+          attendanceItem.latitude,
+        ),
+        longitude: firstFiniteMapNumber(
+          attendanceItem.location?.longitude,
+          attendanceItem.longitude,
+        ),
         radius: attendanceItem.location?.radius || attendanceItem.radius || 100, // Default radius 100m
         description:
           attendanceItem.location?.description ||
@@ -256,7 +269,7 @@ export function attendanceLogAlpineData(overrides = {}) {
       } else {
         console.warn("openMapDetailModal function not found");
         // Fallback: tampilkan koordinat dalam alert
-        if (locationPayload.latitude && locationPayload.longitude) {
+        if (hasFiniteCoordinates(locationPayload)) {
           alert(
             `Koordinat: ${locationPayload.latitude}, ${locationPayload.longitude}`,
           );
@@ -298,7 +311,17 @@ export function attendanceLogAlpineData(overrides = {}) {
      * Get information badge text (using universal badge helper)
      */
     getInfoBadgeText(info) {
-      return getInfoBadgeText(info);
+      return info ? getInfoBadgeText(info) : "-";
+    },
+
+    hasAttendanceCoordinates(log) {
+      return hasFiniteCoordinates({
+        latitude: firstFiniteMapNumber(log.location?.latitude, log.latitude),
+        longitude: firstFiniteMapNumber(
+          log.location?.longitude,
+          log.longitude,
+        ),
+      });
     },
 
     // Avatar utility functions (imported from utils)

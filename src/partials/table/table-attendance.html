@@ -59,6 +59,11 @@
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
+            Attendance Date
+          </th>
+          <th
+            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+          >
             Time In
           </th>
           <th
@@ -84,7 +89,7 @@
           <th
             class="px-6 py-3 text-center text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
           >
-            Information
+            Mode
           </th>
           <th
             class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
@@ -128,6 +133,12 @@
                 </div>
               </div>
             </td>
+            <!-- Attendance Date -->
+            <td
+              class="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-white"
+            >
+              <span x-text="log.attendance_date || '-'"></span>
+            </td>
             <!-- Time In -->
             <td
               class="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-white"
@@ -151,10 +162,10 @@
             <td class="px-6 py-4 text-sm whitespace-nowrap">
               <button
                 @click="viewLocation(log)"
-                :disabled="!log.location?.latitude || !log.location?.longitude"
+                :disabled="!hasAttendanceCoordinates(log)"
                 class="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                :class="log.location?.latitude && log.location?.longitude ? 'text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50' : 'text-gray-400 bg-gray-100 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-500'"
-                title="View Location"
+                :class="hasAttendanceCoordinates(log) ? 'text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50' : 'text-gray-400 bg-gray-100 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-500'"
+                :title="hasAttendanceCoordinates(log) ? 'View Location' : 'Lokasi tidak tersedia'"
               >
                 <svg
                   class="mr-1.5 h-4 w-4"
@@ -175,7 +186,9 @@
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   ></path>
                 </svg>
-                View
+                <span
+                  x-text="hasAttendanceCoordinates(log) ? 'View' : 'Lokasi tidak tersedia'"
+                ></span>
               </button>
             </td>
 
@@ -187,7 +200,7 @@
               ></span>
             </td>
 
-            <!-- Information -->
+            <!-- Mode -->
             <td class="px-6 py-4 text-center whitespace-nowrap">
               <span
                 :class="getInfoBadgeClass(log.information)"
@@ -224,7 +237,7 @@
         <!-- Empty State -->
         <template x-if="attendanceData.length === 0">
           <tr>
-            <td colspan="9" class="px-6 py-12 text-center">
+            <td colspan="10" class="px-6 py-12 text-center">
               <div class="flex flex-col items-center space-y-3">
                 <svg
                   class="h-12 w-12 text-gray-400"

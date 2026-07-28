@@ -17,6 +17,26 @@ test("management Attendance uses the descriptor-preserving page factory", () => 
   assert.doesNotMatch(page, /\.\.\.attendanceLogAlpineData\(\)/);
 });
 
+test("page composes one canonical page-size control and one audit table shell", () => {
+  const page = readFileSync(pagePath, "utf8");
+  const table = readFileSync(
+    new URL("../src/partials/table/table-attendance.html", import.meta.url),
+    "utf8",
+  );
+  const composed = `${page}\n${table}`;
+
+  assert.equal(composed.match(/\bid="attendancePageSize"/g)?.length ?? 0, 1);
+  assert.equal(composed.match(/\bfor="attendancePageSize"/g)?.length ?? 0, 1);
+  assert.equal(
+    composed.match(/\bdata-attendance-audit-shell\b/g)?.length ?? 0,
+    1,
+  );
+  assert.doesNotMatch(
+    page,
+    /<!-- Attendance Table -->\s*<div[^>]+>\s*<include src="\.\/partials\/table\/table-attendance\.html"><\/include>\s*<\/div>/s,
+  );
+});
+
 test("actual page composition keeps canonical Attendance state live", async () => {
   const attendanceModule =
     await import("../src/js/features/attendance/attendanceLog.js");

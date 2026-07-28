@@ -42,6 +42,7 @@
 <!-- Last successful page remains visible during refresh and retry failures -->
 <div
   x-show="tableState.hasSuccessfulPage"
+  data-attendance-audit-shell
   class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-4 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
 >
   <div
@@ -160,8 +161,8 @@
             <tr
               tabindex="0"
               @click="openAttendanceDetail(log.idAttendance)"
-              @keydown.enter.prevent="openAttendanceDetail(log.idAttendance)"
-              @keydown.space.prevent="openAttendanceDetail(log.idAttendance)"
+              @keydown.enter.self.prevent="openAttendanceDetail(log.idAttendance)"
+              @keydown.space.self.prevent="openAttendanceDetail(log.idAttendance)"
               class="hover:bg-brand-50/40 focus:ring-brand-500 dark:hover:bg-brand-500/5 group transition-colors focus:ring-2 focus:outline-none focus:ring-inset"
             >
               <td class="px-6 py-4 whitespace-nowrap">

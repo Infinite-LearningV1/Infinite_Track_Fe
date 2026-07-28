@@ -65,12 +65,13 @@ test("rows are keyboard operable and actions do not open detail", () => {
   assert.match(table, /@click="openAttendanceDetail\(log\.idAttendance\)"/);
   assert.match(
     table,
-    /@keydown\.enter\.prevent="openAttendanceDetail\(log\.idAttendance\)"/,
+    /@keydown\.enter\.self\.prevent="openAttendanceDetail\(log\.idAttendance\)"/,
   );
   assert.match(
     table,
-    /@keydown\.space\.prevent="openAttendanceDetail\(log\.idAttendance\)"/,
+    /@keydown\.space\.self\.prevent="openAttendanceDetail\(log\.idAttendance\)"/,
   );
+  assert.doesNotMatch(table, /@keydown\.(?:enter|space)\.prevent=/);
   assert.match(table, /focus:ring-2/);
   assert.match(table, /@click\.stop="confirmDelete\(log\)[^"]*"/);
   assert.match(table, /aria-label="`Hapus data absensi \$\{log\.fullName/);

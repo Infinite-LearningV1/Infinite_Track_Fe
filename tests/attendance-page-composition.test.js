@@ -28,6 +28,15 @@ test("page composes one canonical page-size control and one audit table shell", 
   assert.equal(composed.match(/\bid="attendancePageSize"/g)?.length ?? 0, 1);
   assert.equal(composed.match(/\bfor="attendancePageSize"/g)?.length ?? 0, 1);
   assert.equal(
+    composed.match(/\bx-model="appliedQuery\.limit"/g)?.length ?? 0,
+    1,
+  );
+  assert.equal(
+    composed.match(/@change="changeLimit\(\$event\.target\.value\)"/g)
+      ?.length ?? 0,
+    1,
+  );
+  assert.equal(
     composed.match(/\bdata-attendance-audit-shell\b/g)?.length ?? 0,
     1,
   );

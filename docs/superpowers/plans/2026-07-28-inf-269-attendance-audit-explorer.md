@@ -20,7 +20,7 @@
 
 ### Execution amendment — 2026-07-28
 
-Final INF-268 review and live INF-267 describe `attendance_date`, `time_in`, `time_out`, `full_name`, `status`, and optional `created_at` as candidate keys, not an authoritative sortable-field allowlist. The visual seven-column redesign, filters, detail, and delete work may proceed against contract fixtures, but sort query parsing, serialization, request mapping, public state, and controls are disabled until INF-267 locks that allowlist. Preserve `sortBy` and `sortOrder` only as future Backend-contract parameters in the design; they are not currently enabled FE behavior. Sorting is `Needs Verification` / Pending INF-267 rather than a runtime-test target.
+Final INF-268 review and live INF-267 describe `attendance_date`, `time_in`, `time_out`, `full_name`, `status`, and optional `created_at` as candidate keys, not an authoritative sortable-field allowlist. The visual seven-column redesign, filters, detail, and delete work may proceed against contract fixtures, but sort query parsing, serialization, request mapping, public state, and controls are disabled until INF-267 locks that allowlist. Preserve `sortBy` and `sortOrder` only as future Backend-contract parameters in the design; they are not currently enabled FE behavior. Current query state and production API contain neither key nor an `ATTENDANCE_SORT_KEYS` export. Treat the legacy URL keys as explicit blocked managed keys: parsing discards them, serialization strips them while preserving genuinely unrelated parameters, and request mapping omits them. Sorting is `Needs Verification` / Pending INF-267 rather than a runtime-test target.
 
 ---
 
@@ -77,7 +77,7 @@ The test matrix must cover defaults, strict dates, preservation of unrelated URL
 test("parses the complete canonical query", () => {
   const parsed = parseAttendanceDirectoryQuery(
     new URLSearchParams(
-      "page=3&limit=25&search=ayu&from=2026-07-01&to=2026-07-31&mode=WFH&status=late&checkout_state=open&sortBy=attendance_date&sortOrder=ASC",
+      "page=3&limit=25&search=ayu&from=2026-07-01&to=2026-07-31&mode=WFH&status=late&checkout_state=open",
     ),
   );
   assert.equal(parsed.page, 3);
@@ -94,15 +94,18 @@ test("discards provisional sort URL parameters from state and requests", () => {
   const parsed = parseAttendanceDirectoryQuery(
     new URLSearchParams("sortBy=attendance_date&sortOrder=ASC"),
   );
-
-  assert.equal(parsed.sortBy, "");
-  assert.equal(parsed.sortOrder, "");
-  assert.equal(
-    serializeAttendanceDirectoryQuery(parsed, new URLSearchParams()).has(
-      "sortBy",
-    ),
-    false,
+  const serialized = serializeAttendanceDirectoryQuery(
+    parsed,
+    new URLSearchParams("sortBy=attendance_date&sortOrder=ASC&debug=1"),
   );
+
+  assert.equal("sortBy" in parsed, false);
+  assert.equal("sortOrder" in parsed, false);
+  assert.equal("sortBy" in DEFAULT_ATTENDANCE_QUERY, false);
+  assert.equal("sortOrder" in DEFAULT_ATTENDANCE_QUERY, false);
+  assert.equal(serialized.has("sortBy"), false);
+  assert.equal(serialized.has("sortOrder"), false);
+  assert.equal(serialized.get("debug"), "1");
   assert.equal("sortBy" in toAttendanceRequestParams(parsed), false);
   assert.equal("sortOrder" in toAttendanceRequestParams(parsed), false);
 });
@@ -134,7 +137,6 @@ Export:
 export const ATTENDANCE_PAGE_SIZES = Object.freeze([10, 25, 50, 100]);
 export const ATTENDANCE_MODES = Object.freeze(["WFO", "WFH", "WFA"]);
 export const ATTENDANCE_CHECKOUT_STATES = Object.freeze(["completed", "open"]);
-export const ATTENDANCE_SORT_KEYS = Object.freeze([]);
 export const DEFAULT_ATTENDANCE_QUERY = Object.freeze({
   page: 1,
   limit: 10,
@@ -146,8 +148,6 @@ export const DEFAULT_ATTENDANCE_QUERY = Object.freeze({
     status: "",
     checkoutState: "",
   }),
-  sortBy: "",
-  sortOrder: "",
 });
 export function parseAttendanceDirectoryQuery(searchParams) {}
 export function serializeAttendanceDirectoryQuery(
@@ -158,7 +158,7 @@ export function toAttendanceRequestParams(state) {}
 export function validateAttendanceDateRange(filters) {}
 ```
 
-Use a managed-key list so unrelated query/hash state survives serialization. Exclude `sortBy` and `sortOrder` from that managed list until INF-267 locks an authoritative allowlist, so provisional sort URL parameters are discarded rather than preserved or serialized. Invalid URL values fall back safely; invalid draft dates block Apply without mutating applied state. Add an assertion that `DEFAULT_ATTENDANCE_QUERY` has exactly the shape above and that parsing an empty query returns a fresh nested `appliedFilters` object rather than mutating the frozen default.
+Use a managed-key list so unrelated query/hash state survives serialization. Include `sortBy` and `sortOrder` as explicit blocked managed keys until INF-267 locks an authoritative allowlist: parsing discards them and serialization removes them from an existing URL, while genuinely unrelated parameters such as `debug=1` survive. Do not export `ATTENDANCE_SORT_KEYS` or add either sort key to `DEFAULT_ATTENDANCE_QUERY` or current applied state. Invalid URL values fall back safely; invalid draft dates block Apply without mutating applied state. Add an assertion that `DEFAULT_ATTENDANCE_QUERY` has exactly the shape above and that parsing an empty query returns a fresh nested `appliedFilters` object rather than mutating the frozen default.
 
 - [ ] **Step 4: Run query tests and confirm GREEN**
 
@@ -313,7 +313,7 @@ In `tests/attendance-list-row.test.js`, lock the slim INF-267 list fixture above
 }
 ```
 
-The mapper accepts `mode` as the canonical field and `information` only as the documented transition alias. It copies only list fields, uses `firstFiniteMapNumber` for coordinates, and never adds email, notes, radius, description, booking ID, or other detail-only fields. Cover URL hydration, popstate, push/replace semantics, search cancellation before paging/filter/page-size, provisional sort URL discard, and keeping the last successful rows visible on a list error. The state exposes no public sort behavior while the list remains server-authored.
+The mapper accepts `mode` as the canonical field and `information` only as the documented transition alias. It copies only list fields, uses `firstFiniteMapNumber` for coordinates, and never adds email, notes, radius, description, booking ID, or other detail-only fields. Cover URL hydration, popstate, push/replace semantics, search cancellation before paging/filter/page-size, blocked sort URL stripping, and keeping the last successful rows visible on a list error. The state exposes no public sort behavior or sort keys while the list remains server-authored.
 
 - [ ] **Step 2: Run and confirm RED**
 
@@ -337,7 +337,7 @@ tableState: { loading: false, error: "", hasSuccessfulPage: false },
 latestListRequestId: 0,
 ```
 
-Export `normalizeAttendanceListRow(row)` from `attendanceListRow.js` with the exact field mapping above. Normalize each returned list row once, preserving Backend order. Expose compatibility getters only where the existing template needs them during this task. Every server interaction must call `toAttendanceRequestParams(this.appliedQuery)`. `syncUrl()` uses the pure serializer and preserves unrelated parameters/hash.
+Add a state assertion that `"sortBy" in state.appliedQuery` and `"sortOrder" in state.appliedQuery` are both `false`; spreading `DEFAULT_ATTENDANCE_QUERY` must not reintroduce public sort state. Export `normalizeAttendanceListRow(row)` from `attendanceListRow.js` with the exact field mapping above. Normalize each returned list row once, preserving Backend order. Expose compatibility getters only where the existing template needs them during this task. Every server interaction must call `toAttendanceRequestParams(this.appliedQuery)`. `syncUrl()` uses the pure serializer, strips blocked `sortBy` and `sortOrder`, and preserves unrelated parameters/hash.
 
 - [ ] **Step 4: Run state, query, and INF-268 regression tests**
 

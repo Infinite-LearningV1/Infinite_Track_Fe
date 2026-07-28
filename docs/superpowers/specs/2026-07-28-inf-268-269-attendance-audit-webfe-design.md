@@ -50,7 +50,7 @@ sortOrder
 
 The INF-267 fields `attendance_date`, `time_in`, `time_out`, `full_name`, `status`, and optional `created_at` are candidate keys, not an authoritative sortable-field allowlist. Therefore `sortBy` and `sortOrder` remain documented above as future Backend-contract parameters, but are not enabled Web FE behavior in this execution.
 
-The approved visual seven-column redesign, combined filters, detail drawer, and permanent-delete recovery may proceed against contract fixtures. Until INF-267 locks an authoritative sort allowlist, the Web FE must disable sort query parsing, URL serialization, request mapping, public state, controls, and decorative sort affordances. Focused tests must prove provisional or unsupported sort URL parameters are discarded rather than becoming state or request parameters. Sorting remains `Needs Verification` / Pending INF-267, even if the compatible Backend is otherwise available.
+The approved visual seven-column redesign, combined filters, detail drawer, and permanent-delete recovery may proceed against contract fixtures. Until INF-267 locks an authoritative sort allowlist, the Web FE must disable sort query parsing, URL serialization, request mapping, public state, controls, and decorative sort affordances. Current query state contains no sort keys or sort API. `sortBy` and `sortOrder` are explicit blocked managed keys: parsing discards them, serialization strips them from an existing URL while preserving genuinely unrelated parameters, and request mapping omits them. Focused tests must prove those boundaries. Sorting remains `Needs Verification` / Pending INF-267, even if the compatible Backend is otherwise available.
 
 The expected list response remains the Attendance pagination envelope:
 
@@ -122,7 +122,7 @@ status
 checkoutState
 ```
 
-The future Backend contract reserves `sortBy` and `sortOrder`, but they are not present in current FE query state. URL parsing and serialization use only the enabled Backend public names; provisional sort parameters are discarded. Search, applied filters, and page-size changes reset page to 1. Paging, opening detail, and deletion preserve all applied criteria.
+The future Backend contract reserves `sortBy` and `sortOrder`, but they are not present in current FE query state or API. URL parsing discards them, and URL serialization strips them as blocked managed keys while preserving genuinely unrelated parameters. Search, applied filters, and page-size changes reset page to 1. Paging, opening detail, and deletion preserve all applied criteria.
 
 List rows and pagination metadata come directly from the Backend response. The browser performs no row filtering, sorting, slicing, total calculation, or detail widening.
 
@@ -143,7 +143,7 @@ Mode and checkout-state values are locked by INF-267. Status choices must come f
 
 The date range uses strict date-only values. The UI rejects an incomplete or reversed range before Apply while retaining the draft for correction; Backend validation remains authoritative after submission.
 
-`draftFilters` remains separate from `appliedQuery`. Opening, editing, or dismissing the popover does not fetch. Apply commits the draft, resets page, synchronizes URL state, fetches once, and closes the popover. Clear/reset removes filter criteria while preserving unrelated URL parameters.
+`draftFilters` remains separate from `appliedQuery`. Opening, editing, or dismissing the popover does not fetch. Apply commits the draft, resets page, synchronizes URL state, fetches once, and closes the popover. Clear/reset removes filter criteria while preserving genuinely unrelated URL parameters; blocked legacy `sortBy` and `sortOrder` are stripped rather than preserved.
 
 The popover closes on successful Apply, Escape, outside click, or explicit close, and restores focus to its trigger. An active-filter count communicates applied criteria. Narrow layouts may use a full-width or sheet-like presentation without changing state semantics.
 

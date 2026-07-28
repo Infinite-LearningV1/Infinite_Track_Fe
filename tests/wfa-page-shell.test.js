@@ -57,3 +57,15 @@ test("booking detail renders WFA request and rejection context without a default
   assert.match(modal, /Tidak tersedia/);
   assert.doesNotMatch(modal, /\|\|\s*100/);
 });
+
+test("rejection modal exposes accessible description, errors, busy state, and Escape close", async () => {
+  const modal = await source(
+    "src/partials/modal/wfa-booking-rejection-modal.html",
+  );
+
+  assert.match(modal, /aria-describedby="wfa-rejection-description"/);
+  assert.match(modal, /aria-describedby="wfa-rejection-reason-error"/);
+  assert.match(modal, /aria-describedby="wfa-rejection-note-error"/);
+  assert.match(modal, /:aria-busy="isSubmitting"/);
+  assert.match(modal, /@keydown\.escape\.window="close\(\)"/);
+});

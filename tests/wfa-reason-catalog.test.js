@@ -249,3 +249,29 @@ test("catalog toggle resynchronizes one row and blocks duplicate requests", asyn
   await Promise.all([first, second]);
   assert.equal(state.items[0].isActive, false);
 });
+
+test("catalog maps stable Backend conflict codes to safe Indonesian copy", async () => {
+  const conflict = new Error("Other reason already exists");
+  conflict.code = "WFA_REASON_CATALOG_CONFLICT";
+  const service = {
+    async listWfaReasons() {
+      return [];
+    },
+    async createWfaReason() {
+      throw conflict;
+    },
+    async updateWfaReason() {
+      throw new Error("not used");
+    },
+  };
+  const state = wfaReasonCatalogAlpineData("request", service);
+  state.openCreate();
+  state.form = { label: "Lainnya", isOther: true, sortOrder: "99" };
+
+  await state.saveEditor();
+
+  assert.equal(
+    state.saveError,
+    "Katalog alasan bertentangan dengan aturan Backend. Muat ulang lalu periksa alasan Lainnya.",
+  );
+});

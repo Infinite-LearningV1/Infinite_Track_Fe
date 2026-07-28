@@ -27,6 +27,15 @@ function getCatalogCopy(kind) {
       };
 }
 
+function getCatalogErrorMessage(error, fallbackMessage) {
+  const messagesByCode = {
+    WFA_REASON_CATALOG_CONFLICT:
+      "Katalog alasan bertentangan dengan aturan Backend. Muat ulang lalu periksa alasan Lainnya.",
+  };
+
+  return messagesByCode[error?.code] || error?.message || fallbackMessage;
+}
+
 function wfaReasonCatalogAlpineData(
   kind,
   service = { listWfaReasons, createWfaReason, updateWfaReason },
@@ -58,7 +67,10 @@ function wfaReasonCatalogAlpineData(
       try {
         this.items = await this.service.listWfaReasons(this.kind);
       } catch (error) {
-        this.loadError = error.message || "Gagal memuat katalog alasan WFA.";
+        this.loadError = getCatalogErrorMessage(
+          error,
+          "Gagal memuat katalog alasan WFA.",
+        );
       } finally {
         this.isLoading = false;
       }
@@ -155,7 +167,10 @@ function wfaReasonCatalogAlpineData(
           message: "Perubahan telah dikonfirmasi Backend.",
         });
       } catch (error) {
-        this.saveError = error.message || "Gagal menyimpan alasan WFA.";
+        this.saveError = getCatalogErrorMessage(
+          error,
+          "Gagal menyimpan alasan WFA.",
+        );
       } finally {
         this.isSaving = false;
       }
@@ -180,7 +195,10 @@ function wfaReasonCatalogAlpineData(
         );
         this.replaceCanonicalItem(updated);
       } catch (error) {
-        this.saveError = error.message || "Gagal mengubah status alasan WFA.";
+        this.saveError = getCatalogErrorMessage(
+          error,
+          "Gagal mengubah status alasan WFA.",
+        );
       } finally {
         this.mutatingIds.delete(reason.id);
       }
@@ -188,4 +206,9 @@ function wfaReasonCatalogAlpineData(
   };
 }
 
-export { createEmptyReasonForm, getCatalogCopy, wfaReasonCatalogAlpineData };
+export {
+  createEmptyReasonForm,
+  getCatalogCopy,
+  getCatalogErrorMessage,
+  wfaReasonCatalogAlpineData,
+};

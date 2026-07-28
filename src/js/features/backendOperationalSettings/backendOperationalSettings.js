@@ -211,6 +211,10 @@ function backendOperationalSettingsAlpineData(
     async saveSettings() {
       this.saveError = "";
 
+      if (!this.hasLoadedCanonicalSettings || this.isLoading || this.isSaving) {
+        return;
+      }
+
       if (!this.validateForm()) {
         this.saveError =
           "Periksa kembali field yang wajib diisi sebelum menyimpan pengaturan operasional.";

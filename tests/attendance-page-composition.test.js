@@ -17,7 +17,7 @@ test("management Attendance uses the descriptor-preserving page factory", () => 
   assert.doesNotMatch(page, /\.\.\.attendanceLogAlpineData\(\)/);
 });
 
-test("actual page composition keeps Attendance aliases live", async () => {
+test("actual page composition keeps canonical Attendance state live", async () => {
   const attendanceModule =
     await import("../src/js/features/attendance/attendanceLog.js");
   const factory = attendanceModule.attendanceManagementPageData;
@@ -29,14 +29,11 @@ test("actual page composition keeps Attendance aliases live", async () => {
   for (const accessor of [
     "searchQuery",
     "activeFilterCount",
-    "attendanceData",
-    "isLoading",
-    "errorMessage",
+    "emptyStateMessage",
   ]) {
     assert.equal(typeof descriptors[accessor].get, "function", accessor);
   }
   assert.equal(typeof descriptors.searchQuery.set, "function");
-  assert.equal(typeof descriptors.attendanceData.set, "function");
 
   pageState.searchQuery = "Ayu";
   assert.equal(pageState.appliedQuery.search, "Ayu");
@@ -45,11 +42,7 @@ test("actual page composition keeps Attendance aliases live", async () => {
   pageState.appliedQuery.appliedFilters.checkoutState = "open";
   assert.equal(pageState.activeFilterCount, 2);
 
-  const laterRows = [{ idAttendance: 42 }];
-  pageState.rows = laterRows;
-  pageState.tableState.loading = true;
-  pageState.tableState.error = "server unavailable";
-  assert.equal(pageState.attendanceData, laterRows);
-  assert.equal(pageState.isLoading, true);
-  assert.equal(pageState.errorMessage, "server unavailable");
+  assert.equal("attendanceData" in descriptors, false);
+  assert.equal("isLoading" in descriptors, false);
+  assert.equal("errorMessage" in descriptors, false);
 });

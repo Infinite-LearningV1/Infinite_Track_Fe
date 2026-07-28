@@ -30,11 +30,11 @@ test("attendance list state does not expose local sorting APIs", () => {
   assert.doesNotMatch(source, /supportedSortFields/);
 });
 
-test("table shows attendance date and labels information as Mode", () => {
+test("audit table shows the canonical date and Mode fields", () => {
   const table = readSource("../src/partials/table/table-attendance.html");
 
-  assert.match(table, />\s*Attendance Date\s*</);
-  assert.match(table, /x-text="log\.attendance_date \|\| '-'"/);
+  assert.match(table, />\s*Tanggal\s*</);
+  assert.match(table, /x-text="log\.attendanceDate \|\| '-'"/);
   assert.match(table, />\s*Mode\s*</);
   assert.doesNotMatch(table, />\s*Information\s*</);
   assert.equal(attendanceLogAlpineData().getInfoBadgeText(), "-");

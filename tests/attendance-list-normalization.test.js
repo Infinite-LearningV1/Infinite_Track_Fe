@@ -53,13 +53,13 @@ test("uses per_page only as a compatibility fallback", () => {
   assert.equal(result.pagination.records_per_page, 50);
 });
 
-test("attendance table calculates visible rows from canonical records_per_page", () => {
+test("attendance page size is driven by canonical normalized state", () => {
   const dirname = path.dirname(fileURLToPath(import.meta.url));
   const template = fs.readFileSync(
     path.join(dirname, "../src/partials/table/table-attendance.html"),
     "utf8",
   );
 
-  assert.match(template, /pagination\.records_per_page/);
+  assert.match(template, /x-model="appliedQuery\.limit"/);
   assert.doesNotMatch(template, /pagination\.per_page/);
 });

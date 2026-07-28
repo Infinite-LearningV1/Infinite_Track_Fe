@@ -36,15 +36,15 @@ test("fetchAttendance sends current server query and keeps server row order", as
       ]);
     },
   });
-  component.filters.search = "12345";
-  component.filters.page = 3;
-  component.filters.limit = 25;
+  component.appliedQuery.search = "12345";
+  component.appliedQuery.page = 3;
+  component.appliedQuery.limit = 25;
 
   await component.fetchAttendance();
 
   assert.deepEqual(calls, [{ search: "12345", page: 3, limit: 25 }]);
   assert.deepEqual(
-    component.attendanceData.map((row) => row.id_attendance),
+    component.rows.map((row) => row.idAttendance),
     [2, 1],
   );
 });
@@ -61,7 +61,7 @@ test("changePage preserves the selected page and makes one server request", asyn
 
   await component.changePage(3);
 
-  assert.equal(component.filters.page, 3);
+  assert.equal(component.appliedQuery.page, 3);
   assert.deepEqual(calls, [{ page: 3, limit: 10 }]);
 });
 
@@ -76,11 +76,11 @@ test("changeLimit resets to the first page and makes one server request", async 
       });
     },
   });
-  component.filters.page = 4;
+  component.appliedQuery.page = 4;
 
   await component.changeLimit(25);
 
-  assert.equal(component.filters.page, 1);
+  assert.equal(component.appliedQuery.page, 1);
   assert.deepEqual(calls, [{ page: 1, limit: 25 }]);
 });
 
@@ -143,8 +143,8 @@ test("debounced search resets to the first page and makes one server request", a
       return attendancePage([], { current_page: params.page });
     },
   });
-  component.filters.search = "employee-42";
-  component.filters.page = 4;
+  component.appliedQuery.search = "employee-42";
+  component.appliedQuery.page = 4;
 
   component.debouncedSearch();
 
@@ -152,7 +152,7 @@ test("debounced search resets to the first page and makes one server request", a
   assert.equal(scheduled[0].delay, 300);
   await scheduled[0].callback();
 
-  assert.equal(component.filters.page, 1);
+  assert.equal(component.appliedQuery.page, 1);
   assert.deepEqual(calls, [{ search: "employee-42", page: 1, limit: 10 }]);
 });
 
@@ -173,10 +173,10 @@ test("rapid debounced searches cancel the stale timer and request only the lates
       return attendancePage([], { current_page: params.page });
     },
   });
-  component.filters.page = 4;
-  component.filters.search = "first";
+  component.appliedQuery.page = 4;
+  component.appliedQuery.search = "first";
   component.debouncedSearch();
-  component.filters.search = "latest";
+  component.appliedQuery.search = "latest";
   component.debouncedSearch();
 
   assert.equal(timers.length, 2);
@@ -282,14 +282,14 @@ test("failed delete clears submitting state and retains the server list", async 
         return attendancePage();
       },
     });
-    component.attendanceData = initialRows;
+    component.rows = initialRows;
     component.deleteTargetId = 42;
 
     await component.executeDelete();
 
     assert.equal(component.deleteTargetId, null);
     assert.equal(component.isDeleting, false);
-    assert.equal(component.attendanceData, initialRows);
+    assert.equal(component.rows, initialRows);
     assert.deepEqual(refreshCalls, []);
     assert.equal(errorCalls.length, 1);
   } finally {

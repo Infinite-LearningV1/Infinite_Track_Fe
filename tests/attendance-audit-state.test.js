@@ -370,6 +370,56 @@ test("a current list error keeps the last successful rows visible", async (t) =>
   assert.equal(state.tableState.loading, false);
 });
 
+test("retry refetches the unchanged applied query after retaining a successful page", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const requests = [];
+  let fail = false;
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceLog: async (params) => {
+      requests.push(params);
+      if (fail) throw new Error("server unavailable");
+      return attendancePage([slimAttendanceRow()]);
+    },
+  });
+  state.appliedQuery.search = "ayu";
+  state.appliedQuery.appliedFilters.mode = "WFH";
+
+  await state.fetchAttendance();
+  fail = true;
+  await state.fetchAttendance();
+  const retainedRows = state.rows;
+  await state.retryAttendanceList();
+
+  assert.equal(state.rows, retainedRows);
+  assert.deepEqual(requests, [
+    { page: 1, limit: 10, search: "ayu", mode: "WFH" },
+    { page: 1, limit: 10, search: "ayu", mode: "WFH" },
+    { page: 1, limit: 10, search: "ayu", mode: "WFH" },
+  ]);
+  assert.equal(state.tableState.error, "server unavailable");
+});
+
+test("empty state copy distinguishes directory, no-match, and out-of-range pages", () => {
+  const state = attendanceLogAlpineData({ browser: null });
+
+  assert.equal(state.emptyStateMessage, "Belum ada data absensi.");
+
+  state.appliedQuery.search = "ayu";
+  assert.equal(
+    state.emptyStateMessage,
+    "Tidak ada data absensi yang cocok dengan pencarian atau filter.",
+  );
+
+  state.appliedQuery.search = "";
+  state.appliedQuery.page = 3;
+  state.pagination.total_records = 15;
+  assert.equal(
+    state.emptyStateMessage,
+    "Halaman ini tidak lagi memiliki data. Kembali ke halaman sebelumnya.",
+  );
+});
+
 test("destroy cancels search and removes the popstate listener", async () => {
   const browser = fakeBrowser("");
   const timers = fakeTimers();

@@ -70,11 +70,12 @@ test("prefers canonical mode and normalizes only finite attendance coordinates",
   );
 });
 
-test("temporary aliases include only fields consumed by the current table", () => {
+test("exposes no transitional snake-case table aliases", () => {
   const normalized = normalizeAttendanceListRow(slimAttendanceRow());
 
   assert.equal("nip_nim" in normalized, false);
   assert.equal("checkout_state" in normalized, false);
-  assert.equal(normalized.full_name, "Ayu Lestari");
-  assert.equal(normalized.information, "WFH");
+  assert.equal("full_name" in normalized, false);
+  assert.equal("information" in normalized, false);
+  assert.equal("id_attendance" in normalized, false);
 });

@@ -115,34 +115,11 @@ export function attendanceLogAlpineData(overrides = {}) {
     isFilterOpen: false,
     filterValidationMessage: "",
 
-    // Transitional template aliases. Canonical state remains the properties
-    // above and is the only state sent to the server.
-    get attendanceData() {
-      return this.rows;
-    },
-    set attendanceData(value) {
-      this.rows = value;
-    },
-    get filters() {
-      return this.appliedQuery;
-    },
     get searchQuery() {
       return this.appliedQuery.search;
     },
     set searchQuery(value) {
       this.appliedQuery.search = value ?? "";
-    },
-    get searchTerm() {
-      return this.searchQuery;
-    },
-    set searchTerm(value) {
-      this.searchQuery = value;
-    },
-    get isLoading() {
-      return this.tableState.loading;
-    },
-    get errorMessage() {
-      return this.tableState.error;
     },
     get activeFilterCount() {
       const filters = this.appliedQuery.appliedFilters;
@@ -152,6 +129,24 @@ export function attendanceLogAlpineData(overrides = {}) {
         (filters.status ? 1 : 0) +
         (filters.checkoutState ? 1 : 0)
       );
+    },
+    get emptyStateMessage() {
+      if (this.appliedQuery.page > 1 && this.pagination.total_records > 0) {
+        return "Halaman ini tidak lagi memiliki data. Kembali ke halaman sebelumnya.";
+      }
+      const filters = this.appliedQuery.appliedFilters;
+      const hasCriteria =
+        Boolean(this.appliedQuery.search) ||
+        Boolean(
+          filters.from ||
+          filters.to ||
+          filters.mode ||
+          filters.status ||
+          filters.checkoutState,
+        );
+      return hasCriteria
+        ? "Tidak ada data absensi yang cocok dengan pencarian atau filter."
+        : "Belum ada data absensi.";
     },
 
     isDeleteModalOpen: false,
@@ -250,6 +245,10 @@ export function attendanceLogAlpineData(overrides = {}) {
           this.tableState.loading = false;
         }
       }
+    },
+
+    async retryAttendanceList() {
+      return this.fetchAttendance();
     },
 
     cancelPendingSearch() {
@@ -352,7 +351,8 @@ export function attendanceLogAlpineData(overrides = {}) {
       return this.clearFilters();
     },
 
-    confirmDelete(attendanceId) {
+    confirmDelete(attendanceRecord) {
+      const attendanceId = attendanceRecord?.idAttendance ?? attendanceRecord;
       this.deleteTargetId = attendanceId;
       if (typeof globalThis.window?.showAlertModal === "function") {
         globalThis.window.showAlertModal({

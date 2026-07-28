@@ -60,6 +60,7 @@ import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
 import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
 import { backendOperationalSettingsAlpineData } from "./features/backendOperationalSettings/backendOperationalSettings.js";
+import { wfaReasonCatalogAlpineData } from "./features/wfaSettings/wfaReasonCatalog.js";
 import { showInlineAlert } from "./utils/inlineAlert.js";
 
 Alpine.plugin(persist);
@@ -81,6 +82,7 @@ window.attendanceLogAlpineData = attendanceLogAlpineData;
 window.bookingListAlpineData = bookingListAlpineData;
 window.backendOperationalSettingsAlpineData =
   backendOperationalSettingsAlpineData;
+window.wfaReasonCatalogAlpineData = wfaReasonCatalogAlpineData;
 
 // Expose utility functions to window for use in HTML
 window.getUserPhotoUrl = getUserPhotoUrl;

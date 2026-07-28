@@ -387,3 +387,155 @@ test("destroy cancels search and removes the popstate listener", async () => {
   assert.equal(timers.timers[0].cancelled, true);
   assert.equal(browser.listeners.has("popstate"), false);
 });
+
+test("editing filter drafts and dismissing the popover never fetches", () => {
+  let requests = 0;
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceLog: async () => {
+      requests += 1;
+      return attendancePage();
+    },
+  });
+
+  state.openFilter();
+  state.draftFilters.mode = "WFH";
+  state.draftFilters.checkoutState = "open";
+  state.closeFilter();
+
+  assert.equal(requests, 0);
+  assert.equal(state.isFilterOpen, false);
+  assert.equal(state.appliedQuery.appliedFilters.mode, "");
+});
+
+test("closing the filter restores focus to its trigger", () => {
+  const browser = fakeBrowser("");
+  let focusCalls = 0;
+  browser.document = {
+    getElementById(id) {
+      assert.equal(id, "attendanceTableFilterTrigger");
+      return { focus: () => (focusCalls += 1) };
+    },
+  };
+  const state = attendanceLogAlpineData({ browser });
+
+  state.openFilter();
+  state.closeFilter();
+
+  assert.equal(focusCalls, 1);
+  assert.equal(state.isFilterOpen, false);
+});
+
+test("Apply commits valid draft filters, pushes once, fetches once, and closes", async () => {
+  const browser = fakeBrowser("?debug=1&page=3");
+  const requests = [];
+  const state = attendanceLogAlpineData({
+    browser,
+    getAttendanceLog: async (params) => {
+      requests.push(params);
+      return attendancePage([], { current_page: params.page });
+    },
+  });
+  state.openFilter();
+  state.draftFilters = {
+    from: "2026-07-01",
+    to: "2026-07-31",
+    mode: "WFH",
+    status: "late",
+    checkoutState: "open",
+  };
+
+  const result = await state.applyFilters();
+
+  assert.equal(result, true);
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0], {
+    page: 1,
+    limit: 10,
+    from: "2026-07-01",
+    to: "2026-07-31",
+    mode: "WFH",
+    status: "late",
+    checkout_state: "open",
+  });
+  assert.equal(browser.calls.length, 1);
+  assert.equal(browser.calls[0][0], "push");
+  assert.equal(new URLSearchParams(browser.location.search).get("debug"), "1");
+  assert.equal(state.isFilterOpen, false);
+  assert.equal(state.filterValidationMessage, "");
+  assert.equal(state.activeFilterCount, 4);
+});
+
+test("invalid date range retains the open draft and performs no side effects", async () => {
+  const browser = fakeBrowser("?page=2&debug=1");
+  let requests = 0;
+  const state = attendanceLogAlpineData({
+    browser,
+    getAttendanceLog: async () => {
+      requests += 1;
+      return attendancePage();
+    },
+  });
+  state.applyUrlState({ fetch: false });
+  state.openFilter();
+  state.draftFilters.from = "2026-07-31";
+  state.draftFilters.to = "2026-07-01";
+
+  const result = await state.applyFilters();
+
+  assert.equal(result, false);
+  assert.equal(requests, 0);
+  assert.deepEqual(browser.calls, []);
+  assert.equal(state.isFilterOpen, true);
+  assert.deepEqual(state.draftFilters, {
+    from: "2026-07-31",
+    to: "2026-07-01",
+    mode: "",
+    status: "",
+    checkoutState: "",
+  });
+  assert.equal(
+    state.filterValidationMessage,
+    "Tanggal selesai tidak boleh sebelum tanggal mulai.",
+  );
+  assert.equal(state.appliedQuery.page, 2);
+});
+
+test("Clear resets only applied filter criteria and preserves search, limit, and unrelated URL state", async () => {
+  const browser = fakeBrowser("?search=ayu&limit=25&mode=WFA&debug=1");
+  const requests = [];
+  const state = attendanceLogAlpineData({
+    browser,
+    getAttendanceLog: async (params) => {
+      requests.push(params);
+      return attendancePage([], { records_per_page: params.limit });
+    },
+  });
+  state.applyUrlState({ fetch: false });
+  state.openFilter();
+
+  await state.clearFilters();
+
+  assert.deepEqual(state.appliedQuery.appliedFilters, {
+    from: "",
+    to: "",
+    mode: "",
+    status: "",
+    checkoutState: "",
+  });
+  assert.equal(state.appliedQuery.search, "ayu");
+  assert.equal(state.appliedQuery.limit, 25);
+  assert.deepEqual(requests, [{ page: 1, limit: 25, search: "ayu" }]);
+  assert.equal(new URLSearchParams(browser.location.search).get("debug"), "1");
+  assert.equal(state.activeFilterCount, 0);
+  assert.equal(state.isFilterOpen, false);
+});
+
+test("active filter count reflects applied criteria rather than uncommitted drafts", () => {
+  const state = attendanceLogAlpineData({ browser: null });
+  state.appliedQuery.appliedFilters.mode = "WFO";
+  state.appliedQuery.appliedFilters.status = "ontime";
+  state.draftFilters.checkoutState = "open";
+
+  assert.equal(state.activeFilterCount, 2);
+});

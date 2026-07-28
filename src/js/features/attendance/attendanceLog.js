@@ -29,6 +29,7 @@ import {
   parseAttendanceDirectoryQuery,
   serializeAttendanceDirectoryQuery,
   toAttendanceRequestParams,
+  validateAttendanceDateRange,
 } from "./attendanceDirectoryQuery.js";
 import { normalizeAttendanceListRow } from "./attendanceListRow.js";
 
@@ -111,6 +112,8 @@ export function attendanceLogAlpineData(overrides = {}) {
     latestListRequestId: 0,
     searchTimer: null,
     popstateHandler: null,
+    isFilterOpen: false,
+    filterValidationMessage: "",
 
     // Transitional template aliases. Canonical state remains the properties
     // above and is the only state sent to the server.
@@ -140,6 +143,15 @@ export function attendanceLogAlpineData(overrides = {}) {
     },
     get errorMessage() {
       return this.tableState.error;
+    },
+    get activeFilterCount() {
+      const filters = this.appliedQuery.appliedFilters;
+      return (
+        (filters.from || filters.to ? 1 : 0) +
+        (filters.mode ? 1 : 0) +
+        (filters.status ? 1 : 0) +
+        (filters.checkoutState ? 1 : 0)
+      );
     },
 
     isDeleteModalOpen: false,
@@ -293,21 +305,51 @@ export function attendanceLogAlpineData(overrides = {}) {
       return this.fetchAttendance();
     },
 
+    openFilter() {
+      this.draftFilters = { ...this.appliedQuery.appliedFilters };
+      this.filterValidationMessage = "";
+      this.isFilterOpen = true;
+    },
+
+    closeFilter() {
+      if (!this.isFilterOpen) return;
+      this.isFilterOpen = false;
+      browser?.document
+        ?.getElementById("attendanceTableFilterTrigger")
+        ?.focus();
+    },
+
     async applyFilters() {
+      const validation = validateAttendanceDateRange(this.draftFilters);
+      if (!validation.valid) {
+        this.filterValidationMessage = validation.message;
+        return false;
+      }
+
       this.cancelPendingSearch();
+      this.filterValidationMessage = "";
       this.appliedQuery.appliedFilters = { ...this.draftFilters };
       this.appliedQuery.page = 1;
       this.syncUrl("push");
-      return this.fetchAttendance();
+      const result = await this.fetchAttendance();
+      this.closeFilter();
+      return result;
     },
 
-    async resetFilters() {
+    async clearFilters() {
       this.cancelPendingSearch();
+      this.filterValidationMessage = "";
       this.draftFilters = { ...DEFAULT_ATTENDANCE_QUERY.appliedFilters };
       this.appliedQuery.appliedFilters = { ...this.draftFilters };
       this.appliedQuery.page = 1;
       this.syncUrl("push");
-      return this.fetchAttendance();
+      const result = await this.fetchAttendance();
+      this.closeFilter();
+      return result;
+    },
+
+    async resetFilters() {
+      return this.clearFilters();
     },
 
     confirmDelete(attendanceId) {

@@ -35,6 +35,8 @@ test("empty query returns canonical defaults with independent filter state", () 
     DEFAULT_ATTENDANCE_QUERY.appliedFilters,
   );
   assert.notEqual(first.appliedFilters, second.appliedFilters);
+  assert.equal(Object.isFrozen(DEFAULT_ATTENDANCE_QUERY), true);
+  assert.equal(Object.isFrozen(DEFAULT_ATTENDANCE_QUERY.appliedFilters), true);
   assert.deepEqual(ATTENDANCE_PAGE_SIZES, [10, 25, 50, 100]);
   assert.deepEqual(ATTENDANCE_MODES, ["WFO", "WFH", "WFA"]);
   assert.deepEqual(ATTENDANCE_CHECKOUT_STATES, ["completed", "open"]);
@@ -69,6 +71,29 @@ test("invalid URL values fall back without creating an invalid applied range", (
   );
 
   assert.deepEqual(parsed, DEFAULT_ATTENDANCE_QUERY);
+});
+
+test("unsafe and overflowing integer URL values fall back to pagination defaults", () => {
+  const unsafe = parseAttendanceDirectoryQuery(
+    new URLSearchParams("page=9007199254740992&limit=9007199254740992"),
+  );
+  const overflowing = parseAttendanceDirectoryQuery(
+    new URLSearchParams(`page=${"9".repeat(400)}&limit=${"9".repeat(400)}`),
+  );
+
+  assert.equal(unsafe.page, 1);
+  assert.equal(unsafe.limit, 10);
+  assert.equal(overflowing.page, 1);
+  assert.equal(overflowing.limit, 10);
+});
+
+test("non-canonical absent status is discarded from state and requests", () => {
+  const parsed = parseAttendanceDirectoryQuery(
+    new URLSearchParams("status=absent"),
+  );
+
+  assert.equal(parsed.appliedFilters.status, "");
+  assert.equal("status" in toAttendanceRequestParams(parsed), false);
 });
 
 test("serialization omits defaults, trims search, and preserves unrelated keys", () => {

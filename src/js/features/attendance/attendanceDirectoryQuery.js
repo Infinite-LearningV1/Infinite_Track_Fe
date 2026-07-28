@@ -11,13 +11,7 @@ const MANAGED_QUERY_KEYS = [
   "sortOrder",
 ];
 
-const ATTENDANCE_STATUSES = Object.freeze([
-  "ontime",
-  "late",
-  "early",
-  "alpha",
-  "absent",
-]);
+const ATTENDANCE_STATUSES = Object.freeze(["ontime", "late", "early", "alpha"]);
 
 export const ATTENDANCE_PAGE_SIZES = Object.freeze([10, 25, 50, 100]);
 export const ATTENDANCE_MODES = Object.freeze(["WFO", "WFH", "WFA"]);
@@ -37,7 +31,9 @@ export const DEFAULT_ATTENDANCE_QUERY = Object.freeze({
 });
 
 function positiveInteger(value) {
-  return /^\d+$/.test(value || "") && Number(value) > 0 ? Number(value) : null;
+  if (!/^\d+$/.test(value || "")) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function isDateOnly(value) {

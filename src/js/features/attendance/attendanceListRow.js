@@ -30,14 +30,12 @@ export function normalizeAttendanceListRow(row = {}) {
     id_attendance: { get: () => normalized.idAttendance },
     id: { get: () => normalized.employeeId },
     full_name: { get: () => normalized.fullName },
-    nip_nim: { get: () => normalized.nipNim },
     role_name: { get: () => normalized.roleName },
     attendance_date: { get: () => normalized.attendanceDate },
     time_in: { get: () => normalized.timeIn },
     time_out: { get: () => normalized.timeOut },
     work_hour: { get: () => normalized.workHour },
     information: { get: () => normalized.mode },
-    checkout_state: { get: () => normalized.checkoutState },
   });
 
   return normalized;

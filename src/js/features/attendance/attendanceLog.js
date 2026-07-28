@@ -264,16 +264,7 @@ export function attendanceLogAlpineData(overrides = {}) {
     },
 
     debouncedSearch() {
-      this.cancelPendingSearch();
-      let timer = null;
-      timer = schedule(async () => {
-        if (this.searchTimer !== timer) return;
-        this.searchTimer = null;
-        this.appliedQuery.page = 1;
-        this.syncUrl("replace");
-        await this.fetchAttendance();
-      }, 500);
-      this.searchTimer = timer;
+      this.onSearchChange();
     },
 
     async changePage(newPage) {

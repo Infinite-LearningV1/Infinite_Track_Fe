@@ -69,3 +69,12 @@ test("prefers canonical mode and normalizes only finite attendance coordinates",
     },
   );
 });
+
+test("temporary aliases include only fields consumed by the current table", () => {
+  const normalized = normalizeAttendanceListRow(slimAttendanceRow());
+
+  assert.equal("nip_nim" in normalized, false);
+  assert.equal("checkout_state" in normalized, false);
+  assert.equal(normalized.full_name, "Ayu Lestari");
+  assert.equal(normalized.information, "WFH");
+});

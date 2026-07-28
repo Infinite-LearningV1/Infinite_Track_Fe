@@ -163,6 +163,32 @@ test("explicit paging pushes history while debounced search replaces it", async 
   assert.equal(timers.timers[0].delay, 300);
 });
 
+test("the page-facing debouncedSearch uses the canonical timer without duplicate work", async () => {
+  const timers = fakeTimers();
+  const requests = [];
+  const state = attendanceLogAlpineData({
+    browser: null,
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout,
+    getAttendanceLog: async (params) => {
+      requests.push(params);
+      return attendancePage();
+    },
+  });
+
+  state.searchQuery = "first";
+  state.debouncedSearch();
+  state.searchQuery = "latest";
+  state.debouncedSearch();
+
+  assert.equal(timers.timers.length, 2);
+  assert.equal(timers.timers[0].cancelled, true);
+  assert.equal(timers.timers[1].delay, 300);
+  await timers.timers[0].callback();
+  await timers.timers[1].callback();
+  assert.deepEqual(requests, [{ page: 1, limit: 10, search: "latest" }]);
+});
+
 test("popstate cancels pending search, restores URL state, and writes no history", async () => {
   const browser = fakeBrowser("?page=2&search=before");
   const timers = fakeTimers();

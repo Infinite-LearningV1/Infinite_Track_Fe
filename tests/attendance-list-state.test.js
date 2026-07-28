@@ -62,7 +62,7 @@ test("changePage preserves the selected page and makes one server request", asyn
   await component.changePage(3);
 
   assert.equal(component.filters.page, 3);
-  assert.deepEqual(calls, [{ search: "", page: 3, limit: 10 }]);
+  assert.deepEqual(calls, [{ page: 3, limit: 10 }]);
 });
 
 test("changeLimit resets to the first page and makes one server request", async () => {
@@ -81,7 +81,7 @@ test("changeLimit resets to the first page and makes one server request", async 
   await component.changeLimit(25);
 
   assert.equal(component.filters.page, 1);
-  assert.deepEqual(calls, [{ search: "", page: 1, limit: 25 }]);
+  assert.deepEqual(calls, [{ page: 1, limit: 25 }]);
 });
 
 test("changePage returns the request promise and completes one request", async () => {
@@ -103,7 +103,7 @@ test("changePage returns the request promise and completes one request", async (
   await request;
 
   assert.equal(component.pagination.current_page, 2);
-  assert.deepEqual(calls, [{ search: "", page: 2, limit: 10 }]);
+  assert.deepEqual(calls, [{ page: 2, limit: 10 }]);
 });
 
 test("changeLimit returns the request promise and completes one request", async () => {
@@ -126,7 +126,7 @@ test("changeLimit returns the request promise and completes one request", async 
   await request;
 
   assert.equal(component.pagination.records_per_page, 25);
-  assert.deepEqual(calls, [{ search: "", page: 1, limit: 25 }]);
+  assert.deepEqual(calls, [{ page: 1, limit: 25 }]);
 });
 
 test("debounced search resets to the first page and makes one server request", async () => {
@@ -149,7 +149,7 @@ test("debounced search resets to the first page and makes one server request", a
   component.debouncedSearch();
 
   assert.equal(scheduled.length, 1);
-  assert.equal(scheduled[0].delay, 500);
+  assert.equal(scheduled[0].delay, 300);
   await scheduled[0].callback();
 
   assert.equal(component.filters.page, 1);
@@ -255,7 +255,7 @@ test("successful delete refreshes authoritative server state", async () => {
     await component.executeDelete();
 
     assert.deepEqual(deletedIds, [42]);
-    assert.deepEqual(refreshCalls, [{ search: "", page: 1, limit: 10 }]);
+    assert.deepEqual(refreshCalls, [{ page: 1, limit: 10 }]);
     assert.equal(component.deleteTargetId, null);
     assert.equal(component.isDeleting, false);
   } finally {

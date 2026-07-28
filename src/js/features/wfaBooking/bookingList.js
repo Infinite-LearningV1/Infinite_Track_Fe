@@ -5,9 +5,10 @@
 
 import {
   getBookings,
-  updateBookingStatus,
+  approveBooking as approveBookingCommand,
   deleteBooking,
 } from "../../services/bookingService.js";
+import { WFA_BOOKING_REJECTION_EVENTS } from "./bookingRejection.js";
 import {
   extractBookingCollection,
   normalizeBooking,
@@ -434,7 +435,7 @@ export function bookingListAlpineData() {
      */
     async approveBooking(bookingId) {
       try {
-        const response = await updateBookingStatus(bookingId, "approved");
+        const response = await approveBookingCommand(bookingId);
 
         // Handle successful response
         if (response.success || response.status === "success") {
@@ -469,44 +470,23 @@ export function bookingListAlpineData() {
       }
     },
 
-    /**
-     * Reject booking
-     * @param {string|number} bookingId - ID booking yang akan direject
-     */
-    async rejectBooking(bookingId) {
-      try {
-        const response = await updateBookingStatus(bookingId, "rejected");
+    openRejectBooking(booking) {
+      if (!booking?.id || booking.status !== "pending") return;
+      globalThis.window?.dispatchEvent?.(
+        new CustomEvent(WFA_BOOKING_REJECTION_EVENTS.open, {
+          detail: { booking },
+        }),
+      );
+    },
 
-        // Handle successful response
-        if (response.success || response.status === "success") {
-          // Tampilkan modal sukses
-          if (typeof window.showAlertModal === "function") {
-            window.showAlertModal({
-              type: "success",
-              title: "Booking Ditolak",
-              message: response.message || "Booking berhasil ditolak.",
-              buttonText: "OK",
-            });
-          }
-
-          // Refresh data
-          await this.fetchBookings();
-        } else {
-          throw new Error(response.message || "Gagal menolak booking");
-        }
-      } catch (error) {
-        console.error("Error rejecting booking:", error);
-
-        // Tampilkan modal error
-        if (typeof window.showAlertModal === "function") {
-          window.showAlertModal({
-            type: "danger",
-            title: "Gagal Menolak Booking",
-            message: error.message || "Terjadi kesalahan saat menolak booking.",
-            buttonText: "OK",
-          });
-        }
-      }
+    async handleRejectionSucceeded() {
+      await this.fetchBookings();
+      globalThis.window?.showAlertModal?.({
+        type: "success",
+        title: "Booking Ditolak",
+        message: "Penolakan telah dikonfirmasi Backend.",
+        buttonText: "OK",
+      });
     },
 
     /**

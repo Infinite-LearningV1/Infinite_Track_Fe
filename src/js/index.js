@@ -57,6 +57,7 @@ import { userListAlpineData } from "./features/userManagement/userListSimple.js"
 import { userFormAlpineData } from "./features/userManagement/userForm.js";
 import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
+import { bookingRejectionAlpineData } from "./features/wfaBooking/bookingRejection.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
 import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
 import { backendOperationalSettingsAlpineData } from "./features/backendOperationalSettings/backendOperationalSettings.js";
@@ -80,6 +81,7 @@ window.userListAlpineData = userListAlpineData;
 window.userFormAlpineData = userFormAlpineData;
 window.attendanceLogAlpineData = attendanceLogAlpineData;
 window.bookingListAlpineData = bookingListAlpineData;
+window.bookingRejectionAlpineData = bookingRejectionAlpineData;
 window.backendOperationalSettingsAlpineData =
   backendOperationalSettingsAlpineData;
 window.wfaReasonCatalogAlpineData = wfaReasonCatalogAlpineData;

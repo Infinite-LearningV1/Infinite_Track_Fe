@@ -22,3 +22,29 @@ test("index registers the WFA catalog factory", async () => {
   const js = await source("src/js/index.js");
   assert.match(js, /window\.wfaReasonCatalogAlpineData/);
 });
+
+test("booking page includes the rejection modal and success event handler", async () => {
+  const html = await source("src/management-booking.html");
+  assert.match(html, /wfa-booking-rejection-modal\.html/);
+  assert.match(html, /wfa-booking-rejection:succeeded/);
+});
+
+test("booking table and map detail open rejection instead of mutating directly", async () => {
+  const table = await source("src/partials/table/table-booking.html");
+  const mapModal = await source("src/partials/modal/booking-map-modal.html");
+  assert.match(table, /openRejectBooking\(booking\)/);
+  assert.match(mapModal, /openRejectBooking\(selectedBookingLocation\)/);
+  assert.doesNotMatch(mapModal, /rejectBooking\(/);
+});
+
+test("index registers the booking rejection factory", async () => {
+  const js = await source("src/js/index.js");
+  assert.match(js, /window\.bookingRejectionAlpineData/);
+});
+
+test("booking feature uses explicit approval and opens rejection as separate commands", async () => {
+  const js = await source("src/js/features/wfaBooking/bookingList.js");
+  assert.match(js, /approveBookingCommand\(bookingId\)/);
+  assert.match(js, /openRejectBooking\(booking\)/);
+  assert.doesNotMatch(js, /updateBookingStatus/);
+});

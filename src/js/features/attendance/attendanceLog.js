@@ -316,10 +316,7 @@ export function attendanceLogAlpineData(overrides = {}) {
     hasAttendanceCoordinates(log) {
       return hasFiniteCoordinates({
         latitude: firstFiniteMapNumber(log.location?.latitude, log.latitude),
-        longitude: firstFiniteMapNumber(
-          log.location?.longitude,
-          log.longitude,
-        ),
+        longitude: firstFiniteMapNumber(log.location?.longitude, log.longitude),
       });
     },
 

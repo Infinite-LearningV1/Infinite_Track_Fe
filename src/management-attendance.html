@@ -13,22 +13,7 @@
     </title>
   </head>
   <body
-    x-data="{ 
-      page: 'managementAttendance', 
-      'loaded': true, 
-      'darkMode': false, 
-      'stickyMenu': false, 
-      'sidebarToggle': false, 
-      'scrollTop': false,
-      // Alert Modal State
-      isAlertModalOpen: false,
-      alertType: 'success',
-      alertTitle: '',
-      alertMessage: '',
-      alertButtonText: 'OK',
-      ...attendanceLogAlpineData(),
-      ...mapDetailModalState()
-    }"
+    x-data="attendanceManagementPageData(mapDetailModalState())"
     x-init="
          darkMode = JSON.parse(localStorage.getItem('darkMode'));
          $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"

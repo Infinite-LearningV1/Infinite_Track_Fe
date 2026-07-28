@@ -419,3 +419,38 @@ export function attendanceLogAlpineData(overrides = {}) {
     formatDate,
   };
 }
+
+/**
+ * Builds the Management Attendance root scope without evaluating accessors.
+ * Object spread calls getters while composing the Alpine expression, which
+ * disconnects aliases such as searchQuery from their canonical nested state.
+ */
+export function attendanceManagementPageData(
+  mapDetailState = {},
+  attendanceOverrides = {},
+) {
+  const shellState = {
+    page: "managementAttendance",
+    loaded: true,
+    darkMode: false,
+    stickyMenu: false,
+    sidebarToggle: false,
+    scrollTop: false,
+    isAlertModalOpen: false,
+    alertType: "success",
+    alertTitle: "",
+    alertMessage: "",
+    alertButtonText: "OK",
+  };
+  const result = {};
+
+  for (const source of [
+    shellState,
+    attendanceLogAlpineData(attendanceOverrides),
+    mapDetailState,
+  ]) {
+    Object.defineProperties(result, Object.getOwnPropertyDescriptors(source));
+  }
+
+  return result;
+}

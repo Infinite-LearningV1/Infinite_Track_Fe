@@ -62,7 +62,10 @@ import { userFormAlpineData } from "./features/userManagement/userForm.js";
 import { createFocusTrap } from "./utils/focusTrap.js";
 import { createUserDetailDrawerLifecycle } from "./features/userManagement/userDetailDrawerLifecycle.js";
 import { roleBadgeClass as roleBadgeClassUtil } from "./utils/roleBadge.js";
-import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
+import {
+  attendanceLogAlpineData,
+  attendanceManagementPageData,
+} from "./features/attendance/attendanceLog.js";
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
 import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
@@ -85,6 +88,7 @@ document.addEventListener("alpine:init", () => {
 window.userListAlpineData = userListAlpineData;
 window.userFormAlpineData = userFormAlpineData;
 window.attendanceLogAlpineData = attendanceLogAlpineData;
+window.attendanceManagementPageData = attendanceManagementPageData;
 window.bookingListAlpineData = bookingListAlpineData;
 window.backendOperationalSettingsAlpineData =
   backendOperationalSettingsAlpineData;

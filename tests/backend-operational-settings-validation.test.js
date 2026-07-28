@@ -8,7 +8,7 @@ import {
   validateBackendOperationalSettingsForm,
 } from "../src/js/features/backendOperationalSettings/backendOperationalSettings.js";
 
-test("validateBackendOperationalSettingsForm requires all five INF-142 fields", () => {
+test("validateBackendOperationalSettingsForm requires all operational fields", () => {
   const errors = validateBackendOperationalSettingsForm(
     createDefaultBackendOperationalSettingsForm(),
   );
@@ -22,6 +22,8 @@ test("validateBackendOperationalSettingsForm requires all five INF-142 fields", 
       "Waktu penyangga checkout otomatis wajib diisi dengan bilangan bulat positif.",
     lateCheckoutToleranceMin:
       "Toleransi checkout terlambat wajib diisi dengan bilangan bulat positif.",
+    wfaRequestRadiusM:
+      "Radius pengajuan WFA wajib diisi dengan bilangan bulat positif.",
     defaultShiftEnd:
       "Jam selesai shift default wajib diisi dalam format HH:mm.",
   });
@@ -34,6 +36,7 @@ test("validateBackendOperationalSettingsForm accepts valid canonical form input"
     autoCheckoutTBufferMin: "10",
     lateCheckoutToleranceMin: "120",
     defaultShiftEnd: "17:00",
+    wfaRequestRadiusM: "100",
   });
 
   assert.deepEqual(errors, {});
@@ -46,6 +49,7 @@ test("validateBackendOperationalSettingsForm rejects zero, decimals, negatives, 
     autoCheckoutTBufferMin: "-1",
     lateCheckoutToleranceMin: " ",
     defaultShiftEnd: "24:00",
+    wfaRequestRadiusM: "abc",
   });
 
   assert.deepEqual(errors, {
@@ -57,6 +61,8 @@ test("validateBackendOperationalSettingsForm rejects zero, decimals, negatives, 
       "Waktu penyangga checkout otomatis wajib diisi dengan bilangan bulat positif.",
     lateCheckoutToleranceMin:
       "Toleransi checkout terlambat wajib diisi dengan bilangan bulat positif.",
+    wfaRequestRadiusM:
+      "Radius pengajuan WFA wajib diisi dengan bilangan bulat positif.",
     defaultShiftEnd:
       "Jam selesai shift default wajib diisi dalam format HH:mm.",
   });
@@ -69,6 +75,7 @@ test("hasBackendOperationalSettingsChanges compares normalized values", () => {
     autoCheckoutTBufferMin: "10",
     lateCheckoutToleranceMin: "120",
     defaultShiftEnd: "17:00",
+    wfaRequestRadiusM: "100",
   };
 
   assert.equal(
@@ -96,6 +103,7 @@ test("toBackendOperationalSettingsPayload serializes form values for PATCH", () 
       autoCheckoutTBufferMin: "10",
       lateCheckoutToleranceMin: "120",
       defaultShiftEnd: "17:00",
+      wfaRequestRadiusM: "100",
     }),
     {
       geofenceRadiusDefaultM: 100,
@@ -103,6 +111,7 @@ test("toBackendOperationalSettingsPayload serializes form values for PATCH", () 
       autoCheckoutTBufferMin: 10,
       lateCheckoutToleranceMin: 120,
       defaultShiftEnd: "17:00",
+      wfaRequestRadiusM: 100,
     },
   );
 });

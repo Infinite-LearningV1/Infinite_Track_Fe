@@ -23,6 +23,7 @@ const CANONICAL_SETTINGS = {
   autoCheckoutTBufferMin: 30,
   lateCheckoutToleranceMin: 15,
   defaultShiftEnd: "17:00:00",
+  wfaRequestRadiusM: 100,
 };
 
 function createMemoryStorage(seed = {}) {
@@ -134,6 +135,7 @@ test("backendOperationalSettingsAlpineData starts by loading canonical backend s
     autoCheckoutTBufferMin: "30",
     lateCheckoutToleranceMin: "15",
     defaultShiftEnd: "17:00",
+    wfaRequestRadiusM: "100",
   });
   assert.deepEqual(state.originalForm, state.form);
   assert.equal(state.infoMessage, undefined);
@@ -156,6 +158,7 @@ test("backendOperationalSettingsAlpineData saveSettings announces durable backen
       autoCheckoutTBufferMin: "10",
       lateCheckoutToleranceMin: "120",
       defaultShiftEnd: "18:00",
+      wfaRequestRadiusM: "150",
     };
 
     await state.saveSettings();
@@ -167,6 +170,7 @@ test("backendOperationalSettingsAlpineData saveSettings announces durable backen
         autoCheckoutTBufferMin: 10,
         lateCheckoutToleranceMin: 120,
         defaultShiftEnd: "18:00",
+        wfaRequestRadiusM: 150,
       },
     ]);
     assert.equal(alerts.length, 1);

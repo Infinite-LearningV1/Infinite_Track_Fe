@@ -40,7 +40,14 @@ export function normalizeAttendanceListResponse(response = {}) {
  * Alpine.js data untuk halaman attendance log
  * @returns {Object} - Alpine.js data object
  */
-export function attendanceLogAlpineData() {
+export function attendanceLogAlpineData(overrides = {}) {
+  const services = {
+    getAttendanceLog: overrides.getAttendanceLog || getAttendanceLog,
+    deleteAttendance: overrides.deleteAttendance || deleteAttendance,
+  };
+  const schedule = overrides.setTimeout || globalThis.setTimeout;
+  const cancelSchedule = overrides.clearTimeout || globalThis.clearTimeout;
+
   return {
     // State data
     attendanceData: [],
@@ -54,16 +61,11 @@ export function attendanceLogAlpineData() {
     },
     filters: {
       search: "",
-      sortBy: "time_in",
-      sortOrder: "DESC",
       page: 1,
       limit: 10,
     },
     isLoading: true,
     errorMessage: "",
-
-    // Sort fields that are actively supported by current backend contract
-    supportedSortFields: ["id", "full_name", "time_in", "time_out", "status"],
 
     // Search input proxy -> single request state (filters.search)
     get searchTerm() {
@@ -96,7 +98,7 @@ export function attendanceLogAlpineData() {
         this.isLoading = true;
         this.errorMessage = "";
 
-        const response = await getAttendanceLog(this.filters);
+        const response = await services.getAttendanceLog({ ...this.filters });
         const normalizedResponse = normalizeAttendanceListResponse(response);
 
         // Update data dan pagination
@@ -127,11 +129,11 @@ export function attendanceLogAlpineData() {
     handleSearchInput() {
       // Clear timer sebelumnya
       if (this.searchTimer) {
-        clearTimeout(this.searchTimer);
+        cancelSchedule(this.searchTimer);
       }
 
       // Set timer baru untuk debounce 500ms
-      this.searchTimer = setTimeout(() => {
+      this.searchTimer = schedule(() => {
         this.filters.page = 1; // Reset ke halaman pertama
         this.fetchAttendance();
       }, 500);
@@ -142,28 +144,6 @@ export function attendanceLogAlpineData() {
      */
     debouncedSearch() {
       this.handleSearchInput();
-    },
-
-    /**
-     * Change sorting
-     * @param {string} newSortBy - Field untuk sorting
-     */
-    changeSort(newSortBy) {
-      if (!this.isSortFieldSupported(newSortBy)) {
-        return;
-      }
-
-      // Jika field sama, toggle order
-      if (this.filters.sortBy === newSortBy) {
-        this.filters.sortOrder =
-          this.filters.sortOrder === "ASC" ? "DESC" : "ASC";
-      } else {
-        this.filters.sortBy = newSortBy;
-        this.filters.sortOrder = "DESC"; // Default ke DESC untuk field baru
-      }
-
-      this.filters.page = 1; // Reset ke halaman pertama
-      this.fetchAttendance();
     },
 
     /**
@@ -215,7 +195,7 @@ export function attendanceLogAlpineData() {
       if (!this.deleteTargetId) return;
 
       try {
-        await deleteAttendance(this.deleteTargetId);
+        await services.deleteAttendance(this.deleteTargetId);
 
         // Reset target
         this.deleteTargetId = null;
@@ -319,27 +299,6 @@ export function attendanceLogAlpineData() {
      */
     getInfoBadgeText(info) {
       return getInfoBadgeText(info);
-    },
-
-    /**
-     * Get sort icon
-     * @param {string} fieldName - Field name untuk sorting
-     * @returns {string} - Icon class atau empty string
-     */
-    getSortIcon(fieldName) {
-      if (!this.isSortFieldSupported(fieldName)) {
-        return "";
-      }
-
-      if (this.filters.sortBy !== fieldName) {
-        return ""; // Tidak ada icon jika field tidak sedang di-sort
-      }
-
-      return this.filters.sortOrder === "ASC" ? "↑" : "↓";
-    },
-
-    isSortFieldSupported(fieldName) {
-      return this.supportedSortFields.includes(fieldName);
     },
 
     // Avatar utility functions (imported from utils)

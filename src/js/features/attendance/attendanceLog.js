@@ -105,6 +105,7 @@ export function attendanceLogAlpineData(overrides = {}) {
     isDeleteModalOpen: false,
     deleteConfirmMessage: "",
     deleteTargetId: null,
+    isDeleting: false,
 
     // Debounce timer untuk search
     searchTimer: null,
@@ -218,7 +219,9 @@ export function attendanceLogAlpineData(overrides = {}) {
      * Execute delete attendance (dipanggil via alert confirm OK)
      */
     async executeDelete() {
-      if (!this.deleteTargetId) return;
+      if (!this.deleteTargetId || this.isDeleting) return;
+
+      this.isDeleting = true;
 
       try {
         await services.deleteAttendance(this.deleteTargetId);
@@ -252,6 +255,8 @@ export function attendanceLogAlpineData(overrides = {}) {
               error.message || "Terjadi kesalahan saat menghapus data absensi.",
           });
         }
+      } finally {
+        this.isDeleting = false;
       }
     },
 

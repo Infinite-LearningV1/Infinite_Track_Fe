@@ -189,7 +189,54 @@ test("rapid debounced searches cancel the stale timer and request only the lates
   assert.deepEqual(calls, [{ search: "latest", page: 1, limit: 10 }]);
 });
 
-test("executeDelete uses the injected delete service before refreshing server rows", async () => {
+test("executeDelete ignores requests without a delete target", async () => {
+  const events = [];
+  const component = attendanceLogAlpineData({
+    deleteAttendance: async (id) => events.push(["delete", id]),
+    getAttendanceLog: async () => {
+      events.push(["fetch"]);
+      return attendancePage();
+    },
+  });
+
+  await component.executeDelete();
+
+  assert.deepEqual(events, []);
+  assert.equal(component.isDeleting, false);
+});
+
+test("executeDelete suppresses a second submit while deletion is pending", async () => {
+  const pendingDelete = deferred();
+  const deletedIds = [];
+  const originalWindow = globalThis.window;
+  globalThis.window = { showInlineAlert: () => {} };
+  const component = attendanceLogAlpineData({
+    deleteAttendance: (id) => {
+      deletedIds.push(id);
+      return pendingDelete.promise;
+    },
+    getAttendanceLog: async () => attendancePage(),
+  });
+  component.deleteTargetId = 42;
+
+  try {
+    const firstDelete = component.executeDelete();
+    const secondDelete = component.executeDelete();
+
+    assert.equal(component.isDeleting, true);
+    assert.deepEqual(deletedIds, [42]);
+
+    pendingDelete.resolve();
+    await Promise.all([firstDelete, secondDelete]);
+
+    assert.deepEqual(deletedIds, [42]);
+    assert.equal(component.isDeleting, false);
+  } finally {
+    globalThis.window = originalWindow;
+  }
+});
+
+test("successful delete refreshes authoritative server state", async () => {
   const deletedIds = [];
   const refreshCalls = [];
   const originalWindow = globalThis.window;
@@ -209,6 +256,38 @@ test("executeDelete uses the injected delete service before refreshing server ro
 
     assert.deepEqual(deletedIds, [42]);
     assert.deepEqual(refreshCalls, [{ search: "", page: 1, limit: 10 }]);
+    assert.equal(component.deleteTargetId, null);
+    assert.equal(component.isDeleting, false);
+  } finally {
+    globalThis.window = originalWindow;
+  }
+});
+
+test("failed delete clears submitting state and retains the server list", async () => {
+  const initialRows = [{ id_attendance: 42, full_name: "Alpha" }];
+  const refreshCalls = [];
+  const originalWindow = globalThis.window;
+  globalThis.window = { showInlineAlert: () => {} };
+
+  try {
+    const component = attendanceLogAlpineData({
+      deleteAttendance: async () => {
+        throw new Error("delete failed");
+      },
+      getAttendanceLog: async (params) => {
+        refreshCalls.push(params);
+        return attendancePage();
+      },
+    });
+    component.attendanceData = initialRows;
+    component.deleteTargetId = 42;
+
+    await component.executeDelete();
+
+    assert.equal(component.deleteTargetId, null);
+    assert.equal(component.isDeleting, false);
+    assert.equal(component.attendanceData, initialRows);
+    assert.deepEqual(refreshCalls, []);
   } finally {
     globalThis.window = originalWindow;
   }

@@ -44,9 +44,55 @@ test("normalizes the exact live nested attendance list row", () => {
   });
 });
 
+test("ignores obsolete flat fields and list coordinates in favor of the nested live contract", () => {
+  assert.deepEqual(
+    normalizeAttendanceListRow(
+      liveListRow({
+        id: 999,
+        full_name: "Obsolete Employee",
+        nip_nim: "OBSOLETE",
+        role_name: "Obsolete Role",
+        work_hour: "99:99",
+        information: "Obsolete Mode",
+        status: "obsolete-status",
+        checkout_state: "obsolete-checkout",
+        location: {
+          available: true,
+          id: 700,
+          description: "Nested live location",
+          latitude: -0.91,
+          longitude: 119.87,
+        },
+      }),
+    ),
+    {
+      idAttendance: 12041,
+      employeeId: 45,
+      fullName: "Muhammad Rizki Ramdani",
+      nipNim: "9BYYD3",
+      roleName: "Internship",
+      attendanceDate: "2026-07-23",
+      timeIn: "23:55",
+      timeOut: "23:55",
+      workHour: "00:00",
+      mode: "wfo",
+      modeLabel: "WFO",
+      status: "",
+      statusLabel: "",
+      checkoutState: "completed",
+      location: {
+        available: true,
+        id: 700,
+        description: "Nested live location",
+      },
+    },
+  );
+});
+
 [
   [null, "open"],
   ["17:00", "completed"],
+  ["   ", ""],
   [undefined, ""],
   ["", ""],
   [17, ""],

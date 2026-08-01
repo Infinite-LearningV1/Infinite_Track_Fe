@@ -333,14 +333,75 @@ test("invalid and loading sort guards leave pending search, state, history, and 
     hasSuccessfulPage: true,
   };
   state.latestListRequestId = 31;
+  state.draftFilters = {
+    from: "2026-07-01",
+    to: "2026-07-31",
+    mode: "wfa",
+    status: "late",
+    checkoutState: "open",
+  };
+  state.isFilterOpen = true;
+  state.filterValidationMessage =
+    "Tanggal mulai dan selesai harus diisi bersama.";
+  state.openAttendanceDrawerShell();
+  await state.replaceAttendanceDrawerDetail(
+    fullAttendanceDetail({
+      id_attendance: 88,
+      attendance_date: "2026-08-02",
+      time_in: "09:15",
+      time_out: "18:30",
+      work_duration: "09:15",
+      notes: "Canonical drawer detail must remain intact",
+      booking_id: 144,
+      user: {
+        full_name: "Drawer Owner",
+        nip_nim: "2026088",
+        email: "drawer@example.test",
+        role: "Manager",
+      },
+      mode: { key: "wfa", label: "WFA" },
+      status: { key: "late", label: "Terlambat" },
+      location: {
+        latitude: -0.91,
+        longitude: 119.87,
+        radius: 125,
+        description: "Lokasi drawer",
+      },
+    }),
+  );
   state.detailState = {
     selectedId: 88,
     requestId: 17,
     loading: false,
     error: "Existing detail error",
     unavailable: false,
-    detail: fullAttendanceDetail(),
+    detail: structuredClone(state.selectedAttendanceDetail),
   };
+  assert.deepEqual(state.selectedAttendanceDetail, {
+    idAttendance: 88,
+    employee: {
+      fullName: "Drawer Owner",
+      nipNim: "2026088",
+      email: "drawer@example.test",
+      role: "Manager",
+    },
+    attendanceDate: "2026-08-02",
+    timeIn: "09:15",
+    timeOut: "18:30",
+    workHour: "09:15",
+    mode: "wfa",
+    modeLabel: "WFA",
+    status: "late",
+    statusLabel: "Terlambat",
+    notes: "Canonical drawer detail must remain intact",
+    bookingId: 144,
+    location: {
+      latitude: -0.91,
+      longitude: 119.87,
+      radius: 125,
+      description: "Lokasi drawer",
+    },
+  });
   state.onSearchChange();
   const pendingTimer = timers.timers[0];
   const snapshot = () => ({
@@ -349,6 +410,11 @@ test("invalid and loading sort guards leave pending search, state, history, and 
     pagination: structuredClone(state.pagination),
     tableState: structuredClone(state.tableState),
     latestListRequestId: state.latestListRequestId,
+    draftFilters: structuredClone(state.draftFilters),
+    isFilterOpen: state.isFilterOpen,
+    filterValidationMessage: state.filterValidationMessage,
+    isAttendanceDetailDrawerOpen: state.isAttendanceDetailDrawerOpen,
+    selectedAttendanceDetail: structuredClone(state.selectedAttendanceDetail),
     detailState: structuredClone(state.detailState),
     searchTimer: state.searchTimer,
     timerCancelled: pendingTimer.cancelled,

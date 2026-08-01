@@ -314,14 +314,44 @@ test("invalid and loading sort guards leave pending search, state, history, and 
   state.appliedQuery.page = 4;
   state.appliedQuery.sortBy = "status";
   state.appliedQuery.sortOrder = "DESC";
-  state.searchQuery = "ayu";
+  state.searchQuery = "audit-needle";
+  state.rows = [
+    slimAttendanceRow({ id_attendance: 701, full_name: "Zulu" }),
+    slimAttendanceRow({ id_attendance: 702, full_name: "Alpha" }),
+  ];
+  state.pagination = {
+    current_page: 4,
+    total_pages: 9,
+    total_records: 87,
+    records_per_page: 25,
+    has_prev_page: true,
+    has_next_page: true,
+  };
+  state.tableState = {
+    loading: false,
+    error: "Previous server failure",
+    hasSuccessfulPage: true,
+  };
+  state.latestListRequestId = 31;
+  state.detailState = {
+    selectedId: 88,
+    requestId: 17,
+    loading: false,
+    error: "Existing detail error",
+    unavailable: false,
+    detail: fullAttendanceDetail(),
+  };
   state.onSearchChange();
   const pendingTimer = timers.timers[0];
   const snapshot = () => ({
     query: structuredClone(state.appliedQuery),
+    rows: structuredClone(state.rows),
+    pagination: structuredClone(state.pagination),
+    tableState: structuredClone(state.tableState),
+    latestListRequestId: state.latestListRequestId,
+    detailState: structuredClone(state.detailState),
     searchTimer: state.searchTimer,
     timerCancelled: pendingTimer.cancelled,
-    loading: state.tableState.loading,
     history: browser.calls.slice(),
     location: { ...browser.location },
     requests: requests.slice(),

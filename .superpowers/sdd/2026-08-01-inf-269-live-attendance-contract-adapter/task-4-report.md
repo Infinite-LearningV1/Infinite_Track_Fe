@@ -76,3 +76,23 @@
 
   Result: Prettier completed; the focused Node gate reported 48 passing and 0
   failing; `git diff --check` completed without whitespace errors.
+
+## Test-strength follow-up: round 2
+
+- Strengthened invalid-key and loading guard snapshots with distinctive,
+  non-default applied search, rows, pagination, `tableState` values (including
+  `error` and `hasSuccessfulPage`), and both list/detail request IDs.
+- The loading guard snapshot deliberately starts with `tableState.loading`
+  already true. Both paths prove it remains unchanged while the pending timer,
+  list data, pagination, error/success state, request IDs, URL/history, and
+  request list remain exact.
+- Exact verification commands:
+
+  ```powershell
+  npx prettier --write tests/attendance-audit-state.test.js tests/attendance-list-state.test.js tests/attendance-page-composition.test.js
+  node --test tests/attendance-audit-state.test.js tests/attendance-list-state.test.js tests/attendance-page-composition.test.js
+  git diff --check
+  ```
+
+  Result: Prettier completed; the focused Node gate reported 48 passing and 0
+  failing; `git diff --check` completed without whitespace errors.

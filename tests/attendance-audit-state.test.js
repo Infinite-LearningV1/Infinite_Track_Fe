@@ -148,17 +148,19 @@ test("init hydrates the canonical URL before its first server request", async ()
       search: "ayu",
       from: "2026-07-01",
       to: "2026-07-31",
-      mode: "WFH",
+      mode: "wfh",
       status: "late",
       checkout_state: "open",
+      sortBy: "status",
+      sortOrder: "ASC",
     },
   ]);
   assert.deepEqual(state.draftFilters, state.appliedQuery.appliedFilters);
   assert.notEqual(state.draftFilters, state.appliedQuery.appliedFilters);
-  assert.equal("sortBy" in state.appliedQuery, false);
-  assert.equal("sortOrder" in state.appliedQuery, false);
-  assert.equal(browser.location.search.includes("sortBy"), false);
-  assert.equal(browser.location.search.includes("sortOrder"), false);
+  assert.equal(state.appliedQuery.sortBy, "status");
+  assert.equal(state.appliedQuery.sortOrder, "ASC");
+  assert.equal(browser.location.search.includes("sortBy=status"), true);
+  assert.equal(browser.location.search.includes("sortOrder=ASC"), true);
   assert.equal(new URLSearchParams(browser.location.search).get("debug"), "1");
   assert.equal(browser.location.hash, "#audit");
   assert.ok(browser.listeners.has("popstate"));
@@ -200,6 +202,86 @@ test("explicit paging pushes history while debounced search replaces it", async 
     { page: 1, limit: 10, search: "ayu" },
   ]);
   assert.equal(timers.timers[0].delay, 300);
+});
+
+test("sort cycles through ASC, DESC, and Backend default with one pushed request per click", async () => {
+  const browser = fakeBrowser("?debug=1");
+  const timers = fakeTimers();
+  const requests = [];
+  const state = attendanceLogAlpineData({
+    browser,
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout,
+    getAttendanceLog: async (params) => {
+      requests.push(params);
+      return attendancePage([
+        { id_attendance: 2, full_name: "Zulu" },
+        { id_attendance: 1, full_name: "Alpha" },
+      ]);
+    },
+  });
+  state.appliedQuery.page = 4;
+  state.searchQuery = "ayu";
+  state.onSearchChange();
+
+  await state.toggleAttendanceSort("full_name");
+
+  assert.equal(state.appliedQuery.page, 1);
+  assert.equal(state.appliedQuery.sortBy, "full_name");
+  assert.equal(state.appliedQuery.sortOrder, "ASC");
+  assert.equal(state.attendanceSortDirection("full_name"), "ascending");
+  assert.equal(timers.timers[0].cancelled, true);
+  assert.deepEqual(requests, [
+    {
+      page: 1,
+      limit: 10,
+      search: "ayu",
+      sortBy: "full_name",
+      sortOrder: "ASC",
+    },
+  ]);
+  assert.deepEqual(
+    state.rows.map((row) => row.idAttendance),
+    [2, 1],
+  );
+  assert.deepEqual(browser.calls, [
+    [
+      "push",
+      "/management-attendance.html?debug=1&search=ayu&sortBy=full_name&sortOrder=ASC#audit",
+    ],
+  ]);
+
+  await state.toggleAttendanceSort("full_name");
+  assert.equal(state.appliedQuery.sortOrder, "DESC");
+  assert.equal(state.attendanceSortDirection("full_name"), "descending");
+
+  await state.toggleAttendanceSort("full_name");
+  assert.equal(state.appliedQuery.sortBy, "");
+  assert.equal(state.appliedQuery.sortOrder, "");
+  assert.equal(state.attendanceSortDirection("full_name"), "none");
+  assert.equal(browser.calls.length, 3);
+  assert.equal(requests.length, 3);
+  assert.equal(new URLSearchParams(browser.location.search).get("debug"), "1");
+});
+
+test("sort rejects non-server keys without changing URL or fetching", async () => {
+  const browser = fakeBrowser("?debug=1");
+  let requests = 0;
+  const state = attendanceLogAlpineData({
+    browser,
+    getAttendanceLog: async () => {
+      requests += 1;
+      return attendancePage();
+    },
+  });
+
+  const result = await state.toggleAttendanceSort("mode");
+
+  assert.equal(result, false);
+  assert.equal(state.attendanceSortDirection("mode"), "none");
+  assert.equal(requests, 0);
+  assert.deepEqual(browser.calls, []);
+  assert.equal(browser.location.search, "?debug=1");
 });
 
 test("the page-facing debouncedSearch uses the canonical timer without duplicate work", async () => {
@@ -432,9 +514,9 @@ test("retry refetches the unchanged applied query after retaining a successful p
 
   assert.equal(state.rows, retainedRows);
   assert.deepEqual(requests, [
-    { page: 1, limit: 10, search: "ayu", mode: "WFH" },
-    { page: 1, limit: 10, search: "ayu", mode: "WFH" },
-    { page: 1, limit: 10, search: "ayu", mode: "WFH" },
+    { page: 1, limit: 10, search: "ayu", mode: "wfh" },
+    { page: 1, limit: 10, search: "ayu", mode: "wfh" },
+    { page: 1, limit: 10, search: "ayu", mode: "wfh" },
   ]);
   assert.equal(state.tableState.error, "server unavailable");
 });
@@ -543,7 +625,7 @@ test("Apply commits valid draft filters, pushes once, fetches once, and closes",
     limit: 10,
     from: "2026-07-01",
     to: "2026-07-31",
-    mode: "WFH",
+    mode: "wfh",
     status: "late",
     checkout_state: "open",
   });
@@ -780,7 +862,7 @@ test("a current detail 404 clears detail loading before a deferred list refresh 
   assert.equal(state.detailState.unavailable, true);
   assert.equal(state.detailState.detail, null);
   assert.deepEqual(listRequests, [
-    { page: 1, limit: 10, search: "ayu", mode: "WFH" },
+    { page: 1, limit: 10, search: "ayu", mode: "wfh" },
   ]);
 
   resolveList(

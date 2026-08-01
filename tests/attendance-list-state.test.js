@@ -49,6 +49,32 @@ test("fetchAttendance sends current server query and keeps server row order", as
   );
 });
 
+test("sorted server responses retain Backend row order", async () => {
+  const calls = [];
+  const component = attendanceLogAlpineData({
+    getAttendanceLog: async (params) => {
+      calls.push(params);
+      return attendancePage([
+        { id_attendance: 3, full_name: "Zulu" },
+        { id_attendance: 1, full_name: "Alpha" },
+        { id_attendance: 2, full_name: "Mango" },
+      ]);
+    },
+  });
+  component.appliedQuery.sortBy = "full_name";
+  component.appliedQuery.sortOrder = "DESC";
+
+  await component.fetchAttendance();
+
+  assert.deepEqual(calls, [
+    { page: 1, limit: 10, sortBy: "full_name", sortOrder: "DESC" },
+  ]);
+  assert.deepEqual(
+    component.rows.map((row) => row.idAttendance),
+    [3, 1, 2],
+  );
+});
+
 test("changePage preserves the selected page and makes one server request", async () => {
   const calls = [];
   const component = attendanceLogAlpineData({

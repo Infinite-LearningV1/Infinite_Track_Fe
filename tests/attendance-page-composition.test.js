@@ -67,6 +67,8 @@ test("actual page composition keeps canonical Attendance state live", async () =
     assert.equal(typeof descriptors[accessor].get, "function", accessor);
   }
   assert.equal(typeof descriptors.searchQuery.set, "function");
+  assert.equal(typeof pageState.toggleAttendanceSort, "function");
+  assert.equal(typeof pageState.attendanceSortDirection, "function");
 
   pageState.searchQuery = "Ayu";
   assert.equal(pageState.appliedQuery.search, "Ayu");
@@ -74,6 +76,7 @@ test("actual page composition keeps canonical Attendance state live", async () =
   pageState.appliedQuery.appliedFilters.mode = "WFH";
   pageState.appliedQuery.appliedFilters.checkoutState = "open";
   assert.equal(pageState.activeFilterCount, 2);
+  assert.equal(pageState.attendanceSortDirection("full_name"), "none");
 
   assert.equal("attendanceData" in descriptors, false);
   assert.equal("isLoading" in descriptors, false);

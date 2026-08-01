@@ -26,6 +26,7 @@ import {
 } from "../../utils/badgeHelpers.js";
 import {
   ATTENDANCE_PAGE_SIZES,
+  ATTENDANCE_SORT_KEYS,
   DEFAULT_ATTENDANCE_QUERY,
   parseAttendanceDirectoryQuery,
   serializeAttendanceDirectoryQuery,
@@ -438,6 +439,33 @@ export function attendanceLogAlpineData(overrides = {}) {
 
     debouncedSearch() {
       this.onSearchChange();
+    },
+
+    attendanceSortDirection(sortBy) {
+      if (this.appliedQuery.sortBy !== sortBy) return "none";
+      if (this.appliedQuery.sortOrder === "ASC") return "ascending";
+      if (this.appliedQuery.sortOrder === "DESC") return "descending";
+      return "none";
+    },
+
+    async toggleAttendanceSort(sortBy) {
+      if (!ATTENDANCE_SORT_KEYS.includes(sortBy) || this.tableState.loading) {
+        return false;
+      }
+
+      this.cancelPendingSearch();
+      if (this.appliedQuery.sortBy !== sortBy) {
+        this.appliedQuery.sortBy = sortBy;
+        this.appliedQuery.sortOrder = "ASC";
+      } else if (this.appliedQuery.sortOrder === "ASC") {
+        this.appliedQuery.sortOrder = "DESC";
+      } else {
+        this.appliedQuery.sortBy = "";
+        this.appliedQuery.sortOrder = "";
+      }
+      this.appliedQuery.page = 1;
+      this.syncUrl("push");
+      return this.fetchAttendance();
     },
 
     async changePage(newPage) {

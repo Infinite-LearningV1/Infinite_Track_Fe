@@ -204,7 +204,7 @@ test("explicit paging pushes history while debounced search replaces it", async 
   assert.equal(timers.timers[0].delay, 300);
 });
 
-test("sort cycles through ASC, DESC, and Backend default with one pushed request per click", async () => {
+test("sort cycles through ASC, DESC, Backend default, and a new key with exact server state", async () => {
   const browser = fakeBrowser("?debug=1");
   const timers = fakeTimers();
   const requests = [];
@@ -254,34 +254,92 @@ test("sort cycles through ASC, DESC, and Backend default with one pushed request
   await state.toggleAttendanceSort("full_name");
   assert.equal(state.appliedQuery.sortOrder, "DESC");
   assert.equal(state.attendanceSortDirection("full_name"), "descending");
+  assert.deepEqual(requests[1], {
+    page: 1,
+    limit: 10,
+    search: "ayu",
+    sortBy: "full_name",
+    sortOrder: "DESC",
+  });
+  assert.deepEqual(browser.calls[1], [
+    "push",
+    "/management-attendance.html?debug=1&search=ayu&sortBy=full_name&sortOrder=DESC#audit",
+  ]);
 
   await state.toggleAttendanceSort("full_name");
   assert.equal(state.appliedQuery.sortBy, "");
   assert.equal(state.appliedQuery.sortOrder, "");
   assert.equal(state.attendanceSortDirection("full_name"), "none");
-  assert.equal(browser.calls.length, 3);
-  assert.equal(requests.length, 3);
+  assert.deepEqual(requests[2], { page: 1, limit: 10, search: "ayu" });
+  assert.deepEqual(browser.calls[2], [
+    "push",
+    "/management-attendance.html?debug=1&search=ayu#audit",
+  ]);
+  assert.equal(browser.calls[2][1].includes("sortBy"), false);
+  assert.equal(browser.calls[2][1].includes("sortOrder"), false);
+
+  await state.toggleAttendanceSort("attendance_date");
+  assert.equal(state.appliedQuery.sortBy, "attendance_date");
+  assert.equal(state.appliedQuery.sortOrder, "ASC");
+  assert.equal(state.attendanceSortDirection("attendance_date"), "ascending");
+  assert.deepEqual(requests[3], {
+    page: 1,
+    limit: 10,
+    search: "ayu",
+    sortBy: "attendance_date",
+    sortOrder: "ASC",
+  });
+  assert.deepEqual(browser.calls[3], [
+    "push",
+    "/management-attendance.html?debug=1&search=ayu&sortBy=attendance_date&sortOrder=ASC#audit",
+  ]);
+  assert.equal(browser.calls.length, 4);
+  assert.equal(requests.length, 4);
   assert.equal(new URLSearchParams(browser.location.search).get("debug"), "1");
 });
 
-test("sort rejects non-server keys without changing URL or fetching", async () => {
+test("invalid and loading sort guards leave pending search, state, history, and requests untouched", async () => {
   const browser = fakeBrowser("?debug=1");
-  let requests = 0;
+  const timers = fakeTimers();
+  const requests = [];
   const state = attendanceLogAlpineData({
     browser,
-    getAttendanceLog: async () => {
-      requests += 1;
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout,
+    getAttendanceLog: async (params) => {
+      requests.push(params);
       return attendancePage();
     },
   });
+  state.appliedQuery.page = 4;
+  state.appliedQuery.sortBy = "status";
+  state.appliedQuery.sortOrder = "DESC";
+  state.searchQuery = "ayu";
+  state.onSearchChange();
+  const pendingTimer = timers.timers[0];
+  const snapshot = () => ({
+    query: structuredClone(state.appliedQuery),
+    searchTimer: state.searchTimer,
+    timerCancelled: pendingTimer.cancelled,
+    loading: state.tableState.loading,
+    history: browser.calls.slice(),
+    location: { ...browser.location },
+    requests: requests.slice(),
+  });
 
-  const result = await state.toggleAttendanceSort("mode");
+  const invalidBefore = snapshot();
+  const invalidResult = await state.toggleAttendanceSort("mode");
 
-  assert.equal(result, false);
-  assert.equal(state.attendanceSortDirection("mode"), "none");
-  assert.equal(requests, 0);
-  assert.deepEqual(browser.calls, []);
-  assert.equal(browser.location.search, "?debug=1");
+  assert.equal(invalidResult, false);
+  assert.equal(state.attendanceSortDirection("status"), "descending");
+  assert.deepEqual(snapshot(), invalidBefore);
+
+  state.tableState.loading = true;
+  const loadingBefore = snapshot();
+  const loadingResult = await state.toggleAttendanceSort("full_name");
+
+  assert.equal(loadingResult, false);
+  assert.deepEqual(snapshot(), loadingBefore);
 });
 
 test("the page-facing debouncedSearch uses the canonical timer without duplicate work", async () => {
@@ -310,8 +368,10 @@ test("the page-facing debouncedSearch uses the canonical timer without duplicate
   assert.deepEqual(requests, [{ page: 1, limit: 10, search: "latest" }]);
 });
 
-test("popstate cancels pending search, restores URL state, and writes no history", async () => {
-  const browser = fakeBrowser("?page=2&search=before");
+test("popstate cancels pending search, restores active sort URL state, and writes no history", async () => {
+  const browser = fakeBrowser(
+    "?page=2&search=before&sortBy=status&sortOrder=DESC",
+  );
   const timers = fakeTimers();
   const requests = [];
   const state = attendanceLogAlpineData({
@@ -333,14 +393,30 @@ test("popstate cancels pending search, restores URL state, and writes no history
 
   state.searchQuery = "pending";
   state.onSearchChange();
-  browser.location.search = "?page=3&search=restored";
+  browser.location.search =
+    "?page=3&search=restored&sortBy=full_name&sortOrder=ASC";
   await browser.listeners.get("popstate")();
   await timers.timers[0].callback();
 
   assert.equal(timers.timers[0].cancelled, true);
   assert.equal(state.appliedQuery.page, 3);
   assert.equal(state.searchQuery, "restored");
-  assert.deepEqual(requests, [{ page: 3, limit: 10, search: "restored" }]);
+  assert.equal(state.appliedQuery.sortBy, "full_name");
+  assert.equal(state.appliedQuery.sortOrder, "ASC");
+  assert.equal(state.attendanceSortDirection("full_name"), "ascending");
+  assert.deepEqual(requests, [
+    {
+      page: 3,
+      limit: 10,
+      search: "restored",
+      sortBy: "full_name",
+      sortOrder: "ASC",
+    },
+  ]);
+  assert.equal(
+    browser.location.search,
+    "?page=3&search=restored&sortBy=full_name&sortOrder=ASC",
+  );
   assert.deepEqual(browser.calls, []);
 });
 
@@ -491,32 +567,64 @@ test("a current list error keeps the last successful rows visible", async (t) =>
   assert.equal(state.tableState.loading, false);
 });
 
-test("retry refetches the unchanged applied query after retaining a successful page", async (t) => {
+test("failed fetch and retry retain the active server sort after a successful page", async (t) => {
   t.mock.method(console, "error", () => {});
   const requests = [];
   let fail = false;
+  const browser = fakeBrowser(
+    "?debug=1&search=ayu&mode=wfh&sortBy=full_name&sortOrder=DESC",
+  );
   const state = attendanceLogAlpineData({
-    browser: null,
+    browser,
     getAttendanceLog: async (params) => {
       requests.push(params);
       if (fail) throw new Error("server unavailable");
       return attendancePage([slimAttendanceRow()]);
     },
   });
-  state.appliedQuery.search = "ayu";
-  state.appliedQuery.appliedFilters.mode = "WFH";
+  await state.applyUrlState({ fetch: false });
 
   await state.fetchAttendance();
   fail = true;
   await state.fetchAttendance();
   const retainedRows = state.rows;
+  assert.equal(state.attendanceSortDirection("full_name"), "descending");
   await state.retryAttendanceList();
 
   assert.equal(state.rows, retainedRows);
+  assert.equal(state.appliedQuery.sortBy, "full_name");
+  assert.equal(state.appliedQuery.sortOrder, "DESC");
+  assert.equal(state.attendanceSortDirection("full_name"), "descending");
+  assert.equal(
+    browser.location.search,
+    "?debug=1&search=ayu&mode=wfh&sortBy=full_name&sortOrder=DESC",
+  );
+  assert.deepEqual(browser.calls, []);
   assert.deepEqual(requests, [
-    { page: 1, limit: 10, search: "ayu", mode: "wfh" },
-    { page: 1, limit: 10, search: "ayu", mode: "wfh" },
-    { page: 1, limit: 10, search: "ayu", mode: "wfh" },
+    {
+      page: 1,
+      limit: 10,
+      search: "ayu",
+      mode: "wfh",
+      sortBy: "full_name",
+      sortOrder: "DESC",
+    },
+    {
+      page: 1,
+      limit: 10,
+      search: "ayu",
+      mode: "wfh",
+      sortBy: "full_name",
+      sortOrder: "DESC",
+    },
+    {
+      page: 1,
+      limit: 10,
+      search: "ayu",
+      mode: "wfh",
+      sortBy: "full_name",
+      sortOrder: "DESC",
+    },
   ]);
   assert.equal(state.tableState.error, "server unavailable");
 });
@@ -597,8 +705,8 @@ test("closing the filter restores focus to its trigger", () => {
   assert.equal(state.isFilterOpen, false);
 });
 
-test("Apply commits valid draft filters, pushes once, fetches once, and closes", async () => {
-  const browser = fakeBrowser("?debug=1&page=3");
+test("Apply preserves active sort while committing filters, pushing once, and fetching once", async () => {
+  const browser = fakeBrowser("?debug=1&page=3&sortBy=status&sortOrder=DESC");
   const requests = [];
   const state = attendanceLogAlpineData({
     browser,
@@ -607,6 +715,7 @@ test("Apply commits valid draft filters, pushes once, fetches once, and closes",
       return attendancePage([], { current_page: params.page });
     },
   });
+  await state.applyUrlState({ fetch: false });
   state.openFilter();
   state.draftFilters = {
     from: "2026-07-01",
@@ -628,13 +737,60 @@ test("Apply commits valid draft filters, pushes once, fetches once, and closes",
     mode: "wfh",
     status: "late",
     checkout_state: "open",
+    sortBy: "status",
+    sortOrder: "DESC",
   });
-  assert.equal(browser.calls.length, 1);
-  assert.equal(browser.calls[0][0], "push");
-  assert.equal(new URLSearchParams(browser.location.search).get("debug"), "1");
+  assert.equal(state.appliedQuery.sortBy, "status");
+  assert.equal(state.appliedQuery.sortOrder, "DESC");
+  assert.equal(state.attendanceSortDirection("status"), "descending");
+  assert.deepEqual(browser.calls, [
+    [
+      "push",
+      "/management-attendance.html?debug=1&from=2026-07-01&to=2026-07-31&mode=wfh&status=late&checkout_state=open&sortBy=status&sortOrder=DESC#audit",
+    ],
+  ]);
   assert.equal(state.isFilterOpen, false);
   assert.equal(state.filterValidationMessage, "");
   assert.equal(state.activeFilterCount, 4);
+});
+
+test("page-size changes preserve active sort in the pushed URL and server request", async () => {
+  const browser = fakeBrowser(
+    "?debug=1&page=4&sortBy=attendance_date&sortOrder=DESC",
+  );
+  const requests = [];
+  const state = attendanceLogAlpineData({
+    browser,
+    getAttendanceLog: async (params) => {
+      requests.push(params);
+      return attendancePage([], {
+        current_page: params.page,
+        records_per_page: params.limit,
+      });
+    },
+  });
+  await state.applyUrlState({ fetch: false });
+
+  await state.changeLimit(25);
+
+  assert.equal(state.appliedQuery.page, 1);
+  assert.equal(state.appliedQuery.sortBy, "attendance_date");
+  assert.equal(state.appliedQuery.sortOrder, "DESC");
+  assert.equal(state.attendanceSortDirection("attendance_date"), "descending");
+  assert.deepEqual(requests, [
+    {
+      page: 1,
+      limit: 25,
+      sortBy: "attendance_date",
+      sortOrder: "DESC",
+    },
+  ]);
+  assert.deepEqual(browser.calls, [
+    [
+      "push",
+      "/management-attendance.html?debug=1&limit=25&sortBy=attendance_date&sortOrder=DESC#audit",
+    ],
+  ]);
 });
 
 test("invalid date range retains the open draft and performs no side effects", async () => {

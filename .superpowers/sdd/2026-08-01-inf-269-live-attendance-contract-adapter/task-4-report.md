@@ -53,3 +53,26 @@
 
 - The focused Node test command emits the pre-existing package warning that the project lacks `"type": "module"`; tests still exit successfully.
 - Task 5 must bind the new actions to sortable header markup and verify the runtime accessibility affordances.
+
+## Test-strength follow-up: round 1
+
+- Extended the sort cycle proof with exact requests and pushed URLs for ASC,
+  DESC, Backend-default empty sort, and a fourth click to a new key that starts
+  at ASC. The default transition explicitly omits both sort query fields.
+- Added a full state/history/request snapshot for invalid-key and loading
+  guards while a debounce timer is pending. Both guards leave the timer,
+  query/page, history, URL, and request list unchanged.
+- Added active-sort persistence proof across filter Apply, page-size changes,
+  popstate restoration, and rejected fetch followed by retry. Each scenario
+  asserts canonical sort state, accessibility direction, and exact request or
+  URL sort fields; retry retains the active sort after rejection.
+- Exact verification commands and results:
+
+  ```powershell
+  npx prettier --write tests/attendance-audit-state.test.js tests/attendance-list-state.test.js tests/attendance-page-composition.test.js
+  node --test tests/attendance-audit-state.test.js tests/attendance-list-state.test.js tests/attendance-page-composition.test.js
+  git diff --check
+  ```
+
+  Result: Prettier completed; the focused Node gate reported 48 passing and 0
+  failing; `git diff --check` completed without whitespace errors.

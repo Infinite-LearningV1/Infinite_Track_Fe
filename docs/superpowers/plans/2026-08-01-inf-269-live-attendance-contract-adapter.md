@@ -451,37 +451,62 @@ git commit -m "feat(attendance): add server sort state"
 - Modify: `src/js/features/attendance/attendanceLog.js`
 - Modify: `tests/attendance-audit-table.test.js`
 - Modify: `tests/attendance-truthfulness-template.test.js`
+- Create: `tests/attendance-built-page-contract.test.js`
 
 **Interfaces:**
 
 - Consumes canonical list fields from Task 1 and sort actions from Task 4.
 - Produces truthful seven-column presentation without list-coordinate dependency.
 
-- [ ] **Step 1: Write failing template/state assertions**
+- [ ] **Step 1: Write failing built-page and state behavior assertions**
 
-Assert that:
+Run the production build from the test setup, parse
+`build/management-attendance.html` with `parse5`, and locate the actual table by
+`data-attendance-audit-shell`. Assert against parsed elements rather than source
+text:
 
 ```js
-for (const [label, key] of [
+const expectedSortHeaders = new Map([
   ["Pegawai", "full_name"],
   ["Tanggal", "attendance_date"],
   ["Kehadiran", "time_in"],
   ["Status", "status"],
-]) {
-  assert.match(table, new RegExp(`toggleAttendanceSort\\(\\'${key}\\'\\)`));
-  assert.match(table, new RegExp(`attendanceSortDirection\\(\\'${key}\\'\\)`));
+]);
+
+for (const [label, key] of expectedSortHeaders) {
+  const header = findHeaderByVisibleText(auditTable, label);
+  const button = findDescendant(header, (node) => node.tagName === "button");
+  assert.equal(attribute(button, "type"), "button");
+  assert.equal(attribute(button, "@click"), `toggleAttendanceSort('${key}')`);
+  assert.equal(
+    attribute(header, ":aria-sort"),
+    `attendanceSortDirection('${key}')`,
+  );
 }
-assert.doesNotMatch(table, /toggleAttendanceSort\(['"]mode/);
-assert.match(table, /log\.location\.available/);
-assert.match(table, /log\.location\.description/);
-assert.doesNotMatch(table, /hasAttendanceCoordinates\(log\)/);
+
+for (const label of ["Mode", "Lokasi", "Aksi"]) {
+  const header = findHeaderByVisibleText(auditTable, label);
+  assert.equal(
+    findDescendant(header, (node) => node.tagName === "button"),
+    null,
+  );
+}
 ```
 
-Add state-level assertions that list location availability never opens a coordinate map; only detail coordinates initialize Leaflet.
+In real Alpine state tests, feed a live row with
+`location: { available: true, description: "Kantor" }` and no coordinates.
+Assert the canonical row stays available/description-only and does not initialize
+the map; then feed detail coordinates and assert only the detail lifecycle owns
+map initialization.
 
 - [ ] **Step 2: Run table tests and confirm RED**
 
-Run: `node --test tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js tests/attendance-audit-state.test.js`
+Run:
+
+```powershell
+npm run build
+node --test tests/attendance-built-page-contract.test.js tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js tests/attendance-audit-state.test.js
+```
 
 Expected: FAIL because headers are static and the location badge still checks coordinates absent from the live list.
 
@@ -510,9 +535,9 @@ Expected: all Attendance tests pass.
 - [ ] **Step 5: Format, check, and commit**
 
 ```powershell
-npx prettier --write src/partials/table/table-attendance.html src/js/features/attendance/attendanceLog.js tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js
+npx prettier --write src/partials/table/table-attendance.html src/js/features/attendance/attendanceLog.js tests/attendance-built-page-contract.test.js tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js
 git diff --check
-git add src/partials/table/table-attendance.html src/js/features/attendance/attendanceLog.js tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js
+git add src/partials/table/table-attendance.html src/js/features/attendance/attendanceLog.js tests/attendance-built-page-contract.test.js tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js
 git commit -m "feat(attendance): render live audit contract"
 ```
 

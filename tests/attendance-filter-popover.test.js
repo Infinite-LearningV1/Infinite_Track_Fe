@@ -55,9 +55,9 @@ test("combined filter uses locked values and communicates applied count and erro
   const filter = readFileSync(filterPath, "utf8");
 
   for (const value of [
-    "WFO",
-    "WFH",
-    "WFA",
+    "wfo",
+    "wfh",
+    "wfa",
     "ontime",
     "late",
     "early",

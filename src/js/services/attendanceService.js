@@ -15,6 +15,8 @@ const ATTENDANCE_LIST_QUERY_KEYS = Object.freeze([
   "mode",
   "status",
   "checkout_state",
+  "sortBy",
+  "sortOrder",
 ]);
 
 function hasQueryValue(value) {

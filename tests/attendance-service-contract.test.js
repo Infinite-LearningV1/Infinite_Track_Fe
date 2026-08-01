@@ -17,15 +17,17 @@ test("buildAttendanceListUrl serializes every enabled public parameter", () => {
       search: "Ayu",
       from: "2026-07-01",
       to: "2026-07-31",
-      mode: "WFH",
+      mode: "wfh",
       status: "late",
       checkout_state: "open",
+      sortBy: "attendance_date",
+      sortOrder: "DESC",
     }),
-    "http://api.test/api/attendance?page=2&limit=25&search=Ayu&from=2026-07-01&to=2026-07-31&mode=WFH&status=late&checkout_state=open",
+    "http://api.test/api/attendance?page=2&limit=25&search=Ayu&from=2026-07-01&to=2026-07-31&mode=wfh&status=late&checkout_state=open&sortBy=attendance_date&sortOrder=DESC",
   );
 });
 
-test("buildAttendanceListUrl omits empty, unsupported, and provisional sort parameters", () => {
+test("buildAttendanceListUrl omits empty and unknown parameters", () => {
   assert.equal(
     buildAttendanceListUrl("/api/", {
       page: 0,
@@ -33,14 +35,14 @@ test("buildAttendanceListUrl omits empty, unsupported, and provisional sort para
       search: "",
       from: null,
       to: undefined,
-      mode: "WFO",
+      mode: "wfo",
       status: false,
       checkout_state: "completed",
-      sortBy: "attendance_date",
+      sortBy: "created_at",
       sortOrder: "ASC",
       debug: "1",
     }),
-    "/api/attendance?page=0&limit=10&mode=WFO&status=false&checkout_state=completed",
+    "/api/attendance?page=0&limit=10&mode=wfo&status=false&checkout_state=completed&sortBy=created_at&sortOrder=ASC",
   );
 });
 
@@ -65,7 +67,7 @@ test("getAttendanceLog uses the canonical list URL and preserves its response co
       search: "Ayu",
       from: "2026-07-01",
       to: "2026-07-31",
-      mode: "WFH",
+      mode: "wfh",
       status: "late",
       checkout_state: "open",
       sortBy: "attendance_date",
@@ -79,7 +81,7 @@ test("getAttendanceLog uses the canonical list URL and preserves its response co
 
   assert.equal(
     requestConfig.url,
-    "/api/attendance?page=1&limit=10&search=Ayu&from=2026-07-01&to=2026-07-31&mode=WFH&status=late&checkout_state=open",
+    "/api/attendance?page=1&limit=10&search=Ayu&from=2026-07-01&to=2026-07-31&mode=wfh&status=late&checkout_state=open&sortBy=attendance_date&sortOrder=ASC",
   );
   assert.equal(requestConfig.method, "get");
   assert.strictEqual(result, responseData);

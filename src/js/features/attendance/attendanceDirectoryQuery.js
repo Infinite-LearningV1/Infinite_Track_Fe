@@ -14,13 +14,24 @@ const MANAGED_QUERY_KEYS = [
 const ATTENDANCE_STATUSES = Object.freeze(["ontime", "late", "early", "alpha"]);
 
 export const ATTENDANCE_PAGE_SIZES = Object.freeze([10, 25, 50, 100]);
-export const ATTENDANCE_MODES = Object.freeze(["WFO", "WFH", "WFA"]);
+export const ATTENDANCE_MODES = Object.freeze(["wfo", "wfh", "wfa"]);
 export const ATTENDANCE_CHECKOUT_STATES = Object.freeze(["completed", "open"]);
+export const ATTENDANCE_SORT_KEYS = Object.freeze([
+  "attendance_date",
+  "time_in",
+  "time_out",
+  "full_name",
+  "status",
+  "created_at",
+]);
+export const ATTENDANCE_SORT_ORDERS = Object.freeze(["ASC", "DESC"]);
 
 export const DEFAULT_ATTENDANCE_QUERY = Object.freeze({
   page: 1,
   limit: 10,
   search: "",
+  sortBy: "",
+  sortOrder: "",
   appliedFilters: Object.freeze({
     from: "",
     to: "",
@@ -47,6 +58,17 @@ function isDateOnly(value) {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
+}
+
+function normalizeAttendanceSort(sortBy, sortOrder) {
+  if (!ATTENDANCE_SORT_KEYS.includes(sortBy)) {
+    return { sortBy: "", sortOrder: "" };
+  }
+
+  return {
+    sortBy,
+    sortOrder: ATTENDANCE_SORT_ORDERS.includes(sortOrder) ? sortOrder : "DESC",
+  };
 }
 
 export function validateAttendanceDateRange(filters = {}) {
@@ -77,9 +99,13 @@ export function parseAttendanceDirectoryQuery(searchParams) {
   const limit = positiveInteger(searchParams.get("limit"));
   const from = searchParams.get("from") || "";
   const to = searchParams.get("to") || "";
-  const mode = searchParams.get("mode");
+  const mode = (searchParams.get("mode") || "").toLowerCase();
   const status = searchParams.get("status");
   const checkoutState = searchParams.get("checkout_state");
+  const sort = normalizeAttendanceSort(
+    searchParams.get("sortBy") || "",
+    searchParams.get("sortOrder") || "",
+  );
   const dateRange = validateAttendanceDateRange({ from, to });
 
   return {
@@ -88,6 +114,7 @@ export function parseAttendanceDirectoryQuery(searchParams) {
       ? limit
       : DEFAULT_ATTENDANCE_QUERY.limit,
     search: (searchParams.get("search") || "").trim(),
+    ...sort,
     appliedFilters: {
       from: dateRange.valid ? from : "",
       to: dateRange.valid ? to : "",
@@ -108,6 +135,10 @@ export function serializeAttendanceDirectoryQuery(
   for (const key of MANAGED_QUERY_KEYS) result.delete(key);
 
   const filters = state.appliedFilters || {};
+  const sort = normalizeAttendanceSort(
+    state.sortBy || "",
+    state.sortOrder || "",
+  );
   const values = [
     ["page", state.page !== DEFAULT_ATTENDANCE_QUERY.page ? state.page : null],
     [
@@ -120,6 +151,8 @@ export function serializeAttendanceDirectoryQuery(
     ["mode", filters.mode || null],
     ["status", filters.status || null],
     ["checkout_state", filters.checkoutState || null],
+    ["sortBy", sort.sortBy || null],
+    ["sortOrder", sort.sortOrder || null],
   ];
 
   for (const [key, value] of values) {
@@ -130,6 +163,10 @@ export function serializeAttendanceDirectoryQuery(
 
 export function toAttendanceRequestParams(state) {
   const filters = state.appliedFilters || {};
+  const sort = normalizeAttendanceSort(
+    state.sortBy || "",
+    state.sortOrder || "",
+  );
   const params = {
     page: state.page,
     limit: state.limit,
@@ -142,6 +179,10 @@ export function toAttendanceRequestParams(state) {
   if (filters.mode) params.mode = filters.mode;
   if (filters.status) params.status = filters.status;
   if (filters.checkoutState) params.checkout_state = filters.checkoutState;
+  if (sort.sortBy) {
+    params.sortBy = sort.sortBy;
+    params.sortOrder = sort.sortOrder;
+  }
 
   return params;
 }

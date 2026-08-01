@@ -5,6 +5,8 @@ import {
   ATTENDANCE_CHECKOUT_STATES,
   ATTENDANCE_MODES,
   ATTENDANCE_PAGE_SIZES,
+  ATTENDANCE_SORT_KEYS,
+  ATTENDANCE_SORT_ORDERS,
   DEFAULT_ATTENDANCE_QUERY,
   parseAttendanceDirectoryQuery,
   serializeAttendanceDirectoryQuery,
@@ -20,6 +22,8 @@ test("empty query returns canonical defaults with independent filter state", () 
     page: 1,
     limit: 10,
     search: "",
+    sortBy: "",
+    sortOrder: "",
     appliedFilters: {
       from: "",
       to: "",
@@ -38,8 +42,17 @@ test("empty query returns canonical defaults with independent filter state", () 
   assert.equal(Object.isFrozen(DEFAULT_ATTENDANCE_QUERY), true);
   assert.equal(Object.isFrozen(DEFAULT_ATTENDANCE_QUERY.appliedFilters), true);
   assert.deepEqual(ATTENDANCE_PAGE_SIZES, [10, 25, 50, 100]);
-  assert.deepEqual(ATTENDANCE_MODES, ["WFO", "WFH", "WFA"]);
+  assert.deepEqual(ATTENDANCE_MODES, ["wfo", "wfh", "wfa"]);
   assert.deepEqual(ATTENDANCE_CHECKOUT_STATES, ["completed", "open"]);
+  assert.deepEqual(ATTENDANCE_SORT_KEYS, [
+    "attendance_date",
+    "time_in",
+    "time_out",
+    "full_name",
+    "status",
+    "created_at",
+  ]);
+  assert.deepEqual(ATTENDANCE_SORT_ORDERS, ["ASC", "DESC"]);
 });
 
 test("parses the complete canonical query", () => {
@@ -53,10 +66,12 @@ test("parses the complete canonical query", () => {
     page: 3,
     limit: 25,
     search: "ayu",
+    sortBy: "",
+    sortOrder: "",
     appliedFilters: {
       from: "2026-07-01",
       to: "2026-07-31",
-      mode: "WFH",
+      mode: "wfh",
       status: "late",
       checkoutState: "open",
     },
@@ -105,7 +120,7 @@ test("serialization omits defaults, trims search, and preserves unrelated keys",
       appliedFilters: {
         from: "2026-07-01",
         to: "2026-07-31",
-        mode: "WFA",
+        mode: "wfa",
         status: "ontime",
         checkoutState: "completed",
       },
@@ -115,7 +130,7 @@ test("serialization omits defaults, trims search, and preserves unrelated keys",
 
   assert.equal(
     serialized.toString(),
-    "debug=1&page=2&limit=50&search=Ayu&from=2026-07-01&to=2026-07-31&mode=WFA&status=ontime&checkout_state=completed",
+    "debug=1&page=2&limit=50&search=Ayu&from=2026-07-01&to=2026-07-31&mode=wfa&status=ontime&checkout_state=completed",
   );
   assert.equal(
     serializeAttendanceDirectoryQuery(
@@ -135,7 +150,7 @@ test("request mapping uses Backend snake case and omits empty filters", () => {
       appliedFilters: {
         from: "2026-07-01",
         to: "2026-07-31",
-        mode: "WFH",
+        mode: "wfh",
         status: "late",
         checkoutState: "open",
       },
@@ -146,7 +161,7 @@ test("request mapping uses Backend snake case and omits empty filters", () => {
       search: "Ayu",
       from: "2026-07-01",
       to: "2026-07-31",
-      mode: "WFH",
+      mode: "wfh",
       status: "late",
       checkout_state: "open",
     },
@@ -158,26 +173,44 @@ test("request mapping uses Backend snake case and omits empty filters", () => {
   });
 });
 
-test("provisional sort URL parameters never enter state, URLs, or requests", () => {
+test("parses and serializes an authoritative attendance sort", () => {
   const parsed = parseAttendanceDirectoryQuery(
-    new URLSearchParams("sortBy=attendance_date&sortOrder=ASC"),
+    new URLSearchParams("mode=wfo&sortBy=full_name&sortOrder=ASC"),
   );
   const serialized = serializeAttendanceDirectoryQuery(
     parsed,
-    new URLSearchParams("sortBy=attendance_date&sortOrder=ASC&debug=1"),
+    new URLSearchParams("debug=1"),
   );
-  const request = toAttendanceRequestParams(parsed);
 
-  assert.equal("sortBy" in parsed, false);
-  assert.equal("sortOrder" in parsed, false);
-  assert.equal("sortBy" in DEFAULT_ATTENDANCE_QUERY, false);
-  assert.equal("sortOrder" in DEFAULT_ATTENDANCE_QUERY, false);
-  assert.equal(serialized.has("sortBy"), false);
-  assert.equal(serialized.has("sortOrder"), false);
-  assert.equal(serialized.get("debug"), "1");
-  assert.equal("sortBy" in request, false);
-  assert.equal("sortOrder" in request, false);
-  assert.equal("checkoutState" in request, false);
+  assert.equal(parsed.appliedFilters.mode, "wfo");
+  assert.equal(parsed.sortBy, "full_name");
+  assert.equal(parsed.sortOrder, "ASC");
+  assert.equal(
+    serialized.toString(),
+    "debug=1&mode=wfo&sortBy=full_name&sortOrder=ASC",
+  );
+  assert.deepEqual(toAttendanceRequestParams(parsed), {
+    page: 1,
+    limit: 10,
+    mode: "wfo",
+    sortBy: "full_name",
+    sortOrder: "ASC",
+  });
+});
+
+test("discards unsupported sort keys and orphan sort orders", () => {
+  const invalid = parseAttendanceDirectoryQuery(
+    new URLSearchParams("sortBy=mode&sortOrder=ASC"),
+  );
+  const orphan = parseAttendanceDirectoryQuery(
+    new URLSearchParams("sortOrder=ASC"),
+  );
+
+  assert.equal(invalid.sortBy, "");
+  assert.equal(invalid.sortOrder, "");
+  assert.equal(orphan.sortBy, "");
+  assert.equal(orphan.sortOrder, "");
+  assert.deepEqual(toAttendanceRequestParams(invalid), { page: 1, limit: 10 });
 });
 
 test("date validation accepts an empty or complete real chronological range", () => {

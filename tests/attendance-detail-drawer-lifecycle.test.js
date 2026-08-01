@@ -8,24 +8,38 @@ import {
 } from "../src/js/features/attendance/attendanceDetailDrawerLifecycle.js";
 import { attendanceLogAlpineData } from "../src/js/features/attendance/attendanceLog.js";
 
-const fullDetail = (overrides = {}) => ({
-  id_attendance: 9,
-  employee: {
-    full_name: "Ayu",
-    nip_nim: "123",
-    email: "ayu@test",
-    role_name: "Staff",
+const liveDetailEnvelope = {
+  success: true,
+  message: "Detail absensi berhasil diambil",
+  data: {
+    id_attendance: 9,
+    attendance_date: "2026-07-28",
+    time_in: "08:00",
+    time_out: "17:00",
+    work_duration: "09:00",
+    mode: { key: "wfh", label: "WFH" },
+    status: { key: "ontime", label: "Tepat Waktu" },
+    notes: "Backend detail",
+    booking_id: 77,
+    user: {
+      full_name: "Ayu",
+      nip_nim: "123",
+      email: "ayu@test",
+      role: "Staff",
+    },
+    location: { latitude: "0", longitude: "119.8" },
   },
-  attendance_date: "2026-07-28",
-  time_in: "08:00",
-  time_out: "17:00",
-  work_hour: "09:00",
-  information: "WFH",
-  status: "ontime",
-  notes: "Backend detail",
-  booking_id: 77,
-  location: { latitude: "0", longitude: "119.8" },
-  ...overrides,
+};
+
+const fullDetail = (overrides = {}) => ({
+  ...liveDetailEnvelope,
+  data: {
+    ...liveDetailEnvelope.data,
+    ...overrides,
+    user: { ...liveDetailEnvelope.data.user, ...overrides.user },
+    mode: { ...liveDetailEnvelope.data.mode, ...overrides.mode },
+    status: { ...liveDetailEnvelope.data.status, ...overrides.status },
+  },
 });
 
 function createMapAdapter() {
@@ -101,7 +115,7 @@ function createDeferredMapAdapter(clock) {
   };
 }
 
-test("normalizes only detail-response evidence", () => {
+test("normalizes only the live detail envelope data", () => {
   const detail = normalizeAttendanceDetail(fullDetail());
 
   assert.deepEqual(detail.employee, {
@@ -115,8 +129,10 @@ test("normalizes only detail-response evidence", () => {
   assert.equal(detail.timeIn, "08:00");
   assert.equal(detail.timeOut, "17:00");
   assert.equal(detail.workHour, "09:00");
-  assert.equal(detail.mode, "WFH");
+  assert.equal(detail.mode, "wfh");
+  assert.equal(detail.modeLabel, "WFH");
   assert.equal(detail.status, "ontime");
+  assert.equal(detail.statusLabel, "Tepat Waktu");
   assert.equal(detail.notes, "Backend detail");
   assert.equal(detail.bookingId, 77);
   assert.equal(detail.location.latitude, 0);
@@ -127,11 +143,15 @@ test("normalizes only detail-response evidence", () => {
 
 test("normalization rejects junk coordinates and never invents detail fields", () => {
   const detail = normalizeAttendanceDetail({
-    employee: { full_name: "Ayu" },
-    location: {
-      latitude: "",
-      longitude: "invalid",
-      radius: "not-a-number",
+    success: true,
+    message: "Detail absensi berhasil diambil",
+    data: {
+      user: { full_name: "Ayu" },
+      location: {
+        latitude: "",
+        longitude: "invalid",
+        radius: "not-a-number",
+      },
     },
   });
 
@@ -156,7 +176,9 @@ test("the empty detail contains no fabricated evidence", () => {
     timeOut: "",
     workHour: "",
     mode: "",
+    modeLabel: "",
     status: "",
+    statusLabel: "",
     notes: "",
     bookingId: null,
     location: {

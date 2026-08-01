@@ -5,6 +5,7 @@
 
 import {
   getAttendanceLog,
+  getAttendanceById,
   deleteAttendance,
 } from "../../services/attendanceService.js";
 import {
@@ -32,7 +33,10 @@ import {
   validateAttendanceDateRange,
 } from "./attendanceDirectoryQuery.js";
 import { normalizeAttendanceListRow } from "./attendanceListRow.js";
-import { createAttendanceDetailDrawerLifecycle } from "./attendanceDetailDrawerLifecycle.js";
+import {
+  createAttendanceDetailDrawerLifecycle,
+  normalizeAttendanceDetail,
+} from "./attendanceDetailDrawerLifecycle.js";
 import { createFocusTrap } from "../../utils/focusTrap.js";
 
 const emptyPagination = () => ({
@@ -90,6 +94,7 @@ export function buildAttendanceLocation(attendanceItem = {}) {
 export function attendanceLogAlpineData(overrides = {}) {
   const services = {
     getAttendanceLog: overrides.getAttendanceLog || getAttendanceLog,
+    getAttendanceById: overrides.getAttendanceById || getAttendanceById,
     deleteAttendance: overrides.deleteAttendance || deleteAttendance,
   };
   const browser =
@@ -228,6 +233,7 @@ export function attendanceLogAlpineData(overrides = {}) {
 
     destroy() {
       this.cancelPendingSearch();
+      this.invalidateAttendanceDetailRequest();
       attendanceDrawerPresentationId += 1;
       detailLifecycle.close();
       this.isAttendanceDetailDrawerOpen = false;
@@ -282,7 +288,27 @@ export function attendanceLogAlpineData(overrides = {}) {
         : replaceDetail();
     },
 
-    closeAttendanceDrawer() {
+    invalidateAttendanceDetailRequest() {
+      const requestId = this.detailState.requestId + 1;
+      this.detailState = {
+        selectedId: null,
+        requestId,
+        loading: false,
+        error: "",
+        unavailable: false,
+        detail: null,
+      };
+    },
+
+    closeAttendanceDetail() {
+      this.invalidateAttendanceDetailRequest();
+      this.closeAttendanceDrawer({ preserveDetailRequestState: true });
+    },
+
+    closeAttendanceDrawer({ preserveDetailRequestState = false } = {}) {
+      if (!preserveDetailRequestState) {
+        this.invalidateAttendanceDetailRequest();
+      }
       if (!this.isAttendanceDetailDrawerOpen) return;
 
       attendanceDrawerPresentationId += 1;
@@ -291,6 +317,53 @@ export function attendanceLogAlpineData(overrides = {}) {
       this.selectedAttendanceDetail = detailLifecycle.detail;
       attendanceDrawerFocusTrap?.deactivate();
       attendanceDrawerFocusTrap = null;
+    },
+
+    async openAttendanceDetail(attendanceId) {
+      const requestId = this.detailState.requestId + 1;
+      this.detailState = {
+        selectedId: attendanceId,
+        requestId,
+        loading: true,
+        error: "",
+        unavailable: false,
+        detail: null,
+      };
+      this.openAttendanceDrawerShell();
+
+      try {
+        const response = await services.getAttendanceById(attendanceId);
+        if (requestId !== this.detailState.requestId) return false;
+
+        const normalized = normalizeAttendanceDetail(response);
+        this.detailState.detail = normalized;
+        await this.replaceAttendanceDrawerDetail(response);
+        return true;
+      } catch (error) {
+        if (requestId !== this.detailState.requestId) return false;
+
+        this.detailState.detail = null;
+        if (error?.status === 404) {
+          this.detailState.error = "";
+          this.detailState.unavailable = true;
+          await this.fetchAttendance();
+        } else {
+          this.detailState.error =
+            error?.message || "Gagal memuat detail absensi";
+          this.detailState.unavailable = false;
+        }
+        return false;
+      } finally {
+        if (requestId === this.detailState.requestId) {
+          this.detailState.loading = false;
+        }
+      }
+    },
+
+    async retryAttendanceDetail() {
+      const attendanceId = this.detailState.selectedId;
+      if (attendanceId === null || attendanceId === undefined) return false;
+      return this.openAttendanceDetail(attendanceId);
     },
 
     handleAttendanceDrawerTab(event) {

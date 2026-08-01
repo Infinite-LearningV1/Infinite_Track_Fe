@@ -3,8 +3,11 @@ import {
   hasFiniteCoordinates,
 } from "../../utils/mapLocationTruth.js";
 
-export function normalizeAttendanceDetail(detail = {}) {
-  const employee = detail.employee ?? {};
+export function normalizeAttendanceDetail(response = {}) {
+  const detail = response?.data ?? {};
+  const employee = detail.user ?? {};
+  const mode = detail.mode ?? {};
+  const status = detail.status ?? {};
   const location = detail.location ?? {};
 
   return {
@@ -13,14 +16,16 @@ export function normalizeAttendanceDetail(detail = {}) {
       fullName: employee.full_name ?? "",
       nipNim: employee.nip_nim ?? "",
       email: employee.email ?? "",
-      role: employee.role_name ?? "",
+      role: employee.role ?? "",
     },
     attendanceDate: detail.attendance_date ?? "",
     timeIn: detail.time_in ?? "",
     timeOut: detail.time_out ?? "",
-    workHour: detail.work_hour ?? "",
-    mode: detail.information ?? "",
-    status: detail.status ?? "",
+    workHour: detail.work_duration ?? "",
+    mode: mode.key ?? "",
+    modeLabel: mode.label ?? "",
+    status: status.key ?? "",
+    statusLabel: status.label ?? "",
     notes: detail.notes ?? "",
     bookingId: detail.booking_id ?? null,
     location: {

@@ -33,6 +33,45 @@ const slimAttendanceRow = (overrides = {}) => ({
   ...overrides,
 });
 
+const liveDetailEnvelope = {
+  success: true,
+  message: "Detail absensi berhasil diambil",
+  data: {
+    id_attendance: 42,
+    attendance_date: "2026-07-28",
+    time_in: "08:00",
+    time_out: "17:00",
+    work_duration: "09:00",
+    mode: { key: "wfh", label: "WFH" },
+    status: { key: "ontime", label: "Tepat Waktu" },
+    notes: "Backend detail",
+    booking_id: 77,
+    user: {
+      full_name: "Ayu Lestari",
+      nip_nim: "2026007",
+      email: "ayu@example.test",
+      role: "Staff",
+    },
+    location: {
+      latitude: -0.91,
+      longitude: 119.87,
+      radius: 100,
+      description: "Rumah Ayu",
+    },
+  },
+};
+
+const fullAttendanceDetail = (overrides = {}) => ({
+  ...liveDetailEnvelope,
+  data: {
+    ...liveDetailEnvelope.data,
+    ...overrides,
+    user: { ...liveDetailEnvelope.data.user, ...overrides.user },
+    mode: { ...liveDetailEnvelope.data.mode, ...overrides.mode },
+    status: { ...liveDetailEnvelope.data.status, ...overrides.status },
+  },
+});
+
 function fakeBrowser(search = "", hash = "#audit") {
   const calls = [];
   const listeners = new Map();
@@ -588,4 +627,174 @@ test("active filter count reflects applied criteria rather than uncommitted draf
   state.draftFilters.checkoutState = "open";
 
   assert.equal(state.activeFilterCount, 2);
+});
+
+test("opening detail shows a loading shell and renders only the detail endpoint response", async () => {
+  let resolveDetail;
+  const calls = [];
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceById: (id) => {
+      calls.push(id);
+      return new Promise((resolve) => {
+        resolveDetail = resolve;
+      });
+    },
+  });
+  state.rows = [
+    {
+      idAttendance: 42,
+      notes: "This slim-list value must never become detail",
+    },
+  ];
+
+  const request = state.openAttendanceDetail(42);
+
+  assert.equal(state.isAttendanceDetailDrawerOpen, true);
+  assert.equal(state.detailState.loading, true);
+  assert.equal(state.detailState.selectedId, 42);
+  assert.equal(state.detailState.detail, null);
+  assert.deepEqual(calls, [42]);
+
+  resolveDetail(fullAttendanceDetail({ notes: "Backend detail" }));
+  assert.equal(await request, true);
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.detail.notes, "Backend detail");
+  assert.equal(state.selectedAttendanceDetail.notes, "Backend detail");
+});
+
+test("an older detail success cannot replace the current selection", async () => {
+  const requests = [];
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceById: (id) =>
+      new Promise((resolve, reject) => requests.push({ id, resolve, reject })),
+  });
+
+  const first = state.openAttendanceDetail(1);
+  const second = state.openAttendanceDetail(2);
+  requests[1].resolve(
+    fullAttendanceDetail({
+      id_attendance: 2,
+      notes: "Current detail",
+    }),
+  );
+  assert.equal(await second, true);
+  requests[0].resolve(
+    fullAttendanceDetail({
+      id_attendance: 1,
+      notes: "Stale detail",
+    }),
+  );
+  assert.equal(await first, false);
+
+  assert.equal(state.detailState.selectedId, 2);
+  assert.equal(state.detailState.detail.idAttendance, 2);
+  assert.equal(state.detailState.detail.notes, "Current detail");
+  assert.equal(state.selectedAttendanceDetail.idAttendance, 2);
+});
+
+test("an older detail failure cannot replace the current success", async () => {
+  const requests = [];
+  let listRequests = 0;
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceById: (id) =>
+      new Promise((resolve, reject) => requests.push({ id, resolve, reject })),
+    getAttendanceLog: async () => {
+      listRequests += 1;
+      return attendancePage();
+    },
+  });
+
+  const first = state.openAttendanceDetail(1);
+  const second = state.openAttendanceDetail(2);
+  requests[1].resolve(fullAttendanceDetail({ id_attendance: 2 }));
+  await second;
+  const staleMissing = new Error("Stale detail failure");
+  staleMissing.status = 404;
+  requests[0].reject(staleMissing);
+  assert.equal(await first, false);
+
+  assert.equal(state.detailState.selectedId, 2);
+  assert.equal(state.detailState.error, "");
+  assert.equal(state.detailState.unavailable, false);
+  assert.equal(state.detailState.detail.idAttendance, 2);
+  assert.equal(listRequests, 0);
+});
+
+test("a current detail error stays contained in the open drawer and can retry", async () => {
+  let attempts = 0;
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceById: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("Detail service unavailable");
+      return fullAttendanceDetail();
+    },
+  });
+
+  assert.equal(await state.openAttendanceDetail(42), false);
+  assert.equal(state.isAttendanceDetailDrawerOpen, true);
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.error, "Detail service unavailable");
+  assert.equal(state.detailState.unavailable, false);
+  assert.equal(state.detailState.detail, null);
+
+  assert.equal(await state.retryAttendanceDetail(), true);
+  assert.equal(attempts, 2);
+  assert.equal(state.detailState.error, "");
+  assert.equal(state.detailState.detail.idAttendance, 42);
+});
+
+test("a current detail 404 shows unavailable and refreshes the active list once", async () => {
+  const listRequests = [];
+  const missing = new Error("Data absensi tidak ditemukan");
+  missing.status = 404;
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceById: async () => {
+      throw missing;
+    },
+    getAttendanceLog: async (params) => {
+      listRequests.push(params);
+      return attendancePage([slimAttendanceRow()]);
+    },
+  });
+  state.appliedQuery.search = "ayu";
+  state.appliedQuery.appliedFilters.mode = "WFH";
+
+  assert.equal(await state.openAttendanceDetail(42), false);
+
+  assert.equal(state.isAttendanceDetailDrawerOpen, true);
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.error, "");
+  assert.equal(state.detailState.unavailable, true);
+  assert.equal(state.detailState.detail, null);
+  assert.deepEqual(listRequests, [
+    { page: 1, limit: 10, search: "ayu", mode: "WFH" },
+  ]);
+});
+
+test("closing detail invalidates an in-flight request and resets drawer request state", async () => {
+  let resolveDetail;
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceById: () =>
+      new Promise((resolve) => {
+        resolveDetail = resolve;
+      }),
+  });
+
+  const request = state.openAttendanceDetail(42);
+  state.closeAttendanceDetail();
+  resolveDetail(fullAttendanceDetail());
+
+  assert.equal(await request, false);
+  assert.equal(state.isAttendanceDetailDrawerOpen, false);
+  assert.equal(state.detailState.selectedId, null);
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.error, "");
+  assert.equal(state.detailState.unavailable, false);
+  assert.equal(state.detailState.detail, null);
 });

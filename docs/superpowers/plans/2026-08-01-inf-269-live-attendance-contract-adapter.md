@@ -449,6 +449,8 @@ git commit -m "feat(attendance): add server sort state"
 
 - Modify: `src/partials/table/table-attendance.html`
 - Modify: `src/js/features/attendance/attendanceLog.js`
+- Modify: `package.json`
+- Modify: `package-lock.json`
 - Modify: `tests/attendance-audit-table.test.js`
 - Modify: `tests/attendance-truthfulness-template.test.js`
 - Create: `tests/attendance-built-page-contract.test.js`
@@ -458,7 +460,13 @@ git commit -m "feat(attendance): add server sort state"
 - Consumes canonical list fields from Task 1 and sort actions from Task 4.
 - Produces truthful seven-column presentation without list-coordinate dependency.
 
-- [ ] **Step 1: Write failing built-page and state behavior assertions**
+- [ ] **Step 1: Declare the built-HTML parser as an explicit test dependency**
+
+Run: `npm install --save-dev parse5@7.3.0`
+
+Expected: `parse5` appears in root `devDependencies`; no production dependency is added.
+
+- [ ] **Step 2: Write failing built-page and state behavior assertions**
 
 Run the production build from the test setup, parse
 `build/management-attendance.html` with `parse5`, and locate the actual table by
@@ -499,7 +507,7 @@ Assert the canonical row stays available/description-only and does not initializ
 the map; then feed detail coordinates and assert only the detail lifecycle owns
 map initialization.
 
-- [ ] **Step 2: Run table tests and confirm RED**
+- [ ] **Step 3: Run table tests and confirm RED**
 
 Run:
 
@@ -510,7 +518,7 @@ node --test tests/attendance-built-page-contract.test.js tests/attendance-audit-
 
 Expected: FAIL because headers are static and the location badge still checks coordinates absent from the live list.
 
-- [ ] **Step 3: Implement truthful bindings and sortable header buttons**
+- [ ] **Step 4: Implement truthful bindings and sortable header buttons**
 
 For the four sortable headers, render a real `<button type="button">` whose click calls `toggleAttendanceSort(key)`, whose disabled state follows `tableState.loading`, and whose parent `<th>` binds `:aria-sort="attendanceSortDirection(key)"`. Render an icon only from applied sort state.
 
@@ -526,18 +534,18 @@ Use `log.modeLabel || getInfoBadgeText(log.mode)` and `log.statusLabel || getSta
 
 Do not bind list rows to latitude or longitude. Keep row order exactly as received.
 
-- [ ] **Step 4: Run all Attendance template/state tests and confirm GREEN**
+- [ ] **Step 5: Run all Attendance template/state tests and confirm GREEN**
 
 Run: `$tests = Get-ChildItem tests -Filter 'attendance-*.test.js' | ForEach-Object FullName; node --test $tests`
 
 Expected: all Attendance tests pass.
 
-- [ ] **Step 5: Format, check, and commit**
+- [ ] **Step 6: Format, check, and commit**
 
 ```powershell
 npx prettier --write src/partials/table/table-attendance.html src/js/features/attendance/attendanceLog.js tests/attendance-built-page-contract.test.js tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js
 git diff --check
-git add src/partials/table/table-attendance.html src/js/features/attendance/attendanceLog.js tests/attendance-built-page-contract.test.js tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js
+git add package.json package-lock.json src/partials/table/table-attendance.html src/js/features/attendance/attendanceLog.js tests/attendance-built-page-contract.test.js tests/attendance-audit-table.test.js tests/attendance-truthfulness-template.test.js
 git commit -m "feat(attendance): render live audit contract"
 ```
 

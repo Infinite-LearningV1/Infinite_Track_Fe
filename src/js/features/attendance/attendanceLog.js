@@ -346,6 +346,7 @@ export function attendanceLogAlpineData(overrides = {}) {
         if (error?.status === 404) {
           this.detailState.error = "";
           this.detailState.unavailable = true;
+          this.detailState.loading = false;
           await this.fetchAttendance();
         } else {
           this.detailState.error =

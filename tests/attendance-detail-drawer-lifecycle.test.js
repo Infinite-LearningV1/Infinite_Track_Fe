@@ -116,7 +116,14 @@ function createDeferredMapAdapter(clock) {
 }
 
 test("normalizes only the live detail envelope data", () => {
-  const detail = normalizeAttendanceDetail(fullDetail());
+  const detail = normalizeAttendanceDetail({
+    ...fullDetail(),
+    id_attendance: 999,
+    employee: { full_name: "Obsolete root employee" },
+    work_hour: "99:99",
+    information: "OBSOLETE",
+    status: "obsolete-root-status",
+  });
 
   assert.deepEqual(detail.employee, {
     fullName: "Ayu",

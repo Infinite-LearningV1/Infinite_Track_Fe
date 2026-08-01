@@ -44,6 +44,14 @@ test("successful detail renders only the three approved evidence sections", () =
   assert.match(drawer, /selectedAttendanceDetail\.attendanceDate/);
   assert.match(drawer, /selectedAttendanceDetail\.location\.description/);
   assert.match(drawer, /selectedAttendanceDetail\.notes/);
+  assert.match(
+    drawer,
+    /selectedAttendanceDetail\.modeLabel \|\| selectedAttendanceDetail\.mode \|\| '-'/,
+  );
+  assert.match(
+    drawer,
+    /selectedAttendanceDetail\.statusLabel \|\| selectedAttendanceDetail\.status \|\| '-'/,
+  );
   assert.doesNotMatch(drawer, /Edit(?:\s|&nbsp;)+(?:Absensi|Kehadiran)/i);
   assert.doesNotMatch(drawer, /form-attendance/);
 });

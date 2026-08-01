@@ -725,10 +725,12 @@ test("an older detail failure cannot replace the current success", async () => {
 
 test("a current detail error stays contained in the open drawer and can retry", async () => {
   let attempts = 0;
+  const requestedIds = [];
   const state = attendanceLogAlpineData({
     browser: null,
-    getAttendanceById: async () => {
+    getAttendanceById: async (attendanceId) => {
       attempts += 1;
+      requestedIds.push(attendanceId);
       if (attempts === 1) throw new Error("Detail service unavailable");
       return fullAttendanceDetail();
     },
@@ -743,12 +745,14 @@ test("a current detail error stays contained in the open drawer and can retry", 
 
   assert.equal(await state.retryAttendanceDetail(), true);
   assert.equal(attempts, 2);
+  assert.deepEqual(requestedIds, [42, 42]);
   assert.equal(state.detailState.error, "");
   assert.equal(state.detailState.detail.idAttendance, 42);
 });
 
-test("a current detail 404 shows unavailable and refreshes the active list once", async () => {
+test("a current detail 404 clears detail loading before a deferred list refresh succeeds", async () => {
   const listRequests = [];
+  let resolveList;
   const missing = new Error("Data absensi tidak ditemukan");
   missing.status = 404;
   const state = attendanceLogAlpineData({
@@ -758,13 +762,17 @@ test("a current detail 404 shows unavailable and refreshes the active list once"
     },
     getAttendanceLog: async (params) => {
       listRequests.push(params);
-      return attendancePage([slimAttendanceRow()]);
+      return new Promise((resolve) => {
+        resolveList = resolve;
+      });
     },
   });
   state.appliedQuery.search = "ayu";
   state.appliedQuery.appliedFilters.mode = "WFH";
 
-  assert.equal(await state.openAttendanceDetail(42), false);
+  const request = state.openAttendanceDetail(42);
+  await Promise.resolve();
+  await Promise.resolve();
 
   assert.equal(state.isAttendanceDetailDrawerOpen, true);
   assert.equal(state.detailState.loading, false);
@@ -774,9 +782,73 @@ test("a current detail 404 shows unavailable and refreshes the active list once"
   assert.deepEqual(listRequests, [
     { page: 1, limit: 10, search: "ayu", mode: "WFH" },
   ]);
+
+  resolveList(
+    attendancePage([
+      {
+        id_attendance: 84,
+        attendance_date: "2026-07-23",
+        time_in: "23:55",
+        time_out: null,
+        work_duration: "00:00",
+        mode: { key: "wfo", label: "WFO" },
+        status: { key: "alpha", label: "Alpha" },
+        user: {
+          id: 45,
+          full_name: "Muhammad Rizki Ramdani",
+          nip_nim: "9BYYD3",
+          role: "Internship",
+        },
+        location: {
+          available: true,
+          id: 901,
+          description: "Kantor pusat",
+        },
+      },
+    ]),
+  );
+
+  assert.equal(await request, false);
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.unavailable, true);
+  assert.equal(state.rows[0].idAttendance, 84);
+  assert.equal(state.rows[0].fullName, "Muhammad Rizki Ramdani");
+  assert.equal(state.rows[0].mode, "wfo");
+  assert.equal(state.rows[0].statusLabel, "Alpha");
+  assert.equal(state.rows[0].location.description, "Kantor pusat");
 });
 
-test("closing detail invalidates an in-flight request and resets drawer request state", async () => {
+test("a current detail 404 remains unavailable and not loading when a deferred list refresh fails", async (t) => {
+  t.mock.method(console, "error", () => {});
+  let rejectList;
+  const missing = new Error("Data absensi tidak ditemukan");
+  missing.status = 404;
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceById: async () => {
+      throw missing;
+    },
+    getAttendanceLog: () =>
+      new Promise((resolve, reject) => {
+        rejectList = reject;
+      }),
+  });
+
+  const request = state.openAttendanceDetail(42);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.unavailable, true);
+  rejectList(new Error("List refresh unavailable"));
+
+  assert.equal(await request, false);
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.unavailable, true);
+  assert.equal(state.tableState.error, "List refresh unavailable");
+});
+
+test("the template-used closeAttendanceDrawer invalidates an in-flight detail request", async () => {
   let resolveDetail;
   const state = attendanceLogAlpineData({
     browser: null,
@@ -787,7 +859,30 @@ test("closing detail invalidates an in-flight request and resets drawer request 
   });
 
   const request = state.openAttendanceDetail(42);
-  state.closeAttendanceDetail();
+  state.closeAttendanceDrawer();
+  resolveDetail(fullAttendanceDetail());
+
+  assert.equal(await request, false);
+  assert.equal(state.isAttendanceDetailDrawerOpen, false);
+  assert.equal(state.detailState.selectedId, null);
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.error, "");
+  assert.equal(state.detailState.unavailable, false);
+  assert.equal(state.detailState.detail, null);
+});
+
+test("destroy invalidates an in-flight detail request", async () => {
+  let resolveDetail;
+  const state = attendanceLogAlpineData({
+    browser: null,
+    getAttendanceById: () =>
+      new Promise((resolve) => {
+        resolveDetail = resolve;
+      }),
+  });
+
+  const request = state.openAttendanceDetail(42);
+  state.destroy();
   resolveDetail(fullAttendanceDetail());
 
   assert.equal(await request, false);

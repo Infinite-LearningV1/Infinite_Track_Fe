@@ -87,7 +87,11 @@ test("getAttendanceLog uses the canonical list URL and preserves its response co
 
 test("getAttendanceById accepts attendance ID 0", async () => {
   let requestConfig;
-  const responseData = { id_attendance: 0, full_name: "Ayu Lestari" };
+  const responseData = {
+    success: true,
+    message: "Detail absensi berhasil diambil",
+    data: { id_attendance: 0, user: { full_name: "Ayu Lestari" } },
+  };
 
   const result = await getAttendanceById(0, async (config) => {
     requestConfig = config;
@@ -101,7 +105,11 @@ test("getAttendanceById accepts attendance ID 0", async () => {
 
 test('getAttendanceById accepts attendance ID string "0"', async () => {
   let requestConfig;
-  const responseData = { id_attendance: "0", full_name: "Ayu Lestari" };
+  const responseData = {
+    success: true,
+    message: "Detail absensi berhasil diambil",
+    data: { id_attendance: "0", user: { full_name: "Ayu Lestari" } },
+  };
 
   const result = await getAttendanceById("0", async (config) => {
     requestConfig = config;

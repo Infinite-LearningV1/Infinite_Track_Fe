@@ -38,3 +38,13 @@ Observed GREEN: 124 tests passed, 0 failed.
 - `git diff --check`: passed.
 - Existing Node module-type warnings remain unchanged.
 - `npm install` reported 19 existing audit findings (2 low, 6 moderate, 8 high, 3 critical); no audit remediation was attempted because it is outside Task 5 scope.
+
+## Review fix round 1
+
+- Strengthened the parsed production-build contract to assert exact applied-state icon visibility and descending-only rotation for every sortable header.
+- Proved Mode, Lokasi, and Aksi contain neither visible nor hidden sort affordances.
+- Evaluated the actual built Alpine bindings to prove Backend mode/status labels win over fallbacks.
+- Evaluated the actual built location binding for description, available-without-description, and unavailable outcomes.
+- No production change was required; the reviewer finding was a test coverage gap only.
+- Targeted built-artifact gate: 1 passed, 0 failed.
+- Complete Attendance gate after the review fix: 124 passed, 0 failed.

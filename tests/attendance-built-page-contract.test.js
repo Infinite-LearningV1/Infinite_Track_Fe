@@ -9,10 +9,13 @@ import { parse } from "parse5";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const descendants = (node) => [
-  ...(node.childNodes || []),
-  ...(node.childNodes || []).flatMap(descendants),
-];
+const descendants = (node) => {
+  const children = [
+    ...(node.childNodes || []),
+    ...(node.content?.childNodes || []),
+  ];
+  return [...children, ...children.flatMap(descendants)];
+};
 
 const findDescendant = (node, predicate) =>
   descendants(node).find(predicate) || null;
@@ -33,6 +36,12 @@ const findHeaderByVisibleText = (table, label) =>
     table,
     (node) => node.tagName === "th" && visibleText(node) === label,
   );
+
+const evaluateBinding = (expression, context) => {
+  const names = Object.keys(context);
+  const values = Object.values(context);
+  return Function(...names, `"use strict"; return (${expression});`)(...values);
+};
 
 test("the production attendance page exposes only authoritative sort controls", () => {
   execSync("npm run build", {
@@ -78,6 +87,16 @@ test("the production attendance page exposes only authoritative sort controls", 
       attribute(header, ":aria-sort"),
       `attendanceSortDirection('${key}')`,
     );
+    const icon = findDescendant(header, (node) => node.tagName === "svg");
+    assert.ok(icon, `${label} should expose an applied-sort icon`);
+    assert.equal(
+      attribute(icon, "x-show"),
+      `attendanceSortDirection('${key}') !== 'none'`,
+    );
+    assert.equal(
+      attribute(icon, ":class"),
+      `attendanceSortDirection('${key}') === 'descending' ? 'rotate-180' : ''`,
+    );
   }
 
   for (const label of ["Mode", "Lokasi", "Aksi"]) {
@@ -88,5 +107,75 @@ test("the production attendance page exposes only authoritative sort controls", 
       null,
       `${label} must remain static`,
     );
+    assert.equal(
+      findDescendant(header, (node) => node.tagName === "svg"),
+      null,
+      `${label} must not imply a sort direction`,
+    );
+    assert.equal(
+      descendants(header).some((node) =>
+        (node.attrs || []).some((item) =>
+          item.value.includes("attendanceSortDirection"),
+        ),
+      ),
+      false,
+      `${label} must not carry hidden sort-state bindings`,
+    );
   }
+
+  const modeBadge = findDescendant(
+    auditTable,
+    (node) => attribute(node, ":class") === "getInfoBadgeClass(log.mode)",
+  );
+  const statusBadge = findDescendant(
+    auditTable,
+    (node) => attribute(node, ":class") === "getStatusBadgeClass(log.status)",
+  );
+  assert.equal(
+    attribute(modeBadge, "x-text"),
+    "log.modeLabel || getInfoBadgeText(log.mode)",
+  );
+  assert.equal(
+    attribute(statusBadge, "x-text"),
+    "log.statusLabel || getStatusBadgeText(log.status)",
+  );
+  assert.equal(
+    evaluateBinding(attribute(modeBadge, "x-text"), {
+      log: { mode: "wfo", modeLabel: "Kerja dari Kantor" },
+      getInfoBadgeText: () => "fallback mode",
+    }),
+    "Kerja dari Kantor",
+  );
+  assert.equal(
+    evaluateBinding(attribute(statusBadge, "x-text"), {
+      log: { status: "late", statusLabel: "Terlambat" },
+      getStatusBadgeText: () => "fallback status",
+    }),
+    "Terlambat",
+  );
+
+  const locationText = findDescendant(
+    auditTable,
+    (node) =>
+      attribute(node, "x-text")?.includes("log.location.description") ?? false,
+  );
+  const locationBinding = attribute(locationText, "x-text");
+  assert.equal(
+    evaluateBinding(locationBinding, {
+      log: { location: { available: true, description: "Kantor" } },
+    }),
+    "Kantor",
+  );
+  assert.equal(
+    evaluateBinding(locationBinding, {
+      log: { location: { available: true, description: "" } },
+    }),
+    "Lokasi tersedia",
+  );
+  assert.equal(
+    evaluateBinding(locationBinding, {
+      log: { location: { available: false, description: "Kantor" } },
+    }),
+    "Lokasi tidak tersedia",
+  );
 });

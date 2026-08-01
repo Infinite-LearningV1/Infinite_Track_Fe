@@ -333,16 +333,23 @@ test("invalid and loading sort guards leave pending search, state, history, and 
     hasSuccessfulPage: true,
   };
   state.latestListRequestId = 31;
-  state.draftFilters = {
-    from: "2026-07-01",
-    to: "2026-07-31",
-    mode: "wfa",
-    status: "late",
-    checkoutState: "open",
-  };
-  state.isFilterOpen = true;
-  state.filterValidationMessage =
-    "Tanggal mulai dan selesai harus diisi bersama.";
+  state.openFilter();
+  state.draftFilters.from = "2026-07-31";
+  state.draftFilters.to = "2026-07-01";
+  const invalidFilterResult = await state.applyFilters();
+  assert.equal(invalidFilterResult, false);
+  assert.deepEqual(state.draftFilters, {
+    from: "2026-07-31",
+    to: "2026-07-01",
+    mode: "",
+    status: "",
+    checkoutState: "",
+  });
+  assert.equal(state.isFilterOpen, true);
+  assert.equal(
+    state.filterValidationMessage,
+    "Tanggal selesai tidak boleh sebelum tanggal mulai.",
+  );
   state.openAttendanceDrawerShell();
   await state.replaceAttendanceDrawerDetail(
     fullAttendanceDetail({

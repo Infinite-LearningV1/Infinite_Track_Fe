@@ -116,3 +116,28 @@
 
   Result: Prettier completed; the focused Node gate reported 48 passing and 0
   failing; `git diff --check` completed without whitespace errors.
+
+## Test-strength follow-up: round 4
+
+- Replaced the invalid-key/loading guard fixture's direct filter-state
+  assignments with the canonical filter lifecycle: `openFilter()`, draft date
+  edits that create an invalid range, and awaited `applyFilters()` validation.
+- Asserted that the real validation path returns `false`, retains the invalid
+  draft, leaves the filter open, and produces the canonical date-range message
+  before either sort guard snapshot is taken.
+- Preserved the canonical drawer lifecycle seeding and the existing exhaustive
+  snapshots. Both invalid-key and loading guards still prove no mutation or
+  cancellation across query/list/filter/drawer state, request IDs, the pending
+  search timer, history, URL, and network requests.
+- Exact verification commands:
+
+  ```powershell
+  npx prettier --write tests/attendance-audit-state.test.js .superpowers/sdd/2026-08-01-inf-269-live-attendance-contract-adapter/task-4-report.md
+  node --test tests/attendance-audit-state.test.js tests/attendance-list-state.test.js tests/attendance-page-composition.test.js
+  git diff --check
+  ```
+
+  Result: Prettier completed; the focused Node gate reported 48 passing and 0
+  failing; `git diff --check` completed without whitespace errors. The focused
+  gate still emits the pre-existing package warning about the missing
+  `"type": "module"` declaration.

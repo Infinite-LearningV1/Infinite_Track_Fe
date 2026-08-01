@@ -173,6 +173,50 @@ test("request mapping uses Backend snake case and omits empty filters", () => {
   });
 });
 
+test("direct state canonicalizes a supported uppercase mode at URL and request boundaries", () => {
+  const state = {
+    page: 1,
+    limit: 10,
+    search: "",
+    appliedFilters: {
+      mode: "WFO",
+    },
+  };
+
+  assert.equal(
+    serializeAttendanceDirectoryQuery(
+      state,
+      new URLSearchParams("debug=1"),
+    ).toString(),
+    "debug=1&mode=wfo",
+  );
+  assert.deepEqual(toAttendanceRequestParams(state), {
+    page: 1,
+    limit: 10,
+    mode: "wfo",
+  });
+});
+
+test("direct state omits unsupported modes at URL and request boundaries", () => {
+  const state = {
+    page: 1,
+    limit: 10,
+    search: "",
+    appliedFilters: {
+      mode: "REMOTE",
+    },
+  };
+
+  assert.equal(
+    serializeAttendanceDirectoryQuery(
+      state,
+      new URLSearchParams("debug=1"),
+    ).toString(),
+    "debug=1",
+  );
+  assert.deepEqual(toAttendanceRequestParams(state), { page: 1, limit: 10 });
+});
+
 test("parses and serializes an authoritative attendance sort", () => {
   const parsed = parseAttendanceDirectoryQuery(
     new URLSearchParams("mode=wfo&sortBy=full_name&sortOrder=ASC"),

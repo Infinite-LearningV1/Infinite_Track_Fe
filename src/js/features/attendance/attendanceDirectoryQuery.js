@@ -71,6 +71,11 @@ function normalizeAttendanceSort(sortBy, sortOrder) {
   };
 }
 
+function normalizeAttendanceMode(mode) {
+  const normalized = typeof mode === "string" ? mode.toLowerCase() : "";
+  return ATTENDANCE_MODES.includes(normalized) ? normalized : "";
+}
+
 export function validateAttendanceDateRange(filters = {}) {
   const from = filters.from || "";
   const to = filters.to || "";
@@ -99,7 +104,7 @@ export function parseAttendanceDirectoryQuery(searchParams) {
   const limit = positiveInteger(searchParams.get("limit"));
   const from = searchParams.get("from") || "";
   const to = searchParams.get("to") || "";
-  const mode = (searchParams.get("mode") || "").toLowerCase();
+  const mode = normalizeAttendanceMode(searchParams.get("mode"));
   const status = searchParams.get("status");
   const checkoutState = searchParams.get("checkout_state");
   const sort = normalizeAttendanceSort(
@@ -118,7 +123,7 @@ export function parseAttendanceDirectoryQuery(searchParams) {
     appliedFilters: {
       from: dateRange.valid ? from : "",
       to: dateRange.valid ? to : "",
-      mode: ATTENDANCE_MODES.includes(mode) ? mode : "",
+      mode,
       status: ATTENDANCE_STATUSES.includes(status) ? status : "",
       checkoutState: ATTENDANCE_CHECKOUT_STATES.includes(checkoutState)
         ? checkoutState
@@ -135,6 +140,7 @@ export function serializeAttendanceDirectoryQuery(
   for (const key of MANAGED_QUERY_KEYS) result.delete(key);
 
   const filters = state.appliedFilters || {};
+  const mode = normalizeAttendanceMode(filters.mode);
   const sort = normalizeAttendanceSort(
     state.sortBy || "",
     state.sortOrder || "",
@@ -148,7 +154,7 @@ export function serializeAttendanceDirectoryQuery(
     ["search", (state.search || "").trim() || null],
     ["from", filters.from || null],
     ["to", filters.to || null],
-    ["mode", filters.mode || null],
+    ["mode", mode || null],
     ["status", filters.status || null],
     ["checkout_state", filters.checkoutState || null],
     ["sortBy", sort.sortBy || null],
@@ -163,6 +169,7 @@ export function serializeAttendanceDirectoryQuery(
 
 export function toAttendanceRequestParams(state) {
   const filters = state.appliedFilters || {};
+  const mode = normalizeAttendanceMode(filters.mode);
   const sort = normalizeAttendanceSort(
     state.sortBy || "",
     state.sortOrder || "",
@@ -176,7 +183,7 @@ export function toAttendanceRequestParams(state) {
   if (search) params.search = search;
   if (filters.from) params.from = filters.from;
   if (filters.to) params.to = filters.to;
-  if (filters.mode) params.mode = filters.mode;
+  if (mode) params.mode = mode;
   if (filters.status) params.status = filters.status;
   if (filters.checkoutState) params.checkout_state = filters.checkoutState;
   if (sort.sortBy) {

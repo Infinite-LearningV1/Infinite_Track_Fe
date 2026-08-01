@@ -86,23 +86,92 @@
       <table class="min-w-[1040px]">
         <thead class="border-b border-gray-100 dark:border-gray-800">
           <tr>
-            <th class="px-6 py-3 text-left whitespace-nowrap">
-              <span
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >Pegawai</span
+            <th
+              class="px-6 py-3 text-left whitespace-nowrap"
+              :aria-sort="attendanceSortDirection('full_name')"
+            >
+              <button
+                type="button"
+                @click="toggleAttendanceSort('full_name')"
+                :disabled="tableState.loading"
+                class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
               >
+                <span>Pegawai</span>
+                <svg
+                  x-show="attendanceSortDirection('full_name') !== 'none'"
+                  :class="attendanceSortDirection('full_name') === 'descending' ? 'rotate-180' : ''"
+                  class="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="m5 15 7-7 7 7"
+                  ></path>
+                </svg>
+              </button>
             </th>
-            <th class="px-6 py-3 text-left whitespace-nowrap">
-              <span
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >Tanggal</span
+            <th
+              class="px-6 py-3 text-left whitespace-nowrap"
+              :aria-sort="attendanceSortDirection('attendance_date')"
+            >
+              <button
+                type="button"
+                @click="toggleAttendanceSort('attendance_date')"
+                :disabled="tableState.loading"
+                class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
               >
+                <span>Tanggal</span>
+                <svg
+                  x-show="attendanceSortDirection('attendance_date') !== 'none'"
+                  :class="attendanceSortDirection('attendance_date') === 'descending' ? 'rotate-180' : ''"
+                  class="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="m5 15 7-7 7 7"
+                  ></path>
+                </svg>
+              </button>
             </th>
-            <th class="px-6 py-3 text-left whitespace-nowrap">
-              <span
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >Kehadiran</span
+            <th
+              class="px-6 py-3 text-left whitespace-nowrap"
+              :aria-sort="attendanceSortDirection('time_in')"
+            >
+              <button
+                type="button"
+                @click="toggleAttendanceSort('time_in')"
+                :disabled="tableState.loading"
+                class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
               >
+                <span>Kehadiran</span>
+                <svg
+                  x-show="attendanceSortDirection('time_in') !== 'none'"
+                  :class="attendanceSortDirection('time_in') === 'descending' ? 'rotate-180' : ''"
+                  class="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="m5 15 7-7 7 7"
+                  ></path>
+                </svg>
+              </button>
             </th>
             <th class="px-6 py-3 text-left whitespace-nowrap">
               <span
@@ -110,11 +179,34 @@
                 >Mode</span
               >
             </th>
-            <th class="px-6 py-3 text-left whitespace-nowrap">
-              <span
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >Status</span
+            <th
+              class="px-6 py-3 text-left whitespace-nowrap"
+              :aria-sort="attendanceSortDirection('status')"
+            >
+              <button
+                type="button"
+                @click="toggleAttendanceSort('status')"
+                :disabled="tableState.loading"
+                class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
               >
+                <span>Status</span>
+                <svg
+                  x-show="attendanceSortDirection('status') !== 'none'"
+                  :class="attendanceSortDirection('status') === 'descending' ? 'rotate-180' : ''"
+                  class="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="m5 15 7-7 7 7"
+                  ></path>
+                </svg>
+              </button>
             </th>
             <th class="px-6 py-3 text-left whitespace-nowrap">
               <span
@@ -235,28 +327,30 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   :class="getInfoBadgeClass(log.mode)"
-                  x-text="getInfoBadgeText(log.mode)"
+                  x-text="log.modeLabel || getInfoBadgeText(log.mode)"
                 ></span>
               </td>
 
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   :class="getStatusBadgeClass(log.status)"
-                  x-text="getStatusBadgeText(log.status)"
+                  x-text="log.statusLabel || getStatusBadgeText(log.status)"
                 ></span>
               </td>
 
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   class="text-theme-xs inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium"
-                  :class="hasAttendanceCoordinates(log) ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400'"
+                  :class="log.location.available ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400'"
                 >
                   <span
                     class="h-1.5 w-1.5 rounded-full bg-current"
                     aria-hidden="true"
                   ></span>
                   <span
-                    x-text="hasAttendanceCoordinates(log) ? 'Tersedia' : 'Lokasi tidak tersedia'"
+                    x-text="log.location.available
+                      ? (log.location.description || 'Lokasi tersedia')
+                      : 'Lokasi tidak tersedia'"
                   ></span>
                 </span>
               </td>

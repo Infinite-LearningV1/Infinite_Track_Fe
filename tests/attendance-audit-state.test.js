@@ -1159,6 +1159,61 @@ test("a current detail 404 clears detail loading before a deferred list refresh 
   assert.equal(state.rows[0].location.description, "Kantor pusat");
 });
 
+test("list location summaries never initialize a map while detail coordinates do", async () => {
+  const mapCalls = [];
+  const state = attendanceLogAlpineData({
+    browser: null,
+    mapAdapter: {
+      initialize(location) {
+        mapCalls.push({ type: "initialize", location });
+      },
+      destroy() {
+        mapCalls.push({ type: "destroy" });
+      },
+    },
+    getAttendanceLog: async () =>
+      attendancePage([
+        {
+          id_attendance: 42,
+          attendance_date: "2026-07-28",
+          user: {
+            id: 7,
+            full_name: "Ayu Lestari",
+            nip_nim: "2026007",
+            role: "Staff",
+          },
+          time_in: "08:00",
+          time_out: "17:00",
+          work_duration: "09:00",
+          mode: { key: "wfo", label: "WFO Kantor" },
+          status: { key: "ontime", label: "Tepat Waktu" },
+          location: {
+            available: true,
+            id: 99,
+            description: "Kantor",
+          },
+        },
+      ]),
+    getAttendanceById: async () => fullAttendanceDetail(),
+  });
+
+  await state.fetchAttendance();
+
+  assert.deepEqual(state.rows[0].location, {
+    available: true,
+    id: 99,
+    description: "Kantor",
+  });
+  assert.deepEqual(mapCalls, []);
+
+  await state.openAttendanceDetail(42);
+
+  assert.equal(mapCalls.length, 1);
+  assert.equal(mapCalls[0].type, "initialize");
+  assert.equal(mapCalls[0].location.latitude, -0.91);
+  assert.equal(mapCalls[0].location.longitude, 119.87);
+});
+
 test("a current detail 404 remains unavailable and not loading when a deferred list refresh fails", async (t) => {
   t.mock.method(console, "error", () => {});
   let rejectList;

@@ -7,7 +7,7 @@ import { attendanceLogAlpineData } from "../src/js/features/attendance/attendanc
 const readSource = (relativePath) =>
   readFileSync(new URL(relativePath, import.meta.url), "utf8");
 
-test("current attendance UI does not advertise unsupported sorting", () => {
+test("current attendance UI does not expose obsolete sorting APIs", () => {
   const table = readSource("../src/partials/table/table-attendance.html");
 
   assert.doesNotMatch(table, /changeSort\(/);
@@ -40,18 +40,12 @@ test("audit table shows the canonical date and Mode fields", () => {
   assert.equal(attendanceLogAlpineData().getInfoBadgeText(), "-");
 });
 
-test("location availability requires finite coordinates without a coordinate alert", () => {
+test("list location availability follows the live summary contract", () => {
   const table = readSource("../src/partials/table/table-attendance.html");
-  const component = attendanceLogAlpineData();
 
-  assert.match(table, /hasAttendanceCoordinates\(log\)/);
+  assert.match(table, /log\.location\.available/);
+  assert.match(table, /log\.location\.description/);
+  assert.match(table, /Lokasi tersedia/);
   assert.match(table, /Lokasi tidak tersedia/);
-  assert.doesNotMatch(table, /!log\.location\?\.latitude/);
-  assert.equal(
-    component.hasAttendanceCoordinates({
-      location: { latitude: 0, longitude: 0 },
-    }),
-    true,
-  );
-  assert.equal(component.hasAttendanceCoordinates({ location: {} }), false);
+  assert.doesNotMatch(table, /hasAttendanceCoordinates|latitude|longitude/);
 });

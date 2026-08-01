@@ -7,7 +7,7 @@ const table = readFileSync(
   "utf8",
 );
 
-test("renders the approved seven static audit headers", () => {
+test("renders the approved seven audit headers", () => {
   for (const label of [
     "Pegawai",
     "Tanggal",
@@ -27,11 +27,16 @@ test("renders the approved seven static audit headers", () => {
   assert.doesNotMatch(table, />\s*Work Hour\s*</);
 });
 
-test("keeps every header static while the sort allowlist is pending", () => {
-  assert.doesNotMatch(table, /toggleSort/);
-  assert.doesNotMatch(table, /aria-sort/);
-  assert.doesNotMatch(table, /sortIndicator|sort-arrow/i);
-  assert.doesNotMatch(table, /cursor-pointer/);
+test("binds only the Backend-supported audit sort keys", () => {
+  for (const key of ["full_name", "attendance_date", "time_in", "status"]) {
+    assert.match(table, new RegExp(`toggleAttendanceSort\\('${key}'\\)`));
+    assert.match(table, new RegExp(`attendanceSortDirection\\('${key}'\\)`));
+  }
+
+  assert.doesNotMatch(
+    table,
+    /toggleAttendanceSort\('(mode|location|actions)'\)/,
+  );
 });
 
 test("renders canonical slim-row fields and truthful fallbacks", () => {
@@ -51,13 +56,22 @@ test("renders canonical slim-row fields and truthful fallbacks", () => {
     assert.match(table, new RegExp(field.replace(".", "\\.")));
   }
 
-  assert.match(table, /hasAttendanceCoordinates\(log\)/);
+  assert.match(table, /log\.modeLabel \|\| getInfoBadgeText\(log\.mode\)/);
+  assert.match(
+    table,
+    /log\.statusLabel \|\| getStatusBadgeText\(log\.status\)/,
+  );
+  assert.match(table, /log\.location\.available/);
+  assert.match(table, /log\.location\.description/);
   assert.doesNotMatch(
     table,
     /log\.(?:id_attendance|full_name|nip_nim|role_name|attendance_date|time_in|time_out|work_hour|information|checkout_state)/,
   );
   assert.match(table, /Lokasi tidak tersedia/);
-  assert.doesNotMatch(table, /latitude|longitude|Koordinat/);
+  assert.doesNotMatch(
+    table,
+    /hasAttendanceCoordinates|latitude|longitude|Koordinat/,
+  );
 });
 
 test("rows are keyboard operable and actions do not open detail", () => {

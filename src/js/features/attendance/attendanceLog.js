@@ -33,7 +33,10 @@ import {
   toAttendanceRequestParams,
   validateAttendanceDateRange,
 } from "./attendanceDirectoryQuery.js";
-import { normalizeAttendanceListRow } from "./attendanceListRow.js";
+import {
+  getAttendanceCheckoutText,
+  normalizeAttendanceListRow,
+} from "./attendanceListRow.js";
 import {
   createAttendanceDetailDrawerLifecycle,
   normalizeAttendanceDetail,
@@ -679,6 +682,7 @@ export function attendanceLogAlpineData(overrides = {}) {
     getStatusBadgeClass,
     getStatusBadgeText,
     getInfoBadgeClass,
+    getAttendanceCheckoutText,
     getInfoBadgeText(info) {
       return info ? getInfoBadgeText(info) : "-";
     },

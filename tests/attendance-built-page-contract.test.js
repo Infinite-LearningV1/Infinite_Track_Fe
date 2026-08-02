@@ -178,4 +178,23 @@ test("the production attendance page exposes only authoritative sort controls", 
     }),
     "Lokasi tidak tersedia",
   );
+
+  const checkoutText = findDescendant(
+    auditTable,
+    (node) => attribute(node, "x-text") === "getAttendanceCheckoutText(log)",
+  );
+  assert.ok(
+    checkoutText,
+    "built attendance rows must delegate checkout copy to canonical presentation state",
+  );
+  const openCheckoutBadge = findDescendant(
+    auditTable,
+    (node) =>
+      attribute(node, "x-show") === "log.checkoutState === 'open'" &&
+      visibleText(node).includes("Checkout terbuka"),
+  );
+  assert.ok(
+    openCheckoutBadge,
+    "the open badge must require explicit open evidence",
+  );
 });

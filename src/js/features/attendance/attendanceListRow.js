@@ -8,6 +8,18 @@ export function deriveAttendanceCheckoutState(timeOut) {
   return "";
 }
 
+export function getAttendanceCheckoutText(record = {}) {
+  if (record.checkoutState === "open") return "Belum checkout";
+  if (
+    record.checkoutState === "completed" &&
+    typeof record.timeOut === "string" &&
+    record.timeOut.trim()
+  ) {
+    return record.timeOut;
+  }
+  return "-";
+}
+
 export function normalizeAttendanceListRow(row = {}) {
   const user = row.user ?? {};
   const mode = row.mode ?? {};

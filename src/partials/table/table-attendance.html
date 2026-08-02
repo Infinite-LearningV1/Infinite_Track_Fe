@@ -306,7 +306,7 @@
                     <p class="text-theme-sm text-gray-800 dark:text-white/90">
                       <span x-text="log.timeIn || '-'"></span>
                       <span aria-hidden="true"> – </span>
-                      <span x-text="log.timeOut || 'Belum checkout'"></span>
+                      <span x-text="getAttendanceCheckoutText(log)"></span>
                     </p>
                     <p
                       class="text-theme-xs mt-0.5 text-gray-500 dark:text-gray-400"

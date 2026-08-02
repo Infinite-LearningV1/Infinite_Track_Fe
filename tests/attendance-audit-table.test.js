@@ -47,7 +47,6 @@ test("renders canonical slim-row fields and truthful fallbacks", () => {
     "log.roleName",
     "log.attendanceDate",
     "log.timeIn",
-    "log.timeOut",
     "log.workHour",
     "log.mode",
     "log.status",
@@ -55,6 +54,8 @@ test("renders canonical slim-row fields and truthful fallbacks", () => {
   ]) {
     assert.match(table, new RegExp(field.replace(".", "\\.")));
   }
+
+  assert.match(table, /getAttendanceCheckoutText\(log\)/);
 
   assert.match(table, /log\.modeLabel \|\| getInfoBadgeText\(log\.mode\)/);
   assert.match(

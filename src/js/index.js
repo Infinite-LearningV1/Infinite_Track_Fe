@@ -22,7 +22,7 @@ import "./components/calendar-init.js";
 import "./components/image-resize";
 import "./components/modal/modalAlert.js";
 import "./components/modal/deleteModal.js";
-import "./components/modal/mapDetailModal.js";
+import { MapDetailModal } from "./components/modal/mapDetailModal.js";
 import "./components/modal/bookingMapModal.js";
 import "./components/logoutComponent.js";
 import "./utils/storageManager.js";
@@ -53,9 +53,19 @@ import {
 } from "./utils/authGuard.js";
 import { initRoleBasedAccess } from "./utils/roleBasedAccess.js";
 import { formatDate } from "./utils/dateTimeFormatter.js";
+import {
+  firstFiniteMapNumber,
+  hasFiniteCoordinates,
+} from "./utils/mapLocationTruth.js";
 import { userListAlpineData } from "./features/userManagement/userListSimple.js";
 import { userFormAlpineData } from "./features/userManagement/userForm.js";
-import { attendanceLogAlpineData } from "./features/attendance/attendanceLog.js";
+import { createFocusTrap } from "./utils/focusTrap.js";
+import { createUserDetailDrawerLifecycle } from "./features/userManagement/userDetailDrawerLifecycle.js";
+import { roleBadgeClass as roleBadgeClassUtil } from "./utils/roleBadge.js";
+import {
+  attendanceLogAlpineData,
+  attendanceManagementPageData,
+} from "./features/attendance/attendanceLog.js";
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
 import { bookingRejectionAlpineData } from "./features/wfaBooking/bookingRejection.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
@@ -80,10 +90,12 @@ document.addEventListener("alpine:init", () => {
 window.userListAlpineData = userListAlpineData;
 window.userFormAlpineData = userFormAlpineData;
 window.attendanceLogAlpineData = attendanceLogAlpineData;
+window.attendanceManagementPageData = attendanceManagementPageData;
 window.bookingListAlpineData = bookingListAlpineData;
 window.bookingRejectionAlpineData = bookingRejectionAlpineData;
 window.backendOperationalSettingsAlpineData =
   backendOperationalSettingsAlpineData;
+window.attendanceDetailMap = new MapDetailModal("attendanceDetailMapContainer");
 window.wfaReasonCatalogAlpineData = wfaReasonCatalogAlpineData;
 
 // Expose utility functions to window for use in HTML
@@ -153,16 +165,20 @@ Alpine.data("mapDetailModalState", () => ({
       email: user.email || "",
       position: user.position || user.position_name || "",
       phoneNumber: user.phoneNumber || user.phone || user.phone_number || "",
-      latitude: user.latitude || user.location?.latitude || user.lat || null,
-      longitude:
-        user.longitude ||
-        user.location?.longitude ||
-        user.lng ||
-        user.lon ||
-        null,
-      radius: user.radius || user.location?.radius || null,
+      latitude: firstFiniteMapNumber(
+        user.latitude,
+        user.location?.latitude,
+        user.lat,
+      ),
+      longitude: firstFiniteMapNumber(
+        user.longitude,
+        user.location?.longitude,
+        user.lng,
+        user.lon,
+      ),
+      radius: firstFiniteMapNumber(user.radius, user.location?.radius),
       description:
-        user.description || user.location?.description || user.address || "",
+        user.description ?? user.location?.description ?? user.address ?? "",
     };
 
     // Debug log untuk membantu troubleshooting
@@ -174,10 +190,7 @@ Alpine.data("mapDetailModalState", () => ({
 
     // Initialize map only if coordinates are available
     this.$nextTick(() => {
-      if (
-        this.selectedUserLocation.latitude &&
-        this.selectedUserLocation.longitude
-      ) {
+      if (hasFiniteCoordinates(this.selectedUserLocation)) {
         window.mapDetailModal.initializeMap(this.selectedUserLocation);
       }
     });
@@ -201,6 +214,77 @@ Alpine.data("mapDetailModalState", () => ({
     };
   },
 }));
+
+// Detail Pengguna drawer state for Management Pengguna
+Alpine.data("userDetailDrawerState", () => {
+  const lifecycle = createUserDetailDrawerLifecycle({
+    mapAdapter: {
+      initialize(location) {
+        window.mapDetailModal.initializeMap(location);
+      },
+      destroy() {
+        window.mapDetailModal.destroyMap();
+      },
+    },
+  });
+
+  let focusTrap = null;
+
+  return {
+    isUserDetailDrawerOpen: false,
+    selectedUserLocation: lifecycle.selectedUserLocation,
+    wfhStatus: lifecycle.wfhStatus,
+
+    openUserDetailDrawer(user) {
+      lifecycle.open(user);
+      this.syncDrawerState();
+
+      this.$nextTick(() => {
+        const panel = this.$refs.userDetailDrawerPanel;
+
+        if (!panel) {
+          return;
+        }
+
+        focusTrap = createFocusTrap(panel);
+        focusTrap.activate();
+      });
+    },
+
+    closeUserDetailDrawer() {
+      lifecycle.close();
+      this.syncDrawerState();
+
+      focusTrap?.deactivate();
+      focusTrap = null;
+    },
+
+    handleDrawerTab(event) {
+      focusTrap?.handleKeydown(event);
+    },
+
+    /**
+     * Role badge color mapping for the drawer's profile header badge.
+     *
+     * Delegates to the shared src/js/utils/roleBadge.js util so the drawer
+     * renders the same palette as the table's Akses column regardless of
+     * whether the drawer partial happens to be mounted inside the table's
+     * Alpine scope.
+     *
+     * @param {string|null|undefined} role
+     * @returns {string} full Tailwind class string (bg + text + dark variants)
+     */
+    roleBadgeClass(role) {
+      return roleBadgeClassUtil(role);
+    },
+
+    syncDrawerState() {
+      this.isUserDetailDrawerOpen = lifecycle.isOpen;
+      this.selectedUserLocation = lifecycle.selectedUserLocation;
+      this.wfhStatus = lifecycle.wfhStatus;
+    },
+  };
+});
 
 // Global Alpine.js state for Booking Map Modal
 Alpine.data("bookingMapModalState", () => ({

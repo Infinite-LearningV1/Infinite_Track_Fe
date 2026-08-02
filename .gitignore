@@ -24,3 +24,4 @@ memory-bank
 .worktrees/
 .remember/
 .claude-dev-server.log
+.superpowers/

@@ -5,13 +5,38 @@
 
 import L from "leaflet";
 import { hasFiniteCoordinates } from "../../utils/mapLocationTruth.js";
+import { escapeHtml } from "../../utils/escapeHtml.js";
 
 class MapDetailModal {
-  constructor() {
+  constructor(containerId = "mapDetailContainer", dependencies = {}) {
+    this.containerId = containerId;
+    this.leaflet = dependencies.leaflet || L;
+    this.document = dependencies.document || document;
     this.map = null;
     this.marker = null;
     this.circle = null;
     this.isInitialized = false;
+    // Handles for deferred work. Kept so a close that lands before the timers
+    // fire can cancel them; otherwise a Leaflet instance would be constructed
+    // into an already-closed surface and survive the close.
+    this.pendingInitTimer = null;
+    this.pendingResizeTimer = null;
+  }
+
+  /**
+   * Cancel any deferred map initialization or resize still in flight.
+   * Safe to call when nothing is pending.
+   */
+  cancelPendingTimers() {
+    if (this.pendingInitTimer !== null) {
+      clearTimeout(this.pendingInitTimer);
+      this.pendingInitTimer = null;
+    }
+
+    if (this.pendingResizeTimer !== null) {
+      clearTimeout(this.pendingResizeTimer);
+      this.pendingResizeTimer = null;
+    }
   }
 
   /**
@@ -29,12 +54,17 @@ class MapDetailModal {
       return;
     }
 
+    // Drop any deferred work from a previous open before scheduling new work.
+    this.cancelPendingTimers();
+
     // Clean up existing map if it exists
     this.destroyMap();
 
     // Wait for the modal to be visible and container to be available
-    setTimeout(() => {
-      const container = document.getElementById("mapDetailContainer");
+    this.pendingInitTimer = setTimeout(() => {
+      this.pendingInitTimer = null;
+
+      const container = this.document.getElementById(this.containerId);
       if (!container) {
         console.error("Map container not found");
         return;
@@ -42,7 +72,7 @@ class MapDetailModal {
 
       try {
         // Initialize the map
-        this.map = L.map("mapDetailContainer", {
+        this.map = this.leaflet.map(container, {
           center: [locationData.latitude, locationData.longitude],
           zoom: 16,
           zoomControl: true,
@@ -50,14 +80,16 @@ class MapDetailModal {
         });
 
         // Add OpenStreetMap tile layer
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxZoom: 19,
-        }).addTo(this.map);
+        this.leaflet
+          .tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+          })
+          .addTo(this.map);
 
         // Create custom marker icon
-        const customIcon = L.divIcon({
+        const customIcon = this.leaflet.divIcon({
           className: "custom-marker",
           html: `
             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 border-2 border-white shadow-lg">
@@ -72,18 +104,17 @@ class MapDetailModal {
         });
 
         // Add marker
-        this.marker = L.marker(
-          [locationData.latitude, locationData.longitude],
-          {
+        this.marker = this.leaflet
+          .marker([locationData.latitude, locationData.longitude], {
             icon: customIcon,
             draggable: false,
-          },
-        ).addTo(this.map);
+          })
+          .addTo(this.map);
 
         // Add popup to marker
         const popupContent = `
           <div class="p-2">
-            <h4 class="font-semibold text-gray-900 mb-1">${locationData.fullName}</h4>
+            <h4 class="font-semibold text-gray-900 mb-1">${escapeHtml(locationData.fullName)}</h4>
             <p class="text-sm text-gray-600 mb-1">
               <strong>Koordinat:</strong><br>
               ${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}
@@ -101,7 +132,7 @@ class MapDetailModal {
               locationData.description
                 ? `
               <p class="text-sm text-gray-600">
-                <strong>Deskripsi:</strong> ${locationData.description}
+                <strong>Deskripsi:</strong> ${escapeHtml(locationData.description)}
               </p>
             `
                 : ""
@@ -116,19 +147,18 @@ class MapDetailModal {
 
         // Add geofence circle if radius is provided
         if (locationData.radius && locationData.radius > 0) {
-          this.circle = L.circle(
-            [locationData.latitude, locationData.longitude],
-            {
+          this.circle = this.leaflet
+            .circle([locationData.latitude, locationData.longitude], {
               color: "#3b82f6",
               fillColor: "#3b82f6",
               fillOpacity: 0.1,
               radius: locationData.radius,
               weight: 2,
-            },
-          ).addTo(this.map);
+            })
+            .addTo(this.map);
 
           // Fit map bounds to include the circle
-          const group = L.featureGroup([this.marker, this.circle]);
+          const group = this.leaflet.featureGroup([this.marker, this.circle]);
           this.map.fitBounds(group.getBounds(), { padding: [20, 20] });
         } else {
           // If no radius, just center on the marker
@@ -141,7 +171,8 @@ class MapDetailModal {
         this.isInitialized = true;
 
         // Force map to resize properly
-        setTimeout(() => {
+        this.pendingResizeTimer = setTimeout(() => {
+          this.pendingResizeTimer = null;
           if (this.map) {
             this.map.invalidateSize();
           }
@@ -156,6 +187,10 @@ class MapDetailModal {
    * Destroy the map instance and clean up resources
    */
   destroyMap() {
+    // Cancel first: a close can land before the deferred init fires, and an
+    // uncancelled timer would build a live map into a closed surface.
+    this.cancelPendingTimers();
+
     if (this.map) {
       try {
         if (this.marker) {
@@ -188,7 +223,7 @@ class MapDetailModal {
 }
 
 // Create global instance
-window.mapDetailModal = new MapDetailModal();
+window.mapDetailModal = new MapDetailModal("mapDetailContainer");
 
 // Add custom styles for the map
 const style = document.createElement("style");
@@ -207,13 +242,13 @@ style.textContent = `
     background: white;
   }
   
-  #mapDetailContainer .leaflet-control-zoom {
+  :is(#mapDetailContainer, [data-location-map]) .leaflet-control-zoom {
     border-radius: 8px;
     border: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
   
-  #mapDetailContainer .leaflet-control-zoom a {
+  :is(#mapDetailContainer, [data-location-map]) .leaflet-control-zoom a {
     border-radius: 4px;
     border: none;
     background: white;
@@ -223,7 +258,7 @@ style.textContent = `
     height: 28px;
   }
   
-  #mapDetailContainer .leaflet-control-zoom a:hover {
+  :is(#mapDetailContainer, [data-location-map]) .leaflet-control-zoom a:hover {
     background: #f3f4f6;
   }
 `;

@@ -34,6 +34,12 @@ Proposed
 
 We will treat Web FE as an admin and reporting surface, not as the final source of truth for attendance, booking, identity, or authorization state.
 
+### WFH location truth boundary (INF-247)
+
+We will treat the Management Pengguna WFH detail surface as presenting the **configured WFH target/geofence** that an operator set up for a user, never that user's live or current location. Coordinates, radius, and description shown in the Detail Pengguna drawer describe a stored configuration, not a real-time position feed, and no wording in that surface may imply otherwise.
+
+Coordinates are detail-surface-only. They must not appear as a default column in the Management Pengguna table; the table may only surface WFH readiness status (`Tersedia` / `Belum diatur`). When a user has no configured WFH location, the drawer reports `Lokasi WFH belum diatur` instead of rendering a map or filling the gap with an invented default. As part of this hardening, a fabricated 100-metre default radius and a `"Lokasi pengguna"` placeholder description that the table's map-detail payload builder used to synthesize for unconfigured users were removed; absent configuration must now surface as absent, not as invented values.
+
 ## Rationale
 
 This repo renders admin pages in the browser and consumes backend APIs for domain data. That makes the frontend responsible for presentation, operator workflow support, and truthful display of returned data, but not for inventing or silently replacing domain truth. This boundary reduces the risk that dashboard summaries, exports, or local state become mistaken for authoritative records.
@@ -66,6 +72,9 @@ This repo renders admin pages in the browser and consumes backend APIs for domai
 - `src/index.html:55-56` — dashboard initializes in browser with Alpine `x-init="init()"`.
 - `src/js/services/authService.js:77-93` — current user data is fetched from backend API.
 - `src/js/services/userService.js:42-64` — user list is fetched from backend API.
+- `src/js/features/userManagement/userDetailDrawerLifecycle.js` — normalizes WFH location fields without inventing a default radius or description, and initializes the map only when both coordinates are finite (INF-247).
+- `src/partials/modal/user-detail-drawer.html` — Detail Pengguna drawer renders `Lokasi WFH belum diatur` when configuration is absent, instead of a live-location fallback (INF-247).
+- `src/partials/table/table-user.html` — Management Pengguna table's `Lokasi WFH` column renders readiness status only; no coordinate column exists (INF-247).
 
 ## Open Verification Points
 

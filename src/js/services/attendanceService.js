@@ -6,42 +6,93 @@
 import { API_CONFIG, envLog } from "../config/env.js";
 import { authRequest } from "./authRequest.js";
 
+const ATTENDANCE_LIST_QUERY_KEYS = Object.freeze([
+  "page",
+  "limit",
+  "search",
+  "from",
+  "to",
+  "mode",
+  "status",
+  "checkout_state",
+  "sortBy",
+  "sortOrder",
+]);
+
+function hasQueryValue(value) {
+  return value !== undefined && value !== null && value !== "";
+}
+
+export function buildAttendanceListUrl(baseUrl, params = {}) {
+  const queryParams = new URLSearchParams();
+
+  for (const key of ATTENDANCE_LIST_QUERY_KEYS) {
+    if (hasQueryValue(params[key])) {
+      queryParams.append(key, params[key]);
+    }
+  }
+
+  const attendanceUrl = `${baseUrl.replace(/\/+$/, "")}/attendance`;
+  const query = queryParams.toString();
+  return query ? `${attendanceUrl}?${query}` : attendanceUrl;
+}
+
+export function normalizeAttendanceServiceError(
+  error,
+  fallbackMessage,
+  unexpectedMessage = fallbackMessage,
+) {
+  if (error?.response) {
+    const normalized = new Error(
+      error.response.data?.message || fallbackMessage,
+    );
+    normalized.status = error.response.status;
+
+    const backendCode = error.response.data?.code;
+    if (
+      backendCode !== undefined &&
+      backendCode !== null &&
+      backendCode !== ""
+    ) {
+      normalized.code = backendCode;
+    }
+
+    return normalized;
+  }
+
+  if (error?.request) {
+    return new Error(
+      "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
+    );
+  }
+
+  return new Error(unexpectedMessage);
+}
+
 /**
  * Mengambil daftar log absensi dari API
  * @param {Object} params - Parameter query
  * @param {string} params.search - Kata kunci pencarian
- * @param {string} params.sortBy - Field untuk sorting (default: 'time_in')
- * @param {string} params.sortOrder - Order sorting ('ASC' atau 'DESC', default: 'DESC')
  * @param {number} params.page - Halaman (default: 1)
  * @param {number} params.limit - Jumlah data per halaman (default: 10)
+ * @param {string} params.from - Tanggal awal (YYYY-MM-DD)
+ * @param {string} params.to - Tanggal akhir (YYYY-MM-DD)
+ * @param {string} params.mode - Mode kerja (WFO, WFH, WFA)
+ * @param {string} params.status - Status absensi
+ * @param {string} params.checkout_state - Status checkout
+ * @param {Function} requestExecutor - Executor request (default: authRequest)
  * @returns {Promise} - Promise yang resolve dengan data attendance dan pagination
  */
-export async function getAttendanceLog(params = {}) {
+export async function getAttendanceLog(
+  params = {},
+  requestExecutor = authRequest,
+) {
   try {
-    // Buat query string dari parameter
-    const queryParams = new URLSearchParams();
-
-    if (params.search) {
-      queryParams.append("search", params.search);
-    }
-    if (params.sortBy) {
-      queryParams.append("sortBy", params.sortBy);
-    }
-    if (params.sortOrder) {
-      queryParams.append("sortOrder", params.sortOrder);
-    }
-    if (params.page) {
-      queryParams.append("page", params.page);
-    }
-    if (params.limit) {
-      queryParams.append("limit", params.limit);
-    }
-
-    const url = `${API_CONFIG.BASE_URL}/attendance${queryParams.toString() ? "?" + queryParams.toString() : ""}`;
+    const url = buildAttendanceListUrl(API_CONFIG.BASE_URL, params);
 
     envLog("info", "GET Attendance Log:", { url, params });
 
-    const response = await authRequest({
+    const response = await requestExecutor({
       method: "get",
       url,
       headers: {
@@ -55,18 +106,55 @@ export async function getAttendanceLog(params = {}) {
   } catch (error) {
     envLog("error", "Error fetching attendance log:", error);
 
-    // Format error untuk penggunaan yang lebih mudah
-    if (error.response) {
-      const errorMessage =
-        error.response.data?.message || "Gagal mengambil data absensi";
-      throw new Error(errorMessage);
-    } else if (error.request) {
-      throw new Error(
-        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
-      );
-    } else {
-      throw new Error("Terjadi kesalahan saat mengambil data absensi");
-    }
+    throw normalizeAttendanceServiceError(
+      error,
+      "Gagal mengambil data absensi",
+      "Terjadi kesalahan saat mengambil data absensi",
+    );
+  }
+}
+
+/**
+ * Mengambil detail absensi berdasarkan ID.
+ * @param {string|number} attendanceId - ID absensi
+ * @param {Function} requestExecutor - Executor request (default: authRequest)
+ * @returns {Promise<Object>} Detail absensi dari Backend
+ */
+export async function getAttendanceById(
+  attendanceId,
+  requestExecutor = authRequest,
+) {
+  if (
+    attendanceId === undefined ||
+    attendanceId === null ||
+    (typeof attendanceId === "string" && attendanceId.trim() === "")
+  ) {
+    throw new Error("ID absensi tidak valid");
+  }
+
+  try {
+    const url = `${API_CONFIG.BASE_URL.replace(/\/+$/, "")}/attendance/${attendanceId}`;
+
+    envLog("info", "GET Attendance Detail:", { url, attendanceId });
+
+    const response = await requestExecutor({
+      method: "get",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    envLog("info", "Attendance Detail Response:", response.data);
+
+    return response.data;
+  } catch (error) {
+    envLog("error", "Error fetching attendance detail:", error);
+    throw normalizeAttendanceServiceError(
+      error,
+      "Gagal mengambil detail absensi",
+      "Terjadi kesalahan saat mengambil detail absensi",
+    );
   }
 }
 
@@ -75,7 +163,10 @@ export async function getAttendanceLog(params = {}) {
  * @param {string|number} attendanceId - ID absensi yang akan dihapus
  * @returns {Promise} - Promise yang resolve dengan response data
  */
-export async function deleteAttendance(attendanceId) {
+export async function deleteAttendance(
+  attendanceId,
+  requestExecutor = authRequest,
+) {
   try {
     if (!attendanceId) {
       throw new Error("ID absensi tidak valid");
@@ -85,7 +176,7 @@ export async function deleteAttendance(attendanceId) {
 
     envLog("info", "DELETE Attendance:", { url, attendanceId });
 
-    const response = await authRequest({
+    const response = await requestExecutor({
       method: "delete",
       url,
       headers: {
@@ -99,17 +190,10 @@ export async function deleteAttendance(attendanceId) {
   } catch (error) {
     envLog("error", "Error deleting attendance:", error);
 
-    // Format error untuk penggunaan yang lebih mudah
-    if (error.response) {
-      const errorMessage =
-        error.response.data?.message || "Gagal menghapus data absensi";
-      throw new Error(errorMessage);
-    } else if (error.request) {
-      throw new Error(
-        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
-      );
-    } else {
-      throw new Error("Terjadi kesalahan saat menghapus data absensi");
-    }
+    throw normalizeAttendanceServiceError(
+      error,
+      "Gagal menghapus data absensi",
+      "Terjadi kesalahan saat menghapus data absensi",
+    );
   }
 }

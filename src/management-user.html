@@ -19,7 +19,7 @@
       'stickyMenu': false, 
       'sidebarToggle': false, 
       'scrollTop': false,
-      ...mapDetailModalState()
+      ...userDetailDrawerState()
     }"
     x-init="
          darkMode = JSON.parse(localStorage.getItem('darkMode'));
@@ -64,8 +64,8 @@
               <!-- User Table -->
               <include src="./partials/table/table-user.html"></include>
 
-              <!-- Map Detail Modal -->
-              <include src="./partials/modal/user-map-modal.html"></include>
+              <!-- Detail Pengguna Drawer -->
+              <include src="./partials/modal/user-detail-drawer.html"></include>
             </div>
           </div>
         </main>

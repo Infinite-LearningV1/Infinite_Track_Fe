@@ -70,6 +70,12 @@ When summary/export payload completeness cannot be verified, export must fail in
 
 Web FE may format, group, and visualize backend-provided data for operator usability, but it must not invent authoritative analytics, silently convert missing values into factual defaults, treat preview data as export-safe truth, or let dashboard presentation overrule backend reporting contracts.
 
+### WFH detail surface ownership split (INF-247)
+
+We will split WFH location responsibility across the two Management Pengguna surfaces instead of letting either one duplicate the other's role. The Management Pengguna list (table) surface owns WFH readiness status only — it shows `Tersedia` / `Belum diatur` and nothing else about the location. The Detail Pengguna drawer owns the coordinates, radius, description, and map preview for a user's configured WFH location.
+
+This split exists so the list surface cannot become a parallel source of location truth alongside the drawer. If the table also rendered coordinates, a stale or truncated table row could silently diverge from what the drawer (and, behind it, the backend) actually reports for that user, which is exactly the kind of competing-authority drift this repo's reporting boundary is meant to prevent.
+
 ## Rationale
 
 This boundary is necessary because the branch has become stricter than the earlier dashboard contract. The main page now behaves like a cockpit, not a cockpit-plus-table hybrid, so the ADR must stop implying that the detailed report table is part of the active dashboard authority surface.
@@ -122,6 +128,9 @@ The export split is equally important. PDF has been narrowed into a compact mana
 - `src/js/utils/reportGenerator.js:880-905` — Excel report rows preserve raw row-level attendance/audit fields.
 - `src/js/utils/reportGenerator.js:924-952` — PDF layout model remains centered on a compact backend-backed user attendance summary table, while the workbook no longer adds a separate `User Attendance Summary` sheet.
 - `src/js/services/reportService.js` — mock helpers may exist, but runtime dashboard/export truth still depends on the active backend request path.
+- `src/partials/table/table-user.html` — the `Lokasi WFH` column replaces the former `Koordinat` column and renders WFH readiness status only (INF-247).
+- `src/js/features/userManagement/userListSimple.js` — `wfhStatusFor` resolves table status without building a coordinate/radius/description payload; the prior payload builder that fabricated a 100-metre radius and a `"Lokasi pengguna"` placeholder was removed (INF-247).
+- `src/partials/modal/user-detail-drawer.html` — the Detail Pengguna drawer is the sole surface that renders coordinates, radius, description, and the map preview for a user's configured WFH location (INF-247).
 
 ## Open Verification Points
 

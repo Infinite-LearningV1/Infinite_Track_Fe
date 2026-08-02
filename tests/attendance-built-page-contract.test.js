@@ -254,7 +254,7 @@ test("the production attendance page exposes only authoritative sort controls", 
   );
 });
 
-test("the production Attendance page keeps the toolbar and table in one audit frame", () => {
+test("the production Attendance page keeps its toolbar, filter panel, states, and table in one unclipped audit frame", () => {
   const document = getBuiltDocument();
   const shells = descendants(document).filter(
     (node) => attribute(node, "data-attendance-audit-shell") !== null,
@@ -263,6 +263,11 @@ test("the production Attendance page keeps the toolbar and table in one audit fr
   assert.equal(shells.length, 1);
 
   const shell = shells[0];
+  assert.doesNotMatch(
+    attribute(shell, "class"),
+    /(?:^|\s)overflow-hidden(?:\s|$)/,
+    "the shell must not clip the in-frame absolute filter panel",
+  );
   assert.ok(
     findDescendant(
       shell,
@@ -274,6 +279,31 @@ test("the production Attendance page keeps the toolbar and table in one audit fr
       shell,
       (node) => attribute(node, "id") === "attendanceTableFilterTrigger",
     ),
+  );
+  assert.ok(
+    findDescendant(
+      shell,
+      (node) => attribute(node, "id") === "attendanceTableFilterPopover",
+    ),
+    "the filter panel must remain in the same audit frame as its trigger",
+  );
+  assert.ok(
+    findDescendant(
+      shell,
+      (node) =>
+        attribute(node, "x-show") ===
+        "tableState.loading && !tableState.hasSuccessfulPage",
+    ),
+    "the initial loading state must remain in the audit frame",
+  );
+  assert.ok(
+    findDescendant(
+      shell,
+      (node) =>
+        attribute(node, "x-show") ===
+        "tableState.error && !tableState.hasSuccessfulPage && !tableState.loading",
+    ),
+    "the initial error state must remain in the audit frame",
   );
   assert.ok(
     findDescendant(

@@ -75,6 +75,16 @@ test("renders canonical slim-row fields and truthful fallbacks", () => {
     locationCell,
     "Location cell should use the plain location presenter",
   );
+  assert.match(
+    locationCell,
+    /<p\s+class="[^"]*\bwhitespace-normal\b[^"]*"/,
+    "Location text must override the cell nowrap rule so its two-line clamp can wrap long addresses",
+  );
+  assert.match(
+    locationCell,
+    /<p\s+class="[^"]*\bbreak-words\b[^"]*"/,
+    "Location text must break long address words inside its two-line clamp",
+  );
   assert.doesNotMatch(locationCell, /log\.location\.available \? 'bg-success/);
   assert.doesNotMatch(
     table,

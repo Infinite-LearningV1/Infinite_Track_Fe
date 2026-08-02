@@ -1,7 +1,7 @@
 <!-- Attendance Audit Table -->
 <div
   data-attendance-audit-shell
-  class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-4 dark:border-gray-800 dark:bg-white/[0.03]"
+  class="rounded-2xl border border-gray-200 bg-white pt-4 dark:border-gray-800 dark:bg-white/[0.03]"
 >
   <div
     data-attendance-toolbar
@@ -367,7 +367,7 @@
 
                 <td class="px-6 py-4 whitespace-nowrap">
                   <p
-                    class="text-theme-xs line-clamp-2 max-w-[260px] leading-5 text-gray-600 dark:text-gray-300"
+                    class="text-theme-xs line-clamp-2 max-w-[260px] leading-5 break-words whitespace-normal text-gray-600 dark:text-gray-300"
                     x-text="getAttendanceLocationText(log.location)"
                     :title="getAttendanceLocationText(log.location)"
                   ></p>

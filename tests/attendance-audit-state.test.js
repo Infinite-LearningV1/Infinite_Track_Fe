@@ -970,6 +970,19 @@ test("active filter count reflects applied criteria rather than uncommitted draf
   assert.equal(state.activeFilterCount, 2);
 });
 
+test("detail action loading belongs only to the selected attendance row", () => {
+  const state = attendanceLogAlpineData({ browser: null });
+  state.detailState.loading = true;
+  state.detailState.selectedId = 42;
+
+  assert.equal(state.isAttendanceDetailLoadingFor(42), true);
+  assert.equal(state.isAttendanceDetailLoadingFor("42"), true);
+  assert.equal(state.isAttendanceDetailLoadingFor(43), false);
+
+  state.detailState.loading = false;
+  assert.equal(state.isAttendanceDetailLoadingFor(42), false);
+});
+
 test("opening detail shows a loading shell and renders only the detail endpoint response", async () => {
   let resolveDetail;
   const calls = [];

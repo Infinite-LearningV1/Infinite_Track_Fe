@@ -204,6 +204,15 @@ export function attendanceLogAlpineData(overrides = {}) {
       detail: null,
     },
 
+    isAttendanceDetailLoadingFor(attendanceId) {
+      return (
+        this.detailState.loading &&
+        this.detailState.selectedId !== null &&
+        this.detailState.selectedId !== undefined &&
+        String(this.detailState.selectedId) === String(attendanceId)
+      );
+    },
+
     get searchQuery() {
       return this.appliedQuery.search;
     },

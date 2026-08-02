@@ -1,408 +1,488 @@
 <!-- Attendance Audit Table -->
-
-<!-- Initial loading state -->
 <div
-  x-show="tableState.loading && !tableState.hasSuccessfulPage"
-  class="flex items-center justify-center py-12"
->
-  <div class="flex items-center gap-3">
-    <div
-      class="border-t-brand-500 h-8 w-8 animate-spin rounded-full border-4 border-gray-200 dark:border-gray-700"
-      aria-hidden="true"
-    ></div>
-    <span class="text-sm text-gray-600 dark:text-gray-400"
-      >Memuat data absensi...</span
-    >
-  </div>
-</div>
-
-<!-- Error-only state before any successful page -->
-<div
-  x-show="tableState.error && !tableState.hasSuccessfulPage && !tableState.loading"
-  role="alert"
-  class="border-error-200 bg-error-50 dark:border-error-500/30 dark:bg-error-500/15 rounded-2xl border p-6"
->
-  <p class="text-error-700 dark:text-error-300 text-sm font-medium">
-    Data absensi belum dapat dimuat.
-  </p>
-  <p
-    class="text-error-600 dark:text-error-400 mt-1 text-sm"
-    x-text="tableState.error"
-  ></p>
-  <button
-    type="button"
-    @click="retryAttendanceList()"
-    :disabled="tableState.loading"
-    class="border-error-300 text-error-700 hover:bg-error-100 focus:ring-error-500 dark:border-error-500/40 dark:text-error-300 dark:hover:bg-error-500/20 mt-4 rounded-lg border px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60"
-  >
-    Coba lagi
-  </button>
-</div>
-
-<!-- Last successful page remains visible during refresh and retry failures -->
-<div
-  x-show="tableState.hasSuccessfulPage"
   data-attendance-audit-shell
-  class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-4 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+  class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-4 dark:border-gray-800 dark:bg-white/[0.03]"
 >
   <div
-    x-show="tableState.error"
-    role="alert"
-    class="border-error-200 bg-error-50 dark:border-error-500/30 dark:bg-error-500/15 mx-4 mb-4 flex flex-col gap-3 rounded-xl border px-4 py-3 sm:mx-6 sm:flex-row sm:items-center sm:justify-between"
+    data-attendance-toolbar
+    class="mb-4 flex flex-col gap-3 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between"
   >
-    <div>
-      <p class="text-error-700 dark:text-error-300 text-sm font-medium">
-        Pembaruan data gagal. Data terakhir tetap ditampilkan.
-      </p>
-      <p
-        class="text-error-600 dark:text-error-400 text-sm"
-        x-text="tableState.error"
-      ></p>
+    <div class="relative min-w-0 flex-1 lg:max-w-xl">
+      <div
+        class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
+      >
+        <svg
+          class="h-5 w-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          ></path>
+        </svg>
+      </div>
+      <label class="sr-only" for="attendanceSearch">Cari data kehadiran</label>
+      <input
+        id="attendanceSearch"
+        type="search"
+        x-model="searchQuery"
+        @input="onSearchChange()"
+        :disabled="tableState.loading"
+        placeholder="Cari nama atau NIP/NIM..."
+        class="focus:border-brand-500 focus:ring-brand-500/20 block w-full rounded-lg border border-gray-300 bg-white py-2.5 pr-3 pl-10 text-sm text-gray-900 placeholder-gray-500 transition focus:ring-4 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+      />
     </div>
+    <include src="./attendance-table-filter.html"></include>
+  </div>
+
+  <!-- Initial loading state -->
+  <div
+    x-show="tableState.loading && !tableState.hasSuccessfulPage"
+    class="flex items-center justify-center py-12"
+  >
+    <div class="flex items-center gap-3">
+      <div
+        class="border-t-brand-500 h-8 w-8 animate-spin rounded-full border-4 border-gray-200 dark:border-gray-700"
+        aria-hidden="true"
+      ></div>
+      <span class="text-sm text-gray-600 dark:text-gray-400"
+        >Memuat data absensi...</span
+      >
+    </div>
+  </div>
+
+  <!-- Error-only state before any successful page -->
+  <div
+    x-show="tableState.error && !tableState.hasSuccessfulPage && !tableState.loading"
+    role="alert"
+    class="border-error-200 bg-error-50 dark:border-error-500/30 dark:bg-error-500/15 rounded-2xl border p-6"
+  >
+    <p class="text-error-700 dark:text-error-300 text-sm font-medium">
+      Data absensi belum dapat dimuat.
+    </p>
+    <p
+      class="text-error-600 dark:text-error-400 mt-1 text-sm"
+      x-text="tableState.error"
+    ></p>
     <button
       type="button"
       @click="retryAttendanceList()"
       :disabled="tableState.loading"
-      class="border-error-300 text-error-700 hover:bg-error-100 focus:ring-error-500 dark:border-error-500/40 dark:text-error-300 dark:hover:bg-error-500/20 shrink-0 rounded-lg border px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60"
+      class="border-error-300 text-error-700 hover:bg-error-100 focus:ring-error-500 dark:border-error-500/40 dark:text-error-300 dark:hover:bg-error-500/20 mt-4 rounded-lg border px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60"
     >
       Coba lagi
     </button>
   </div>
 
-  <div
-    x-show="tableState.loading"
-    class="mx-4 mb-3 flex items-center gap-2 text-xs text-gray-500 sm:mx-6 dark:text-gray-400"
-    aria-live="polite"
-  >
-    <span
-      class="border-t-brand-500 h-4 w-4 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-700"
-      aria-hidden="true"
-    ></span>
-    Memperbarui data...
-  </div>
-
-  <div class="border-t border-gray-100 dark:border-gray-800">
-    <div class="custom-scrollbar max-w-full overflow-x-auto">
-      <table class="min-w-[1040px]">
-        <thead class="border-b border-gray-100 dark:border-gray-800">
-          <tr>
-            <th
-              class="px-6 py-3 text-left whitespace-nowrap"
-              :aria-sort="attendanceSortDirection('full_name')"
-            >
-              <button
-                type="button"
-                @click="toggleAttendanceSort('full_name')"
-                :disabled="tableState.loading"
-                class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
-              >
-                <span>Pegawai</span>
-                <svg
-                  x-show="attendanceSortDirection('full_name') !== 'none'"
-                  :class="attendanceSortDirection('full_name') === 'descending' ? 'rotate-180' : ''"
-                  class="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="m5 15 7-7 7 7"
-                  ></path>
-                </svg>
-              </button>
-            </th>
-            <th
-              class="px-6 py-3 text-left whitespace-nowrap"
-              :aria-sort="attendanceSortDirection('attendance_date')"
-            >
-              <button
-                type="button"
-                @click="toggleAttendanceSort('attendance_date')"
-                :disabled="tableState.loading"
-                class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
-              >
-                <span>Tanggal</span>
-                <svg
-                  x-show="attendanceSortDirection('attendance_date') !== 'none'"
-                  :class="attendanceSortDirection('attendance_date') === 'descending' ? 'rotate-180' : ''"
-                  class="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="m5 15 7-7 7 7"
-                  ></path>
-                </svg>
-              </button>
-            </th>
-            <th
-              class="px-6 py-3 text-left whitespace-nowrap"
-              :aria-sort="attendanceSortDirection('time_in')"
-            >
-              <button
-                type="button"
-                @click="toggleAttendanceSort('time_in')"
-                :disabled="tableState.loading"
-                class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
-              >
-                <span>Kehadiran</span>
-                <svg
-                  x-show="attendanceSortDirection('time_in') !== 'none'"
-                  :class="attendanceSortDirection('time_in') === 'descending' ? 'rotate-180' : ''"
-                  class="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="m5 15 7-7 7 7"
-                  ></path>
-                </svg>
-              </button>
-            </th>
-            <th class="px-6 py-3 text-left whitespace-nowrap">
-              <span
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >Mode</span
-              >
-            </th>
-            <th
-              class="px-6 py-3 text-left whitespace-nowrap"
-              :aria-sort="attendanceSortDirection('status')"
-            >
-              <button
-                type="button"
-                @click="toggleAttendanceSort('status')"
-                :disabled="tableState.loading"
-                class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
-              >
-                <span>Status</span>
-                <svg
-                  x-show="attendanceSortDirection('status') !== 'none'"
-                  :class="attendanceSortDirection('status') === 'descending' ? 'rotate-180' : ''"
-                  class="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="m5 15 7-7 7 7"
-                  ></path>
-                </svg>
-              </button>
-            </th>
-            <th class="px-6 py-3 text-left whitespace-nowrap">
-              <span
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >Lokasi</span
-              >
-            </th>
-            <th class="px-6 py-3 text-center whitespace-nowrap">
-              <span
-                class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >Aksi</span
-              >
-            </th>
-          </tr>
-        </thead>
-
-        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-          <tr x-show="rows.length === 0">
-            <td
-              colspan="7"
-              class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
-            >
-              <div class="flex flex-col items-center gap-3">
-                <svg
-                  class="h-12 w-12 text-gray-300 dark:text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="1.5"
-                    d="M9 12h6m-6 4h6M7 3h7l5 5v13H7a2 2 0 01-2-2V5a2 2 0 012-2z"
-                  ></path>
-                </svg>
-                <p x-text="emptyStateMessage"></p>
-              </div>
-            </td>
-          </tr>
-
-          <template x-for="log in rows" :key="log.idAttendance">
-            <tr
-              tabindex="0"
-              @click="openAttendanceDetail(log.idAttendance)"
-              @keydown.enter.self.prevent="openAttendanceDetail(log.idAttendance)"
-              @keydown.space.self.prevent="openAttendanceDetail(log.idAttendance)"
-              class="hover:bg-brand-50/40 focus:ring-brand-500 dark:hover:bg-brand-500/5 group transition-colors focus:ring-2 focus:outline-none focus:ring-inset"
-            >
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium"
-                    :class="getAvatarColor(log.fullName)"
-                    aria-hidden="true"
-                  >
-                    <span x-text="getInitials(log.fullName)"></span>
-                  </div>
-                  <div>
-                    <p
-                      class="text-theme-sm font-medium text-gray-800 dark:text-white/90"
-                      x-text="log.fullName || 'Nama tidak tersedia'"
-                    ></p>
-                    <p class="text-theme-xs text-gray-500 dark:text-gray-400">
-                      <span
-                        x-text="log.nipNim || 'NIP/NIM tidak tersedia'"
-                      ></span>
-                      <span x-show="log.roleName" aria-hidden="true"> · </span>
-                      <span x-show="log.roleName" x-text="log.roleName"></span>
-                    </p>
-                  </div>
-                </div>
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap">
-                <p
-                  class="text-theme-sm text-gray-800 dark:text-white/90"
-                  x-text="log.attendanceDate || '-'"
-                ></p>
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap">
-                <template
-                  x-if="String(log.status || '').toLowerCase() === 'alpha'"
-                >
-                  <p
-                    class="text-theme-sm text-warning-600 dark:text-warning-400 font-medium"
-                  >
-                    Alpha
-                  </p>
-                </template>
-                <template
-                  x-if="String(log.status || '').toLowerCase() !== 'alpha'"
-                >
-                  <div>
-                    <p class="text-theme-sm text-gray-800 dark:text-white/90">
-                      <span x-text="log.timeIn || '-'"></span>
-                      <span aria-hidden="true"> – </span>
-                      <span x-text="getAttendanceCheckoutText(log)"></span>
-                    </p>
-                    <p
-                      class="text-theme-xs mt-0.5 text-gray-500 dark:text-gray-400"
-                    >
-                      <span
-                        x-text="log.workHour || 'Durasi belum tersedia'"
-                      ></span>
-                      <span
-                        x-show="log.checkoutState === 'open'"
-                        class="text-warning-600 dark:text-warning-400 ml-1 font-medium"
-                        >· Checkout terbuka</span
-                      >
-                    </p>
-                  </div>
-                </template>
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span
-                  :class="getInfoBadgeClass(log.mode)"
-                  x-text="log.modeLabel || getInfoBadgeText(log.mode)"
-                ></span>
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span
-                  :class="getStatusBadgeClass(log.status)"
-                  x-text="log.statusLabel || getStatusBadgeText(log.status)"
-                ></span>
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span
-                  class="text-theme-xs inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium"
-                  :class="log.location.available ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400'"
-                >
-                  <span
-                    class="h-1.5 w-1.5 rounded-full bg-current"
-                    aria-hidden="true"
-                  ></span>
-                  <span
-                    x-text="log.location.available
-                      ? (log.location.description || 'Lokasi tersedia')
-                      : 'Lokasi tidak tersedia'"
-                  ></span>
-                </span>
-              </td>
-
-              <td class="px-6 py-4 text-center whitespace-nowrap">
-                <div
-                  x-data="{ open: false }"
-                  class="relative inline-flex"
-                  @keydown.escape.stop="open = false"
-                >
-                  <button
-                    type="button"
-                    @click.stop="open = !open"
-                    :aria-expanded="open"
-                    :aria-label="`Buka aksi data absensi ${log.fullName || ''}`"
-                    class="hover:bg-brand-50 focus:ring-brand-500 dark:hover:bg-brand-500/10 inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors focus:ring-2 focus:outline-none dark:text-gray-400"
-                  >
-                    <svg
-                      class="h-5 w-5"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                      aria-hidden="true"
-                    >
-                      <circle cx="4" cy="10" r="1.5"></circle>
-                      <circle cx="10" cy="10" r="1.5"></circle>
-                      <circle cx="16" cy="10" r="1.5"></circle>
-                    </svg>
-                  </button>
-                  <div
-                    x-show="open"
-                    x-transition
-                    @click.outside="open = false"
-                    class="absolute top-10 right-0 z-20 w-44 rounded-xl border border-gray-200 bg-white p-1.5 text-left shadow-lg dark:border-gray-700 dark:bg-gray-800"
-                  >
-                    <button
-                      type="button"
-                      @click.stop="confirmDelete(log); open = false"
-                      :aria-label="`Hapus data absensi ${log.fullName || ''}`"
-                      class="text-error-600 hover:bg-error-50 focus:ring-error-500 dark:text-error-400 dark:hover:bg-error-500/10 flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none"
-                    >
-                      Hapus permanen
-                    </button>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+  <!-- Last successful page remains visible during refresh and retry failures -->
+  <div x-show="tableState.hasSuccessfulPage">
+    <div
+      x-show="tableState.error"
+      role="alert"
+      class="border-error-200 bg-error-50 dark:border-error-500/30 dark:bg-error-500/15 mx-4 mb-4 flex flex-col gap-3 rounded-xl border px-4 py-3 sm:mx-6 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        <p class="text-error-700 dark:text-error-300 text-sm font-medium">
+          Pembaruan data gagal. Data terakhir tetap ditampilkan.
+        </p>
+        <p
+          class="text-error-600 dark:text-error-400 text-sm"
+          x-text="tableState.error"
+        ></p>
+      </div>
+      <button
+        type="button"
+        @click="retryAttendanceList()"
+        :disabled="tableState.loading"
+        class="border-error-300 text-error-700 hover:bg-error-100 focus:ring-error-500 dark:border-error-500/40 dark:text-error-300 dark:hover:bg-error-500/20 shrink-0 rounded-lg border px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60"
+      >
+        Coba lagi
+      </button>
     </div>
 
     <div
+      x-show="tableState.loading"
+      class="mx-4 mb-3 flex items-center gap-2 text-xs text-gray-500 sm:mx-6 dark:text-gray-400"
+      aria-live="polite"
+    >
+      <span
+        class="border-t-brand-500 h-4 w-4 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-700"
+        aria-hidden="true"
+      ></span>
+      Memperbarui data...
+    </div>
+
+    <div
+      data-attendance-table-region
+      class="border-t border-gray-100 dark:border-gray-800"
+    >
+      <div class="custom-scrollbar max-w-full overflow-x-auto">
+        <table class="min-w-[1040px]">
+          <thead class="border-b border-gray-100 dark:border-gray-800">
+            <tr>
+              <th
+                class="px-6 py-3 text-left whitespace-nowrap"
+                :aria-sort="attendanceSortDirection('full_name')"
+              >
+                <button
+                  type="button"
+                  @click="toggleAttendanceSort('full_name')"
+                  :disabled="tableState.loading"
+                  class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
+                >
+                  <span>Pegawai</span>
+                  <svg
+                    x-show="attendanceSortDirection('full_name') !== 'none'"
+                    :class="attendanceSortDirection('full_name') === 'descending' ? 'rotate-180' : ''"
+                    class="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="m5 15 7-7 7 7"
+                    ></path>
+                  </svg>
+                </button>
+              </th>
+              <th
+                class="px-6 py-3 text-left whitespace-nowrap"
+                :aria-sort="attendanceSortDirection('attendance_date')"
+              >
+                <button
+                  type="button"
+                  @click="toggleAttendanceSort('attendance_date')"
+                  :disabled="tableState.loading"
+                  class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
+                >
+                  <span>Tanggal</span>
+                  <svg
+                    x-show="attendanceSortDirection('attendance_date') !== 'none'"
+                    :class="attendanceSortDirection('attendance_date') === 'descending' ? 'rotate-180' : ''"
+                    class="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="m5 15 7-7 7 7"
+                    ></path>
+                  </svg>
+                </button>
+              </th>
+              <th
+                class="px-6 py-3 text-left whitespace-nowrap"
+                :aria-sort="attendanceSortDirection('time_in')"
+              >
+                <button
+                  type="button"
+                  @click="toggleAttendanceSort('time_in')"
+                  :disabled="tableState.loading"
+                  class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
+                >
+                  <span>Kehadiran</span>
+                  <svg
+                    x-show="attendanceSortDirection('time_in') !== 'none'"
+                    :class="attendanceSortDirection('time_in') === 'descending' ? 'rotate-180' : ''"
+                    class="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="m5 15 7-7 7 7"
+                    ></path>
+                  </svg>
+                </button>
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Mode</span
+                >
+              </th>
+              <th
+                class="px-6 py-3 text-left whitespace-nowrap"
+                :aria-sort="attendanceSortDirection('status')"
+              >
+                <button
+                  type="button"
+                  @click="toggleAttendanceSort('status')"
+                  :disabled="tableState.loading"
+                  class="text-theme-xs hover:text-brand-600 focus:ring-brand-500 dark:hover:text-brand-400 inline-flex items-center gap-1.5 font-medium text-gray-500 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-400"
+                >
+                  <span>Status</span>
+                  <svg
+                    x-show="attendanceSortDirection('status') !== 'none'"
+                    :class="attendanceSortDirection('status') === 'descending' ? 'rotate-180' : ''"
+                    class="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="m5 15 7-7 7 7"
+                    ></path>
+                  </svg>
+                </button>
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Lokasi</span
+                >
+              </th>
+              <th class="px-6 py-3 text-center whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Aksi</span
+                >
+              </th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+            <tr x-show="rows.length === 0">
+              <td
+                colspan="7"
+                class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
+              >
+                <div class="flex flex-col items-center gap-3">
+                  <svg
+                    class="h-12 w-12 text-gray-300 dark:text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.5"
+                      d="M9 12h6m-6 4h6M7 3h7l5 5v13H7a2 2 0 01-2-2V5a2 2 0 012-2z"
+                    ></path>
+                  </svg>
+                  <p x-text="emptyStateMessage"></p>
+                </div>
+              </td>
+            </tr>
+
+            <template x-for="log in rows" :key="log.idAttendance">
+              <tr
+                class="hover:bg-brand-50/40 dark:hover:bg-brand-500/5 transition-colors"
+              >
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium"
+                      :class="getAvatarColor(log.fullName)"
+                      aria-hidden="true"
+                    >
+                      <span x-text="getInitials(log.fullName)"></span>
+                    </div>
+                    <div>
+                      <p
+                        class="text-theme-sm font-medium text-gray-800 dark:text-white/90"
+                        x-text="log.fullName || 'Nama tidak tersedia'"
+                      ></p>
+                      <p class="text-theme-xs text-gray-500 dark:text-gray-400">
+                        <span
+                          x-text="log.nipNim || 'NIP/NIM tidak tersedia'"
+                        ></span>
+                        <span x-show="log.roleName" aria-hidden="true">
+                          ·
+                        </span>
+                        <span
+                          x-show="log.roleName"
+                          x-text="log.roleName"
+                        ></span>
+                      </p>
+                    </div>
+                  </div>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <p
+                    class="text-theme-sm text-gray-800 dark:text-white/90"
+                    x-text="log.attendanceDate || '-'"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <template
+                    x-if="String(log.status || '').toLowerCase() === 'alpha'"
+                  >
+                    <p
+                      class="text-theme-sm text-warning-600 dark:text-warning-400 font-medium"
+                    >
+                      Alpha
+                    </p>
+                  </template>
+                  <template
+                    x-if="String(log.status || '').toLowerCase() !== 'alpha'"
+                  >
+                    <div>
+                      <p class="text-theme-sm text-gray-800 dark:text-white/90">
+                        <span x-text="log.timeIn || '-'"></span>
+                        <span aria-hidden="true"> – </span>
+                        <span x-text="getAttendanceCheckoutText(log)"></span>
+                      </p>
+                      <p
+                        class="text-theme-xs mt-0.5 text-gray-500 dark:text-gray-400"
+                      >
+                        <span
+                          x-text="log.workHour || 'Durasi belum tersedia'"
+                        ></span>
+                        <span
+                          x-show="log.checkoutState === 'open'"
+                          class="text-warning-600 dark:text-warning-400 ml-1 font-medium"
+                          >· Checkout terbuka</span
+                        >
+                      </p>
+                    </div>
+                  </template>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span
+                    :class="getInfoBadgeClass(log.mode)"
+                    x-text="log.modeLabel || getInfoBadgeText(log.mode)"
+                  ></span>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span
+                    :class="getStatusBadgeClass(log.status)"
+                    x-text="log.statusLabel || getStatusBadgeText(log.status)"
+                  ></span>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span
+                    class="text-theme-xs inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium"
+                    :class="log.location.available ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400'"
+                  >
+                    <span
+                      class="h-1.5 w-1.5 rounded-full bg-current"
+                      aria-hidden="true"
+                    ></span>
+                    <span
+                      x-text="log.location.available
+                      ? (log.location.description || 'Lokasi tersedia')
+                      : 'Lokasi tidak tersedia'"
+                    ></span>
+                  </span>
+                </td>
+
+                <td class="px-6 py-4 text-center whitespace-nowrap">
+                  <div class="flex items-center justify-center space-x-3">
+                    <button
+                      type="button"
+                      @click.stop="openAttendanceDetail(log.idAttendance)"
+                      :disabled="isAttendanceDetailLoadingFor(log.idAttendance)"
+                      :aria-busy="isAttendanceDetailLoadingFor(log.idAttendance)"
+                      :aria-label="`Lihat detail absensi ${log.fullName || ''}`"
+                      title="Detail Absensi"
+                      class="focus:ring-brand-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors hover:bg-blue-200 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50"
+                    >
+                      <svg
+                        x-show="!isAttendanceDetailLoadingFor(log.idAttendance)"
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        ></path>
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        ></path>
+                      </svg>
+                      <svg
+                        x-show="isAttendanceDetailLoadingFor(log.idAttendance)"
+                        class="h-4 w-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <circle
+                          class="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="9"
+                          stroke="currentColor"
+                          stroke-width="3"
+                        ></circle>
+                        <path
+                          class="opacity-75"
+                          fill="currentColor"
+                          d="M12 3a9 9 0 00-9 9h3a6 6 0 016-6V3z"
+                        ></path>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      @click.stop="confirmDelete(log)"
+                      :disabled="deleteState.submitting"
+                      :aria-label="`Hapus data absensi ${log.fullName || ''}`"
+                      title="Hapus Absensi"
+                      class="focus:ring-error-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-200 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800/50"
+                    >
+                      <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div
+      data-attendance-pagination
       x-show="pagination.total_records > 0"
       class="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-gray-800"
     >

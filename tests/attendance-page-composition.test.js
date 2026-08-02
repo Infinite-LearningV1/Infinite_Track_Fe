@@ -48,6 +48,12 @@ test("page composes one canonical page-size control and one audit table shell", 
     page,
     /<!-- Attendance Table -->\s*<div[^>]+>\s*<include src="\.\/partials\/table\/table-attendance\.html"><\/include>\s*<\/div>/s,
   );
+  assert.match(
+    page,
+    /<include src="\.\/partials\/table\/table-attendance\.html"><\/include>/,
+  );
+  assert.doesNotMatch(page, /\bid="attendanceSearch"/);
+  assert.doesNotMatch(page, /attendance-table-filter\.html/);
 });
 
 test("actual page composition keeps canonical Attendance state live", async () => {

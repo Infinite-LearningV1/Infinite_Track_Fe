@@ -12,19 +12,25 @@ const filterPath = fileURLToPath(
 const pagePath = fileURLToPath(
   new URL("../src/management-attendance.html", import.meta.url),
 );
+const tablePath = fileURLToPath(
+  new URL("../src/partials/table/table-attendance.html", import.meta.url),
+);
 
-test("attendance page composes one visible search with the combined filter partial", () => {
+test("attendance table partial composes one visible search with the combined filter", () => {
   const page = readFileSync(pagePath, "utf8");
+  const table = readFileSync(tablePath, "utf8");
 
-  assert.match(page, /placeholder="Cari nama atau NIP\/NIM\.\.\."/);
+  assert.match(table, /placeholder="Cari nama atau NIP\/NIM\.\.\."/);
   assert.match(
-    page,
-    /<include\s+src="\.\/partials\/table\/attendance-table-filter\.html"\s*><\/include>/,
+    table,
+    /<include\s+src="\.\/attendance-table-filter\.html"\s*><\/include>/,
   );
   assert.equal(
-    (page.match(/placeholder="Cari nama atau NIP\/NIM\.\.\."/g) || []).length,
+    (table.match(/placeholder="Cari nama atau NIP\/NIM\.\.\."/g) || []).length,
     1,
   );
+  assert.doesNotMatch(page, /placeholder="Cari nama atau NIP\/NIM\.\.\."/);
+  assert.doesNotMatch(page, /attendance-table-filter\.html/);
 });
 
 test("combined filter exposes accessible open and dismiss interactions", () => {

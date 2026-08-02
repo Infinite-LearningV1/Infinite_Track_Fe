@@ -43,19 +43,28 @@ const evaluateBinding = (expression, context) => {
   return Function(...names, `"use strict"; return (${expression});`)(...values);
 };
 
-test("the production attendance page exposes only authoritative sort controls", () => {
-  execSync("npm run build", {
-    cwd: projectRoot,
-    encoding: "utf8",
-    stdio: "pipe",
-  });
+let builtDocument;
 
-  const document = parse(
-    readFileSync(
-      resolve(projectRoot, "build/management-attendance.html"),
-      "utf8",
-    ),
-  );
+const getBuiltDocument = () => {
+  if (!builtDocument) {
+    execSync("npm run build", {
+      cwd: projectRoot,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+    builtDocument = parse(
+      readFileSync(
+        resolve(projectRoot, "build/management-attendance.html"),
+        "utf8",
+      ),
+    );
+  }
+
+  return builtDocument;
+};
+
+test("the production attendance page exposes only authoritative sort controls", () => {
+  const document = getBuiltDocument();
   const auditShell = findDescendant(
     document,
     (node) => attribute(node, "data-attendance-audit-shell") !== null,
@@ -196,5 +205,87 @@ test("the production attendance page exposes only authoritative sort controls", 
   assert.ok(
     openCheckoutBadge,
     "the open badge must require explicit open evidence",
+  );
+});
+
+test("the production Attendance page keeps the toolbar and table in one audit frame", () => {
+  const document = getBuiltDocument();
+  const shells = descendants(document).filter(
+    (node) => attribute(node, "data-attendance-audit-shell") !== null,
+  );
+
+  assert.equal(shells.length, 1);
+
+  const shell = shells[0];
+  assert.ok(
+    findDescendant(
+      shell,
+      (node) => attribute(node, "id") === "attendanceSearch",
+    ),
+  );
+  assert.ok(
+    findDescendant(
+      shell,
+      (node) => attribute(node, "id") === "attendanceTableFilterTrigger",
+    ),
+  );
+  assert.ok(
+    findDescendant(
+      shell,
+      (node) => attribute(node, "data-attendance-table-region") !== null,
+    ),
+  );
+  assert.ok(
+    findDescendant(
+      shell,
+      (node) => attribute(node, "data-attendance-pagination") !== null,
+    ),
+  );
+});
+
+test("the built action cell exposes two accessible row action buttons", () => {
+  const document = getBuiltDocument();
+  const auditShell = findDescendant(
+    document,
+    (node) => attribute(node, "data-attendance-audit-shell") !== null,
+  );
+  const auditTable = findDescendant(
+    auditShell,
+    (node) => node.tagName === "table",
+  );
+  const rowTemplate = findDescendant(
+    auditTable,
+    (node) => attribute(node, "x-for") === "log in rows",
+  );
+  const actionCell = findDescendant(
+    rowTemplate,
+    (node) =>
+      node.tagName === "td" &&
+      attribute(node, "class")?.includes("text-center") &&
+      attribute(node, "class")?.includes("whitespace-nowrap"),
+  );
+  const actionButtons = descendants(actionCell).filter(
+    (node) => node.tagName === "button",
+  );
+
+  assert.equal(actionButtons.length, 2);
+  assert.deepEqual(
+    actionButtons.map((button) => ({
+      type: attribute(button, "type"),
+      click: attribute(button, "@click.stop"),
+      label: attribute(button, ":aria-label"),
+    })),
+    [
+      {
+        type: "button",
+        click: "openAttendanceDetail(log.idAttendance)",
+        label: "`Lihat detail absensi ${log.fullName || ''}`",
+      },
+      {
+        type: "button",
+        click: "confirmDelete(log)",
+        label: "`Hapus data absensi ${log.fullName || ''}`",
+      },
+    ],
   );
 });

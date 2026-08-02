@@ -75,21 +75,25 @@ test("renders canonical slim-row fields and truthful fallbacks", () => {
   );
 });
 
-test("rows are keyboard operable and actions do not open detail", () => {
-  assert.match(table, /tabindex="0"/);
-  assert.match(table, /@click="openAttendanceDetail\(log\.idAttendance\)"/);
+test("uses explicit Detail and Delete controls instead of a hidden row action", () => {
+  assert.doesNotMatch(table, /<tr[^>]+tabindex="0"/);
+  assert.doesNotMatch(table, /<tr[^>]+@click="openAttendanceDetail/);
+  assert.doesNotMatch(
+    table,
+    /@keydown\.(?:enter|space)[^=]*="openAttendanceDetail/,
+  );
+  assert.doesNotMatch(
+    table,
+    /Buka aksi data absensi|x-data="\{ open: false \}"/,
+  );
+
   assert.match(
     table,
-    /@keydown\.enter\.self\.prevent="openAttendanceDetail\(log\.idAttendance\)"/,
+    /@click\.stop="openAttendanceDetail\(log\.idAttendance\)"/,
   );
-  assert.match(
-    table,
-    /@keydown\.space\.self\.prevent="openAttendanceDetail\(log\.idAttendance\)"/,
-  );
-  assert.doesNotMatch(table, /@keydown\.(?:enter|space)\.prevent=/);
-  assert.match(table, /focus:ring-2/);
-  assert.match(table, /@click\.stop="confirmDelete\(log\)[^"]*"/);
-  assert.match(table, /aria-label="`Hapus data absensi \$\{log\.fullName/);
+  assert.match(table, /title="Detail Absensi"/);
+  assert.match(table, /@click\.stop="confirmDelete\(log\)"/);
+  assert.match(table, /title="Hapus Absensi"/);
 });
 
 test("retains loading, error retry, empty, pagination, and narrow overflow contracts", () => {

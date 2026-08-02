@@ -165,3 +165,100 @@ export async function deleteBooking(bookingId) {
     }
   }
 }
+
+function createBookingServiceError(error, fallbackMessage) {
+  const backend = error?.response?.data;
+  const serviceError = new Error(
+    backend?.message || error?.message || fallbackMessage,
+    { cause: error },
+  );
+  serviceError.code = backend?.code || null;
+  serviceError.status = error?.response?.status || null;
+  serviceError.details = backend?.details || null;
+  serviceError.fieldErrors =
+    backend?.field_errors || backend?.fieldErrors || null;
+  return serviceError;
+}
+
+function assertBookingId(bookingId) {
+  const parsed = Number(bookingId);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error("Booking ID must be a positive integer.");
+  }
+  return parsed;
+}
+
+function assertRejectionCommand(command = {}) {
+  const reasonId = Number(command.rejectionReasonId);
+  if (!Number.isInteger(reasonId) || reasonId <= 0) {
+    throw new Error("Rejection reason ID must be a positive integer.");
+  }
+
+  if (
+    command.rejectionNote !== null &&
+    command.rejectionNote !== undefined &&
+    typeof command.rejectionNote !== "string"
+  ) {
+    throw new Error("Rejection note must be a string or null.");
+  }
+
+  return {
+    rejectionReasonId: reasonId,
+    rejectionNote: String(command.rejectionNote ?? "").trim() || null,
+  };
+}
+
+function createBookingCommandService(requestExecutor = authRequest) {
+  return {
+    async approveBooking(bookingId) {
+      const id = assertBookingId(bookingId);
+
+      try {
+        const response = await requestExecutor({
+          method: "patch",
+          url: `${API_CONFIG.BASE_URL}/bookings/${id}`,
+          data: { status: "approved" },
+          headers: { "Content-Type": "application/json" },
+        });
+        return response.data;
+      } catch (error) {
+        throw createBookingServiceError(error, "Gagal menyetujui booking.");
+      }
+    },
+
+    async rejectBooking(bookingId, command) {
+      const id = assertBookingId(bookingId);
+      const normalized = assertRejectionCommand(command);
+
+      try {
+        const response = await requestExecutor({
+          method: "patch",
+          url: `${API_CONFIG.BASE_URL}/bookings/${id}`,
+          data: {
+            status: "rejected",
+            rejection_reason_id: normalized.rejectionReasonId,
+            rejection_note: normalized.rejectionNote,
+          },
+          headers: { "Content-Type": "application/json" },
+        });
+        return response.data;
+      } catch (error) {
+        throw createBookingServiceError(error, "Gagal menolak booking.");
+      }
+    },
+  };
+}
+
+const bookingCommandService = createBookingCommandService();
+
+const approveBooking = (bookingId) =>
+  bookingCommandService.approveBooking(bookingId);
+const rejectBooking = (bookingId, command) =>
+  bookingCommandService.rejectBooking(bookingId, command);
+
+export {
+  createBookingServiceError,
+  createBookingCommandService,
+  approveBooking,
+  rejectBooking,
+};

@@ -69,6 +69,7 @@ test("backend operational settings page shell is registered and stays truthful",
     "Waktu penyangga checkout otomatis",
     "Toleransi checkout terlambat",
     "Jam selesai shift default",
+    "Radius pengajuan WFA",
   ]) {
     assert.ok(
       formPartial.includes(settingLabel),
@@ -82,6 +83,7 @@ test("backend operational settings page shell is registered and stays truthful",
     "autoCheckoutTBufferMin",
     "lateCheckoutToleranceMin",
     "defaultShiftEnd",
+    "wfaRequestRadiusM",
   ]) {
     assert.ok(
       formPartial.includes(`x-model="form.${backendField}"`),

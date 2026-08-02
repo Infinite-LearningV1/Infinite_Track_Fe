@@ -24,6 +24,7 @@
          darkMode = JSON.parse(localStorage.getItem('darkMode'));
          $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
     :class="{'dark bg-gray-900': darkMode === true}"
+    @wfa-booking-rejection:succeeded.window="handleRejectionSucceeded($event.detail)"
   >
     <!-- ===== Preloader Start ===== -->
     <include src="./partials/common/preloader.html"></include>
@@ -157,5 +158,6 @@
     <!-- ===== Booking Map Modal Start ===== -->
     <include src="./partials/modal/booking-map-modal.html"></include>
     <!-- ===== Booking Map Modal End ===== -->
+    <include src="./partials/modal/wfa-booking-rejection-modal.html"></include>
   </body>
 </html>

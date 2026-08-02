@@ -1,0 +1,149 @@
+<div
+  x-data="bookingRejectionAlpineData()"
+  @wfa-booking-rejection:open.window="open($event.detail.booking)"
+  x-show="isOpen"
+  x-cloak
+  class="fixed inset-0 z-99999 flex items-center justify-center overflow-y-auto p-5"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="wfa-rejection-title"
+  aria-describedby="wfa-rejection-description"
+  @keydown.escape.window="close()"
+>
+  <div class="fixed inset-0 bg-gray-900/50" @click="close()"></div>
+
+  <div
+    class="relative w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900"
+  >
+    <h2
+      id="wfa-rejection-title"
+      class="text-xl font-semibold text-gray-900 dark:text-white"
+    >
+      Tolak Permintaan WFA
+    </h2>
+    <p
+      id="wfa-rejection-description"
+      class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+    >
+      Pilih alasan yang akan disimpan bersama hasil penolakan.
+    </p>
+
+    <div class="mt-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+      <p
+        class="text-sm font-medium text-gray-900 dark:text-white"
+        x-text="booking?.employee_name || 'Employee'"
+      ></p>
+      <p
+        class="text-xs text-gray-500 dark:text-gray-400"
+        x-text="booking ? `Booking #${booking.id}` : ''"
+      ></p>
+    </div>
+
+    <p
+      x-show="isLoadingReasons"
+      class="mt-4 text-sm text-gray-500 dark:text-gray-400"
+    >
+      Memuat alasan penolakan...
+    </p>
+
+    <div
+      x-show="reasonsLoadError"
+      class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20"
+    >
+      <p
+        class="text-sm text-red-700 dark:text-red-300"
+        x-text="reasonsLoadError"
+      ></p>
+      <button
+        type="button"
+        @click="loadReasons()"
+        :disabled="isLoadingReasons"
+        class="mt-2 text-sm font-medium text-red-700 underline dark:text-red-300"
+      >
+        Coba lagi
+      </button>
+    </div>
+
+    <div class="mt-5">
+      <label
+        for="wfa-rejection-reason"
+        class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        Alasan penolakan
+      </label>
+      <select
+        id="wfa-rejection-reason"
+        x-model="selectedReasonId"
+        :disabled="isSubmitting || isLoadingReasons"
+        :aria-invalid="Boolean(fieldErrors.reason)"
+        aria-describedby="wfa-rejection-reason-error"
+        @change="fieldErrors.reason = ''; submitError = ''"
+        class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+      >
+        <option value="">Pilih alasan</option>
+        <template x-for="reason in reasons" :key="reason.id">
+          <option :value="String(reason.id)" x-text="reason.label"></option>
+        </template>
+      </select>
+      <p
+        id="wfa-rejection-reason-error"
+        x-show="fieldErrors.reason"
+        x-text="fieldErrors.reason"
+        class="mt-1 text-sm text-red-600 dark:text-red-400"
+      ></p>
+    </div>
+
+    <div class="mt-4">
+      <label
+        for="wfa-rejection-note"
+        class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        Keterangan tambahan
+        <span x-show="selectedReason?.isOther" class="text-red-600">*</span>
+      </label>
+      <textarea
+        id="wfa-rejection-note"
+        x-model="rejectionNote"
+        :disabled="isSubmitting"
+        :aria-invalid="Boolean(fieldErrors.note)"
+        aria-describedby="wfa-rejection-note-error"
+        @input="fieldErrors.note = ''; submitError = ''"
+        rows="4"
+        class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+        placeholder="Tambahkan konteks bila diperlukan"
+      ></textarea>
+      <p
+        id="wfa-rejection-note-error"
+        x-show="fieldErrors.note"
+        x-text="fieldErrors.note"
+        class="mt-1 text-sm text-red-600 dark:text-red-400"
+      ></p>
+    </div>
+
+    <p
+      x-show="submitError"
+      x-text="submitError"
+      class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+    ></p>
+
+    <div class="mt-6 flex justify-end gap-3">
+      <button
+        type="button"
+        @click="close()"
+        :disabled="isSubmitting"
+        class="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300"
+      >
+        Batal
+      </button>
+      <button
+        type="button"
+        @click="submit()"
+        :disabled="isSubmitting || isLoadingReasons || Boolean(reasonsLoadError)"
+        :aria-busy="isSubmitting"
+        class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span x-text="isSubmitting ? 'Menolak...' : 'Tolak Permintaan'"></span>
+      </button>
+    </div>
+  </div>
+</div>

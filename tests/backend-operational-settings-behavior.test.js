@@ -20,6 +20,7 @@ const CANONICAL_SETTINGS = {
   autoCheckoutTBufferMin: 30,
   lateCheckoutToleranceMin: 15,
   defaultShiftEnd: "17:00:00",
+  wfaRequestRadiusM: 100,
 };
 
 const CANONICAL_FORM = {
@@ -28,6 +29,7 @@ const CANONICAL_FORM = {
   autoCheckoutTBufferMin: "30",
   lateCheckoutToleranceMin: "15",
   defaultShiftEnd: "17:00",
+  wfaRequestRadiusM: "100",
 };
 
 function createMemoryStorage(seed = {}) {
@@ -267,6 +269,7 @@ test("backendOperationalSettingsAlpineData saveSettings sends typed canonical pa
       autoCheckoutTBufferMin: " 10 ",
       lateCheckoutToleranceMin: " 120 ",
       defaultShiftEnd: "18:00",
+      wfaRequestRadiusM: " 150 ",
     };
 
     await state.saveSettings();
@@ -278,6 +281,7 @@ test("backendOperationalSettingsAlpineData saveSettings sends typed canonical pa
         autoCheckoutTBufferMin: 10,
         lateCheckoutToleranceMin: 120,
         defaultShiftEnd: "18:00",
+        wfaRequestRadiusM: 150,
       },
     ]);
     assert.deepEqual(state.form, {
@@ -286,6 +290,7 @@ test("backendOperationalSettingsAlpineData saveSettings sends typed canonical pa
       autoCheckoutTBufferMin: "10",
       lateCheckoutToleranceMin: "120",
       defaultShiftEnd: "18:00",
+      wfaRequestRadiusM: "150",
     });
     assert.equal(state.saveError, "");
     assert.equal(state.isSaving, false);
@@ -360,6 +365,7 @@ test("validateBackendOperationalSettingsForm rejects malformed numeric and time 
     autoCheckoutTBufferMin: "abc",
     lateCheckoutToleranceMin: " ",
     defaultShiftEnd: "24:00",
+    wfaRequestRadiusM: "abc",
   });
 
   assert.deepEqual(errors, {
@@ -371,6 +377,8 @@ test("validateBackendOperationalSettingsForm rejects malformed numeric and time 
       "Waktu penyangga checkout otomatis wajib diisi dengan bilangan bulat positif.",
     lateCheckoutToleranceMin:
       "Toleransi checkout terlambat wajib diisi dengan bilangan bulat positif.",
+    wfaRequestRadiusM:
+      "Radius pengajuan WFA wajib diisi dengan bilangan bulat positif.",
     defaultShiftEnd:
       "Jam selesai shift default wajib diisi dalam format HH:mm.",
   });

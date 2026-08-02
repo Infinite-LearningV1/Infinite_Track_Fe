@@ -5,9 +5,15 @@
 
 import {
   getBookings,
-  updateBookingStatus,
+  approveBooking as approveBookingCommand,
   deleteBooking,
 } from "../../services/bookingService.js";
+import { WFA_BOOKING_REJECTION_EVENTS } from "./bookingRejection.js";
+import {
+  createBookingLocationDetail,
+  extractBookingCollection,
+  normalizeBooking,
+} from "./bookingList.contract.js";
 import { formatDateTime, formatDate } from "../../utils/dateTimeFormatter.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import {
@@ -98,6 +104,12 @@ export function bookingListAlpineData() {
       schedule_date: "",
       location_name: "",
       notes: "",
+      requestReasonLabel: "",
+      requestOtherReason: "",
+      rejectionReasonLabel: "",
+      rejectionNote: "",
+      radiusSnapshot: null,
+      processedAt: null,
       phoneNumber: "", // Phone field that will be replaced with notes
     },
 
@@ -142,39 +154,9 @@ export function bookingListAlpineData() {
 
         const response = await getBookings(this.filters);
 
-        // Handle different API response structures
-        const bookingsData = response.data?.bookings || response.bookings || [];
-        const paginationData =
-          response.data?.pagination || response.pagination || {};
-
-        // Map API response to expected template format
-        this.bookings = bookingsData.map((booking) => ({
-          // Map API fields to template expected fields
-          id: booking.booking_id || booking.id,
-          employee_name: booking.user_full_name || booking.employee_name,
-          employee_id: booking.user_nip_nim || booking.employee_id,
-          employee_email: booking.user_email || booking.employee_email,
-          employee_position:
-            booking.user_position_name || booking.employee_position,
-          employee_role: booking.user_role_name || booking.employee_role,
-          start_date: booking.schedule_date || booking.start_date,
-          end_date: booking.schedule_date || booking.end_date, // Same as start for single day booking
-          schedule_date: booking.schedule_date,
-          status: booking.status,
-          location_name:
-            booking.location?.description || booking.location_name || "N/A",
-          location_latitude: booking.location?.latitude || booking.latitude,
-          location_longitude: booking.location?.longitude || booking.longitude,
-          location_radius: booking.location?.radius || booking.radius || 100,
-          notes: booking.notes || booking.note || "",
-          created_at: booking.created_at,
-          processed_at: booking.processed_at,
-          approved_by: booking.approved_by,
-          suitability_score: booking.suitability_score,
-          suitability_label: booking.suitability_label,
-          // Keep original data for reference
-          original: booking,
-        }));
+        const { bookings: bookingsData, pagination: paginationData } =
+          extractBookingCollection(response);
+        this.bookings = bookingsData.map(normalizeBooking);
 
         // Handle pagination with fallbacks
         this.pagination = {
@@ -338,7 +320,10 @@ export function bookingListAlpineData() {
      */
     viewLocationDetail(booking) {
       // Check if coordinates are available
-      if (!booking.location_latitude || !booking.location_longitude) {
+      if (
+        !Number.isFinite(booking.location_latitude) ||
+        !Number.isFinite(booking.location_longitude)
+      ) {
         if (typeof window.showAlertModal === "function") {
           window.showAlertModal({
             type: "warning",
@@ -350,28 +335,7 @@ export function bookingListAlpineData() {
         return;
       }
 
-      // Siapkan payload untuk modal peta dengan data booking lengkap
-      const locationData = {
-        // Original location data
-        title: `Lokasi Booking - ${booking.employee_name}`,
-        description:
-          booking.location_name || booking.notes || "Lokasi booking WFA",
-        latitude: booking.location_latitude,
-        longitude: booking.location_longitude,
-        radius: booking.location_radius || 100, // Default radius 100m
-
-        // Complete booking data for modal
-        id: booking.id,
-        employee_name: booking.employee_name,
-        employee_id: booking.employee_id,
-        status: booking.status,
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        schedule_date: booking.schedule_date,
-        location_name: booking.location_name,
-        notes: booking.notes || "",
-        phoneNumber: booking.phone_number || booking.phoneNumber || "", // Add phone field that will be replaced with notes
-      };
+      const locationData = createBookingLocationDetail(booking);
 
       // Set state untuk booking map modal only (tidak menggunakan map-detail-modal)
       this.selectedBookingLocation = locationData;
@@ -413,6 +377,12 @@ export function bookingListAlpineData() {
         schedule_date: "",
         location_name: "",
         notes: "",
+        requestReasonLabel: "",
+        requestOtherReason: "",
+        rejectionReasonLabel: "",
+        rejectionNote: "",
+        radiusSnapshot: null,
+        processedAt: null,
         phoneNumber: "",
       };
     },
@@ -436,7 +406,7 @@ export function bookingListAlpineData() {
         phoneNumber: "",
         latitude: location.latitude,
         longitude: location.longitude,
-        radius: location.radius || 100,
+        radius: location.radius ?? null,
         description: location.description || "",
       };
 
@@ -460,7 +430,7 @@ export function bookingListAlpineData() {
      */
     async approveBooking(bookingId) {
       try {
-        const response = await updateBookingStatus(bookingId, "approved");
+        const response = await approveBookingCommand(bookingId);
 
         // Handle successful response
         if (response.success || response.status === "success") {
@@ -495,44 +465,23 @@ export function bookingListAlpineData() {
       }
     },
 
-    /**
-     * Reject booking
-     * @param {string|number} bookingId - ID booking yang akan direject
-     */
-    async rejectBooking(bookingId) {
-      try {
-        const response = await updateBookingStatus(bookingId, "rejected");
+    openRejectBooking(booking) {
+      if (!booking?.id || booking.status !== "pending") return;
+      globalThis.window?.dispatchEvent?.(
+        new CustomEvent(WFA_BOOKING_REJECTION_EVENTS.open, {
+          detail: { booking },
+        }),
+      );
+    },
 
-        // Handle successful response
-        if (response.success || response.status === "success") {
-          // Tampilkan modal sukses
-          if (typeof window.showAlertModal === "function") {
-            window.showAlertModal({
-              type: "success",
-              title: "Booking Ditolak",
-              message: response.message || "Booking berhasil ditolak.",
-              buttonText: "OK",
-            });
-          }
-
-          // Refresh data
-          await this.fetchBookings();
-        } else {
-          throw new Error(response.message || "Gagal menolak booking");
-        }
-      } catch (error) {
-        console.error("Error rejecting booking:", error);
-
-        // Tampilkan modal error
-        if (typeof window.showAlertModal === "function") {
-          window.showAlertModal({
-            type: "danger",
-            title: "Gagal Menolak Booking",
-            message: error.message || "Terjadi kesalahan saat menolak booking.",
-            buttonText: "OK",
-          });
-        }
-      }
+    async handleRejectionSucceeded() {
+      await this.fetchBookings();
+      globalThis.window?.showAlertModal?.({
+        type: "success",
+        title: "Booking Ditolak",
+        message: "Penolakan telah dikonfirmasi Backend.",
+        buttonText: "OK",
+      });
     },
 
     /**

@@ -14,6 +14,7 @@ const CANONICAL_SETTINGS = {
   autoCheckoutTBufferMin: 30,
   lateCheckoutToleranceMin: 15,
   defaultShiftEnd: "17:00:00",
+  wfaRequestRadiusM: 100,
 };
 
 test("assertAllowedOperationalSettingsPayload rejects AHP threshold and unknown keys", () => {
@@ -90,6 +91,6 @@ test("assertOperationalSettingsResponse rejects incomplete backend state", () =>
       assertOperationalSettingsResponse({
         geofenceRadiusDefaultM: 100,
       }),
-    /missing fields: autoCheckoutIdleMin, autoCheckoutTBufferMin, lateCheckoutToleranceMin, defaultShiftEnd/,
+    /missing fields: autoCheckoutIdleMin, autoCheckoutTBufferMin, lateCheckoutToleranceMin, defaultShiftEnd, wfaRequestRadiusM/,
   );
 });

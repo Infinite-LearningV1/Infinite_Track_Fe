@@ -29,6 +29,12 @@ const OPERATIONAL_SETTING_DEFINITIONS = [
     backendField: "defaultShiftEnd",
     type: "time",
   },
+  {
+    key: "wfaRequestRadiusM",
+    label: "WFA_REQUEST_RADIUS_M",
+    backendField: "wfaRequestRadiusM",
+    type: "integer",
+  },
 ];
 
 const OPERATIONAL_SETTING_KEYS = OPERATIONAL_SETTING_DEFINITIONS.map(

@@ -67,9 +67,11 @@ import {
   attendanceManagementPageData,
 } from "./features/attendance/attendanceLog.js";
 import { bookingListAlpineData } from "./features/wfaBooking/bookingList.js";
+import { bookingRejectionAlpineData } from "./features/wfaBooking/bookingRejection.js";
 import { getUserPhotoUrl } from "./utils/photoValidation.js";
 import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
 import { backendOperationalSettingsAlpineData } from "./features/backendOperationalSettings/backendOperationalSettings.js";
+import { wfaReasonCatalogAlpineData } from "./features/wfaSettings/wfaReasonCatalog.js";
 import { showInlineAlert } from "./utils/inlineAlert.js";
 
 Alpine.plugin(persist);
@@ -90,9 +92,11 @@ window.userFormAlpineData = userFormAlpineData;
 window.attendanceLogAlpineData = attendanceLogAlpineData;
 window.attendanceManagementPageData = attendanceManagementPageData;
 window.bookingListAlpineData = bookingListAlpineData;
+window.bookingRejectionAlpineData = bookingRejectionAlpineData;
 window.backendOperationalSettingsAlpineData =
   backendOperationalSettingsAlpineData;
 window.attendanceDetailMap = new MapDetailModal("attendanceDetailMapContainer");
+window.wfaReasonCatalogAlpineData = wfaReasonCatalogAlpineData;
 
 // Expose utility functions to window for use in HTML
 window.getUserPhotoUrl = getUserPhotoUrl;

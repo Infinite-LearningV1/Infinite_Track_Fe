@@ -25,6 +25,11 @@ test("attendance detail drawer exposes accessible dialog and keyboard contracts"
   assert.match(drawer, /aria-label="Tutup detail absensi"/);
 });
 
+test("attendance detail drawer exposes permanent delete through canonical detail state", () => {
+  assert.match(drawer, /@click="confirmDelete\(selectedAttendanceDetail\)"/);
+  assert.match(drawer, />\s*Hapus permanen\s*</);
+});
+
 test("loading, error, unavailable, and successful detail remain inside the drawer", () => {
   assert.match(drawer, /x-show="detailState\.loading"/);
   assert.match(drawer, /x-show="detailState\.error"/);

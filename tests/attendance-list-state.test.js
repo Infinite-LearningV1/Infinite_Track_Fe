@@ -289,39 +289,31 @@ test("successful delete refreshes authoritative server state", async () => {
   }
 });
 
-test("failed delete clears submitting state and retains the server list", async () => {
+test("failed delete retains retry context, submitting state, and server list", async () => {
   const initialRows = [{ id_attendance: 42, full_name: "Alpha" }];
   const refreshCalls = [];
-  const errorCalls = [];
-  const originalWindow = globalThis.window;
-  const originalConsoleError = console.error;
-  globalThis.window = { showInlineAlert: () => {} };
+  const notices = [];
+  const component = attendanceLogAlpineData({
+    notify: (payload) => notices.push(payload),
+    deleteAttendance: async () => {
+      throw new Error("delete failed");
+    },
+    getAttendanceLog: async (params) => {
+      refreshCalls.push(params);
+      return attendancePage();
+    },
+  });
+  component.rows = initialRows;
+  component.deleteTargetId = 42;
 
-  try {
-    console.error = (...args) => errorCalls.push(args);
-    const component = attendanceLogAlpineData({
-      deleteAttendance: async () => {
-        throw new Error("delete failed");
-      },
-      getAttendanceLog: async (params) => {
-        refreshCalls.push(params);
-        return attendancePage();
-      },
-    });
-    component.rows = initialRows;
-    component.deleteTargetId = 42;
+  await component.executeDelete();
 
-    await component.executeDelete();
-
-    assert.equal(component.deleteTargetId, null);
-    assert.equal(component.isDeleting, false);
-    assert.equal(component.rows, initialRows);
-    assert.deepEqual(refreshCalls, []);
-    assert.equal(errorCalls.length, 1);
-  } finally {
-    console.error = originalConsoleError;
-    globalThis.window = originalWindow;
-  }
+  assert.equal(component.deleteTargetId, 42);
+  assert.equal(component.deleteState.error, "delete failed");
+  assert.equal(component.isDeleting, false);
+  assert.equal(component.rows, initialRows);
+  assert.deepEqual(refreshCalls, []);
+  assert.equal(notices.length, 1);
 });
 
 test("attendance table has no calls to removed local sorting APIs", () => {

@@ -54,6 +54,32 @@ const cloneDefaultQuery = () => ({
   appliedFilters: { ...DEFAULT_ATTENDANCE_QUERY.appliedFilters },
 });
 
+const canonicalDeleteRecord = (record) => {
+  if (record && typeof record === "object" && !record.employee) return record;
+  if (!record || typeof record !== "object") {
+    return { idAttendance: record };
+  }
+
+  return {
+    idAttendance: record.idAttendance,
+    fullName: record.employee?.fullName,
+    attendanceDate: record.attendanceDate,
+    timeIn: record.timeIn,
+    timeOut: record.timeOut,
+  };
+};
+
+const deleteConfirmationMessage = (record) => {
+  const employee = record.fullName || "Pegawai tidak tersedia";
+  const date = record.attendanceDate || "tanggal tidak tersedia";
+  const timeIn = record.timeIn || "waktu masuk tidak tersedia";
+  const timeOut =
+    record.timeOut === null
+      ? "belum checkout"
+      : record.timeOut || "waktu pulang tidak tersedia";
+  return `Hapus permanen data absensi ${employee} pada ${date}, ${timeIn} - ${timeOut}? Tindakan ini tidak dapat dibatalkan.`;
+};
+
 export function normalizeAttendanceListResponse(response = {}) {
   const pagination = response.pagination ?? {};
   return {
@@ -107,6 +133,9 @@ export function attendanceLogAlpineData(overrides = {}) {
   const schedule = overrides.setTimeout || globalThis.setTimeout;
   const cancelSchedule = overrides.clearTimeout || globalThis.clearTimeout;
   const focusTrapFactory = overrides.createFocusTrap || createFocusTrap;
+  const notify =
+    overrides.notify ||
+    ((payload) => globalThis.window?.showInlineAlert?.(payload));
   const detailLifecycle = createAttendanceDetailDrawerLifecycle({
     mapAdapter: overrides.mapAdapter || {
       initialize(location) {
@@ -180,10 +209,25 @@ export function attendanceLogAlpineData(overrides = {}) {
         : "Belum ada data absensi.";
     },
 
-    isDeleteModalOpen: false,
-    deleteConfirmMessage: "",
-    deleteTargetId: null,
-    isDeleting: false,
+    deleteState: { record: null, submitting: false, error: "" },
+    get deleteTargetId() {
+      return this.deleteState.record?.idAttendance ?? null;
+    },
+    set deleteTargetId(value) {
+      this.deleteState.record =
+        value === null || value === undefined
+          ? null
+          : {
+              ...(this.deleteState.record || {}),
+              idAttendance: value,
+            };
+    },
+    get isDeleting() {
+      return this.deleteState.submitting;
+    },
+    set isDeleting(value) {
+      this.deleteState.submitting = value === true;
+    },
 
     async init() {
       if (browser) {
@@ -542,14 +586,13 @@ export function attendanceLogAlpineData(overrides = {}) {
     },
 
     confirmDelete(attendanceRecord) {
-      const attendanceId = attendanceRecord?.idAttendance ?? attendanceRecord;
-      this.deleteTargetId = attendanceId;
+      const record = canonicalDeleteRecord(attendanceRecord);
+      this.deleteState = { record, submitting: false, error: "" };
       if (typeof globalThis.window?.showAlertModal === "function") {
         globalThis.window.showAlertModal({
           type: "warning",
           title: "Konfirmasi Hapus Data",
-          message:
-            "Apakah Anda yakin ingin menghapus data absensi ini? Tindakan ini tidak dapat dibatalkan.",
+          message: deleteConfirmationMessage(record),
           buttonText: "Ya, Hapus",
           secondaryButtonText: "Batal",
           onOk: () => this.executeDelete(),
@@ -558,28 +601,71 @@ export function attendanceLogAlpineData(overrides = {}) {
     },
 
     async executeDelete() {
-      if (!this.deleteTargetId || this.isDeleting) return;
-      this.isDeleting = true;
+      const record = this.deleteState.record;
+      const attendanceId = record?.idAttendance;
+      if (
+        attendanceId === null ||
+        attendanceId === undefined ||
+        this.deleteState.submitting
+      ) {
+        return false;
+      }
+
+      this.deleteState.submitting = true;
+      this.deleteState.error = "";
       try {
-        await services.deleteAttendance(this.deleteTargetId);
-        this.deleteTargetId = null;
-        globalThis.window?.showInlineAlert?.({
+        await services.deleteAttendance(attendanceId);
+
+        const totalRecords = Math.max(
+          0,
+          Number(this.pagination.total_records) || 0,
+        );
+        const pageSize = Math.max(
+          1,
+          Number(this.appliedQuery.limit) ||
+            Number(this.pagination.records_per_page) ||
+            DEFAULT_ATTENDANCE_QUERY.limit,
+        );
+        const lastValidPage = Math.max(
+          1,
+          Math.ceil(Math.max(0, totalRecords - 1) / pageSize),
+        );
+        if (this.appliedQuery.page > lastValidPage) {
+          this.appliedQuery.page = lastValidPage;
+          this.syncUrl("push");
+        }
+
+        this.deleteState.record = null;
+        notify({
           type: "success",
           title: "Data Absensi Dihapus",
           message: "Data absensi berhasil dihapus dari sistem.",
         });
         await this.fetchAttendance();
+        return true;
       } catch (error) {
-        console.error("Error deleting attendance:", error);
-        this.deleteTargetId = null;
-        globalThis.window?.showInlineAlert?.({
+        if (error?.status === 404) {
+          this.deleteState.record = null;
+          notify({
+            type: "warning",
+            title: "Data Absensi Tidak Tersedia",
+            message:
+              "Data absensi ini sudah tidak tersedia. Daftar akan dimuat ulang.",
+          });
+          await this.fetchAttendance();
+          return false;
+        }
+
+        this.deleteState.error =
+          error?.message || "Terjadi kesalahan saat menghapus data absensi.";
+        notify({
           type: "danger",
           title: "Gagal Menghapus Data",
-          message:
-            error.message || "Terjadi kesalahan saat menghapus data absensi.",
+          message: this.deleteState.error,
         });
+        return false;
       } finally {
-        this.isDeleting = false;
+        this.deleteState.submitting = false;
       }
     },
 

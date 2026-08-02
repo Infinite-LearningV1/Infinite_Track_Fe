@@ -69,6 +69,13 @@ test("actual page composition keeps canonical Attendance state live", async () =
   assert.equal(typeof descriptors.searchQuery.set, "function");
   assert.equal(typeof pageState.toggleAttendanceSort, "function");
   assert.equal(typeof pageState.attendanceSortDirection, "function");
+  for (const helper of [
+    "formatAttendanceDateLabel",
+    "formatAttendanceWorkDuration",
+    "getAttendanceLocationText",
+  ]) {
+    assert.equal(typeof pageState[helper], "function", helper);
+  }
 
   pageState.searchQuery = "Ayu";
   assert.equal(pageState.appliedQuery.search, "Ayu");

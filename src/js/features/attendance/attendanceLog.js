@@ -38,6 +38,11 @@ import {
   normalizeAttendanceListRow,
 } from "./attendanceListRow.js";
 import {
+  formatAttendanceDateLabel,
+  formatAttendanceWorkDuration,
+  getAttendanceLocationText,
+} from "./attendancePresentation.js";
+import {
   createAttendanceDetailDrawerLifecycle,
   normalizeAttendanceDetail,
 } from "./attendanceDetailDrawerLifecycle.js";
@@ -715,6 +720,9 @@ export function attendanceLogAlpineData(overrides = {}) {
     getStatusBadgeText,
     getInfoBadgeClass,
     getAttendanceCheckoutText,
+    formatAttendanceDateLabel,
+    formatAttendanceWorkDuration,
+    getAttendanceLocationText,
     getInfoBadgeText(info) {
       return info ? getInfoBadgeText(info) : "-";
     },

@@ -25,6 +25,35 @@ const attendanceRecord = (overrides = {}) => ({
   ...overrides,
 });
 
+const attendanceDetailEnvelope = (idAttendance, fullName) => ({
+  success: true,
+  message: "Detail absensi berhasil diambil",
+  data: {
+    id_attendance: idAttendance,
+    attendance_date: "2026-07-28",
+    time_in: "08:00",
+    time_out: "17:00",
+    work_duration: "09:00",
+    mode: { key: "wfo", label: "WFO" },
+    status: { key: "ontime", label: "Tepat Waktu" },
+    notes: "Backend detail",
+    booking_id: null,
+    user: {
+      id: 7,
+      full_name: fullName,
+      nip_nim: "2026007",
+      email: "employee@example.test",
+      role: "Staff",
+    },
+    location: {
+      latitude: -0.91,
+      longitude: 119.87,
+      radius: 100,
+      description: "Kantor",
+    },
+  },
+});
+
 function deferred() {
   let resolve;
   let reject;
@@ -80,6 +109,50 @@ test("row delete confirmation retains canonical employee, date, and time context
     assert.match(confirmation.message, /2026-07-28/);
     assert.match(confirmation.message, /08:00/);
     assert.match(confirmation.message, /17:00/);
+  } finally {
+    globalThis.window = originalWindow;
+  }
+});
+
+test("delete confirmation escapes untrusted Backend context before the HTML modal sink", () => {
+  const originalWindow = globalThis.window;
+  let confirmation;
+  globalThis.window = {
+    showAlertModal(payload) {
+      confirmation = payload;
+    },
+  };
+  const record = attendanceRecord({
+    fullName: '<img src=x onerror="alert(1)"> & Ayu',
+    attendanceDate: "2026-07-28<script>alert(2)</script>",
+    timeIn: '08:00" autofocus onfocus="alert(3)',
+    timeOut: "17:00 & <svg/onload=alert(4)>",
+  });
+
+  try {
+    const state = attendanceLogAlpineData({ browser: null });
+
+    state.confirmDelete(record);
+
+    assert.equal(state.deleteState.record, record);
+    assert.doesNotMatch(confirmation.message, /<(?:img|script|svg)\b/i);
+    assert.doesNotMatch(confirmation.message, /onerror="|onfocus="/i);
+    assert.match(
+      confirmation.message,
+      /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt; &amp; Ayu/,
+    );
+    assert.match(
+      confirmation.message,
+      /2026-07-28&lt;script&gt;alert\(2\)&lt;\/script&gt;/,
+    );
+    assert.match(
+      confirmation.message,
+      /08:00&quot; autofocus onfocus=&quot;alert\(3\)/,
+    );
+    assert.match(
+      confirmation.message,
+      /17:00 &amp; &lt;svg\/onload=alert\(4\)&gt;/,
+    );
   } finally {
     globalThis.window = originalWindow;
   }
@@ -147,6 +220,55 @@ test("delete blocks duplicate submissions while the authoritative request is pen
   assert.equal(state.deleteState.submitting, false);
 });
 
+test("active delete owns its confirmation state until the first request settles", async () => {
+  const originalWindow = globalThis.window;
+  const confirmations = [];
+  globalThis.window = {
+    showAlertModal(payload) {
+      confirmations.push(payload);
+    },
+  };
+  const pendingDelete = deferred();
+  const deletedIds = [];
+
+  try {
+    const state = attendanceLogAlpineData({
+      browser: null,
+      notify() {},
+      deleteAttendance: (id) => {
+        deletedIds.push(id);
+        return pendingDelete.promise;
+      },
+      getAttendanceLog: async () => attendancePage(),
+    });
+    const firstRecord = attendanceRecord({ idAttendance: 42 });
+    const otherRecord = attendanceRecord({
+      idAttendance: 77,
+      fullName: "Budi Santoso",
+    });
+    state.confirmDelete(firstRecord);
+
+    const firstDelete = state.executeDelete();
+    const ignoredConfirmation = state.confirmDelete(otherRecord);
+    const duplicateDelete = state.executeDelete();
+
+    assert.equal(ignoredConfirmation, false);
+    assert.equal(state.deleteState.record, firstRecord);
+    assert.equal(state.deleteState.submitting, true);
+    assert.equal(confirmations.length, 1);
+    assert.deepEqual(deletedIds, [42]);
+
+    pendingDelete.resolve();
+    await Promise.all([firstDelete, duplicateDelete]);
+
+    assert.deepEqual(deletedIds, [42]);
+    assert.equal(state.deleteState.record, null);
+    assert.equal(state.deleteState.submitting, false);
+  } finally {
+    globalThis.window = originalWindow;
+  }
+});
+
 test("successful delete refetches the complete unchanged applied query", async () => {
   const requests = [];
   const notices = [];
@@ -200,6 +322,100 @@ test("successful delete refetches the complete unchanged applied query", async (
   assert.equal(state.deleteState.record, null);
   assert.equal(state.deleteState.error, "");
   assert.equal(notices[0].type, "success");
+});
+
+test("successful delete closes and resets the detail drawer for the same attendance ID", async () => {
+  const mapEvents = [];
+  const state = attendanceLogAlpineData({
+    browser: null,
+    notify() {},
+    mapAdapter: {
+      initialize(location) {
+        mapEvents.push(["initialize", location]);
+      },
+      destroy() {
+        mapEvents.push(["destroy"]);
+      },
+    },
+    getAttendanceById: async () => attendanceDetailEnvelope(42, "Ayu Lestari"),
+    deleteAttendance: async () => ({}),
+    getAttendanceLog: async () => attendancePage(),
+  });
+  state.$nextTick = (callback) => callback();
+  await state.openAttendanceDetail(42);
+  const requestIdBeforeDelete = state.detailState.requestId;
+  state.deleteState.record = attendanceRecord({ idAttendance: 42 });
+
+  await state.executeDelete();
+
+  assert.equal(state.isAttendanceDetailDrawerOpen, false);
+  assert.equal(state.detailState.selectedId, null);
+  assert.equal(state.detailState.detail, null);
+  assert.equal(state.detailState.loading, false);
+  assert.equal(state.detailState.requestId, requestIdBeforeDelete + 1);
+  assert.equal(state.selectedAttendanceDetail.idAttendance, null);
+  assert.equal(mapEvents.at(-1)[0], "destroy");
+});
+
+test("successful delete preserves an open detail drawer for a different attendance ID", async () => {
+  const mapEvents = [];
+  const state = attendanceLogAlpineData({
+    browser: null,
+    notify() {},
+    mapAdapter: {
+      initialize(location) {
+        mapEvents.push(["initialize", location]);
+      },
+      destroy() {
+        mapEvents.push(["destroy"]);
+      },
+    },
+    getAttendanceById: async () => attendanceDetailEnvelope(77, "Budi Santoso"),
+    deleteAttendance: async () => ({}),
+    getAttendanceLog: async () => attendancePage(),
+  });
+  state.$nextTick = (callback) => callback();
+  await state.openAttendanceDetail(77);
+  const requestIdBeforeDelete = state.detailState.requestId;
+  state.deleteState.record = attendanceRecord({ idAttendance: 42 });
+
+  await state.executeDelete();
+
+  assert.equal(state.isAttendanceDetailDrawerOpen, true);
+  assert.equal(state.detailState.selectedId, 77);
+  assert.equal(state.detailState.detail.idAttendance, 77);
+  assert.equal(state.detailState.requestId, requestIdBeforeDelete);
+  assert.equal(state.selectedAttendanceDetail.idAttendance, 77);
+  assert.equal(
+    mapEvents.some(([event]) => event === "destroy"),
+    false,
+  );
+});
+
+test("same-ID delete invalidates a pending detail response before it can reopen deleted evidence", async () => {
+  const pendingDetail = deferred();
+  const state = attendanceLogAlpineData({
+    browser: null,
+    notify() {},
+    getAttendanceById: () => pendingDetail.promise,
+    deleteAttendance: async () => ({}),
+    getAttendanceLog: async () => attendancePage(),
+  });
+  state.$nextTick = (callback) => callback();
+  const detailRequest = state.openAttendanceDetail(42);
+  const requestIdBeforeDelete = state.detailState.requestId;
+  state.deleteState.record = attendanceRecord({ idAttendance: 42 });
+
+  await state.executeDelete();
+  pendingDetail.resolve(attendanceDetailEnvelope(42, "Ayu Lestari"));
+  const staleResult = await detailRequest;
+
+  assert.equal(staleResult, false);
+  assert.equal(state.isAttendanceDetailDrawerOpen, false);
+  assert.equal(state.detailState.selectedId, null);
+  assert.equal(state.detailState.detail, null);
+  assert.equal(state.detailState.requestId, requestIdBeforeDelete + 1);
+  assert.equal(state.selectedAttendanceDetail.idAttendance, null);
 });
 
 test("deleting the sole trailing-page row syncs the last valid page before refetch", async () => {

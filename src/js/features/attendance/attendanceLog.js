@@ -72,14 +72,35 @@ const canonicalDeleteRecord = (record) => {
   };
 };
 
+const escapeConfirmationHtml = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
+
 const deleteConfirmationMessage = (record) => {
-  const employee = record.fullName || "Pegawai tidak tersedia";
-  const date = record.attendanceDate || "tanggal tidak tersedia";
-  const timeIn = record.timeIn || "waktu masuk tidak tersedia";
+  const employee = record.fullName
+    ? escapeConfirmationHtml(record.fullName)
+    : "Pegawai tidak tersedia";
+  const date = record.attendanceDate
+    ? escapeConfirmationHtml(record.attendanceDate)
+    : "tanggal tidak tersedia";
+  const timeIn = record.timeIn
+    ? escapeConfirmationHtml(record.timeIn)
+    : "waktu masuk tidak tersedia";
   const timeOut =
     record.timeOut === null
       ? "belum checkout"
-      : record.timeOut || "waktu pulang tidak tersedia";
+      : record.timeOut
+        ? escapeConfirmationHtml(record.timeOut)
+        : "waktu pulang tidak tersedia";
   return `Hapus permanen data absensi ${employee} pada ${date}, ${timeIn} - ${timeOut}? Tindakan ini tidak dapat dibatalkan.`;
 };
 
@@ -589,6 +610,8 @@ export function attendanceLogAlpineData(overrides = {}) {
     },
 
     confirmDelete(attendanceRecord) {
+      if (this.deleteState.submitting) return false;
+
       const record = canonicalDeleteRecord(attendanceRecord);
       this.deleteState = { record, submitting: false, error: "" };
       if (typeof globalThis.window?.showAlertModal === "function") {
@@ -601,6 +624,7 @@ export function attendanceLogAlpineData(overrides = {}) {
           onOk: () => this.executeDelete(),
         });
       }
+      return true;
     },
 
     async executeDelete() {
@@ -618,6 +642,14 @@ export function attendanceLogAlpineData(overrides = {}) {
       this.deleteState.error = "";
       try {
         await services.deleteAttendance(attendanceId);
+
+        if (
+          this.detailState.selectedId !== null &&
+          this.detailState.selectedId !== undefined &&
+          String(this.detailState.selectedId) === String(attendanceId)
+        ) {
+          this.closeAttendanceDetail();
+        }
 
         const totalRecords = Math.max(
           0,

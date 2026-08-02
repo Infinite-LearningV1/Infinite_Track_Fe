@@ -55,20 +55,31 @@ test("renders canonical slim-row fields and truthful fallbacks", () => {
     assert.match(table, new RegExp(field.replace(".", "\\.")));
   }
 
+  assert.match(table, /formatAttendanceDateLabel\(log\.attendanceDate\)/);
+  assert.match(table, /formatAttendanceWorkDuration\(log\.workHour\)/);
   assert.match(table, /getAttendanceCheckoutText\(log\)/);
+  assert.doesNotMatch(table, /String\(log\.status \|\| ''\).*alpha/s);
 
   assert.match(table, /log\.modeLabel \|\| getInfoBadgeText\(log\.mode\)/);
   assert.match(
     table,
     /log\.statusLabel \|\| getStatusBadgeText\(log\.status\)/,
   );
-  assert.match(table, /log\.location\.available/);
-  assert.match(table, /log\.location\.description/);
+  assert.match(table, /x-text="getAttendanceLocationText\(log\.location\)"/);
+  assert.match(table, /:title="getAttendanceLocationText\(log\.location\)"/);
+  assert.match(table, /line-clamp-2/);
+  const locationCell = table.match(
+    /<td class="px-6 py-4 whitespace-nowrap">\s*<p[\s\S]*?getAttendanceLocationText\(log\.location\)[\s\S]*?<\/p>\s*<\/td>/,
+  )?.[0];
+  assert.ok(
+    locationCell,
+    "Location cell should use the plain location presenter",
+  );
+  assert.doesNotMatch(locationCell, /log\.location\.available \? 'bg-success/);
   assert.doesNotMatch(
     table,
     /log\.(?:id_attendance|full_name|nip_nim|role_name|attendance_date|time_in|time_out|work_hour|information|checkout_state)/,
   );
-  assert.match(table, /Lokasi tidak tersedia/);
   assert.doesNotMatch(
     table,
     /hasAttendanceCoordinates|latitude|longitude|Koordinat/,

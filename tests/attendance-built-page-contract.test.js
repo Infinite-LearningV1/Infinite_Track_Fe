@@ -6,6 +6,11 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parse } from "parse5";
+import {
+  formatAttendanceDateLabel,
+  formatAttendanceWorkDuration,
+  getAttendanceLocationText,
+} from "../src/js/features/attendance/attendancePresentation.js";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -163,29 +168,70 @@ test("the production attendance page exposes only authoritative sort controls", 
     "Terlambat",
   );
 
-  const locationText = findDescendant(
+  const rowTemplate = findDescendant(
     auditTable,
+    (node) => attribute(node, "x-for") === "log in rows",
+  );
+  const rowCells = descendants(rowTemplate).filter(
+    (node) => node.tagName === "td",
+  );
+  const dateText = findDescendant(rowCells[1], (node) => node.tagName === "p");
+  const durationText = findDescendant(
+    rowCells[2],
     (node) =>
-      attribute(node, "x-text")?.includes("log.location.description") ?? false,
+      attribute(node, "x-text") ===
+      "formatAttendanceWorkDuration(log.workHour)",
   );
-  const locationBinding = attribute(locationText, "x-text");
-  assert.equal(
-    evaluateBinding(locationBinding, {
-      log: { location: { available: true, description: "Kantor" } },
-    }),
-    "Kantor",
+  const locationText = findDescendant(
+    rowCells[5],
+    (node) =>
+      attribute(node, "x-text") === "getAttendanceLocationText(log.location)",
   );
+
   assert.equal(
-    evaluateBinding(locationBinding, {
-      log: { location: { available: true, description: "" } },
-    }),
-    "Lokasi tersedia",
+    attribute(dateText, "x-text"),
+    "formatAttendanceDateLabel(log.attendanceDate)",
   );
   assert.equal(
-    evaluateBinding(locationBinding, {
-      log: { location: { available: false, description: "Kantor" } },
+    attribute(durationText, "x-text"),
+    "formatAttendanceWorkDuration(log.workHour)",
+  );
+  assert.equal(
+    attribute(locationText, "x-text"),
+    "getAttendanceLocationText(log.location)",
+  );
+  assert.equal(
+    attribute(locationText, ":title"),
+    "getAttendanceLocationText(log.location)",
+  );
+  assert.match(attribute(locationText, "class"), /line-clamp-2/);
+  assert.doesNotMatch(attribute(locationText, "class"), /rounded-full|bg-/);
+  assert.equal(
+    evaluateBinding(attribute(dateText, "x-text"), {
+      log: { attendanceDate: "2026-07-23" },
+      formatAttendanceDateLabel,
     }),
-    "Lokasi tidak tersedia",
+    "Kamis, 23 Juli 2026",
+  );
+  assert.equal(
+    evaluateBinding(attribute(durationText, "x-text"), {
+      log: { workHour: "10:15" },
+      formatAttendanceWorkDuration,
+    }),
+    "10j 15m",
+  );
+  assert.equal(
+    evaluateBinding(attribute(locationText, ":title"), {
+      log: {
+        location: {
+          available: true,
+          description:
+            "Alamat kantor yang sangat panjang untuk memastikan judul tetap lengkap",
+        },
+      },
+      getAttendanceLocationText,
+    }),
+    "Alamat kantor yang sangat panjang untuk memastikan judul tetap lengkap",
   );
 
   const checkoutText = findDescendant(

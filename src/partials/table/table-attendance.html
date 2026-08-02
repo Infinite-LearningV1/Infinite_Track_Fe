@@ -325,43 +325,30 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                   <p
                     class="text-theme-sm text-gray-800 dark:text-white/90"
-                    x-text="log.attendanceDate || '-'"
+                    x-text="formatAttendanceDateLabel(log.attendanceDate)"
                   ></p>
                 </td>
 
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <template
-                    x-if="String(log.status || '').toLowerCase() === 'alpha'"
-                  >
-                    <p
-                      class="text-theme-sm text-warning-600 dark:text-warning-400 font-medium"
-                    >
-                      Alpha
+                  <div>
+                    <p class="text-theme-sm text-gray-800 dark:text-white/90">
+                      <span x-text="log.timeIn || '-'"></span>
+                      <span aria-hidden="true"> - </span>
+                      <span x-text="getAttendanceCheckoutText(log)"></span>
                     </p>
-                  </template>
-                  <template
-                    x-if="String(log.status || '').toLowerCase() !== 'alpha'"
-                  >
-                    <div>
-                      <p class="text-theme-sm text-gray-800 dark:text-white/90">
-                        <span x-text="log.timeIn || '-'"></span>
-                        <span aria-hidden="true"> – </span>
-                        <span x-text="getAttendanceCheckoutText(log)"></span>
-                      </p>
-                      <p
-                        class="text-theme-xs mt-0.5 text-gray-500 dark:text-gray-400"
+                    <p
+                      class="text-theme-xs mt-0.5 text-gray-500 dark:text-gray-400"
+                    >
+                      <span
+                        x-text="formatAttendanceWorkDuration(log.workHour)"
+                      ></span>
+                      <span
+                        x-show="log.checkoutState === 'open'"
+                        class="text-warning-600 dark:text-warning-400 ml-1 font-medium"
+                        >· Checkout terbuka</span
                       >
-                        <span
-                          x-text="log.workHour || 'Durasi belum tersedia'"
-                        ></span>
-                        <span
-                          x-show="log.checkoutState === 'open'"
-                          class="text-warning-600 dark:text-warning-400 ml-1 font-medium"
-                          >· Checkout terbuka</span
-                        >
-                      </p>
-                    </div>
-                  </template>
+                    </p>
+                  </div>
                 </td>
 
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -379,20 +366,11 @@
                 </td>
 
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <span
-                    class="text-theme-xs inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium"
-                    :class="log.location.available ? 'bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400'"
-                  >
-                    <span
-                      class="h-1.5 w-1.5 rounded-full bg-current"
-                      aria-hidden="true"
-                    ></span>
-                    <span
-                      x-text="log.location.available
-                      ? (log.location.description || 'Lokasi tersedia')
-                      : 'Lokasi tidak tersedia'"
-                    ></span>
-                  </span>
+                  <p
+                    class="text-theme-xs line-clamp-2 max-w-[260px] leading-5 text-gray-600 dark:text-gray-300"
+                    x-text="getAttendanceLocationText(log.location)"
+                    :title="getAttendanceLocationText(log.location)"
+                  ></p>
                 </td>
 
                 <td class="px-6 py-4 text-center whitespace-nowrap">

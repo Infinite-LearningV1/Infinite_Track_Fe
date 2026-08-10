@@ -658,6 +658,12 @@ export function bookingListAlpineData(overrides = {}) {
         }
       });
     } /**
+     * Open the review/detail surface without deciding the booking.
+     */
+    ,
+    openBookingDetail(booking) {
+      this.viewBookingDetail(booking);
+    } /**
      * Close booking detail modal
      */,
     closeBookingDetailModal() {

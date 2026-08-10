@@ -14,6 +14,10 @@ import {
   extractBookingCollection,
   normalizeBooking,
 } from "./bookingList.contract.js";
+import {
+  DEFAULT_BOOKING_MANAGEMENT_QUERY,
+  toBookingManagementRequestParams,
+} from "./bookingManagementDirectoryQuery.js";
 import { formatDateTime, formatDate } from "../../utils/dateTimeFormatter.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import {
@@ -26,7 +30,14 @@ import {
  * Alpine.js data untuk halaman booking list
  * @returns {Object} - Alpine.js data object
  */
-export function bookingListAlpineData() {
+export function bookingListAlpineData(overrides = {}) {
+  const requestBookings = overrides.getBookings || getBookings;
+  const approveCommand = overrides.approveBooking || approveBookingCommand;
+  const deleteCommand = overrides.deleteBooking || deleteBooking;
+  const notify =
+    overrides.notify ||
+    ((payload) => globalThis.window?.showInlineAlert?.(payload));
+
   return {
     // State data
     bookings: [],
@@ -40,31 +51,22 @@ export function bookingListAlpineData() {
       has_next_page: false,
       has_prev_page: false,
     },
-    filters: {
-      status: "",
-      search: "",
-      sortBy: "custom",
-      sortOrder: "DESC",
-      page: 1,
-      limit: 10,
+    appliedQuery: {
+      ...DEFAULT_BOOKING_MANAGEMENT_QUERY,
+      appliedFilters: { ...DEFAULT_BOOKING_MANAGEMENT_QUERY.appliedFilters },
     },
+    draftFilters: { ...DEFAULT_BOOKING_MANAGEMENT_QUERY.appliedFilters },
+    tableState: { loading: false, error: "", hasSuccessfulPage: false },
+    latestListRequestId: 0,
+    filters: { page: 1, limit: 10, search: "", status: "" },
     isLoading: true,
     errorMessage: "",
-    sortFieldMap: {
-      id: "id",
-      employee_name: "employee_name",
-      employee_position: "employee_position",
-      schedule_date: "schedule_date",
-      status: "status",
-      suitability_score: "suitability_score",
-    },
-
-    // Search input proxy -> single request state (filters.search)
+    // Search input proxy -> draft query
     get searchTerm() {
-      return this.filters.search;
+      return this.appliedQuery.search;
     },
     set searchTerm(value) {
-      this.filters.search = value;
+      this.appliedQuery.search = value;
     },
 
     statusFilter: "", // Modal states
@@ -148,36 +150,40 @@ export function bookingListAlpineData() {
      * Fetch booking data dari API
      */
     async fetchBookings() {
+      const requestId = ++this.latestListRequestId;
+      this.tableState.loading = true;
+      this.isLoading = true;
+      this.tableState.error = "";
       try {
-        this.isLoading = true;
         this.errorMessage = "";
-
-        const response = await getBookings(this.filters);
+        const response = await requestBookings(
+          toBookingManagementRequestParams(this.appliedQuery),
+        );
+        if (requestId !== this.latestListRequestId) return;
 
         const { bookings: bookingsData, pagination: paginationData } =
           extractBookingCollection(response);
         this.bookings = bookingsData.map(normalizeBooking);
 
-        // Handle pagination with fallbacks
+        const currentPage = paginationData.current_page ?? 1;
+        const totalPages = paginationData.total_pages ?? 1;
+        const totalRecords = paginationData.total_records ?? 0;
+        const recordsPerPage = paginationData.records_per_page ?? 10;
         this.pagination = {
-          current_page: paginationData.current_page || 1,
-          total_pages: paginationData.total_pages || 1,
-          total_items: paginationData.total_items || paginationData.total || 0,
-          total_records:
-            paginationData.total_items || paginationData.total || 0, // Alias for table compatibility
-          items_per_page:
-            paginationData.items_per_page || paginationData.per_page || 10,
-          per_page:
-            paginationData.items_per_page || paginationData.per_page || 10, // Alias for table compatibility
-          has_next_page:
-            (paginationData.current_page || 1) <
-            (paginationData.total_pages || 1),
-          has_prev_page: (paginationData.current_page || 1) > 1,
+          current_page: currentPage,
+          total_pages: totalPages,
+          total_items: totalRecords,
+          total_records: totalRecords,
+          items_per_page: recordsPerPage,
+          per_page: recordsPerPage,
+          has_next_page: paginationData.has_next_page ?? currentPage < totalPages,
+          has_prev_page: paginationData.has_prev_page ?? currentPage > 1,
         };
-
-        if (this.pagination.per_page) {
-          this.filters.limit = Number(this.pagination.per_page);
-        }
+        this.appliedQuery.page = currentPage;
+        this.appliedQuery.limit = recordsPerPage;
+        this.filters.page = currentPage;
+        this.filters.limit = recordsPerPage;
+        this.tableState.hasSuccessfulPage = true;
 
         // Log successful data fetch for debugging
         console.log("Bookings fetched successfully:", {
@@ -185,20 +191,15 @@ export function bookingListAlpineData() {
           pagination: this.pagination,
         });
       } catch (error) {
+        if (requestId !== this.latestListRequestId) return;
         this.errorMessage = error.message || "Gagal memuat data booking";
-        console.error("Error fetching bookings:", error);
-
-        // Tampilkan modal error
-        if (typeof window.showAlertModal === "function") {
-          window.showAlertModal({
-            type: "danger",
-            title: "Gagal Memuat Data Booking",
-            message: this.errorMessage,
-            buttonText: "OK",
-          });
-        }
+        this.tableState.error = this.errorMessage;
+        notify({ type: "danger", title: "Gagal Memuat Data Booking", message: this.errorMessage });
       } finally {
-        this.isLoading = false;
+        if (requestId === this.latestListRequestId) {
+          this.tableState.loading = false;
+          this.isLoading = false;
+        }
       }
     },
 
@@ -213,8 +214,8 @@ export function bookingListAlpineData() {
      * Apply filters (called when status filter changes)
      */
     applyFilters() {
-      this.filters.status = this.statusFilter;
-      this.filters.page = 1; // Reset ke halaman pertama
+      this.appliedQuery.appliedFilters = { ...this.draftFilters };
+      this.appliedQuery.page = 1;
       this.fetchBookings();
     },
 
@@ -229,7 +230,7 @@ export function bookingListAlpineData() {
 
       // Set timer baru untuk debounce 500ms
       this.searchTimer = setTimeout(() => {
-        this.filters.page = 1; // Reset ke halaman pertama
+        this.appliedQuery.page = 1;
         this.fetchBookings();
       }, 500);
     },
@@ -238,9 +239,8 @@ export function bookingListAlpineData() {
      * Handle status filter change
      */
     handleStatusFilter() {
-      this.filters.status = this.statusFilter;
-      this.filters.page = 1; // Reset ke halaman pertama
-      this.fetchBookings();
+      this.draftFilters.status = this.statusFilter;
+      this.applyFilters();
     },
 
     /**
@@ -249,7 +249,7 @@ export function bookingListAlpineData() {
      */
     changePage(newPage) {
       if (newPage >= 1 && newPage <= this.pagination.total_pages) {
-        this.filters.page = newPage;
+        this.appliedQuery.page = newPage;
         this.fetchBookings();
       }
     },
@@ -260,9 +260,9 @@ export function bookingListAlpineData() {
      */
     changeLimit(newLimit) {
       const parsedLimit = Number(newLimit);
-      this.filters.limit =
+      this.appliedQuery.limit =
         Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
-      this.filters.page = 1;
+      this.appliedQuery.page = 1;
       this.fetchBookings();
     },
 
@@ -270,35 +270,14 @@ export function bookingListAlpineData() {
      * Change sorting
      * @param {string} newSortBy - Field untuk sorting
      */
-    changeSort(newSortBy) {
-      if (!this.isSortFieldSupported(newSortBy)) {
-        return;
-      }
-
-      const backendSortField = this.sortFieldMap[newSortBy];
-      if (!backendSortField) {
-        return;
-      }
-
-      // Jika field sama, toggle order
-      if (this.filters.sortBy === backendSortField) {
-        this.filters.sortOrder =
-          this.filters.sortOrder === "ASC" ? "DESC" : "ASC";
-      } else {
-        this.filters.sortBy = backendSortField;
-        this.filters.sortOrder = "DESC"; // Default ke DESC untuk field baru
-      }
-
-      this.filters.page = 1; // Reset ke halaman pertama
-      this.fetchBookings();
-    },
+    _unusedChangeHandler: undefined,
 
     /**
      * Get sort icon
      * @param {string} fieldName - Field name untuk sorting
      * @returns {string} - Icon class atau empty string
      */
-    getSortIcon(fieldName) {
+    _unusedIconHandler(fieldName) {
       if (!this.isSortFieldSupported(fieldName)) {
         return "";
       }
@@ -310,9 +289,7 @@ export function bookingListAlpineData() {
       return this.filters.sortOrder === "ASC" ? "↑" : "↓";
     },
 
-    isSortFieldSupported(fieldName) {
-      return Object.hasOwn(this.sortFieldMap, fieldName);
-    },
+    _unusedSortCheck: undefined,
 
     /**
      * View location detail
@@ -430,7 +407,7 @@ export function bookingListAlpineData() {
      */
     async approveBooking(bookingId) {
       try {
-        const response = await approveBookingCommand(bookingId);
+        const response = await approveCommand(bookingId);
 
         // Handle successful response
         if (response.success || response.status === "success") {
@@ -510,7 +487,7 @@ export function bookingListAlpineData() {
       if (!this.deleteTargetId) return;
 
       try {
-        const response = await deleteBooking(this.deleteTargetId);
+        const response = await deleteCommand(this.deleteTargetId);
 
         this.deleteTargetId = null;
 

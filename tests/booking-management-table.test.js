@@ -31,6 +31,13 @@ test("booking table exposes the locked eight-column approval queue", () => {
     assert.doesNotMatch(table, new RegExp(token));
   assert.match(table, /line-clamp-2/);
   assert.match(table, /openBookingDetail\(booking\)/);
+  assert.match(table, /confirmDelete\(booking\)/);
+  assert.match(
+    table,
+    /:aria-label="`Hapus booking \$\{booking\.employee_name \|\| booking\.id\}`"/,
+  );
+  assert.match(table, />\s*Hapus\s*</);
+  assert.doesNotMatch(table, />\s*\u22ef\s*</);
   assert.match(table, /booking\.status === 'pending' \? 'Review' : 'Detail'/);
   assert.match(table, /booking\.schedule_date/);
   assert.match(table, /booking\.created_at/);

@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createBookingDetailDrawerLifecycle } from "../src/js/features/wfaBooking/bookingDetailDrawerLifecycle.js";
 
-test("drawer owns map only when coordinates are finite", () => {
+test("drawer calls the real MapDetailModal API only for finite coordinates", () => {
   const calls = [];
   const lifecycle = createBookingDetailDrawerLifecycle({
     mapAdapter: {
-      initialize: (location) => calls.push(["init", location]),
-      destroy: () => calls.push(["destroy"]),
+      initializeMap: (location) => calls.push(["init", location]),
+      destroyMap: () => calls.push(["destroy"]),
     },
   });
   lifecycle.open({
@@ -27,8 +27,8 @@ test("missing coordinates and null processedBy remain truthful", () => {
   const calls = [];
   const lifecycle = createBookingDetailDrawerLifecycle({
     mapAdapter: {
-      initialize: () => calls.push("init"),
-      destroy: () => calls.push("destroy"),
+      initializeMap: () => calls.push("init"),
+      destroyMap: () => calls.push("destroy"),
     },
   });
   const row = {
@@ -46,8 +46,8 @@ test("replacement destroys prior map and close is idempotent", () => {
   const calls = [];
   const lifecycle = createBookingDetailDrawerLifecycle({
     mapAdapter: {
-      initialize: (row) => calls.push(["init", row.id]),
-      destroy: () => calls.push(["destroy"]),
+      initializeMap: (row) => calls.push(["init", row.id]),
+      destroyMap: () => calls.push(["destroy"]),
     },
   });
   lifecycle.open({ id: 1, location_latitude: 1, location_longitude: 2 });

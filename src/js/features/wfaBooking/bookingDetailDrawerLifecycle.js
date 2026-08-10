@@ -11,12 +11,12 @@ export function createBookingDetailDrawerLifecycle({ mapAdapter = null } = {}) {
     isOpen: false,
     selectedBooking: null,
     open(booking) {
-      if (ownsMap) mapAdapter?.destroy?.();
+      if (ownsMap) mapAdapter?.destroyMap?.();
       this.selectedBooking = booking;
       this.isOpen = true;
       ownsMap = hasFiniteCoordinates(booking);
       if (ownsMap)
-        mapAdapter?.initialize?.({
+        mapAdapter?.initializeMap?.({
           id: booking.id ?? null,
           latitude: booking.location_latitude,
           longitude: booking.location_longitude,
@@ -26,7 +26,7 @@ export function createBookingDetailDrawerLifecycle({ mapAdapter = null } = {}) {
         });
     },
     close() {
-      if (ownsMap) mapAdapter?.destroy?.();
+      if (ownsMap) mapAdapter?.destroyMap?.();
       ownsMap = false;
       this.isOpen = false;
       this.selectedBooking = null;

@@ -1,3 +1,11 @@
+<div
+  x-show="drawerState.open"
+  x-cloak
+  data-booking-detail-backdrop
+  aria-hidden="true"
+  @click="closeBookingDetail()"
+  class="fixed inset-0 z-99998 bg-gray-900/50"
+></div>
 <aside
   x-show="drawerState.open"
   x-cloak
@@ -28,61 +36,143 @@
       &times;
     </button>
   </header>
-  <div class="space-y-5 p-5" x-if="drawerState.selectedBooking">
-    <section>
-      <h3 class="font-semibold">Pemohon</h3>
-      <p x-text="drawerState.selectedBooking.employee_name || '-' "></p>
-      <p
-        class="text-sm text-gray-500"
-        x-text="drawerState.selectedBooking.employee_id || '-' "
-      ></p>
-    </section>
-    <section>
-      <h3 class="font-semibold">Pengajuan WFA</h3>
-      <p x-text="drawerState.selectedBooking.schedule_date || '-' "></p>
-      <p x-text="drawerState.selectedBooking.notes || '-' "></p>
-    </section>
-    <section>
-      <h3 class="font-semibold">Lokasi</h3>
-      <p x-text="drawerState.selectedBooking.location_name || '-' "></p>
-      <template
-        x-if="Number.isFinite(drawerState.selectedBooking.location_latitude) && Number.isFinite(drawerState.selectedBooking.location_longitude)"
-        ><div>
-          <p
-            x-text="`${drawerState.selectedBooking.location_latitude}, ${drawerState.selectedBooking.location_longitude}`"
-          ></p>
+
+  <template x-if="drawerState.selectedBooking">
+    <div class="space-y-5 p-5">
+      <section class="space-y-2">
+        <h3 class="font-semibold">Pemohon</h3>
+        <p
+          class="font-medium"
+          x-text="drawerState.selectedBooking.employee_name || '-'"
+        ></p>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          <dt class="text-gray-500">NIP/NIM</dt>
+          <dd x-text="drawerState.selectedBooking.employee_id || '-'"></dd>
+          <dt class="text-gray-500">Email</dt>
+          <dd x-text="drawerState.selectedBooking.employee_email || '-'"></dd>
+          <dt class="text-gray-500">Posisi</dt>
+          <dd
+            x-text="drawerState.selectedBooking.employee_position || '-'"
+          ></dd>
+          <dt class="text-gray-500">Peran</dt>
+          <dd x-text="drawerState.selectedBooking.employee_role || '-'"></dd>
+        </dl>
+      </section>
+
+      <section class="space-y-2">
+        <h3 class="font-semibold">Pengajuan WFA</h3>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          <dt class="text-gray-500">ID booking</dt>
+          <dd x-text="drawerState.selectedBooking.id ?? '-'"></dd>
+          <dt class="text-gray-500">Jadwal WFA</dt>
+          <dd
+            x-text="formatDate(drawerState.selectedBooking.schedule_date)"
+          ></dd>
+          <dt class="text-gray-500">Diajukan</dt>
+          <dd
+            x-text="formatDateTime(drawerState.selectedBooking.created_at)"
+          ></dd>
+          <dt class="text-gray-500">Alasan pengajuan</dt>
+          <dd
+            x-text="drawerState.selectedBooking.requestReason?.label || '-'"
+          ></dd>
+          <dt
+            class="text-gray-500"
+            x-show="drawerState.selectedBooking.requestReason?.isOther && drawerState.selectedBooking.requestOtherReason"
+          >
+            Penjelasan lainnya
+          </dt>
+          <dd
+            x-show="drawerState.selectedBooking.requestReason?.isOther && drawerState.selectedBooking.requestOtherReason"
+            x-text="drawerState.selectedBooking.requestOtherReason"
+          ></dd>
+          <dt class="text-gray-500">Catatan</dt>
+          <dd x-text="drawerState.selectedBooking.notes || '-'"></dd>
+          <dt class="text-gray-500">Status</dt>
+          <dd
+            x-text="getStatusBadgeText(drawerState.selectedBooking.status)"
+          ></dd>
+        </dl>
+      </section>
+
+      <section class="space-y-2">
+        <h3 class="font-semibold">Lokasi</h3>
+        <p x-text="drawerState.selectedBooking.location_name || '-'"></p>
+        <p
+          class="text-sm"
+          x-text="Number.isFinite(drawerState.selectedBooking.location_latitude) && Number.isFinite(drawerState.selectedBooking.location_longitude) ? `${drawerState.selectedBooking.location_latitude}, ${drawerState.selectedBooking.location_longitude}` : 'Koordinat lokasi tidak tersedia.'"
+        ></p>
+        <p
+          class="text-sm"
+          x-text="drawerState.selectedBooking.radiusSnapshot === null || drawerState.selectedBooking.radiusSnapshot === undefined ? 'Radius: Tidak tersedia' : `Radius: ${drawerState.selectedBooking.radiusSnapshot} meter`"
+        ></p>
+        <template
+          x-if="Number.isFinite(drawerState.selectedBooking.location_latitude) && Number.isFinite(drawerState.selectedBooking.location_longitude)"
+        >
           <div
             id="bookingDetailMapContainer"
             data-location-map
             class="mt-2 h-48 rounded-lg"
-          ></div></div></template
-      ><template
-        x-if="!Number.isFinite(drawerState.selectedBooking.location_latitude) || !Number.isFinite(drawerState.selectedBooking.location_longitude)"
-        ><p class="text-sm text-gray-500">
-          Koordinat lokasi tidak tersedia.
-        </p></template
+          ></div>
+        </template>
+      </section>
+
+      <section class="space-y-2">
+        <h3 class="font-semibold">Kelayakan</h3>
+        <template
+          x-if="drawerState.selectedBooking.suitability_score !== null && drawerState.selectedBooking.suitability_score !== undefined"
+        >
+          <p>
+            <span
+              x-text="drawerState.selectedBooking.suitability_label || 'Label tidak tersedia'"
+            ></span>
+            <span
+              x-text="` (${Number(drawerState.selectedBooking.suitability_score).toFixed(2)} / 100)`"
+            ></span>
+          </p>
+        </template>
+        <template
+          x-if="drawerState.selectedBooking.suitability_score === null || drawerState.selectedBooking.suitability_score === undefined"
+        >
+          <p class="text-gray-500">Tidak tersedia</p>
+        </template>
+      </section>
+
+      <template
+        x-if="drawerState.selectedBooking.status === 'approved' || drawerState.selectedBooking.status === 'rejected'"
       >
-    </section>
-    <section>
-      <h3 class="font-semibold">Kelayakan</h3>
-      <p
-        x-text="drawerState.selectedBooking.suitability_score === null || drawerState.selectedBooking.suitability_score === undefined ? 'Tidak tersedia' : `${Number(drawerState.selectedBooking.suitability_score).toFixed(2)} / 100`"
-      ></p>
-    </section>
-    <section>
-      <h3 class="font-semibold">Keputusan</h3>
-      <p
-        x-text="drawerState.selectedBooking.processedBy ? `${drawerState.selectedBooking.processedBy.fullName} (${drawerState.selectedBooking.processedBy.role})` : 'Pelaku pemrosesan tidak tersedia'"
-      ></p>
-      <p
-        x-show="drawerState.selectedBooking.rejectionNote"
-        x-text="drawerState.selectedBooking.rejectionNote"
-      ></p>
-    </section>
-  </div>
+        <section class="space-y-2">
+          <h3 class="font-semibold">Keputusan</h3>
+          <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+            <dt class="text-gray-500">Diproses pada</dt>
+            <dd
+              x-text="formatDateTime(drawerState.selectedBooking.processed_at)"
+            ></dd>
+            <dt class="text-gray-500">Diproses oleh</dt>
+            <dd
+              x-text="drawerState.selectedBooking.processedBy ? `${drawerState.selectedBooking.processedBy.fullName || '-'} (${drawerState.selectedBooking.processedBy.role || '-'})` : 'Pelaku pemrosesan tidak tersedia'"
+            ></dd>
+          </dl>
+          <template x-if="drawerState.selectedBooking.status === 'rejected'">
+            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+              <dt class="text-gray-500">Alasan penolakan</dt>
+              <dd
+                x-text="drawerState.selectedBooking.rejectionReason?.label || '-'"
+              ></dd>
+              <dt class="text-gray-500">Catatan penolakan</dt>
+              <dd
+                x-text="drawerState.selectedBooking.rejectionNote || '-'"
+              ></dd>
+            </dl>
+          </template>
+        </section>
+      </template>
+    </div>
+  </template>
+
   <footer
     class="flex gap-2 border-t p-4"
-    x-show="drawerState.selectedBooking?.status === 'pending'"
+    x-show="drawerState.selectedBooking && drawerState.selectedBooking.status === 'pending'"
   >
     <button
       type="button"
@@ -90,15 +180,17 @@
       :disabled="decisionState.approvingId !== null"
       class="rounded bg-green-600 px-4 py-2 text-sm text-white"
     >
-      Setujui</button
-    ><button
+      Setujui
+    </button>
+    <button
       type="button"
       @click="openRejectBooking(drawerState.selectedBooking)"
       :disabled="decisionState.approvingId !== null"
       class="rounded bg-red-600 px-4 py-2 text-sm text-white"
     >
-      Tolak</button
-    ><span
+      Tolak
+    </button>
+    <span
       x-show="decisionState.approvalError"
       x-text="decisionState.approvalError"
       role="alert"

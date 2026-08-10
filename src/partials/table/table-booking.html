@@ -110,11 +110,11 @@
                 ><!-- openRejectBooking(booking) remains a drawer decision action -->
                 <button
                   type="button"
-                  @click="confirmDelete(booking.id)"
-                  class="rounded-lg px-2 py-1.5 text-xs text-gray-500"
-                  aria-label="Hapus booking"
+                  @click="confirmDelete(booking)"
+                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                  :aria-label="`Hapus booking ${booking.employee_name || booking.id}`"
                 >
-                  ⋯
+                  Hapus
                 </button>
               </div>
             </td>

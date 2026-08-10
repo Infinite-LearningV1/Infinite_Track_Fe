@@ -93,3 +93,33 @@ test("search, page, and limit methods preserve canonical filters", async () => {
   assert.equal(calls[2].limit, 25);
   assert.equal(state.pagination.per_page, 25);
 });
+
+test("live INF-274 pagination aliases preserve the selected page size", async () => {
+  for (const selectedLimit of [25, 50, 100]) {
+    const state = bookingListAlpineData({
+      getBookings: async () => ({
+        data: {
+          bookings: [{ booking_id: 51 }],
+          pagination: {
+            current_page: 2,
+            total_pages: 5,
+            total_items: 237,
+            items_per_page: selectedLimit,
+            has_next_page: true,
+            has_prev_page: true,
+          },
+        },
+      }),
+    });
+    state.appliedQuery.limit = selectedLimit;
+
+    await state.fetchBookings();
+
+    assert.equal(state.pagination.total_items, 237);
+    assert.equal(state.pagination.total_records, 237);
+    assert.equal(state.pagination.items_per_page, selectedLimit);
+    assert.equal(state.pagination.per_page, selectedLimit);
+    assert.equal(state.appliedQuery.limit, selectedLimit);
+    assert.equal(state.filters.limit, selectedLimit);
+  }
+});

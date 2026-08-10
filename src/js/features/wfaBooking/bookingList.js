@@ -22,6 +22,7 @@ import {
 import { formatDateTime, formatDate } from "../../utils/dateTimeFormatter.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import { createFocusTrap } from "../../utils/focusTrap.js";
+import { escapeHtml } from "../../utils/escapeHtml.js";
 import { createBookingDetailDrawerLifecycle } from "./bookingDetailDrawerLifecycle.js";
 import {
   getBookingStatusBadgeClass,
@@ -201,10 +202,24 @@ export function bookingListAlpineData(overrides = {}) {
           extractBookingCollection(response);
         this.bookings = bookingsData.map(normalizeBooking);
 
-        const currentPage = paginationData.current_page ?? 1;
-        const totalPages = paginationData.total_pages ?? 1;
-        const totalRecords = paginationData.total_records ?? 0;
-        const recordsPerPage = paginationData.records_per_page ?? 10;
+        const currentPage = Number(paginationData.current_page ?? 1);
+        const totalPages = Number(paginationData.total_pages ?? 1);
+        const totalRecords = Number(
+          paginationData.total_items ?? paginationData.total_records ?? 0,
+        );
+        const paginationLimit = Number(
+          paginationData.items_per_page ??
+            paginationData.records_per_page ??
+            paginationData.per_page ??
+            this.appliedQuery.limit,
+        );
+        const requestedLimit = Number(this.appliedQuery.limit);
+        const recordsPerPage =
+          Number.isFinite(paginationLimit) && paginationLimit > 0
+            ? paginationLimit
+            : Number.isFinite(requestedLimit) && requestedLimit > 0
+              ? requestedLimit
+              : 10;
         this.pagination = {
           current_page: currentPage,
           total_pages: totalPages,
@@ -566,11 +581,14 @@ export function bookingListAlpineData(overrides = {}) {
       this.deleteState.error = "";
       this.deleteTargetId = record.id;
       if (typeof window.showAlertModal === "function") {
+        const applicant = escapeHtml(
+          record.employee_name || "Pemohon tidak diketahui",
+        );
+        const scheduleDate = escapeHtml(this.formatDate(record.schedule_date));
         window.showAlertModal({
           type: "warning",
           title: "Konfirmasi Hapus Data",
-          message:
-            "Apakah Anda yakin ingin menghapus data booking ini? Tindakan ini tidak dapat dibatalkan.",
+          message: `Booking <strong>${applicant}</strong> untuk jadwal <strong>${scheduleDate}</strong> akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`,
           buttonText: "Ya, Hapus",
           secondaryButtonText: "Batal",
           onOk: () => this.executeDelete(),
@@ -603,32 +621,12 @@ export function bookingListAlpineData(overrides = {}) {
         if (this.drawerState.selectedBooking?.id === record.id)
           this.closeBookingDetail();
 
-        // Handle successful response
-        if (
-          response.success ||
-          response.status === "success" ||
-          response.message
-        ) {
-          // Tampilkan alert inline sukses
-          if (typeof globalThis.window?.showInlineAlert === "function") {
-            globalThis.window.showInlineAlert({
-              type: "success",
-              title: "Data Booking Dihapus",
-              message:
-                response.message ||
-                "Data booking berhasil dihapus dari sistem.",
-            });
-          }
-        } else {
-          // Tampilkan alert inline sukses default jika tidak ada response message
-          if (typeof globalThis.window?.showInlineAlert === "function") {
-            globalThis.window.showInlineAlert({
-              type: "success",
-              title: "Data Booking Dihapus",
-              message: "Data booking berhasil dihapus dari sistem.",
-            });
-          }
-        }
+        notify({
+          type: "success",
+          title: "Data Booking Dihapus",
+          message:
+            response.message || "Data booking berhasil dihapus dari sistem.",
+        });
 
         // Refresh data
         await this.fetchBookings();
@@ -639,17 +637,6 @@ export function bookingListAlpineData(overrides = {}) {
           error.message || "Gagal menghapus data booking";
         this.deleteTargetId = null;
 
-        // Tampilkan alert inline error
-        if (typeof globalThis.window?.showInlineAlert === "function") {
-          globalThis.window.showInlineAlert({
-            type: "danger",
-            title: "Gagal Menghapus Data",
-            message:
-              error.status === 404
-                ? "Booking sudah tidak tersedia."
-                : this.deleteState.error,
-          });
-        }
         if (error.status === 404) await this.fetchBookings();
         notify({
           type: error.status === 404 ? "warning" : "danger",

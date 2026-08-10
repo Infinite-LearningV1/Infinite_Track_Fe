@@ -1,5 +1,8 @@
 function hasFiniteCoordinates(row = {}) {
-  return Number.isFinite(row.location_latitude) && Number.isFinite(row.location_longitude);
+  return (
+    Number.isFinite(row.location_latitude) &&
+    Number.isFinite(row.location_longitude)
+  );
 }
 
 export function createBookingDetailDrawerLifecycle({ mapAdapter = null } = {}) {
@@ -12,14 +15,15 @@ export function createBookingDetailDrawerLifecycle({ mapAdapter = null } = {}) {
       this.selectedBooking = booking;
       this.isOpen = true;
       ownsMap = hasFiniteCoordinates(booking);
-      if (ownsMap) mapAdapter?.initialize?.({
-        id: booking.id ?? null,
-        latitude: booking.location_latitude,
-        longitude: booking.location_longitude,
-        radius: booking.radiusSnapshot ?? null,
-        description: booking.location_name ?? "",
-        fullName: booking.employee_name ?? "",
-      });
+      if (ownsMap)
+        mapAdapter?.initialize?.({
+          id: booking.id ?? null,
+          latitude: booking.location_latitude,
+          longitude: booking.location_longitude,
+          radius: booking.radiusSnapshot ?? null,
+          description: booking.location_name ?? "",
+          fullName: booking.employee_name ?? "",
+        });
     },
     close() {
       if (ownsMap) mapAdapter?.destroy?.();

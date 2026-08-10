@@ -6,10 +6,18 @@ test("duplicate approval is blocked and failure keeps review context", async () 
   let resolveApproval;
   let calls = 0;
   const state = bookingListAlpineData({
-    approveBooking: () => { calls += 1; return new Promise((resolve) => { resolveApproval = resolve; }); },
+    approveBooking: () => {
+      calls += 1;
+      return new Promise((resolve) => {
+        resolveApproval = resolve;
+      });
+    },
     getBookings: async () => ({ data: { bookings: [], pagination: {} } }),
   });
-  state.drawerState = { open: true, selectedBooking: { id: 42, status: "pending" } };
+  state.drawerState = {
+    open: true,
+    selectedBooking: { id: 42, status: "pending" },
+  };
   const first = state.approveSelectedBooking();
   const second = state.approveSelectedBooking();
   assert.equal(calls, 1);
@@ -22,8 +30,20 @@ test("duplicate approval is blocked and failure keeps review context", async () 
 
 test("approval success closes drawer and refreshes once", async () => {
   let calls = 0;
-  const state = bookingListAlpineData({ approveBooking: async (id) => { assert.equal(id, 7); return { success: true }; }, getBookings: async () => { calls += 1; return { data: { bookings: [], pagination: {} } }; } });
-  state.drawerState = { open: true, selectedBooking: { id: 7, status: "pending" } };
+  const state = bookingListAlpineData({
+    approveBooking: async (id) => {
+      assert.equal(id, 7);
+      return { success: true };
+    },
+    getBookings: async () => {
+      calls += 1;
+      return { data: { bookings: [], pagination: {} } };
+    },
+  });
+  state.drawerState = {
+    open: true,
+    selectedBooking: { id: 7, status: "pending" },
+  };
   await state.approveSelectedBooking();
   assert.equal(calls, 1);
   assert.equal(state.drawerState.open, false);

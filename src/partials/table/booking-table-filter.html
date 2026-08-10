@@ -1,18 +1,75 @@
 <div class="relative shrink-0">
-  <button id="bookingTableFilterTrigger" type="button" @click="openFilter()" :aria-expanded="isFilterOpen" aria-controls="bookingTableFilterPopover" class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm">
-    Filter <span x-show="activeFilterCount > 0" x-text="activeFilterCount" aria-label="Filter aktif"></span>
+  <button
+    id="bookingTableFilterTrigger"
+    type="button"
+    @click="openFilter()"
+    :aria-expanded="isFilterOpen"
+    aria-controls="bookingTableFilterPopover"
+    class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm"
+  >
+    Filter
+    <span
+      x-show="activeFilterCount > 0"
+      x-text="activeFilterCount"
+      aria-label="Filter aktif"
+    ></span>
   </button>
-  <div id="bookingTableFilterPopover" tabindex="-1" x-cloak x-show="isFilterOpen" @click.outside="closeFilter()" @keydown.escape.window="closeFilter()" class="absolute right-0 z-50 mt-2 w-80 rounded-xl border bg-white p-4 shadow-xl max-sm:fixed max-sm:inset-x-4 max-sm:top-20" role="dialog" aria-modal="false">
+  <div
+    id="bookingTableFilterPopover"
+    tabindex="-1"
+    x-cloak
+    x-show="isFilterOpen"
+    @click.outside="closeFilter()"
+    @keydown.escape.window="closeFilter()"
+    class="absolute right-0 z-50 mt-2 w-80 rounded-xl border bg-white p-4 shadow-xl max-sm:fixed max-sm:inset-x-4 max-sm:top-20"
+    role="dialog"
+    aria-modal="false"
+  >
     <h2 class="mb-3 text-sm font-semibold">Filter booking</h2>
     <label class="mb-1 block text-xs">Status</label>
-    <select x-model="draftFilters.status" class="mb-3 w-full rounded border px-2 py-2 text-sm">
-      <option value="">Semua status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+    <select
+      x-model="draftFilters.status"
+      class="mb-3 w-full rounded border px-2 py-2 text-sm"
+    >
+      <option value="">Semua status</option>
+      <option value="pending">Pending</option>
+      <option value="approved">Approved</option>
+      <option value="rejected">Rejected</option>
     </select>
     <div class="grid grid-cols-2 gap-2">
-      <label class="text-xs">Mulai<input type="date" x-model="draftFilters.dateFrom" class="mt-1 w-full rounded border px-2 py-2" /></label>
-      <label class="text-xs">Selesai<input type="date" x-model="draftFilters.dateTo" class="mt-1 w-full rounded border px-2 py-2" /></label>
+      <label class="text-xs"
+        >Mulai<input
+          type="date"
+          x-model="draftFilters.dateFrom"
+          class="mt-1 w-full rounded border px-2 py-2"
+      /></label>
+      <label class="text-xs"
+        >Selesai<input
+          type="date"
+          x-model="draftFilters.dateTo"
+          class="mt-1 w-full rounded border px-2 py-2"
+      /></label>
     </div>
-    <p x-show="filterValidationMessage" x-text="filterValidationMessage" role="alert" class="mt-2 text-sm text-red-600"></p>
-    <div class="mt-4 flex justify-end gap-2"><button type="button" @click="clearFilters()" class="rounded border px-3 py-2 text-sm">Bersihkan</button><button type="button" @click="applyFilters()" class="rounded bg-blue-600 px-3 py-2 text-sm text-white">Terapkan</button></div>
+    <p
+      x-show="filterValidationMessage"
+      x-text="filterValidationMessage"
+      role="alert"
+      class="mt-2 text-sm text-red-600"
+    ></p>
+    <div class="mt-4 flex justify-end gap-2">
+      <button
+        type="button"
+        @click="clearFilters()"
+        class="rounded border px-3 py-2 text-sm"
+      >
+        Bersihkan</button
+      ><button
+        type="button"
+        @click="applyFilters()"
+        class="rounded bg-blue-600 px-3 py-2 text-sm text-white"
+      >
+        Terapkan
+      </button>
+    </div>
   </div>
 </div>

@@ -27,7 +27,11 @@ test("initial state is server-authored and has no sort API", () => {
     search: "",
     appliedFilters: { status: "", dateFrom: "", dateTo: "" },
   });
-  assert.deepEqual(state.draftFilters, { status: "", dateFrom: "", dateTo: "" });
+  assert.deepEqual(state.draftFilters, {
+    status: "",
+    dateFrom: "",
+    dateTo: "",
+  });
   assert.equal("sortBy" in state, false);
   assert.equal("sortOrder" in state, false);
   assert.equal("sortFieldMap" in state, false);
@@ -38,7 +42,8 @@ test("initial state is server-authored and has no sort API", () => {
 test("newest response wins and failed refresh preserves successful rows", async () => {
   const pending = [];
   const state = bookingListAlpineData({
-    getBookings: () => new Promise((resolve, reject) => pending.push({ resolve, reject })),
+    getBookings: () =>
+      new Promise((resolve, reject) => pending.push({ resolve, reject })),
   });
 
   const first = state.fetchBookings();
@@ -62,10 +67,18 @@ test("search, page, and limit methods preserve canonical filters", async () => {
   const state = bookingListAlpineData({
     getBookings: async (params) => {
       calls.push(params);
-      return page(3, { current_page: params.page, total_pages: 3, records_per_page: params.limit });
+      return page(3, {
+        current_page: params.page,
+        total_pages: 3,
+        records_per_page: params.limit,
+      });
     },
   });
-  state.appliedQuery.appliedFilters = { status: "pending", dateFrom: "", dateTo: "" };
+  state.appliedQuery.appliedFilters = {
+    status: "pending",
+    dateFrom: "",
+    dateTo: "",
+  };
   state.appliedQuery.page = 3;
   state.searchTerm = "andi";
   state.handleSearchInput();

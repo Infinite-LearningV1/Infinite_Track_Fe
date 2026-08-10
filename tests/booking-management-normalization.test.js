@@ -44,9 +44,19 @@ test("normalizes canonical INF-274 nested fields and preserves zero", () => {
 test("normalizes rejection note and processed_by actor with canonical precedence", () => {
   const normalized = normalizeBooking({
     ...backendRow,
-    request_reason: { id: 1, label: "Other", is_other: true, other_text: "Client visit" },
+    request_reason: {
+      id: 1,
+      label: "Other",
+      is_other: true,
+      other_text: "Client visit",
+    },
     request_other_reason: "legacy other",
-    rejection_reason: { id: 8, label: "Outside policy", is_other: false, note: "Backend note" },
+    rejection_reason: {
+      id: 8,
+      label: "Outside policy",
+      is_other: false,
+      note: "Backend note",
+    },
     rejection_note: "legacy note",
     processed_by: { id: 7, full_name: "Admin One", role: "HR" },
   });

@@ -84,19 +84,27 @@ export function bookingListAlpineData(overrides = {}) {
     statusFilter: "", // Modal states
     get activeFilterCount() {
       const filters = this.appliedQuery.appliedFilters;
-      return Number(Boolean(filters.status)) +
-        Number(Boolean(filters.dateFrom || filters.dateTo));
+      return (
+        Number(Boolean(filters.status)) +
+        Number(Boolean(filters.dateFrom || filters.dateTo))
+      );
     },
 
     openFilter() {
       this.filterValidationMessage = "";
       this.isFilterOpen = true;
-      this.$nextTick?.(() => globalThis.document?.getElementById("bookingTableFilterPopover")?.focus());
+      this.$nextTick?.(() =>
+        globalThis.document
+          ?.getElementById("bookingTableFilterPopover")
+          ?.focus(),
+      );
     },
 
     closeFilter() {
       this.isFilterOpen = false;
-      globalThis.document?.getElementById("bookingTableFilterTrigger")?.focus?.();
+      globalThis.document
+        ?.getElementById("bookingTableFilterTrigger")
+        ?.focus?.();
     },
     isDeleteModalOpen: false,
     deleteConfirmMessage: "",
@@ -204,7 +212,8 @@ export function bookingListAlpineData(overrides = {}) {
           total_records: totalRecords,
           items_per_page: recordsPerPage,
           per_page: recordsPerPage,
-          has_next_page: paginationData.has_next_page ?? currentPage < totalPages,
+          has_next_page:
+            paginationData.has_next_page ?? currentPage < totalPages,
           has_prev_page: paginationData.has_prev_page ?? currentPage > 1,
         };
         this.appliedQuery.page = currentPage;
@@ -222,7 +231,11 @@ export function bookingListAlpineData(overrides = {}) {
         if (requestId !== this.latestListRequestId) return;
         this.errorMessage = error.message || "Gagal memuat data booking";
         this.tableState.error = this.errorMessage;
-        notify({ type: "danger", title: "Gagal Memuat Data Booking", message: this.errorMessage });
+        notify({
+          type: "danger",
+          title: "Gagal Memuat Data Booking",
+          message: this.errorMessage,
+        });
       } finally {
         if (requestId === this.latestListRequestId) {
           this.tableState.loading = false;
@@ -452,8 +465,8 @@ export function bookingListAlpineData(overrides = {}) {
      */
     async approveBooking(bookingId) {
       try {
-      // approveBookingCommand(bookingId) remains the canonical command seam.
-      const response = await approveCommand(bookingId);
+        // approveBookingCommand(bookingId) remains the canonical command seam.
+        const response = await approveCommand(bookingId);
 
         // Handle successful response
         if (response.success || response.status === "success") {
@@ -490,17 +503,28 @@ export function bookingListAlpineData(overrides = {}) {
 
     async approveSelectedBooking() {
       const booking = this.drawerState.selectedBooking;
-      if (!booking || booking.status !== "pending" || this.decisionState.approvingId !== null) return;
+      if (
+        !booking ||
+        booking.status !== "pending" ||
+        this.decisionState.approvingId !== null
+      )
+        return;
       this.decisionState.approvingId = booking.id;
       this.decisionState.approvalError = "";
       try {
         const response = await approveCommand(booking.id);
-        if (!(response?.success || response?.status === "success")) throw new Error(response?.message || "Gagal menyetujui booking");
+        if (!(response?.success || response?.status === "success"))
+          throw new Error(response?.message || "Gagal menyetujui booking");
         this.closeBookingDetail();
         await this.fetchBookings();
       } catch (error) {
-        this.decisionState.approvalError = error.message || "Gagal menyetujui booking";
-        notify({ type: "danger", title: "Gagal Menyetujui Booking", message: this.decisionState.approvalError });
+        this.decisionState.approvalError =
+          error.message || "Gagal menyetujui booking";
+        notify({
+          type: "danger",
+          title: "Gagal Menyetujui Booking",
+          message: this.decisionState.approvalError,
+        });
       } finally {
         this.decisionState.approvingId = null;
       }
@@ -517,7 +541,10 @@ export function bookingListAlpineData(overrides = {}) {
 
     async handleRejectionSucceeded(eventDetail = {}) {
       const completedId = eventDetail.booking?.id;
-      if (!completedId || this.drawerState.selectedBooking?.id === completedId) {
+      if (
+        !completedId ||
+        this.drawerState.selectedBooking?.id === completedId
+      ) {
         this.closeBookingDetail();
       }
       await this.fetchBookings();
@@ -564,10 +591,17 @@ export function bookingListAlpineData(overrides = {}) {
 
         this.deleteTargetId = null;
         this.deleteState.error = "";
-        if (this.appliedQuery.page > 1 && this.bookings.length <= 1 && this.pagination.total_records <= ((this.appliedQuery.page - 1) * this.pagination.per_page) + this.bookings.length) {
+        if (
+          this.appliedQuery.page > 1 &&
+          this.bookings.length <= 1 &&
+          this.pagination.total_records <=
+            (this.appliedQuery.page - 1) * this.pagination.per_page +
+              this.bookings.length
+        ) {
           this.appliedQuery.page -= 1;
         }
-        if (this.drawerState.selectedBooking?.id === record.id) this.closeBookingDetail();
+        if (this.drawerState.selectedBooking?.id === record.id)
+          this.closeBookingDetail();
 
         // Handle successful response
         if (
@@ -601,7 +635,8 @@ export function bookingListAlpineData(overrides = {}) {
       } catch (error) {
         console.error("Error deleting booking:", error);
 
-        this.deleteState.error = error.message || "Gagal menghapus data booking";
+        this.deleteState.error =
+          error.message || "Gagal menghapus data booking";
         this.deleteTargetId = null;
 
         // Tampilkan alert inline error
@@ -610,11 +645,20 @@ export function bookingListAlpineData(overrides = {}) {
             type: "danger",
             title: "Gagal Menghapus Data",
             message:
-              error.status === 404 ? "Booking sudah tidak tersedia." : this.deleteState.error,
+              error.status === 404
+                ? "Booking sudah tidak tersedia."
+                : this.deleteState.error,
           });
         }
         if (error.status === 404) await this.fetchBookings();
-        notify({ type: error.status === 404 ? "warning" : "danger", title: "Gagal Menghapus Data", message: error.status === 404 ? "Booking sudah tidak tersedia." : this.deleteState.error });
+        notify({
+          type: error.status === 404 ? "warning" : "danger",
+          title: "Gagal Menghapus Data",
+          message:
+            error.status === 404
+              ? "Booking sudah tidak tersedia."
+              : this.deleteState.error,
+        });
       } finally {
         this.deleteState.submitting = false;
         this.deleteState.record = null;
@@ -707,14 +751,18 @@ export function bookingListAlpineData(overrides = {}) {
       });
     } /**
      * Open the review/detail surface without deciding the booking.
-     */
-    ,
+     */,
     openBookingDetail(booking) {
       bookingDrawerLifecycle.open(booking);
-      this.drawerState = { open: bookingDrawerLifecycle.isOpen, selectedBooking: bookingDrawerLifecycle.selectedBooking };
+      this.drawerState = {
+        open: bookingDrawerLifecycle.isOpen,
+        selectedBooking: bookingDrawerLifecycle.selectedBooking,
+      };
       this.$nextTick?.(() => {
         if (this.$refs?.bookingDetailDrawerPanel) {
-          bookingDrawerFocusTrap = createFocusTrap(this.$refs.bookingDetailDrawerPanel);
+          bookingDrawerFocusTrap = createFocusTrap(
+            this.$refs.bookingDetailDrawerPanel,
+          );
           bookingDrawerFocusTrap.activate();
         }
       });

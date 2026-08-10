@@ -1,31 +1,168 @@
-<div x-show="tableState.loading && !tableState.hasSuccessfulPage" class="p-8 text-center" aria-live="polite">Memuat data booking...</div>
-<div x-show="tableState.error && tableState.hasSuccessfulPage" class="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
-  <span x-text="tableState.error"></span>
-  <button type="button" @click="fetchBookings()" class="ml-3 font-semibold underline">Coba lagi</button>
+<div
+  x-show="tableState.loading && !tableState.hasSuccessfulPage"
+  class="p-8 text-center"
+  aria-live="polite"
+>
+  Memuat data booking...
 </div>
-<div x-show="!tableState.loading || tableState.hasSuccessfulPage" class="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-white/[0.03]">
+<div
+  x-show="tableState.error && tableState.hasSuccessfulPage"
+  class="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+  role="alert"
+>
+  <span x-text="tableState.error"></span>
+  <button
+    type="button"
+    @click="fetchBookings()"
+    class="ml-3 font-semibold underline"
+  >
+    Coba lagi
+  </button>
+</div>
+<div
+  x-show="!tableState.loading || tableState.hasSuccessfulPage"
+  class="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-white/[0.03]"
+>
   <div class="overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead class="bg-gray-50 dark:bg-gray-800"><tr>
-        <th>Pemohon</th><th>Jadwal WFA</th><th>Diajukan</th><th>Alasan</th><th>Lokasi</th><th>Kelayakan</th><th>Status</th><th>Aksi</th>
-      </tr></thead>
+      <thead class="bg-gray-50 dark:bg-gray-800">
+        <tr>
+          <th>Pemohon</th>
+          <th>Jadwal WFA</th>
+          <th>Diajukan</th>
+          <th>Alasan</th>
+          <th>Lokasi</th>
+          <th>Kelayakan</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
       <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-        <template x-for="booking in bookings" :key="booking.id"><tr>
-          <td class="px-4 py-3"><div class="flex items-center gap-3"><div class="flex h-8 w-8 items-center justify-center rounded-full text-xs" :class="getAvatarColor(booking.employee_name)" x-text="getInitials(booking.employee_name)"></div><div><div class="font-medium" x-text="booking.employee_name || '-' "></div><div class="text-xs text-gray-500" x-text="`${booking.employee_id || '-'} · ${booking.employee_position || '-'}`"></div></div></div></td>
-          <td class="px-4 py-3 text-sm" x-text="formatDate(booking.schedule_date)"></td>
-          <td class="px-4 py-3 text-sm" x-text="formatDateTime(booking.created_at)"></td>
-          <td class="max-w-48 px-4 py-3 text-sm"><div class="line-clamp-2" x-text="booking.requestReason?.label || booking.requestOtherReason || '-' "></div></td>
-          <td class="max-w-48 px-4 py-3 text-sm"><div class="line-clamp-2" x-text="booking.location_name || '-' "></div></td>
-          <td class="px-4 py-3 text-sm"><template x-if="booking.suitability_score !== null && booking.suitability_score !== undefined"><div><div x-text="booking.suitability_label || '-' "></div><span x-text="`${Number(booking.suitability_score).toFixed(2)} / 100`"></span></div></template><template x-if="booking.suitability_score === null || booking.suitability_score === undefined"><span class="text-gray-500">Tidak tersedia</span></template></td>
-          <td class="px-4 py-3 text-sm"><span class="rounded-full px-2 py-1 text-xs" :class="getStatusBadgeClass(booking.status)" x-text="getStatusBadgeText(booking.status)"></span></td>
-          <td class="px-4 py-3 text-sm"><div class="flex items-center gap-2"><button type="button" @click="openBookingDetail(booking)" class="rounded-lg border px-3 py-1.5 text-xs font-medium" x-text="booking.status === 'pending' ? 'Review' : 'Detail'"></button><!-- openRejectBooking(booking) remains a drawer decision action --> <button type="button" @click="confirmDelete(booking.id)" class="rounded-lg px-2 py-1.5 text-xs text-gray-500" aria-label="Hapus booking">⋯</button></div></td>
-        </tr></template>
-        <template x-if="!tableState.loading && bookings.length === 0"><tr><td colspan="8" class="px-6 py-12 text-center text-sm text-gray-500">Tidak ada data booking ditemukan.</td></tr></template>
+        <template x-for="booking in bookings" :key="booking.id"
+          ><tr>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <div
+                  class="flex h-8 w-8 items-center justify-center rounded-full text-xs"
+                  :class="getAvatarColor(booking.employee_name)"
+                  x-text="getInitials(booking.employee_name)"
+                ></div>
+                <div>
+                  <div
+                    class="font-medium"
+                    x-text="booking.employee_name || '-' "
+                  ></div>
+                  <div
+                    class="text-xs text-gray-500"
+                    x-text="`${booking.employee_id || '-'} · ${booking.employee_position || '-'}`"
+                  ></div>
+                </div>
+              </div>
+            </td>
+            <td
+              class="px-4 py-3 text-sm"
+              x-text="formatDate(booking.schedule_date)"
+            ></td>
+            <td
+              class="px-4 py-3 text-sm"
+              x-text="formatDateTime(booking.created_at)"
+            ></td>
+            <td class="max-w-48 px-4 py-3 text-sm">
+              <div
+                class="line-clamp-2"
+                x-text="booking.requestReason?.label || booking.requestOtherReason || '-' "
+              ></div>
+            </td>
+            <td class="max-w-48 px-4 py-3 text-sm">
+              <div
+                class="line-clamp-2"
+                x-text="booking.location_name || '-' "
+              ></div>
+            </td>
+            <td class="px-4 py-3 text-sm">
+              <template
+                x-if="booking.suitability_score !== null && booking.suitability_score !== undefined"
+                ><div>
+                  <div x-text="booking.suitability_label || '-' "></div>
+                  <span
+                    x-text="`${Number(booking.suitability_score).toFixed(2)} / 100`"
+                  ></span></div></template
+              ><template
+                x-if="booking.suitability_score === null || booking.suitability_score === undefined"
+                ><span class="text-gray-500">Tidak tersedia</span></template
+              >
+            </td>
+            <td class="px-4 py-3 text-sm">
+              <span
+                class="rounded-full px-2 py-1 text-xs"
+                :class="getStatusBadgeClass(booking.status)"
+                x-text="getStatusBadgeText(booking.status)"
+              ></span>
+            </td>
+            <td class="px-4 py-3 text-sm">
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  @click="openBookingDetail(booking)"
+                  class="rounded-lg border px-3 py-1.5 text-xs font-medium"
+                  x-text="booking.status === 'pending' ? 'Review' : 'Detail'"
+                ></button
+                ><!-- openRejectBooking(booking) remains a drawer decision action -->
+                <button
+                  type="button"
+                  @click="confirmDelete(booking.id)"
+                  class="rounded-lg px-2 py-1.5 text-xs text-gray-500"
+                  aria-label="Hapus booking"
+                >
+                  ⋯
+                </button>
+              </div>
+            </td>
+          </tr></template
+        >
+        <template x-if="!tableState.loading && bookings.length === 0"
+          ><tr>
+            <td
+              colspan="8"
+              class="px-6 py-12 text-center text-sm text-gray-500"
+            >
+              Tidak ada data booking ditemukan.
+            </td>
+          </tr></template
+        >
       </tbody>
     </table>
   </div>
-  <div x-show="pagination.total_records > 0" class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm">
-    <div x-text="`${((pagination.current_page - 1) * pagination.per_page) + 1}–${Math.min(pagination.current_page * pagination.per_page, pagination.total_records)} dari ${pagination.total_records}`"></div>
-    <div class="flex items-center gap-2"><select x-model="appliedQuery.limit" @change="changeLimit(appliedQuery.limit)" aria-label="Jumlah per halaman"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select><button type="button" @click="changePage(pagination.current_page - 1)" :disabled="!pagination.has_prev_page">Sebelumnya</button><button type="button" @click="changePage(pagination.current_page + 1)" :disabled="!pagination.has_next_page">Berikutnya</button></div>
+  <div
+    x-show="pagination.total_records > 0"
+    class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm"
+  >
+    <div
+      x-text="`${((pagination.current_page - 1) * pagination.per_page) + 1}–${Math.min(pagination.current_page * pagination.per_page, pagination.total_records)} dari ${pagination.total_records}`"
+    ></div>
+    <div class="flex items-center gap-2">
+      <select
+        x-model="appliedQuery.limit"
+        @change="changeLimit(appliedQuery.limit)"
+        aria-label="Jumlah per halaman"
+      >
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option></select
+      ><button
+        type="button"
+        @click="changePage(pagination.current_page - 1)"
+        :disabled="!pagination.has_prev_page"
+      >
+        Sebelumnya</button
+      ><button
+        type="button"
+        @click="changePage(pagination.current_page + 1)"
+        :disabled="!pagination.has_next_page"
+      >
+        Berikutnya
+      </button>
+    </div>
   </div>
 </div>

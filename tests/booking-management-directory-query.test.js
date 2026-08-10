@@ -23,7 +23,10 @@ test("exports the frozen canonical booking management defaults", () => {
     appliedFilters: { status: "", dateFrom: "", dateTo: "" },
   });
   assert.equal(Object.isFrozen(DEFAULT_BOOKING_MANAGEMENT_QUERY), true);
-  assert.equal(Object.isFrozen(DEFAULT_BOOKING_MANAGEMENT_QUERY.appliedFilters), true);
+  assert.equal(
+    Object.isFrozen(DEFAULT_BOOKING_MANAGEMENT_QUERY.appliedFilters),
+    true,
+  );
 });
 
 test("a booking management state can use a fresh nested appliedFilters object", () => {

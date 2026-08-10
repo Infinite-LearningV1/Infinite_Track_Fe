@@ -137,3 +137,12 @@ test("drawer exposes an inert backdrop and the canonical review projection", () 
     /x-show="drawerState\.selectedBooking\.requestReason\?\.isOther && drawerState\.selectedBooking\.requestOtherReason"/,
   );
 });
+
+test("booking drawer overlays the shared header like user and attendance drawers", () => {
+  const drawer = fs.readFileSync(
+    "src/partials/modal/booking-detail-drawer.html",
+    "utf8",
+  );
+  assert.match(drawer, /class="fixed inset-0 z-99999"/);
+  assert.doesNotMatch(drawer, /z-99998/);
+});

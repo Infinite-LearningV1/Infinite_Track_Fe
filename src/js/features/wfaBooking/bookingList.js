@@ -67,6 +67,7 @@ export function bookingListAlpineData(overrides = {}) {
     latestListRequestId: 0,
     drawerState: { open: false, selectedBooking: null },
     decisionState: { approvingId: null, approvalError: "" },
+    deleteState: { record: null, submitting: false, error: "" },
     isFilterOpen: false,
     filterValidationMessage: "",
     filters: { page: 1, limit: 10, search: "", status: "" },
@@ -532,8 +533,11 @@ export function bookingListAlpineData(overrides = {}) {
      * Confirm delete dengan modal
      * @param {string|number} bookingId - ID booking yang akan dihapus
      */
-    confirmDelete(bookingId) {
-      this.deleteTargetId = bookingId;
+    confirmDelete(booking) {
+      const record = typeof booking === "object" ? booking : { id: booking };
+      this.deleteState.record = record;
+      this.deleteState.error = "";
+      this.deleteTargetId = record.id;
       if (typeof window.showAlertModal === "function") {
         window.showAlertModal({
           type: "warning",
@@ -551,12 +555,19 @@ export function bookingListAlpineData(overrides = {}) {
      * Execute delete booking (dipanggil dari modal)
      */
     async executeDelete() {
-      if (!this.deleteTargetId) return;
+      if (this.deleteState.submitting || !this.deleteState.record?.id) return;
+      this.deleteState.submitting = true;
+      const record = this.deleteState.record;
 
       try {
-        const response = await deleteCommand(this.deleteTargetId);
+        const response = await deleteCommand(record.id);
 
         this.deleteTargetId = null;
+        this.deleteState.error = "";
+        if (this.appliedQuery.page > 1 && this.bookings.length <= 1 && this.pagination.total_records <= ((this.appliedQuery.page - 1) * this.pagination.per_page) + this.bookings.length) {
+          this.appliedQuery.page -= 1;
+        }
+        if (this.drawerState.selectedBooking?.id === record.id) this.closeBookingDetail();
 
         // Handle successful response
         if (
@@ -565,8 +576,8 @@ export function bookingListAlpineData(overrides = {}) {
           response.message
         ) {
           // Tampilkan alert inline sukses
-          if (typeof window.showInlineAlert === "function") {
-            window.showInlineAlert({
+          if (typeof globalThis.window?.showInlineAlert === "function") {
+            globalThis.window.showInlineAlert({
               type: "success",
               title: "Data Booking Dihapus",
               message:
@@ -576,8 +587,8 @@ export function bookingListAlpineData(overrides = {}) {
           }
         } else {
           // Tampilkan alert inline sukses default jika tidak ada response message
-          if (typeof window.showInlineAlert === "function") {
-            window.showInlineAlert({
+          if (typeof globalThis.window?.showInlineAlert === "function") {
+            globalThis.window.showInlineAlert({
               type: "success",
               title: "Data Booking Dihapus",
               message: "Data booking berhasil dihapus dari sistem.",
@@ -590,17 +601,23 @@ export function bookingListAlpineData(overrides = {}) {
       } catch (error) {
         console.error("Error deleting booking:", error);
 
+        this.deleteState.error = error.message || "Gagal menghapus data booking";
         this.deleteTargetId = null;
 
         // Tampilkan alert inline error
-        if (typeof window.showInlineAlert === "function") {
-          window.showInlineAlert({
+        if (typeof globalThis.window?.showInlineAlert === "function") {
+          globalThis.window.showInlineAlert({
             type: "danger",
             title: "Gagal Menghapus Data",
             message:
-              error.message || "Terjadi kesalahan saat menghapus data booking.",
+              error.status === 404 ? "Booking sudah tidak tersedia." : this.deleteState.error,
           });
         }
+        if (error.status === 404) await this.fetchBookings();
+        notify({ type: error.status === 404 ? "warning" : "danger", title: "Gagal Menghapus Data", message: error.status === 404 ? "Booking sudah tidak tersedia." : this.deleteState.error });
+      } finally {
+        this.deleteState.submitting = false;
+        this.deleteState.record = null;
       }
     },
 

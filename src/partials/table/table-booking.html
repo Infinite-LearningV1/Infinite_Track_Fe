@@ -1,458 +1,381 @@
-<!-- Booking Table Partial -->
-
-<!-- Loading Spinner -->
-<div x-show="isLoading" class="flex items-center justify-center py-12">
-  <div class="flex items-center space-x-3">
-    <div
-      class="border-t-primary h-8 w-8 animate-spin rounded-full border-4 border-gray-300"
-    ></div>
-    <span class="text-sm text-gray-600 dark:text-gray-400"
-      >Memuat data booking...</span
-    >
-  </div>
-</div>
-
-<!-- Error Message -->
+<!-- Management Booking Approval Queue -->
 <div
-  x-show="errorMessage && !isLoading"
-  class="bg-error-50 dark:bg-error-500/15 rounded-lg p-4"
+  class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-4 dark:border-gray-800 dark:bg-white/[0.03]"
 >
-  <div class="flex items-center">
-    <svg
-      class="text-error-600 dark:text-error-400 mr-3 h-5 w-5"
-      fill="currentColor"
-      viewBox="0 0 20 20"
-    >
-      <path
-        fill-rule="evenodd"
-        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-        clip-rule="evenodd"
-      ></path>
-    </svg>
-    <span
-      class="text-error-700 dark:text-error-300 text-sm"
-      x-text="errorMessage"
-    ></span>
-  </div>
-</div>
-
-<!-- Main Table -->
-<div
-  x-show="!isLoading && !errorMessage"
-  class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
->
-  <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <!-- Table Header -->
-      <thead class="bg-gray-50 dark:bg-gray-800">
-        <tr>
-          <th
-            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            <button
-              @click="changeSort('id')"
-              :disabled="!isSortFieldSupported('id')"
-              :class="isSortFieldSupported('id') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>ID</span>
-              <span x-text="getSortIcon('id')" class="text-primary"></span>
-            </button>
-          </th>
-          <th
-            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            <button
-              @click="changeSort('employee_name')"
-              :disabled="!isSortFieldSupported('employee_name')"
-              :class="isSortFieldSupported('employee_name') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Employee</span>
-              <span
-                x-text="getSortIcon('employee_name')"
-                class="text-primary"
-              ></span>
-            </button>
-          </th>
-          <th
-            class="max-w-24 px-3 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            <button
-              @click="changeSort('employee_position')"
-              :disabled="!isSortFieldSupported('employee_position')"
-              :class="isSortFieldSupported('employee_position') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Position</span>
-              <span
-                x-text="getSortIcon('employee_position')"
-                class="text-primary"
-              ></span>
-            </button>
-          </th>
-          <th
-            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            <button
-              @click="changeSort('schedule_date')"
-              :disabled="!isSortFieldSupported('schedule_date')"
-              :class="isSortFieldSupported('schedule_date') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Schedule Date</span>
-              <span
-                x-text="getSortIcon('schedule_date')"
-                class="text-primary"
-              ></span>
-            </button>
-          </th>
-          <th
-            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            Notes
-          </th>
-          <th
-            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            Koordinat
-          </th>
-          <th
-            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            <button
-              @click="changeSort('status')"
-              :disabled="!isSortFieldSupported('status')"
-              :class="isSortFieldSupported('status') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Status</span>
-              <span x-text="getSortIcon('status')" class="text-primary"></span>
-            </button>
-          </th>
-          <th
-            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            <button
-              @click="changeSort('suitability_score')"
-              :disabled="!isSortFieldSupported('suitability_score')"
-              :class="isSortFieldSupported('suitability_score') ? 'hover:text-gray-700 dark:hover:text-gray-200' : 'cursor-default opacity-60'"
-              class="flex items-center space-x-1"
-            >
-              <span>Suitability</span>
-              <span
-                x-text="getSortIcon('suitability_score')"
-                class="text-primary"
-              ></span>
-            </button>
-          </th>
-          <th
-            class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-          >
-            Actions
-          </th>
-        </tr>
-      </thead>
-
-      <!-- Table Body -->
-      <tbody
-        class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900"
+  <div
+    class="mb-4 flex flex-col gap-5 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between"
+  >
+    <div class="relative min-w-0 flex-1 lg:max-w-xl">
+      <span
+        class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2"
+        aria-hidden="true"
       >
-        <template x-for="booking in bookings" :key="booking.id">
-          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
-            <!-- Booking ID -->
-            <td
-              class="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-white"
-            >
-              <span x-text="booking.id" class="font-medium"></span>
-            </td>
-            <!-- Employee -->
-            <td class="px-6 py-4">
-              <div class="flex items-center space-x-3">
-                <!-- User Avatar with Initials -->
-                <div
-                  class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium"
-                  :class="getAvatarColor(booking.employee_name)"
-                >
-                  <span x-text="getInitials(booking.employee_name)"></span>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div
-                    class="truncate text-sm font-medium text-gray-900 dark:text-white"
-                    x-text="booking.employee_name"
-                    :title="booking.employee_name"
-                  ></div>
-                  <div
-                    class="text-sm text-gray-500 dark:text-gray-400"
-                    x-text="booking.employee_id"
-                  ></div>
-                </div>
-              </div>
-            </td>
-            <!-- Position -->
-            <td class="max-w-43 px-3 py-4">
-              <div
-                class="text-sm text-gray-900 dark:text-white"
-                :title="booking.employee_position"
-              >
-                <div
-                  x-text="booking.employee_position || '-'"
-                  class="line-clamp-2 leading-tight"
-                ></div>
-              </div>
-            </td>
+        <svg
+          class="h-5 w-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          ></path>
+        </svg>
+      </span>
+      <label class="sr-only" for="bookingSearch">Cari booking WFA</label>
+      <input
+        id="bookingSearch"
+        type="search"
+        x-model="searchTerm"
+        @input="debouncedSearch()"
+        :disabled="tableState.loading"
+        placeholder="Cari nama atau NIP/NIM..."
+        class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pr-4 pl-12 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden disabled:cursor-wait disabled:opacity-60 lg:max-w-xl dark:border-gray-800 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30"
+      />
+    </div>
 
-            <!-- Schedule Date -->
-            <td
-              class="px-6 py-4 text-sm whitespace-nowrap text-gray-900 dark:text-white"
-            >
-              <span x-text="formatDate(booking.schedule_date)"></span>
-            </td>
-            <!-- Notes -->
-            <td
-              class="max-w-md px-6 py-4 text-sm text-gray-900 dark:text-white"
-            >
-              <div
-                x-text="booking.notes || '-'"
-                class="line-clamp-3 leading-relaxed"
-                :title="booking.notes"
-              ></div>
-            </td>
-            <!-- Koordinat -->
-            <td class="px-6 py-4 text-sm whitespace-nowrap">
-              <button
-                @click="viewLocationDetail(booking)"
-                :disabled="!booking.location_name"
-                class="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                :class="booking.location_name ? 'text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50' : 'text-gray-400 bg-gray-100 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-500'"
-                title="View Location"
-              >
-                <svg
-                  class="mr-1.5 h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+    <include src="./booking-table-filter.html"></include>
+  </div>
+
+  <div
+    x-show="tableState.loading && !tableState.hasSuccessfulPage"
+    class="flex items-center justify-center border-t border-gray-100 py-12 dark:border-gray-800"
+    aria-live="polite"
+  >
+    <div class="flex items-center gap-3">
+      <div
+        class="border-t-brand-500 h-8 w-8 animate-spin rounded-full border-4 border-gray-200 dark:border-gray-700"
+        aria-hidden="true"
+      ></div>
+      <span class="text-sm text-gray-600 dark:text-gray-400"
+        >Memuat data booking...</span
+      >
+    </div>
+  </div>
+
+  <div
+    x-show="tableState.error && !tableState.hasSuccessfulPage && !tableState.loading"
+    role="alert"
+    class="border-error-200 bg-error-50 dark:border-error-500/30 dark:bg-error-500/15 mx-4 mb-4 rounded-xl border p-5 sm:mx-6"
+  >
+    <p class="text-error-700 dark:text-error-300 text-sm font-medium">
+      Data booking belum dapat dimuat.
+    </p>
+    <p
+      class="text-error-600 dark:text-error-400 mt-1 text-sm"
+      x-text="tableState.error"
+    ></p>
+    <button
+      type="button"
+      @click="fetchBookings()"
+      class="border-error-300 text-error-700 hover:bg-error-100 focus:ring-error-500 dark:border-error-500/40 dark:text-error-300 dark:hover:bg-error-500/20 mt-4 rounded-lg border px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none"
+    >
+      Coba lagi
+    </button>
+  </div>
+
+  <div x-show="tableState.hasSuccessfulPage">
+    <div
+      x-show="tableState.error"
+      role="alert"
+      class="border-error-200 bg-error-50 dark:border-error-500/30 dark:bg-error-500/15 mx-4 mb-4 flex flex-col gap-3 rounded-xl border px-4 py-3 sm:mx-6 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        <p class="text-error-700 dark:text-error-300 text-sm font-medium">
+          Pembaruan data gagal. Data terakhir tetap ditampilkan.
+        </p>
+        <p
+          class="text-error-600 dark:text-error-400 text-sm"
+          x-text="tableState.error"
+        ></p>
+      </div>
+      <button
+        type="button"
+        @click="fetchBookings()"
+        class="border-error-300 text-error-700 hover:bg-error-100 focus:ring-error-500 dark:border-error-500/40 dark:text-error-300 dark:hover:bg-error-500/20 shrink-0 rounded-lg border px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none"
+      >
+        Coba lagi
+      </button>
+    </div>
+
+    <div
+      x-show="tableState.loading"
+      class="mx-4 mb-3 flex items-center gap-2 text-xs text-gray-500 sm:mx-6 dark:text-gray-400"
+      aria-live="polite"
+    >
+      <span
+        class="border-t-brand-500 h-4 w-4 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-700"
+        aria-hidden="true"
+      ></span>
+      Memperbarui data...
+    </div>
+
+    <div class="border-t border-gray-100 dark:border-gray-800">
+      <div class="custom-scrollbar max-w-full overflow-x-auto">
+        <table class="min-w-full">
+          <thead class="border-b border-gray-100 dark:border-gray-800">
+            <tr>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Pemohon</span
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  ></path>
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  ></path>
-                </svg>
-                View
-              </button>
-            </td>
-            <!-- Status -->
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span
-                class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                :class="getStatusBadgeClass(booking.status)"
-                x-text="getStatusBadgeText(booking.status)"
-              ></span>
-            </td>
-            <!-- Suitability Score -->
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div
-                class="space-y-1"
-                x-show="booking.suitability_score !== null && booking.suitability_score !== undefined"
-              >
-                <!-- Suitability Label -->
-                <div
-                  class="text-sm font-medium text-gray-900 dark:text-white"
-                  x-text="booking.suitability_label || 'Not evaluated'"
-                ></div>
-                <!-- Progress Bar -->
-                <div
-                  class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700"
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Jadwal WFA</span
                 >
-                  <div
-                    class="h-2 rounded-full transition-all duration-300"
-                    :class="getSuitabilityScoreColor(booking.suitability_score || 0)"
-                    :style="`width: ${Math.min(100, Math.max(0, booking.suitability_score || 0))}%`"
-                  ></div>
-                </div>
-                <!-- Score Text -->
-                <div class="text-xs text-gray-500 dark:text-gray-400">
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Diajukan</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Alasan</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Lokasi</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Kelayakan</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Status</span
+                >
+              </th>
+              <th class="px-6 py-3 text-center whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Aksi</span
+                >
+              </th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+            <template x-for="booking in bookings" :key="booking.id">
+              <tr
+                class="hover:bg-brand-50/40 dark:hover:bg-brand-500/5 transition-colors"
+              >
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium"
+                      :class="getAvatarColor(booking.employee_name)"
+                      aria-hidden="true"
+                    >
+                      <span x-text="getInitials(booking.employee_name)"></span>
+                    </div>
+                    <div>
+                      <p
+                        class="text-theme-sm font-medium text-gray-800 dark:text-white/90"
+                        x-text="booking.employee_name || '-'"
+                      ></p>
+                      <p class="text-theme-xs text-gray-500 dark:text-gray-400">
+                        <span x-text="booking.employee_id || '-'"></span>
+                        <span aria-hidden="true"> · </span>
+                        <span x-text="booking.employee_position || '-'"></span>
+                      </p>
+                    </div>
+                  </div>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <p
+                    class="text-theme-sm text-gray-800 dark:text-white/90"
+                    x-text="formatDate(booking.schedule_date)"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <p
+                    class="text-theme-sm text-gray-800 dark:text-white/90"
+                    x-text="formatDateTime(booking.created_at)"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4">
+                  <p
+                    class="text-theme-xs line-clamp-2 max-w-[220px] leading-5 break-words text-gray-600 dark:text-gray-300"
+                    :title="booking.requestReason?.label || booking.requestOtherReason || 'Tidak tersedia'"
+                    x-text="booking.requestReason?.label || booking.requestOtherReason || 'Tidak tersedia'"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4">
+                  <p
+                    class="text-theme-xs line-clamp-2 max-w-[260px] leading-5 break-words text-gray-600 dark:text-gray-300"
+                    :title="booking.location_name || 'Tidak tersedia'"
+                    x-text="booking.location_name || 'Tidak tersedia'"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <template
+                    x-if="booking.suitability_score !== null && booking.suitability_score !== undefined"
+                  >
+                    <div>
+                      <p
+                        class="text-theme-sm font-medium text-gray-800 dark:text-white/90"
+                        x-text="booking.suitability_label || 'Tanpa label'"
+                      ></p>
+                      <p
+                        class="text-theme-xs mt-0.5 text-gray-500 dark:text-gray-400"
+                        x-text="`${Number(booking.suitability_score).toFixed(2)} / 100`"
+                      ></p>
+                    </div>
+                  </template>
+                  <template
+                    x-if="booking.suitability_score === null || booking.suitability_score === undefined"
+                  >
+                    <span class="text-theme-xs text-gray-500 dark:text-gray-400"
+                      >Tidak tersedia</span
+                    >
+                  </template>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
                   <span
-                    x-text="`${(booking.suitability_score || 0).toFixed(2)}/100`"
+                    class="text-theme-xs inline-flex rounded-full px-2.5 py-0.5 font-medium"
+                    :class="getStatusBadgeClass(booking.status)"
+                    x-text="getStatusBadgeText(booking.status)"
                   ></span>
-                </div>
-              </div>
-              <div
-                x-show="booking.suitability_score === null || booking.suitability_score === undefined"
-              >
-                <span class="text-xs text-gray-500 dark:text-gray-400"
-                  >Not available</span
-                >
-              </div>
-            </td>
-            <!-- Actions -->
-            <td class="px-6 py-4 text-sm whitespace-nowrap">
-              <div class="flex items-center space-x-3">
-                <!-- Approve and Reject Buttons (only for pending status) -->
-                <template x-if="booking.status === 'pending'">
-                  <div class="flex items-center space-x-3">
-                    <!-- Approve Button -->
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center justify-center space-x-3">
                     <button
-                      @click="approveBooking(booking.id)"
-                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-green-600 transition-colors hover:bg-green-200 dark:bg-green-900/50 dark:text-green-400 dark:hover:bg-green-800/50"
-                      title="Approve booking"
+                      type="button"
+                      @click.stop="openBookingDetail(booking)"
+                      :aria-label="booking.status === 'pending' ? 'Review booking' : 'Lihat detail booking'"
+                      :title="booking.status === 'pending' ? 'Review Booking' : 'Detail Booking'"
+                      class="focus:ring-brand-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors hover:bg-blue-200 focus:ring-2 focus:outline-none dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50"
                     >
                       <svg
                         class="h-4 w-4"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        aria-hidden="true"
                       >
                         <path
                           stroke-linecap="round"
                           stroke-linejoin="round"
                           stroke-width="2"
-                          d="M5 13l4 4L19 7"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        ></path>
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                         ></path>
                       </svg>
                     </button>
-
-                    <!-- Reject Button -->
                     <button
-                      @click="openRejectBooking(booking)"
-                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-200 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800/50"
-                      title="Reject booking"
+                      type="button"
+                      @click.stop="confirmDelete(booking)"
+                      :disabled="deleteState.submitting"
+                      :aria-label="`Hapus booking ${booking.employee_name || booking.id}`"
+                      title="Hapus Booking"
+                      class="focus:ring-error-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-200 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800/50"
                     >
                       <svg
                         class="h-4 w-4"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        aria-hidden="true"
                       >
                         <path
                           stroke-linecap="round"
                           stroke-linejoin="round"
                           stroke-width="2"
-                          d="M6 18L18 6M6 6l12 12"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                         ></path>
                       </svg>
                     </button>
                   </div>
-                </template>
+                </td>
+              </tr>
+            </template>
 
-                <!-- Delete Button (always shown) -->
-                <button
-                  @click="confirmDelete(booking.id)"
-                  class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700/50 dark:text-gray-400 dark:hover:bg-gray-800/50"
-                  title="Hapus booking"
-                >
-                  <svg
-                    class="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    ></path>
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </template>
-        <!-- Empty State -->
-        <template x-if="bookings.length === 0">
-          <tr>
-            <td colspan="9" class="px-6 py-12 text-center">
-              <div class="flex flex-col items-center space-y-3">
-                <svg
-                  class="h-12 w-12 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 48 48"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                  ></path>
-                </svg>
-                <div class="text-sm text-gray-500 dark:text-gray-400">
-                  <p class="font-medium">Tidak ada data booking ditemukan</p>
-                  <p>Silakan coba dengan kata kunci pencarian yang berbeda.</p>
-                </div>
-              </div>
-            </td>
-          </tr>
-        </template>
-      </tbody>
-    </table>
-  </div>
+            <tr x-show="!tableState.loading && bookings.length === 0">
+              <td
+                colspan="8"
+                class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
+              >
+                Tidak ada data booking ditemukan.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-  <!-- Pagination -->
-  <div
-    x-show="!isLoading && pagination.total_records > 0"
-    class="border-t border-gray-200 bg-white px-4 py-3 sm:px-6 dark:border-gray-700 dark:bg-gray-900"
-  >
-    <div class="flex items-center justify-between">
-      <!-- Info Text -->
-      <div class="text-sm text-gray-700 dark:text-gray-300">
-        Showing
-        <span
-          class="font-medium"
-          x-text="((pagination.current_page - 1) * pagination.per_page) + 1"
-        ></span>
-        to
-        <span
-          class="font-medium"
-          x-text="Math.min(pagination.current_page * pagination.per_page, pagination.total_records)"
-        ></span>
-        of
-        <span class="font-medium" x-text="pagination.total_records"></span>
-        entries
+    <div
+      x-show="pagination.total_records > 0"
+      class="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-gray-800"
+    >
+      <div class="flex items-center gap-3">
+        <label
+          class="text-sm text-gray-600 dark:text-gray-300"
+          for="bookingPageSize"
+          >Tampilkan</label
+        >
+        <select
+          id="bookingPageSize"
+          x-model="appliedQuery.limit"
+          @change="changeLimit($event.target.value)"
+          :disabled="tableState.loading"
+          class="focus:border-brand-500 focus:ring-brand-500 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+        >
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <p class="text-sm text-gray-600 dark:text-gray-300">
+          <span x-text="pagination.total_records"></span> data
+        </p>
       </div>
 
-      <!-- Pagination Controls -->
-      <div class="flex items-center space-x-2">
-        <!-- Previous Button -->
+      <div class="flex items-center justify-between gap-2 sm:justify-end">
         <button
+          type="button"
           @click="changePage(pagination.current_page - 1)"
-          :disabled="!pagination.has_prev_page"
-          :class="pagination.has_prev_page ? 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
-          class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-600 dark:bg-gray-800"
+          :disabled="tableState.loading || !pagination.has_prev_page"
+          class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.05]"
         >
-          Previous
+          Sebelumnya
         </button>
-
-        <!-- Page Numbers -->
-        <template
-          x-for="pageNum in Array.from({length: Math.min(5, pagination.total_pages)}, (_, i) => Math.max(1, pagination.current_page - 2) + i).filter(num => num <= pagination.total_pages)"
-          :key="pageNum"
-        >
-          <button
-            @click="changePage(pageNum)"
-            :class="pageNum === pagination.current_page ? 'bg-primary text-white border-primary' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
-            class="rounded-md border px-4 py-2 text-sm font-medium"
-            x-text="pageNum"
-          ></button>
-        </template>
-
-        <!-- Next Button -->
+        <span
+          class="px-2 text-sm text-gray-600 dark:text-gray-300"
+          x-text="`Halaman ${pagination.current_page} dari ${pagination.total_pages}`"
+        ></span>
         <button
+          type="button"
           @click="changePage(pagination.current_page + 1)"
-          :disabled="!pagination.has_next_page"
-          :class="pagination.has_next_page ? 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'"
-          class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium dark:border-gray-600 dark:bg-gray-800"
+          :disabled="tableState.loading || !pagination.has_next_page"
+          class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.05]"
         >
-          Next
+          Berikutnya
         </button>
       </div>
     </div>

@@ -22,6 +22,7 @@ function normalizeBookingReason(value) {
   return {
     id: toNullableNumber(value.id ?? value.reason_id),
     label,
+    isOther: Boolean(value.is_other ?? value.isOther ?? false),
   };
 }
 
@@ -85,15 +86,28 @@ function normalizeBooking(booking = {}) {
     created_at: booking.created_at ?? null,
     processed_at: booking.processed_at ?? null,
     approved_by: booking.approved_by ?? null,
+    processedBy: booking.processed_by
+      ? {
+          id: toNullableNumber(booking.processed_by.id),
+          fullName: String(booking.processed_by.full_name ?? "").trim(),
+          role: String(booking.processed_by.role ?? "").trim(),
+        }
+      : null,
     suitability_score: toNullableNumber(booking.suitability_score),
     suitability_label: booking.suitability_label ?? "",
     requestReason,
     requestOtherReason: String(
-      booking.request_other_reason ?? booking.requestOtherReason ?? "",
+      booking.request_reason?.other_text ??
+        booking.request_other_reason ??
+        booking.requestOtherReason ??
+        "",
     ).trim(),
     rejectionReason,
     rejectionNote: String(
-      booking.rejection_note ?? booking.rejectionNote ?? "",
+      booking.rejection_reason?.note ??
+        booking.rejection_note ??
+        booking.rejectionNote ??
+        "",
     ).trim(),
     radiusSnapshot,
     original: booking,

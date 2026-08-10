@@ -128,3 +128,8 @@ test("retains loading, error retry, empty, pagination, and narrow overflow contr
   assert.match(table, /changeLimit/);
   assert.match(table, /colspan="7"/);
 });
+
+test("attendance table fills the shared Management User shell on wide screens", () => {
+  assert.match(table, /<table class="min-w-full">/);
+  assert.doesNotMatch(table, /min-w-\[1040px\]/);
+});

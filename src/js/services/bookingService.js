@@ -6,6 +6,26 @@
 import { API_CONFIG, envLog } from "../config/env.js";
 import { authRequest } from "./authRequest.js";
 
+const BOOKING_LIST_QUERY_KEYS = [
+  "page",
+  "limit",
+  "search",
+  "status",
+  "date_from",
+  "date_to",
+];
+
+export function buildBookingsListUrl(baseUrl, params = {}) {
+  const queryParams = new URLSearchParams();
+  for (const key of BOOKING_LIST_QUERY_KEYS) {
+    const value = params[key];
+    if (value !== undefined && value !== null && value !== "") {
+      queryParams.append(key, value);
+    }
+  }
+  return `${baseUrl}/bookings${queryParams.toString() ? `?${queryParams}` : ""}`;
+}
+
 /**
  * Mengambil daftar booking dari API
  * @param {Object} params - Parameter query
@@ -19,29 +39,7 @@ import { authRequest } from "./authRequest.js";
  */
 export async function getBookings(params = {}) {
   try {
-    // Buat query string dari parameter
-    const queryParams = new URLSearchParams();
-
-    if (params.status) {
-      queryParams.append("status", params.status);
-    }
-    if (params.search) {
-      queryParams.append("search", params.search);
-    }
-    if (params.sortBy) {
-      queryParams.append("sortBy", params.sortBy);
-    }
-    if (params.sortOrder) {
-      queryParams.append("sortOrder", params.sortOrder);
-    }
-    if (params.page) {
-      queryParams.append("page", params.page);
-    }
-    if (params.limit) {
-      queryParams.append("limit", params.limit);
-    }
-
-    const url = `${API_CONFIG.BASE_URL}/bookings${queryParams.toString() ? "?" + queryParams.toString() : ""}`;
+    const url = buildBookingsListUrl(API_CONFIG.BASE_URL, params);
 
     envLog("info", "GET Bookings:", { url, params });
 
@@ -60,17 +58,12 @@ export async function getBookings(params = {}) {
     envLog("error", "Error fetching bookings:", error);
 
     // Format error untuk penggunaan yang lebih mudah
-    if (error.response) {
-      const errorMessage =
-        error.response.data?.message || "Gagal mengambil data booking";
-      throw new Error(errorMessage);
-    } else if (error.request) {
-      throw new Error(
-        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
-      );
-    } else {
-      throw new Error("Terjadi kesalahan saat mengambil data booking");
-    }
+    throw createBookingServiceError(
+      error,
+      error.request
+        ? "Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
+        : "Terjadi kesalahan saat mengambil data booking",
+    );
   }
 }
 
@@ -109,17 +102,12 @@ export async function updateBookingStatus(bookingId, status) {
   } catch (error) {
     envLog("error", "Error updating booking status:", error);
 
-    if (error.response) {
-      const errorMessage =
-        error.response.data?.message || "Gagal mengupdate status booking";
-      throw new Error(errorMessage);
-    } else if (error.request) {
-      throw new Error(
-        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
-      );
-    } else {
-      throw new Error("Terjadi kesalahan saat mengupdate status booking");
-    }
+    throw createBookingServiceError(
+      error,
+      error.request
+        ? "Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
+        : "Terjadi kesalahan saat mengupdate status booking",
+    );
   }
 }
 
@@ -152,17 +140,12 @@ export async function deleteBooking(bookingId) {
   } catch (error) {
     envLog("error", "Error deleting booking:", error);
 
-    if (error.response) {
-      const errorMessage =
-        error.response.data?.message || "Gagal menghapus data booking";
-      throw new Error(errorMessage);
-    } else if (error.request) {
-      throw new Error(
-        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
-      );
-    } else {
-      throw new Error("Terjadi kesalahan saat menghapus data booking");
-    }
+    throw createBookingServiceError(
+      error,
+      error.request
+        ? "Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
+        : "Terjadi kesalahan saat menghapus data booking",
+    );
   }
 }
 

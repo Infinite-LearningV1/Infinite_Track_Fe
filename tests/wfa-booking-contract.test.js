@@ -46,10 +46,12 @@ test("normalizes request, rejection, and radius snapshot metadata", () => {
   assert.deepEqual(booking.requestReason, {
     id: 5,
     label: "Client meeting",
+    isOther: false,
   });
   assert.deepEqual(booking.rejectionReason, {
     id: 8,
     label: "Policy mismatch",
+    isOther: false,
   });
   assert.equal(booking.rejectionNote, "Location is not eligible");
   assert.equal(booking.radiusSnapshot, 150);

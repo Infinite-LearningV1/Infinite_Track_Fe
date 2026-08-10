@@ -66,6 +66,7 @@ export function bookingListAlpineData(overrides = {}) {
     tableState: { loading: false, error: "", hasSuccessfulPage: false },
     latestListRequestId: 0,
     drawerState: { open: false, selectedBooking: null },
+    decisionState: { approvingId: null, approvalError: "" },
     isFilterOpen: false,
     filterValidationMessage: "",
     filters: { page: 1, limit: 10, search: "", status: "" },
@@ -486,6 +487,24 @@ export function bookingListAlpineData(overrides = {}) {
       }
     },
 
+    async approveSelectedBooking() {
+      const booking = this.drawerState.selectedBooking;
+      if (!booking || booking.status !== "pending" || this.decisionState.approvingId !== null) return;
+      this.decisionState.approvingId = booking.id;
+      this.decisionState.approvalError = "";
+      try {
+        const response = await approveCommand(booking.id);
+        if (!(response?.success || response?.status === "success")) throw new Error(response?.message || "Gagal menyetujui booking");
+        this.closeBookingDetail();
+        await this.fetchBookings();
+      } catch (error) {
+        this.decisionState.approvalError = error.message || "Gagal menyetujui booking";
+        notify({ type: "danger", title: "Gagal Menyetujui Booking", message: this.decisionState.approvalError });
+      } finally {
+        this.decisionState.approvingId = null;
+      }
+    },
+
     openRejectBooking(booking) {
       if (!booking?.id || booking.status !== "pending") return;
       globalThis.window?.dispatchEvent?.(
@@ -495,7 +514,11 @@ export function bookingListAlpineData(overrides = {}) {
       );
     },
 
-    async handleRejectionSucceeded() {
+    async handleRejectionSucceeded(eventDetail = {}) {
+      const completedId = eventDetail.booking?.id;
+      if (!completedId || this.drawerState.selectedBooking?.id === completedId) {
+        this.closeBookingDetail();
+      }
       await this.fetchBookings();
       globalThis.window?.showAlertModal?.({
         type: "success",

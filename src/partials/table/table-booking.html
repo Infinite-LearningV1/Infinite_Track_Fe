@@ -1,168 +1,383 @@
+<!-- Management Booking Approval Queue -->
 <div
-  x-show="tableState.loading && !tableState.hasSuccessfulPage"
-  class="p-8 text-center"
-  aria-live="polite"
+  class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-4 dark:border-gray-800 dark:bg-white/[0.03]"
 >
-  Memuat data booking...
-</div>
-<div
-  x-show="tableState.error && tableState.hasSuccessfulPage"
-  class="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"
-  role="alert"
->
-  <span x-text="tableState.error"></span>
-  <button
-    type="button"
-    @click="fetchBookings()"
-    class="ml-3 font-semibold underline"
-  >
-    Coba lagi
-  </button>
-</div>
-<div
-  x-show="!tableState.loading || tableState.hasSuccessfulPage"
-  class="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-white/[0.03]"
->
-  <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead class="bg-gray-50 dark:bg-gray-800">
-        <tr>
-          <th>Pemohon</th>
-          <th>Jadwal WFA</th>
-          <th>Diajukan</th>
-          <th>Alasan</th>
-          <th>Lokasi</th>
-          <th>Kelayakan</th>
-          <th>Status</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-        <template x-for="booking in bookings" :key="booking.id"
-          ><tr>
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-3">
-                <div
-                  class="flex h-8 w-8 items-center justify-center rounded-full text-xs"
-                  :class="getAvatarColor(booking.employee_name)"
-                  x-text="getInitials(booking.employee_name)"
-                ></div>
-                <div>
-                  <div
-                    class="font-medium"
-                    x-text="booking.employee_name || '-' "
-                  ></div>
-                  <div
-                    class="text-xs text-gray-500"
-                    x-text="`${booking.employee_id || '-'} · ${booking.employee_position || '-'}`"
-                  ></div>
-                </div>
-              </div>
-            </td>
-            <td
-              class="px-4 py-3 text-sm"
-              x-text="formatDate(booking.schedule_date)"
-            ></td>
-            <td
-              class="px-4 py-3 text-sm"
-              x-text="formatDateTime(booking.created_at)"
-            ></td>
-            <td class="max-w-48 px-4 py-3 text-sm">
-              <div
-                class="line-clamp-2"
-                x-text="booking.requestReason?.label || booking.requestOtherReason || '-' "
-              ></div>
-            </td>
-            <td class="max-w-48 px-4 py-3 text-sm">
-              <div
-                class="line-clamp-2"
-                x-text="booking.location_name || '-' "
-              ></div>
-            </td>
-            <td class="px-4 py-3 text-sm">
-              <template
-                x-if="booking.suitability_score !== null && booking.suitability_score !== undefined"
-                ><div>
-                  <div x-text="booking.suitability_label || '-' "></div>
-                  <span
-                    x-text="`${Number(booking.suitability_score).toFixed(2)} / 100`"
-                  ></span></div></template
-              ><template
-                x-if="booking.suitability_score === null || booking.suitability_score === undefined"
-                ><span class="text-gray-500">Tidak tersedia</span></template
-              >
-            </td>
-            <td class="px-4 py-3 text-sm">
-              <span
-                class="rounded-full px-2 py-1 text-xs"
-                :class="getStatusBadgeClass(booking.status)"
-                x-text="getStatusBadgeText(booking.status)"
-              ></span>
-            </td>
-            <td class="px-4 py-3 text-sm">
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  @click="openBookingDetail(booking)"
-                  class="rounded-lg border px-3 py-1.5 text-xs font-medium"
-                  x-text="booking.status === 'pending' ? 'Review' : 'Detail'"
-                ></button
-                ><!-- openRejectBooking(booking) remains a drawer decision action -->
-                <button
-                  type="button"
-                  @click="confirmDelete(booking)"
-                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                  :aria-label="`Hapus booking ${booking.employee_name || booking.id}`"
-                >
-                  Hapus
-                </button>
-              </div>
-            </td>
-          </tr></template
-        >
-        <template x-if="!tableState.loading && bookings.length === 0"
-          ><tr>
-            <td
-              colspan="8"
-              class="px-6 py-12 text-center text-sm text-gray-500"
-            >
-              Tidak ada data booking ditemukan.
-            </td>
-          </tr></template
-        >
-      </tbody>
-    </table>
-  </div>
   <div
-    x-show="pagination.total_records > 0"
-    class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm"
+    class="mb-4 flex flex-col gap-5 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between"
   >
+    <div class="relative min-w-0 flex-1 lg:max-w-xl">
+      <span
+        class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2"
+        aria-hidden="true"
+      >
+        <svg
+          class="h-5 w-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          ></path>
+        </svg>
+      </span>
+      <label class="sr-only" for="bookingSearch">Cari booking WFA</label>
+      <input
+        id="bookingSearch"
+        type="search"
+        x-model="searchTerm"
+        @input="debouncedSearch()"
+        :disabled="tableState.loading"
+        placeholder="Cari nama atau NIP/NIM..."
+        class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pr-4 pl-12 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden disabled:cursor-wait disabled:opacity-60 lg:max-w-xl dark:border-gray-800 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30"
+      />
+    </div>
+
+    <include src="./booking-table-filter.html"></include>
+  </div>
+
+  <div
+    x-show="tableState.loading && !tableState.hasSuccessfulPage"
+    class="flex items-center justify-center border-t border-gray-100 py-12 dark:border-gray-800"
+    aria-live="polite"
+  >
+    <div class="flex items-center gap-3">
+      <div
+        class="border-t-brand-500 h-8 w-8 animate-spin rounded-full border-4 border-gray-200 dark:border-gray-700"
+        aria-hidden="true"
+      ></div>
+      <span class="text-sm text-gray-600 dark:text-gray-400"
+        >Memuat data booking...</span
+      >
+    </div>
+  </div>
+
+  <div
+    x-show="tableState.error && !tableState.hasSuccessfulPage && !tableState.loading"
+    role="alert"
+    class="border-error-200 bg-error-50 dark:border-error-500/30 dark:bg-error-500/15 mx-4 mb-4 rounded-xl border p-5 sm:mx-6"
+  >
+    <p class="text-error-700 dark:text-error-300 text-sm font-medium">
+      Data booking belum dapat dimuat.
+    </p>
+    <p
+      class="text-error-600 dark:text-error-400 mt-1 text-sm"
+      x-text="tableState.error"
+    ></p>
+    <button
+      type="button"
+      @click="fetchBookings()"
+      class="border-error-300 text-error-700 hover:bg-error-100 focus:ring-error-500 dark:border-error-500/40 dark:text-error-300 dark:hover:bg-error-500/20 mt-4 rounded-lg border px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none"
+    >
+      Coba lagi
+    </button>
+  </div>
+
+  <div x-show="tableState.hasSuccessfulPage">
     <div
-      x-text="`${((pagination.current_page - 1) * pagination.per_page) + 1}–${Math.min(pagination.current_page * pagination.per_page, pagination.total_records)} dari ${pagination.total_records}`"
-    ></div>
-    <div class="flex items-center gap-2">
-      <select
-        x-model="appliedQuery.limit"
-        @change="changeLimit(appliedQuery.limit)"
-        aria-label="Jumlah per halaman"
-      >
-        <option value="10">10</option>
-        <option value="25">25</option>
-        <option value="50">50</option>
-        <option value="100">100</option></select
-      ><button
+      x-show="tableState.error"
+      role="alert"
+      class="border-error-200 bg-error-50 dark:border-error-500/30 dark:bg-error-500/15 mx-4 mb-4 flex flex-col gap-3 rounded-xl border px-4 py-3 sm:mx-6 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        <p class="text-error-700 dark:text-error-300 text-sm font-medium">
+          Pembaruan data gagal. Data terakhir tetap ditampilkan.
+        </p>
+        <p
+          class="text-error-600 dark:text-error-400 text-sm"
+          x-text="tableState.error"
+        ></p>
+      </div>
+      <button
         type="button"
-        @click="changePage(pagination.current_page - 1)"
-        :disabled="!pagination.has_prev_page"
+        @click="fetchBookings()"
+        class="border-error-300 text-error-700 hover:bg-error-100 focus:ring-error-500 dark:border-error-500/40 dark:text-error-300 dark:hover:bg-error-500/20 shrink-0 rounded-lg border px-3 py-2 text-sm font-medium focus:ring-2 focus:outline-none"
       >
-        Sebelumnya</button
-      ><button
-        type="button"
-        @click="changePage(pagination.current_page + 1)"
-        :disabled="!pagination.has_next_page"
-      >
-        Berikutnya
+        Coba lagi
       </button>
+    </div>
+
+    <div
+      x-show="tableState.loading"
+      class="mx-4 mb-3 flex items-center gap-2 text-xs text-gray-500 sm:mx-6 dark:text-gray-400"
+      aria-live="polite"
+    >
+      <span
+        class="border-t-brand-500 h-4 w-4 animate-spin rounded-full border-2 border-gray-200 dark:border-gray-700"
+        aria-hidden="true"
+      ></span>
+      Memperbarui data...
+    </div>
+
+    <div class="border-t border-gray-100 dark:border-gray-800">
+      <div class="custom-scrollbar max-w-full overflow-x-auto">
+        <table class="min-w-full">
+          <thead class="border-b border-gray-100 dark:border-gray-800">
+            <tr>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Pemohon</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Jadwal WFA</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Diajukan</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Alasan</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Lokasi</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Kelayakan</span
+                >
+              </th>
+              <th class="px-6 py-3 text-left whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Status</span
+                >
+              </th>
+              <th class="px-6 py-3 text-center whitespace-nowrap">
+                <span
+                  class="text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+                  >Aksi</span
+                >
+              </th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+            <template x-for="booking in bookings" :key="booking.id">
+              <tr
+                class="hover:bg-brand-50/40 dark:hover:bg-brand-500/5 transition-colors"
+              >
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium"
+                      :class="getAvatarColor(booking.employee_name)"
+                      aria-hidden="true"
+                    >
+                      <span x-text="getInitials(booking.employee_name)"></span>
+                    </div>
+                    <div>
+                      <p
+                        class="text-theme-sm font-medium text-gray-800 dark:text-white/90"
+                        x-text="booking.employee_name || '-'"
+                      ></p>
+                      <p class="text-theme-xs text-gray-500 dark:text-gray-400">
+                        <span x-text="booking.employee_id || '-'"></span>
+                        <span aria-hidden="true"> · </span>
+                        <span x-text="booking.employee_position || '-'"></span>
+                      </p>
+                    </div>
+                  </div>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <p
+                    class="text-theme-sm text-gray-800 dark:text-white/90"
+                    x-text="formatDate(booking.schedule_date)"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <p
+                    class="text-theme-sm text-gray-800 dark:text-white/90"
+                    x-text="formatDateTime(booking.created_at)"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4">
+                  <p
+                    class="text-theme-xs line-clamp-2 max-w-[220px] leading-5 break-words text-gray-600 dark:text-gray-300"
+                    :title="booking.requestReason?.label || booking.requestOtherReason || 'Tidak tersedia'"
+                    x-text="booking.requestReason?.label || booking.requestOtherReason || 'Tidak tersedia'"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4">
+                  <p
+                    class="text-theme-xs line-clamp-2 max-w-[260px] leading-5 break-words text-gray-600 dark:text-gray-300"
+                    :title="booking.location_name || 'Tidak tersedia'"
+                    x-text="booking.location_name || 'Tidak tersedia'"
+                  ></p>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <template
+                    x-if="booking.suitability_score !== null && booking.suitability_score !== undefined"
+                  >
+                    <div>
+                      <p
+                        class="text-theme-sm font-medium text-gray-800 dark:text-white/90"
+                        x-text="booking.suitability_label || 'Tanpa label'"
+                      ></p>
+                      <p
+                        class="text-theme-xs mt-0.5 text-gray-500 dark:text-gray-400"
+                        x-text="`${Number(booking.suitability_score).toFixed(2)} / 100`"
+                      ></p>
+                    </div>
+                  </template>
+                  <template
+                    x-if="booking.suitability_score === null || booking.suitability_score === undefined"
+                  >
+                    <span class="text-theme-xs text-gray-500 dark:text-gray-400"
+                      >Tidak tersedia</span
+                    >
+                  </template>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span
+                    class="text-theme-xs inline-flex rounded-full px-2.5 py-0.5 font-medium"
+                    :class="getStatusBadgeClass(booking.status)"
+                    x-text="getStatusBadgeText(booking.status)"
+                  ></span>
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center justify-center space-x-3">
+                    <button
+                      type="button"
+                      @click.stop="openBookingDetail(booking)"
+                      :aria-label="booking.status === 'pending' ? 'Review booking' : 'Lihat detail booking'"
+                      :title="booking.status === 'pending' ? 'Review Booking' : 'Detail Booking'"
+                      class="focus:ring-brand-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors hover:bg-blue-200 focus:ring-2 focus:outline-none dark:bg-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-800/50"
+                    >
+                      <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        ></path>
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        ></path>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      @click.stop="confirmDelete(booking)"
+                      :disabled="deleteState.submitting"
+                      :aria-label="`Hapus booking ${booking.employee_name || booking.id}`"
+                      title="Hapus Booking"
+                      class="focus:ring-error-500 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-200 focus:ring-2 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800/50"
+                    >
+                      <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+
+            <tr x-show="!tableState.loading && bookings.length === 0">
+              <td
+                colspan="8"
+                class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
+              >
+                Tidak ada data booking ditemukan.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div
+      x-show="pagination.total_records > 0"
+      class="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-gray-800"
+    >
+      <div class="flex items-center gap-3">
+        <label
+          class="text-sm text-gray-600 dark:text-gray-300"
+          for="bookingPageSize"
+          >Tampilkan</label
+        >
+        <select
+          id="bookingPageSize"
+          x-model="appliedQuery.limit"
+          @change="changeLimit($event.target.value)"
+          :disabled="tableState.loading"
+          class="focus:border-brand-500 focus:ring-brand-500 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:ring-1 focus:outline-none disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+        >
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <p class="text-sm text-gray-600 dark:text-gray-300">
+          <span x-text="pagination.total_records"></span> data
+        </p>
+      </div>
+
+      <div class="flex items-center justify-between gap-2 sm:justify-end">
+        <button
+          type="button"
+          @click="changePage(pagination.current_page - 1)"
+          :disabled="tableState.loading || !pagination.has_prev_page"
+          class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.05]"
+        >
+          Sebelumnya
+        </button>
+        <span
+          class="px-2 text-sm text-gray-600 dark:text-gray-300"
+          x-text="`Halaman ${pagination.current_page} dari ${pagination.total_pages}`"
+        ></span>
+        <button
+          type="button"
+          @click="changePage(pagination.current_page + 1)"
+          :disabled="tableState.loading || !pagination.has_next_page"
+          class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.05]"
+        >
+          Berikutnya
+        </button>
+      </div>
     </div>
   </div>
 </div>

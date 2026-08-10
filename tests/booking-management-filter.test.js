@@ -72,6 +72,10 @@ test("booking filter partial and page expose the combined toolbar contract", () 
     "utf8",
   );
   const page = fs.readFileSync("src/management-booking.html", "utf8");
+  const table = fs.readFileSync(
+    "src/partials/table/table-booking.html",
+    "utf8",
+  );
   for (const token of [
     ':aria-expanded="isFilterOpen"',
     'aria-controls="bookingTableFilterPopover"',
@@ -88,6 +92,7 @@ test("booking filter partial and page expose the combined toolbar contract", () 
       partial,
       new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
     );
-  assert.match(page, /Cari nama atau NIP\/NIM\.\.\./);
-  assert.doesNotMatch(page, /x-model=\"statusFilter\"/);
+  assert.match(table, /Cari nama atau NIP\/NIM\.\.\./);
+  assert.doesNotMatch(page, /Cari nama atau NIP\/NIM\.\.\./);
+  assert.doesNotMatch(`${page}\n${table}`, /x-model=\"statusFilter\"/);
 });

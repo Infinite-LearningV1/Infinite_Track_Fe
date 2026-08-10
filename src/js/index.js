@@ -96,6 +96,7 @@ window.bookingRejectionAlpineData = bookingRejectionAlpineData;
 window.backendOperationalSettingsAlpineData =
   backendOperationalSettingsAlpineData;
 window.attendanceDetailMap = new MapDetailModal("attendanceDetailMapContainer");
+window.bookingDetailMap = new MapDetailModal("bookingDetailMapContainer");
 window.wfaReasonCatalogAlpineData = wfaReasonCatalogAlpineData;
 
 // Expose utility functions to window for use in HTML

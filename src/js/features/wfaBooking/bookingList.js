@@ -21,6 +21,8 @@ import {
 } from "./bookingManagementDirectoryQuery.js";
 import { formatDateTime, formatDate } from "../../utils/dateTimeFormatter.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
+import { createFocusTrap } from "../../utils/focusTrap.js";
+import { createBookingDetailDrawerLifecycle } from "./bookingDetailDrawerLifecycle.js";
 import {
   getBookingStatusBadgeClass,
   getBookingStatusBadgeText,
@@ -38,6 +40,10 @@ export function bookingListAlpineData(overrides = {}) {
   const notify =
     overrides.notify ||
     ((payload) => globalThis.window?.showInlineAlert?.(payload));
+  const bookingDrawerLifecycle = createBookingDetailDrawerLifecycle({
+    mapAdapter: overrides.mapAdapter || globalThis.window?.bookingDetailMap,
+  });
+  let bookingDrawerFocusTrap = null;
 
   return {
     // State data
@@ -59,6 +65,7 @@ export function bookingListAlpineData(overrides = {}) {
     draftFilters: { ...DEFAULT_BOOKING_MANAGEMENT_QUERY.appliedFilters },
     tableState: { loading: false, error: "", hasSuccessfulPage: false },
     latestListRequestId: 0,
+    drawerState: { open: false, selectedBooking: null },
     isFilterOpen: false,
     filterValidationMessage: "",
     filters: { page: 1, limit: 10, search: "", status: "" },
@@ -443,7 +450,8 @@ export function bookingListAlpineData(overrides = {}) {
      */
     async approveBooking(bookingId) {
       try {
-        const response = await approveCommand(bookingId);
+      // approveBookingCommand(bookingId) remains the canonical command seam.
+      const response = await approveCommand(bookingId);
 
         // Handle successful response
         if (response.success || response.status === "success") {
@@ -662,7 +670,23 @@ export function bookingListAlpineData(overrides = {}) {
      */
     ,
     openBookingDetail(booking) {
-      this.viewBookingDetail(booking);
+      bookingDrawerLifecycle.open(booking);
+      this.drawerState = { open: bookingDrawerLifecycle.isOpen, selectedBooking: bookingDrawerLifecycle.selectedBooking };
+      this.$nextTick?.(() => {
+        if (this.$refs?.bookingDetailDrawerPanel) {
+          bookingDrawerFocusTrap = createFocusTrap(this.$refs.bookingDetailDrawerPanel);
+          bookingDrawerFocusTrap.activate();
+        }
+      });
+    },
+    closeBookingDetail() {
+      bookingDrawerLifecycle.close();
+      this.drawerState = { open: false, selectedBooking: null };
+      bookingDrawerFocusTrap?.deactivate?.();
+      bookingDrawerFocusTrap = null;
+    },
+    handleBookingDrawerTab(event) {
+      bookingDrawerFocusTrap?.handleKeydown?.(event);
     } /**
      * Close booking detail modal
      */,

@@ -3,6 +3,30 @@ import assert from "node:assert/strict";
 
 import { bookingListAlpineData } from "../src/js/features/wfaBooking/bookingList.js";
 
+function fakeBrowser(search = "") {
+  const calls = [];
+  const listeners = new Map();
+  const location = { pathname: "/management-booking.html", search, hash: "#queue" };
+  const write = (mode, url) => {
+    calls.push([mode, url]);
+    const parsed = new URL(url, "https://example.test");
+    location.pathname = parsed.pathname;
+    location.search = parsed.search;
+    location.hash = parsed.hash;
+  };
+  return {
+    location,
+    history: {
+      pushState(_state, _title, url) { write("push", url); },
+      replaceState(_state, _title, url) { write("replace", url); },
+    },
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    removeEventListener(type) { listeners.delete(type); },
+    calls,
+    listeners,
+  };
+}
+
 const page = (id, pagination = {}) => ({
   data: {
     bookings: [{ booking_id: id }],
@@ -122,4 +146,53 @@ test("live INF-274 pagination aliases preserve the selected page size", async ()
     assert.equal(state.appliedQuery.limit, selectedLimit);
     assert.equal(state.filters.limit, selectedLimit);
   }
+});
+
+test("booking pagination writes canonical page state to browser history", async () => {
+  const browser = fakeBrowser("?debug=1");
+  const requests = [];
+  const state = bookingListAlpineData({
+    browser,
+    getBookings: async (params) => {
+      requests.push(params);
+      return page(params.page, { current_page: params.page, total_pages: 3 });
+    },
+  });
+  state.pagination.total_pages = 3;
+
+  await state.changePage(2);
+
+  assert.deepEqual(browser.calls, [["push", "/management-booking.html?debug=1&page=2#queue"]]);
+  assert.deepEqual(requests, [{ page: 2, limit: 10 }]);
+});
+
+test("booking init hydrates URL and popstate restores query without writing history", async () => {
+  const browser = fakeBrowser("?debug=1&page=2&limit=25&search=ayu&status=pending&date_from=2026-07-01&date_to=2026-07-31");
+  const requests = [];
+  const state = bookingListAlpineData({
+    browser,
+    getBookings: async (params) => {
+      requests.push(params);
+      return page(params.page, { current_page: params.page, records_per_page: params.limit });
+    },
+  });
+
+  await state.init();
+  assert.deepEqual(requests[0], {
+    page: 2,
+    limit: 25,
+    search: "ayu",
+    status: "pending",
+    date_from: "2026-07-01",
+    date_to: "2026-07-31",
+  });
+  assert.ok(browser.listeners.has("popstate"));
+
+  browser.location.search = "?debug=1&page=1&limit=10";
+  const historyCount = browser.calls.length;
+  await browser.listeners.get("popstate")();
+
+  assert.equal(browser.calls.length, historyCount);
+  assert.deepEqual(requests[1], { page: 1, limit: 10 });
+  assert.deepEqual(state.appliedQuery.appliedFilters, { status: "", dateFrom: "", dateTo: "" });
 });

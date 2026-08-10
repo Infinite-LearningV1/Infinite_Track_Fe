@@ -16,6 +16,8 @@ import {
 } from "./bookingList.contract.js";
 import {
   DEFAULT_BOOKING_MANAGEMENT_QUERY,
+  parseBookingManagementDirectoryQuery,
+  serializeBookingManagementDirectoryQuery,
   toBookingManagementRequestParams,
   validateBookingManagementDateRange,
 } from "./bookingManagementDirectoryQuery.js";
@@ -44,6 +46,12 @@ export function bookingListAlpineData(overrides = {}) {
   const bookingDrawerLifecycle = createBookingDetailDrawerLifecycle({
     mapAdapter: overrides.mapAdapter || globalThis.window?.bookingDetailMap,
   });
+  const browser =
+    overrides.browser !== undefined
+      ? overrides.browser
+      : typeof window !== "undefined"
+        ? window
+        : null;
   let bookingDrawerFocusTrap = null;
 
   return {
@@ -180,7 +188,64 @@ export function bookingListAlpineData(overrides = {}) {
      * Initialize component
      */,
     async init() {
+      if (browser) {
+        this.applyUrlState({ fetch: false });
+        const current = browser.location.search.replace(/^\?/, "");
+        const canonical = serializeBookingManagementDirectoryQuery(
+          this.appliedQuery,
+          new URLSearchParams(browser.location.search),
+        ).toString();
+        if (canonical !== current) this.syncUrl("replace");
+        this.popstateHandler = async () => {
+          await this.applyUrlState();
+        };
+        browser.addEventListener("popstate", this.popstateHandler);
+      }
       await this.fetchBookings();
+    },
+
+    applyParsedQuery(parsed) {
+      this.appliedQuery = {
+        ...parsed,
+        appliedFilters: { ...parsed.appliedFilters },
+      };
+      this.draftFilters = { ...parsed.appliedFilters };
+      this.statusFilter = parsed.appliedFilters.status;
+      this.filters.page = parsed.page;
+      this.filters.limit = parsed.limit;
+    },
+
+    async applyUrlState({ fetch = true } = {}) {
+      if (!browser) return false;
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer);
+        this.searchTimer = null;
+      }
+      this.applyParsedQuery(
+        parseBookingManagementDirectoryQuery(
+          new URLSearchParams(browser.location.search),
+        ),
+      );
+      if (fetch) await this.fetchBookings();
+      return true;
+    },
+
+    syncUrl(mode = "none") {
+      if (!browser || mode === "none") return;
+      const query = serializeBookingManagementDirectoryQuery(
+        this.appliedQuery,
+        new URLSearchParams(browser.location.search),
+      ).toString();
+      const url = `${browser.location.pathname}${query ? `?${query}` : ""}${browser.location.hash || ""}`;
+      browser.history[`${mode}State`]({}, "", url);
+    },
+
+    destroy() {
+      if (this.searchTimer) clearTimeout(this.searchTimer);
+      if (browser && this.popstateHandler) {
+        browser.removeEventListener("popstate", this.popstateHandler);
+        this.popstateHandler = null;
+      }
     },
 
     /**
@@ -278,6 +343,7 @@ export function bookingListAlpineData(overrides = {}) {
       this.filterValidationMessage = "";
       this.appliedQuery.appliedFilters = { ...this.draftFilters };
       this.appliedQuery.page = 1;
+      this.syncUrl("push");
       await this.fetchBookings();
       this.closeFilter();
       return true;
@@ -288,6 +354,7 @@ export function bookingListAlpineData(overrides = {}) {
       this.appliedQuery.appliedFilters = { ...this.draftFilters };
       this.appliedQuery.page = 1;
       this.filterValidationMessage = "";
+      this.syncUrl("push");
       await this.fetchBookings();
       this.closeFilter();
     },
@@ -304,6 +371,7 @@ export function bookingListAlpineData(overrides = {}) {
       // Set timer baru untuk debounce 500ms
       this.searchTimer = setTimeout(() => {
         this.appliedQuery.page = 1;
+        this.syncUrl("replace");
         this.fetchBookings();
       }, 500);
     },
@@ -323,6 +391,7 @@ export function bookingListAlpineData(overrides = {}) {
     changePage(newPage) {
       if (newPage >= 1 && newPage <= this.pagination.total_pages) {
         this.appliedQuery.page = newPage;
+        this.syncUrl("push");
         this.fetchBookings();
       }
     },
@@ -336,6 +405,7 @@ export function bookingListAlpineData(overrides = {}) {
       this.appliedQuery.limit =
         Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
       this.appliedQuery.page = 1;
+      this.syncUrl("push");
       this.fetchBookings();
     },
 

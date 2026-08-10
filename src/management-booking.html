@@ -94,50 +94,14 @@
                         type="text"
                         x-model="searchTerm"
                         @input="debouncedSearch()"
-                        placeholder="Cari berdasarkan nama, ID, atau posisi..."
+                        placeholder="Cari nama atau NIP/NIM..."
                         class="focus:ring-primary focus:border-primary block w-full rounded-md border border-gray-300 bg-white py-2 pr-3 pl-10 leading-5 placeholder-gray-500 focus:placeholder-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
                       />
                     </div>
 
-                    <!-- Status Filter -->
-                    <div class="flex items-center gap-2">
-                      <label
-                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                        >Status:</label
-                      >
-                      <select
-                        x-model="statusFilter"
-                        @change="applyFilters()"
-                        class="focus:ring-primary focus:border-primary rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                      >
-                        <option value="">Semua Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                      </select>
-                    </div>
+                    <include src="./partials/table/booking-table-filter.html"></include>
                   </div>
 
-                  <!-- Right side: Entries per page -->
-                  <div class="flex items-center gap-2">
-                    <label
-                      class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >Show:</label
-                    >
-                    <select
-                      x-model="filters.limit"
-                      @change="changeLimit(filters.limit)"
-                      class="focus:ring-primary focus:border-primary rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    >
-                      <option value="10">10</option>
-                      <option value="25">25</option>
-                      <option value="50">50</option>
-                      <option value="100">100</option>
-                    </select>
-                    <span class="text-sm text-gray-700 dark:text-gray-300"
-                      >entries</span
-                    >
-                  </div>
                 </div>
               </div>
 

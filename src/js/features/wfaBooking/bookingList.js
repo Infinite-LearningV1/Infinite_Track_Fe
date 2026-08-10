@@ -17,6 +17,7 @@ import {
 import {
   DEFAULT_BOOKING_MANAGEMENT_QUERY,
   toBookingManagementRequestParams,
+  validateBookingManagementDateRange,
 } from "./bookingManagementDirectoryQuery.js";
 import { formatDateTime, formatDate } from "../../utils/dateTimeFormatter.js";
 import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
@@ -58,6 +59,8 @@ export function bookingListAlpineData(overrides = {}) {
     draftFilters: { ...DEFAULT_BOOKING_MANAGEMENT_QUERY.appliedFilters },
     tableState: { loading: false, error: "", hasSuccessfulPage: false },
     latestListRequestId: 0,
+    isFilterOpen: false,
+    filterValidationMessage: "",
     filters: { page: 1, limit: 10, search: "", status: "" },
     isLoading: true,
     errorMessage: "",
@@ -70,6 +73,22 @@ export function bookingListAlpineData(overrides = {}) {
     },
 
     statusFilter: "", // Modal states
+    get activeFilterCount() {
+      const filters = this.appliedQuery.appliedFilters;
+      return Number(Boolean(filters.status)) +
+        Number(Boolean(filters.dateFrom || filters.dateTo));
+    },
+
+    openFilter() {
+      this.filterValidationMessage = "";
+      this.isFilterOpen = true;
+      this.$nextTick?.(() => globalThis.document?.getElementById("bookingTableFilterPopover")?.focus());
+    },
+
+    closeFilter() {
+      this.isFilterOpen = false;
+      globalThis.document?.getElementById("bookingTableFilterTrigger")?.focus?.();
+    },
     isDeleteModalOpen: false,
     deleteConfirmMessage: "",
     deleteTargetId: null,
@@ -213,10 +232,27 @@ export function bookingListAlpineData(overrides = {}) {
     /**
      * Apply filters (called when status filter changes)
      */
-    applyFilters() {
+    async applyFilters() {
+      const validation = validateBookingManagementDateRange(this.draftFilters);
+      if (!validation.valid) {
+        this.filterValidationMessage = validation.message;
+        return false;
+      }
+      this.filterValidationMessage = "";
       this.appliedQuery.appliedFilters = { ...this.draftFilters };
       this.appliedQuery.page = 1;
-      this.fetchBookings();
+      await this.fetchBookings();
+      this.closeFilter();
+      return true;
+    },
+
+    async clearFilters() {
+      this.draftFilters = { status: "", dateFrom: "", dateTo: "" };
+      this.appliedQuery.appliedFilters = { ...this.draftFilters };
+      this.appliedQuery.page = 1;
+      this.filterValidationMessage = "";
+      await this.fetchBookings();
+      this.closeFilter();
     },
 
     /**

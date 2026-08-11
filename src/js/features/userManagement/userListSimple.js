@@ -10,7 +10,7 @@ import {
   getRoles,
   getDivisions,
 } from "../../services/userService.js";
-import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
+import { createUserAvatarPresentation } from "../../utils/userAvatarPresentation.js";
 import { roleBadgeClass as roleBadgeClassUtil } from "../../utils/roleBadge.js";
 import { firstFiniteMapNumber } from "../../utils/mapLocationTruth.js";
 import {
@@ -21,6 +21,9 @@ import {
 } from "./userDirectoryQuery.js";
 function mapDirectoryUser(user) {
   const fullName = user.full_name || user.fullName || "";
+  const photo = user.photo ?? null;
+  const photoUpdatedAt = user.photo_updated_at ?? null;
+  const avatar = createUserAvatarPresentation({ fullName, photo });
   return {
     ...user,
     fullName,
@@ -29,7 +32,9 @@ function mapDirectoryUser(user) {
     nipNim: user.nip_nim || user.nipNim || null,
     phoneNumber: user.phone || user.phoneNumber,
     division: user.division_name || user.division || null,
-    photo: user.photo || null,
+    photo,
+    photoUpdatedAt,
+    avatar,
     latitude: firstFiniteMapNumber(user.location?.latitude),
     longitude: firstFiniteMapNumber(user.location?.longitude),
     radius: firstFiniteMapNumber(user.location?.radius),
@@ -37,8 +42,6 @@ function mapDirectoryUser(user) {
     categoryName: user.location?.category_name || null,
     locationId: user.location?.location_id || null,
     locationStatus: user.location_status || null,
-    initials: getInitials(fullName),
-    avatarColor: getAvatarColor(fullName),
   };
 }
 
@@ -445,16 +448,6 @@ function userListAlpineData(overrides = {}) {
     viewUser(userId) {
       console.log("View user:", userId);
       // TODO: Implementasi modal view atau navigasi ke detail
-    },
-
-    /**
-     * Wrapper methods for template usage
-     */
-    getInitials(fullName) {
-      return getInitials(fullName);
-    },
-    getAvatarColor(fullName) {
-      return getAvatarColor(fullName);
     },
 
     /**

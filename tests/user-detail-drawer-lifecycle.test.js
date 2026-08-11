@@ -403,17 +403,17 @@ test("MapDetailModal cancels pending deferred work on both entry points", () => 
   assert.match(destroyBody, /this\.cancelPendingTimers\(\);/);
 });
 
-test("normalizeWfhLocation passes through the user photo", () => {
+test("normalizeWfhLocation keeps raw photo metadata separate from presentation", () => {
   const location = normalizeWfhLocation({
     id: 9,
     full_name: "Foto User",
-    photo: "https://res.cloudinary.com/demo/image/upload/v1/foto.jpg",
+    photo: "https://cdn.example.com/user.jpg",
+    photo_updated_at: "2026-08-11T03:00:00.000Z",
   });
 
-  assert.equal(
-    location.photo,
-    "https://res.cloudinary.com/demo/image/upload/v1/foto.jpg",
-  );
+  assert.equal(location.photo, "https://cdn.example.com/user.jpg");
+  assert.equal(location.photoUpdatedAt, "2026-08-11T03:00:00.000Z");
+  assert.equal(location.avatar.photoUrl, "https://cdn.example.com/user.jpg");
 });
 
 test("normalizeWfhLocation defaults photo to null when absent", () => {
@@ -422,24 +422,23 @@ test("normalizeWfhLocation defaults photo to null when absent", () => {
   assert.equal(location.photo, null);
 });
 
-test("normalizeWfhLocation derives initials and avatarColor from the full name", () => {
+test("normalizeWfhLocation derives avatar presentation from the full name", () => {
   const location = normalizeWfhLocation({
     id: 11,
     full_name: "Budi Santoso",
   });
 
-  assert.equal(typeof location.initials, "string");
-  assert.ok(location.initials.length > 0);
-  assert.equal(typeof location.avatarColor, "string");
-  assert.ok(location.avatarColor.length > 0);
+  assert.equal(typeof location.avatar.initials, "string");
+  assert.ok(location.avatar.initials.length > 0);
+  assert.equal(typeof location.avatar.avatarColor, "string");
+  assert.ok(location.avatar.avatarColor.length > 0);
 });
 
-test("createEmptyWfhLocation still resolves initials/avatarColor for an empty name", () => {
+test("createEmptyWfhLocation provides an empty avatar presentation", () => {
   const empty = createEmptyWfhLocation();
 
-  assert.equal(typeof empty.initials, "string");
-  assert.equal(typeof empty.avatarColor, "string");
   assert.equal(empty.photo, null);
+  assert.equal(empty.avatar.photoUrl, null);
 });
 
 test("close resets photo so no stale avatar leaks between users", () => {

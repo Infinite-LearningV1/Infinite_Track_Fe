@@ -8,15 +8,15 @@ function paginatedResult(overrides = {}) {
     data: [
       {
         id: 11,
-        full_name: "Alice",
+        full_name: "Alice Smith",
         email: "alice@example.com",
         role_name: "Employee",
         position_name: "Staff",
         program_name: null,
         division_name: "Engineering",
         nip_nim: "EMP-011",
-        photo: null,
-        photo_updated_at: null,
+        photo: "https://cdn.example.com/users/11/profile.jpg",
+        photo_updated_at: "2026-08-11T03:00:00.000Z",
         location_status: "configured",
         created_at: "2026-07-20T00:00:00.000Z",
         updated_at: "2026-07-20T00:00:00.000Z",
@@ -76,6 +76,16 @@ test("fetchUsers renders exactly the server page and trusts server pagination", 
     data.users.map((user) => user.id),
     [11],
   );
+  assert.equal(
+    data.users[0].photo,
+    "https://cdn.example.com/users/11/profile.jpg",
+  );
+  assert.equal(data.users[0].photoUpdatedAt, "2026-08-11T03:00:00.000Z");
+  assert.equal(
+    data.users[0].avatar.photoUrl,
+    "https://cdn.example.com/users/11/profile.jpg",
+  );
+  assert.equal(data.users[0].avatar.initials, "AS");
   assert.deepEqual(data.pagination, {
     page: 2,
     limit: 10,
@@ -789,21 +799,15 @@ test("entries, apply filters, reset filters, and sort each push URL state", asyn
   await data.resetFilters();
   await data.toggleSort("email");
 
-  assert.deepEqual(
-    browser.calls,
+  assert.deepEqual(browser.calls, [
+    ["push", "/management-user.html?limit=20"],
     [
-      ["push", "/management-user.html?limit=20"],
-      [
-        "push",
-        "/management-user.html?limit=20&role=2&division=7&location_status=integrity_error",
-      ],
-      ["push", "/management-user.html?limit=20"],
-      [
-        "push",
-        "/management-user.html?limit=20&sortBy=email&sortOrder=ASC",
-      ],
+      "push",
+      "/management-user.html?limit=20&role=2&division=7&location_status=integrity_error",
     ],
-  );
+    ["push", "/management-user.html?limit=20"],
+    ["push", "/management-user.html?limit=20&sortBy=email&sortOrder=ASC"],
+  ]);
   assert.deepEqual(requests, [
     {
       page: 1,

@@ -232,21 +232,21 @@
               <!-- Pengguna: avatar (photo if available, else initials) + full name + email -->
               <td class="px-6 py-3 whitespace-nowrap">
                 <div class="flex items-center gap-3">
-                  <template x-if="user.photo">
+                  <template x-if="user.avatar.photoUrl">
                     <img
-                      :src="getUserPhotoUrl(user.photo)"
+                      :src="user.avatar.photoUrl"
                       alt=""
                       class="h-10 w-10 rounded-full object-cover"
-                      @error="user.photo = null"
+                      @error="user.avatar.photoUrl = null"
                       loading="lazy"
                     />
                   </template>
-                  <template x-if="!user.photo">
+                  <template x-if="!user.avatar.photoUrl">
                     <div
                       class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium"
-                      :class="user.avatarColor"
+                      :class="user.avatar.avatarColor"
                     >
-                      <span x-text="user.initials"></span>
+                      <span x-text="user.avatar.initials"></span>
                     </div>
                   </template>
                   <div>
@@ -555,14 +555,23 @@
       <div
         class="mb-4 flex items-center rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50"
       >
-        <div
-          class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
-          :class="userToDelete ? getAvatarColor(userToDelete.fullName) : 'bg-gray-100 text-gray-600'"
-        >
-          <span
-            x-text="userToDelete ? getInitials(userToDelete.fullName) : 'U'"
-          ></span>
-        </div>
+        <template x-if="userToDelete && userToDelete.avatar.photoUrl">
+          <img
+            :src="userToDelete.avatar.photoUrl"
+            alt=""
+            class="h-12 w-12 flex-shrink-0 rounded-full object-cover"
+            @error="userToDelete.avatar.photoUrl = null"
+            loading="lazy"
+          />
+        </template>
+        <template x-if="userToDelete && !userToDelete.avatar.photoUrl">
+          <div
+            class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium"
+            :class="userToDelete.avatar.avatarColor || 'bg-gray-100 text-gray-600'"
+          >
+            <span x-text="userToDelete.avatar.initials || 'U'"></span>
+          </div>
+        </template>
         <div class="ml-4 min-w-0 flex-1">
           <p
             class="truncate text-base font-medium text-gray-900 dark:text-white"

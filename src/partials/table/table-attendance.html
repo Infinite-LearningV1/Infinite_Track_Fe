@@ -294,13 +294,24 @@
               >
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center gap-3">
-                    <div
-                      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium"
-                      :class="getAvatarColor(log.fullName)"
-                      aria-hidden="true"
-                    >
-                      <span x-text="getInitials(log.fullName)"></span>
-                    </div>
+                    <template x-if="log.avatar.photoUrl">
+                      <img
+                        :src="log.avatar.photoUrl"
+                        alt=""
+                        class="h-10 w-10 shrink-0 rounded-full object-cover"
+                        loading="lazy"
+                        @error="log.avatar.photoUrl = null"
+                      />
+                    </template>
+                    <template x-if="!log.avatar.photoUrl">
+                      <div
+                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium"
+                        :class="log.avatar.avatarColor"
+                        aria-hidden="true"
+                      >
+                        <span x-text="log.avatar.initials"></span>
+                      </div>
+                    </template>
                     <div>
                       <p
                         class="text-theme-sm font-medium text-gray-800 dark:text-white/90"

@@ -133,3 +133,17 @@ test("attendance table fills the shared Management User shell on wide screens", 
   assert.match(table, /<table class="min-w-full">/);
   assert.doesNotMatch(table, /min-w-\[1040px\]/);
 });
+
+
+test("renders attendance avatars photo-first with truthful local fallback", () => {
+  assert.match(table, /x-if="log\.avatar\.photoUrl"/);
+  assert.match(table, /:src="log\.avatar\.photoUrl"/);
+  assert.match(table, /loading="lazy"/);
+  assert.match(table, /@error="log\.avatar\.photoUrl = null"/);
+  assert.match(table, /x-if="!log\.avatar\.photoUrl"/);
+  assert.match(table, /:class="log\.avatar\.avatarColor"/);
+  assert.match(table, /x-text="log\.avatar\.initials"/);
+  assert.doesNotMatch(table, /@error="[^"]*log\.photo\s*=\s*null/);
+  assert.doesNotMatch(table, /getInitials\(log\.fullName\)/);
+  assert.doesNotMatch(table, /getAvatarColor\(log\.fullName\)/);
+});

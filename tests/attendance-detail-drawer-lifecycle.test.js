@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { getAvatarColor, getInitials } from "../src/js/utils/avatarUtils.js";
 
 import {
   createAttendanceDetailDrawerLifecycle,
@@ -26,6 +27,8 @@ const liveDetailEnvelope = {
       nip_nim: "123",
       email: "ayu@test",
       role: "Staff",
+      photo: "https://cdn.example.com/users/45/profile.jpg",
+      photo_updated_at: "2026-08-11T03:00:00.000Z",
     },
     location: { latitude: "0", longitude: "119.8" },
   },
@@ -130,6 +133,13 @@ test("normalizes only the live detail envelope data", () => {
     nipNim: "123",
     email: "ayu@test",
     role: "Staff",
+    photo: "https://cdn.example.com/users/45/profile.jpg",
+    photoUpdatedAt: "2026-08-11T03:00:00.000Z",
+    avatar: {
+      photoUrl: "https://cdn.example.com/users/45/profile.jpg",
+      initials: getInitials("Ayu"),
+      avatarColor: getAvatarColor("Ayu"),
+    },
   });
   assert.equal(detail.idAttendance, 9);
   assert.equal(detail.attendanceDate, "2026-07-28");
@@ -147,6 +157,23 @@ test("normalizes only the live detail envelope data", () => {
   assert.equal(detail.location.radius, null);
   assert.equal(detail.location.description, "");
 });
+
+
+test("attendance detail keeps backend photo evidence separate from avatar presentation", () => {
+  const detail = normalizeAttendanceDetail(fullDetail());
+
+  assert.equal(detail.employee.photo, "https://cdn.example.com/users/45/profile.jpg");
+  assert.equal(
+    detail.employee.photoUpdatedAt,
+    "2026-08-11T03:00:00.000Z",
+  );
+  assert.equal(
+    detail.employee.avatar.photoUrl,
+    "https://cdn.example.com/users/45/profile.jpg",
+  );
+  assert.equal(createEmptyAttendanceDetail().employee.avatar.photoUrl, null);
+});
+
 
 test("normalization rejects junk coordinates and never invents detail fields", () => {
   const detail = normalizeAttendanceDetail({
@@ -177,7 +204,19 @@ test("normalization rejects junk coordinates and never invents detail fields", (
 test("the empty detail contains no fabricated evidence", () => {
   assert.deepEqual(createEmptyAttendanceDetail(), {
     idAttendance: null,
-    employee: { fullName: "", nipNim: "", email: "", role: "" },
+    employee: {
+      fullName: "",
+      nipNim: "",
+      email: "",
+      role: "",
+      photo: null,
+      photoUpdatedAt: null,
+      avatar: {
+        photoUrl: null,
+        initials: "??",
+        avatarColor: getAvatarColor(""),
+      },
+    },
     attendanceDate: "",
     timeIn: "",
     timeOut: "",

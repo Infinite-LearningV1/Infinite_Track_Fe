@@ -1,3 +1,4 @@
+import { createUserAvatarPresentation } from "../../utils/userAvatarPresentation.js";
 import {
   firstFiniteMapNumber,
   hasFiniteCoordinates,
@@ -17,6 +18,12 @@ export function normalizeAttendanceDetail(response = {}) {
       nipNim: employee.nip_nim ?? "",
       email: employee.email ?? "",
       role: employee.role ?? "",
+      photo: employee.photo ?? null,
+      photoUpdatedAt: employee.photo_updated_at ?? null,
+      avatar: createUserAvatarPresentation({
+        fullName: employee.full_name ?? "",
+        photo: employee.photo ?? null,
+      }),
     },
     attendanceDate: detail.attendance_date ?? "",
     timeIn: detail.time_in ?? "",

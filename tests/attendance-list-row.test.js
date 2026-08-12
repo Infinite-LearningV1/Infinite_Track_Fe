@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { getAvatarColor, getInitials } from "../src/js/utils/avatarUtils.js";
 
 import {
   deriveAttendanceCheckoutState,
@@ -14,6 +15,8 @@ const liveListRow = (overrides = {}) => ({
     full_name: "Muhammad Rizki Ramdani",
     nip_nim: "9BYYD3",
     role: "Internship",
+    photo: "https://cdn.example.com/users/45/profile.jpg",
+    photo_updated_at: "2026-08-11T03:00:00.000Z",
   },
   time_in: "23:55",
   time_out: "23:55",
@@ -31,6 +34,13 @@ test("normalizes the exact live nested attendance list row", () => {
     fullName: "Muhammad Rizki Ramdani",
     nipNim: "9BYYD3",
     roleName: "Internship",
+    photo: "https://cdn.example.com/users/45/profile.jpg",
+    photoUpdatedAt: "2026-08-11T03:00:00.000Z",
+    avatar: {
+      photoUrl: "https://cdn.example.com/users/45/profile.jpg",
+      initials: getInitials("Muhammad Rizki Ramdani"),
+      avatarColor: getAvatarColor("Muhammad Rizki Ramdani"),
+    },
     attendanceDate: "2026-07-23",
     timeIn: "23:55",
     timeOut: "23:55",
@@ -71,6 +81,13 @@ test("ignores obsolete flat fields and list coordinates in favor of the nested l
       fullName: "Muhammad Rizki Ramdani",
       nipNim: "9BYYD3",
       roleName: "Internship",
+      photo: "https://cdn.example.com/users/45/profile.jpg",
+      photoUpdatedAt: "2026-08-11T03:00:00.000Z",
+      avatar: {
+        photoUrl: "https://cdn.example.com/users/45/profile.jpg",
+        initials: getInitials("Muhammad Rizki Ramdani"),
+        avatarColor: getAvatarColor("Muhammad Rizki Ramdani"),
+      },
       attendanceDate: "2026-07-23",
       timeIn: "23:55",
       timeOut: "23:55",
@@ -87,6 +104,24 @@ test("ignores obsolete flat fields and list coordinates in favor of the nested l
       },
     },
   );
+});
+
+
+test("normalizes a missing attendance photo to truthful initials fallback", () => {
+  const normalized = normalizeAttendanceListRow(
+    liveListRow({
+      user: {
+        ...liveListRow().user,
+        photo: null,
+        photo_updated_at: null,
+      },
+    }),
+  );
+
+  assert.equal(normalized.photo, null);
+  assert.equal(normalized.photoUpdatedAt, null);
+  assert.equal(normalized.avatar.photoUrl, null);
+  assert.equal(normalized.avatar.initials, getInitials("Muhammad Rizki Ramdani"));
 });
 
 [

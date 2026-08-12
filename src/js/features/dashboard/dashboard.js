@@ -1,7 +1,10 @@
 import { getSummaryReport } from "../../services/reportService.js";
 import { getDashboardAnalytics } from "../../services/dashboardAnalyticsService.js";
 import { getTodayLocations } from "../../services/todayLocationsService.js";
-import { getFuzzyAhpAnalysis } from "../../services/fuzzyAhpService.js";
+import {
+  getDashboardFahpAnalysis,
+  getWfaFahpAnalysis,
+} from "../../services/fuzzyAhpService.js";
 import { getGeofenceEvidence } from "../../services/geofenceEvidenceService.js";
 import {
   buildDashboardSectionOrder,
@@ -46,6 +49,12 @@ import {
   buildFahpRequestParams,
   createDefaultFahpFilterState,
 } from "./fahpFilterState.js";
+import { createWfaFahpSliceState } from "../../services/dashboard/wfaFahpSlice.js";
+import {
+  buildWfaFahpRequestParams,
+  createDefaultWfaFahpContext,
+  validateWfaFahpContext,
+} from "./wfaFahpContext.js";
 import {
   generatePDFReport,
   generateExcelReport,
@@ -109,6 +118,7 @@ export function createDashboardPageState({
 export function dashboard() {
   const defaultDashboardRange = createDefaultDashboardRange();
   const defaultFahpFilterState = createDefaultFahpFilterState();
+  const defaultWfaFahpContext = createDefaultWfaFahpContext();
 
   return {
     // State management
@@ -124,6 +134,7 @@ export function dashboard() {
     trendRange: "monthly",
     activeTrendHoverIndex: null,
     fahpFilterState: { ...defaultFahpFilterState },
+    wfaFahpContext: { ...defaultWfaFahpContext },
 
     // Pagination state
     pagination: createEmptyDashboardPagination(5),
@@ -168,7 +179,9 @@ export function dashboard() {
     fetchSummaryReport: getSummaryReport,
     fetchDashboardAnalytics: getDashboardAnalytics,
     fetchTodayLocations: getTodayLocations,
-    fetchFuzzyAhpAnalysis: getFuzzyAhpAnalysis,
+    fetchDashboardFahpAnalysis: getDashboardFahpAnalysis,
+    fetchFuzzyAhpAnalysis: getDashboardFahpAnalysis,
+    fetchWfaFahpAnalysis: getWfaFahpAnalysis,
     fetchGeofenceEvidence: getGeofenceEvidence,
 
     // Export state
@@ -359,7 +372,11 @@ export function dashboard() {
             ...createDefaultFahpFilterState(),
             ...requestParams,
           };
-          const response = await this.fetchFuzzyAhpAnalysis(requestParams);
+          const transport =
+            this.fetchDashboardFahpAnalysis !== getDashboardFahpAnalysis
+              ? this.fetchDashboardFahpAnalysis
+              : this.fetchFuzzyAhpAnalysis;
+          const response = await transport(requestParams);
 
           this.fahpFilterState = nextFilterState;
           this.fuzzyAhpResponse = response;
@@ -586,6 +603,7 @@ export function dashboard() {
         fuzzyAhpError,
         geofenceEvidenceResponse,
         geofenceEvidenceError,
+        fuzzyAhpActiveType: this.fahpFilterState.type,
       });
       this.pagination = normalizeDashboardPagination(
         reportPagination,
@@ -661,15 +679,24 @@ export function dashboard() {
         analyticsRequestParams,
       );
 
+      const previousFahpRecap = this.rawApiData?.fahpRecap ?? null;
+      const previousWfaFahp = this.rawApiData?.wfaFahp ?? null;
+      const activeGenericFahpSlice =
+        this.fahpFilterState.type !== "wfa" &&
+        fuzzyAhpResponse !== null &&
+        typeof fuzzyAhpResponse !== "undefined"
+          ? createFahpRecapSliceState(fuzzyAhpResponse, this.fahpFilterState)
+          : null;
       this.rawApiData = {
         summary: response.summary,
         report: response.report,
         historicalAnalytics: historicalAnalyticsSlice,
         todayLocations: liveMapSlice,
         fahpRecap:
-          fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined"
-            ? null
-            : createFahpRecapSliceState(fuzzyAhpResponse, this.fahpFilterState),
+          this.fahpFilterState.type === "wfa"
+            ? previousFahpRecap
+            : activeGenericFahpSlice,
+        wfaFahp: previousWfaFahp,
         geofenceEvidence: createGeofenceEvidenceSliceState(
           geofenceEvidenceResponse,
           analyticsRequestParams,
@@ -847,7 +874,9 @@ export function dashboard() {
     },
 
     openDashboardDatePicker() {
-      openDashboardAnalyticsDatePicker(this.$refs?.dashboardAnalyticsDatePicker);
+      openDashboardAnalyticsDatePicker(
+        this.$refs?.dashboardAnalyticsDatePicker,
+      );
     },
 
     getCockpitKpiDisplayValue(card) {
@@ -858,13 +887,15 @@ export function dashboard() {
         return displayUnit ? `${value} ${displayUnit}` : value;
       }
 
-      return {
-        loading: "Loading...",
-        empty: "No data",
-        needsData: "Needs data",
-        backendRequired: "Backend required",
-        error: "Error",
-      }[card?.state] || "—";
+      return (
+        {
+          loading: "Loading...",
+          empty: "No data",
+          needsData: "Needs data",
+          backendRequired: "Backend required",
+          error: "Error",
+        }[card?.state] || "—"
+      );
     },
 
     getCockpitKpiSupportText(card) {
@@ -880,31 +911,37 @@ export function dashboard() {
     },
 
     getCockpitKpiIconClass(card) {
-      return {
-        neutral: "text-brand-500 dark:text-brand-400",
-        warning: "text-warning-500 dark:text-orange-400",
-        info: "text-blue-500 dark:text-blue-400",
-        critical: "text-error-600 dark:text-error-500",
-      }[card?.meta?.tone] || "text-brand-500 dark:text-brand-400";
+      return (
+        {
+          neutral: "text-brand-500 dark:text-brand-400",
+          warning: "text-warning-500 dark:text-orange-400",
+          info: "text-blue-500 dark:text-blue-400",
+          critical: "text-error-600 dark:text-error-500",
+        }[card?.meta?.tone] || "text-brand-500 dark:text-brand-400"
+      );
     },
 
     getCockpitKpiFooterClass(card) {
       if (card?.state === "ready" && card?.meta?.trendTone) {
-        return {
-          positive: "text-success-600 dark:text-success-500",
-          negative: "text-error-600 dark:text-error-500",
-          neutral: "text-gray-500 dark:text-gray-400",
-        }[card.meta.trendTone] || "text-success-600 dark:text-success-500";
+        return (
+          {
+            positive: "text-success-600 dark:text-success-500",
+            negative: "text-error-600 dark:text-error-500",
+            neutral: "text-gray-500 dark:text-gray-400",
+          }[card.meta.trendTone] || "text-success-600 dark:text-success-500"
+        );
       }
 
-      return {
-        loading: "text-blue-600 dark:text-blue-400",
-        ready: "text-success-600 dark:text-success-500",
-        empty: "text-gray-500 dark:text-gray-400",
-        needsData: "text-amber-600 dark:text-amber-400",
-        backendRequired: "text-violet-600 dark:text-violet-400",
-        error: "text-error-600 dark:text-error-500",
-      }[card?.state] || "text-gray-500 dark:text-gray-400";
+      return (
+        {
+          loading: "text-blue-600 dark:text-blue-400",
+          ready: "text-success-600 dark:text-success-500",
+          empty: "text-gray-500 dark:text-gray-400",
+          needsData: "text-amber-600 dark:text-amber-400",
+          backendRequired: "text-violet-600 dark:text-violet-400",
+          error: "text-error-600 dark:text-error-500",
+        }[card?.state] || "text-gray-500 dark:text-gray-400"
+      );
     },
 
     getCockpitKpiFooterLabel(card) {
@@ -916,30 +953,36 @@ export function dashboard() {
     },
 
     getCockpitKpiIconSvg(icon) {
-      return {
-        "calendar-check": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.75 2.75C7.75 2.33579 8.08579 2 8.5 2C8.91421 2 9.25 2.33579 9.25 2.75V4H14.75V2.75C14.75 2.33579 15.0858 2 15.5 2C15.9142 2 16.25 2.33579 16.25 2.75V4H17C18.6569 4 20 5.34315 20 7V18C20 19.6569 18.6569 21 17 21H7C5.34315 21 4 19.6569 4 18V7C4 5.34315 5.34315 4 7 4H7.75V2.75ZM5.5 9.5V18C5.5 18.8284 6.17157 19.5 7 19.5H17C17.8284 19.5 18.5 18.8284 18.5 18V9.5H5.5ZM7 5.5C6.17157 5.5 5.5 6.17157 5.5 7V8H18.5V7C18.5 6.17157 17.8284 5.5 17 5.5H7ZM15.0303 12.4697C15.3232 12.7626 15.3232 13.2374 15.0303 13.5303L11.5303 17.0303C11.2374 17.3232 10.7626 17.3232 10.4697 17.0303L8.96967 15.5303C8.67678 15.2374 8.67678 14.7626 8.96967 14.4697C9.26256 14.1768 9.73744 14.1768 10.0303 14.4697L11 15.4393L13.9697 12.4697C14.2626 12.1768 14.7374 12.1768 15.0303 12.4697Z" fill="currentColor"/></svg>`,
-        "alert-triangle": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.2892 3.86035C11.053 2.5396 12.947 2.5396 13.7108 3.86035L21.0592 16.5604C21.823 17.8811 20.876 19.5312 19.3483 19.5312H4.65167C3.12404 19.5312 2.17699 17.8811 2.94081 16.5604L10.2892 3.86035ZM12 8.75C11.5858 8.75 11.25 9.08579 11.25 9.5V13C11.25 13.4142 11.5858 13.75 12 13.75C12.4142 13.75 12.75 13.4142 12.75 13V9.5C12.75 9.08579 12.4142 8.75 12 8.75ZM12 16.5C11.4477 16.5 11 16.9477 11 17.5C11 18.0523 11.4477 18.5 12 18.5C12.5523 18.5 13 18.0523 13 17.5C13 16.9477 12.5523 16.5 12 16.5Z" fill="currentColor"/></svg>`,
-        activity: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12H7.5L9.5 7L13.5 17L15.5 12H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-        "user-check": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 19C15.5 16.7909 13.2614 15 10.5 15C7.73858 15 5.5 16.7909 5.5 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 12C12.433 12 14 10.433 14 8.5C14 6.567 12.433 5 10.5 5C8.567 5 7 6.567 7 8.5C7 10.433 8.567 12 10.5 12Z" stroke="currentColor" stroke-width="1.5"/><path d="M16 11.5L17.5 13L20.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-      }[icon] || "";
+      return (
+        {
+          "calendar-check": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.75 2.75C7.75 2.33579 8.08579 2 8.5 2C8.91421 2 9.25 2.33579 9.25 2.75V4H14.75V2.75C14.75 2.33579 15.0858 2 15.5 2C15.9142 2 16.25 2.33579 16.25 2.75V4H17C18.6569 4 20 5.34315 20 7V18C20 19.6569 18.6569 21 17 21H7C5.34315 21 4 19.6569 4 18V7C4 5.34315 5.34315 4 7 4H7.75V2.75ZM5.5 9.5V18C5.5 18.8284 6.17157 19.5 7 19.5H17C17.8284 19.5 18.5 18.8284 18.5 18V9.5H5.5ZM7 5.5C6.17157 5.5 5.5 6.17157 5.5 7V8H18.5V7C18.5 6.17157 17.8284 5.5 17 5.5H7ZM15.0303 12.4697C15.3232 12.7626 15.3232 13.2374 15.0303 13.5303L11.5303 17.0303C11.2374 17.3232 10.7626 17.3232 10.4697 17.0303L8.96967 15.5303C8.67678 15.2374 8.67678 14.7626 8.96967 14.4697C9.26256 14.1768 9.73744 14.1768 10.0303 14.4697L11 15.4393L13.9697 12.4697C14.2626 12.1768 14.7374 12.1768 15.0303 12.4697Z" fill="currentColor"/></svg>`,
+          "alert-triangle": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.2892 3.86035C11.053 2.5396 12.947 2.5396 13.7108 3.86035L21.0592 16.5604C21.823 17.8811 20.876 19.5312 19.3483 19.5312H4.65167C3.12404 19.5312 2.17699 17.8811 2.94081 16.5604L10.2892 3.86035ZM12 8.75C11.5858 8.75 11.25 9.08579 11.25 9.5V13C11.25 13.4142 11.5858 13.75 12 13.75C12.4142 13.75 12.75 13.4142 12.75 13V9.5C12.75 9.08579 12.4142 8.75 12 8.75ZM12 16.5C11.4477 16.5 11 16.9477 11 17.5C11 18.0523 11.4477 18.5 12 18.5C12.5523 18.5 13 18.0523 13 17.5C13 16.9477 12.5523 16.5 12 16.5Z" fill="currentColor"/></svg>`,
+          activity: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12H7.5L9.5 7L13.5 17L15.5 12H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+          "user-check": `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 19C15.5 16.7909 13.2614 15 10.5 15C7.73858 15 5.5 16.7909 5.5 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 12C12.433 12 14 10.433 14 8.5C14 6.567 12.433 5 10.5 5C8.567 5 7 6.567 7 8.5C7 10.433 8.567 12 10.5 12Z" stroke="currentColor" stroke-width="1.5"/><path d="M16 11.5L17.5 13L20.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+        }[icon] || ""
+      );
     },
 
     getCockpitKpiStateIconSvg(card) {
       if (card?.state === "ready" && card?.meta?.trendDirection) {
-        return {
-          up: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 13.3339L7.9974 2.66634M4 6.66366L7.99987 2.66634L12 6.66366" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
-          down: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 2.66602L7.9974 13.3336M4 9.33634L7.99987 13.3337L12 9.33634" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
-        }[card.meta.trendDirection] || "";
+        return (
+          {
+            up: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 13.3339L7.9974 2.66634M4 6.66366L7.99987 2.66634L12 6.66366" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+            down: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 2.66602L7.9974 13.3336M4 9.33634L7.99987 13.3337L12 9.33634" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+          }[card.meta.trendDirection] || ""
+        );
       }
 
-      return {
-        loading: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.66602V4.66602M8 11.3327V13.3327M13.3333 8L11.3333 8M4.66667 8L2.66667 8M11.7712 4.22852L10.357 5.64273M5.64298 10.357L4.22877 11.7712M11.7712 11.7715L10.357 10.3573M5.64298 5.64273L4.22877 4.22852" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-        ready: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 2.66602L7.9974 13.3336M4 6.66334L7.99987 2.66602L12 6.66334" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
-        empty: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-        needsData: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 5.33333V8M8 10.6667H8.00667M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-        backendRequired: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.5L13 5.25V10.75L8 13.5L3 10.75V5.25L8 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 5.83301V8.49967" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 10.833H8.00667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-        error: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 13.3339L7.9974 2.66634M4 9.33652L7.99987 13.3338L12 9.33652" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
-      }[card?.state] || "";
+      return (
+        {
+          loading: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.66602V4.66602M8 11.3327V13.3327M13.3333 8L11.3333 8M4.66667 8L2.66667 8M11.7712 4.22852L10.357 5.64273M5.64298 10.357L4.22877 11.7712M11.7712 11.7715L10.357 10.3573M5.64298 5.64273L4.22877 4.22852" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+          ready: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 2.66602L7.9974 13.3336M4 6.66334L7.99987 2.66602L12 6.66334" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+          empty: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+          needsData: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 5.33333V8M8 10.6667H8.00667M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+          backendRequired: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.5L13 5.25V10.75L8 13.5L3 10.75V5.25L8 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 5.83301V8.49967" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 10.833H8.00667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+          error: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.9974 13.3339L7.9974 2.66634M4 9.33652L7.99987 13.3338L12 9.33652" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`,
+        }[card?.state] || ""
+      );
     },
 
     applyCockpitSurfaceState({
@@ -963,6 +1006,7 @@ export function dashboard() {
         fuzzyAhpError,
         geofenceEvidenceResponse,
         geofenceEvidenceError,
+        fuzzyAhpActiveType: this.fahpFilterState.type,
       });
     },
 
@@ -970,7 +1014,10 @@ export function dashboard() {
       const message = error?.message || "Failed to load dashboard data.";
       this.error = message;
       this.errorMessage = message;
-      this.cockpit = createDashboardCockpitErrorState(message);
+      this.cockpit = createDashboardCockpitErrorState(
+        message,
+        this.fahpFilterState.type,
+      );
       this.summaryData = null;
       this.attendanceData = [];
       this.rawApiData = null;
@@ -1299,9 +1346,7 @@ export function dashboard() {
       locations.forEach((location) => {
         const marker = L.marker([location.latitude, location.longitude], {
           icon: this.createDashboardMapMarkerIcon(L, location),
-        }).addTo(
-          this.dashboardMapMarkerLayer,
-        );
+        }).addTo(this.dashboardMapMarkerLayer);
         marker.bindPopup(this.createDashboardMapPopup(location));
         layers.push(marker);
 
@@ -1381,6 +1426,92 @@ export function dashboard() {
     /**
      * Load summary data dari API - report/export uses filters.period; dashboard analytics uses dashboardRange.
      */
+    async fetchFahpForDashboardRefresh() {
+      const { type } = buildFahpRequestParams(this.fahpFilterState);
+      if (type === "wfa")
+        return { response: this.fuzzyAhpResponse, error: this.fuzzyAhpError };
+      try {
+        const transport =
+          this.fetchDashboardFahpAnalysis !== getDashboardFahpAnalysis
+            ? this.fetchDashboardFahpAnalysis
+            : this.fetchFuzzyAhpAnalysis;
+        return {
+          response: await transport({ type }),
+          error: null,
+        };
+      } catch (error) {
+        return { response: null, error };
+      }
+    },
+
+    async selectFahpType(type) {
+      const next = buildFahpRequestParams({ type });
+      this.fahpFilterState = next;
+      if (next.type === "wfa") {
+        this.fuzzyAhpResponse = null;
+        this.fuzzyAhpError = null;
+        this.wfaFahpContext = { ...this.wfaFahpContext, validationError: null };
+        await this.applyCockpitSurfaceState({
+          fuzzyAhpResponse: null,
+          fuzzyAhpError: null,
+        });
+        return true;
+      }
+      return this.loadFuzzyAhpDetail(next);
+    },
+
+    async invalidateWfaFahpResult() {
+      if (this.fahpFilterState.type !== "wfa") return false;
+      this.fuzzyAhpResponse = null;
+      this.fuzzyAhpError = null;
+      this.rawApiData = { ...(this.rawApiData || {}), wfaFahp: null };
+      await this.applyCockpitSurfaceState({
+        fuzzyAhpResponse: null,
+        fuzzyAhpError: null,
+      });
+      return true;
+    },
+
+    async runWfaFahpAnalysis() {
+      this.fahpFilterState = { type: "wfa" };
+      const validation = validateWfaFahpContext(this.wfaFahpContext);
+      if (!validation.isValid) {
+        this.wfaFahpContext = {
+          ...this.wfaFahpContext,
+          validationError: validation.message,
+        };
+        await this.applyCockpitSurfaceState({
+          fuzzyAhpResponse: null,
+          fuzzyAhpError: null,
+        });
+        return false;
+      }
+      const requestParams = buildWfaFahpRequestParams(this.wfaFahpContext);
+      this.wfaFahpContext = { ...this.wfaFahpContext, validationError: null };
+      try {
+        const response = await this.fetchWfaFahpAnalysis(requestParams);
+        this.fuzzyAhpResponse = response;
+        this.fuzzyAhpError = null;
+        this.rawApiData = {
+          ...(this.rawApiData || {}),
+          wfaFahp: createWfaFahpSliceState(response, requestParams),
+        };
+        await this.applyCockpitSurfaceState({
+          fuzzyAhpResponse: response,
+          fuzzyAhpError: null,
+        });
+        return true;
+      } catch (error) {
+        this.fuzzyAhpResponse = null;
+        this.fuzzyAhpError = error;
+        await this.applyCockpitSurfaceState({
+          fuzzyAhpResponse: null,
+          fuzzyAhpError: error,
+        });
+        return false;
+      }
+    },
+
     async loadSummaryData({ includeTodayLocations = true } = {}) {
       this.loading = true;
       this.isLoading = true;
@@ -1396,7 +1527,9 @@ export function dashboard() {
         return false;
       }
 
-      this.cockpit = createDashboardCockpitLoadingState();
+      this.cockpit = createDashboardCockpitLoadingState(
+        this.fahpFilterState.type,
+      );
 
       try {
         const dashboardRange = this.syncDashboardRangeState();
@@ -1415,12 +1548,11 @@ export function dashboard() {
         };
         const analyticsRequestParams =
           this.getDashboardAnalyticsRequestParams();
-        const fuzzyAhpRequestParams = buildFahpRequestParams(this.fahpFilterState);
         const requests = [
           this.fetchSummaryReport(reportRequestParams),
           this.fetchDashboardAnalytics(analyticsRequestParams),
           this.fetchGeofenceEvidence(analyticsRequestParams),
-          this.fetchFuzzyAhpAnalysis(fuzzyAhpRequestParams),
+          this.fetchFahpForDashboardRefresh(),
         ];
 
         if (includeTodayLocations) {
@@ -1453,10 +1585,12 @@ export function dashboard() {
           geofenceEvidenceResult.status === "fulfilled"
             ? null
             : geofenceEvidenceResult.reason;
-        const fuzzyAhpResponse =
-          fuzzyAhpResult.status === "fulfilled" ? fuzzyAhpResult.value : null;
-        const fuzzyAhpError =
-          fuzzyAhpResult.status === "fulfilled" ? null : fuzzyAhpResult.reason;
+        const fahpRefresh =
+          fuzzyAhpResult.status === "fulfilled"
+            ? fuzzyAhpResult.value
+            : { response: null, error: fuzzyAhpResult.reason };
+        const fuzzyAhpResponse = fahpRefresh.response;
+        const fuzzyAhpError = fahpRefresh.error;
         const todayLocations = includeTodayLocations
           ? todayLocationsResult.status === "fulfilled"
             ? createLiveMapSliceState(
@@ -1521,7 +1655,10 @@ export function dashboard() {
         console.error("Error loading summary data:", error);
         this.applySummaryError(error);
 
-        if (authFailure.kind === "refreshable" || authFailure.kind === "non_refreshable") {
+        if (
+          authFailure.kind === "refreshable" ||
+          authFailure.kind === "non_refreshable"
+        ) {
           console.warn(
             "Dashboard summary request failed because the session is not valid; auth flow will handle user notification.",
             authFailure,
@@ -1734,6 +1871,7 @@ export function dashboard() {
     },
 
     async loadFuzzyAhpDetail(params = this.fahpFilterState) {
+      if (params?.type === "wfa") return this.selectFahpType("wfa");
       const currentReportResponse = this.rawApiData
         ? {
             summary: this.rawApiData.summary,
@@ -1863,7 +2001,9 @@ export function dashboard() {
         return;
       }
 
-      const option = this.exportScopeOptions.find((item) => item.value === scope);
+      const option = this.exportScopeOptions.find(
+        (item) => item.value === scope,
+      );
       if (!option || !option.enabled) {
         return;
       }
@@ -1877,7 +2017,9 @@ export function dashboard() {
         return;
       }
 
-      const option = this.exportAdditionalOptions.find((item) => item.key === optionKey);
+      const option = this.exportAdditionalOptions.find(
+        (item) => item.key === optionKey,
+      );
       if (!option || !option.enabled) {
         return;
       }
@@ -1958,7 +2100,8 @@ export function dashboard() {
         return true;
       } catch (error) {
         console.error("Error generating PDF:", error);
-        this.exportInlineError = error?.message || "Failed to generate PDF report";
+        this.exportInlineError =
+          error?.message || "Failed to generate PDF report";
         this.exportProgressMessage = null;
         this.showNotification(this.exportInlineError, "error");
         return false;
@@ -1989,7 +2132,8 @@ export function dashboard() {
         return true;
       } catch (error) {
         console.error("Error generating Excel:", error);
-        this.exportInlineError = error?.message || "Failed to generate Excel report";
+        this.exportInlineError =
+          error?.message || "Failed to generate Excel report";
         this.exportProgressMessage = null;
         this.showNotification(this.exportInlineError, "error");
         return false;

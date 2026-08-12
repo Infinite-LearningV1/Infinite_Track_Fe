@@ -1,10 +1,74 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
 
-import {
-  createDashboardPageState,
-  dashboard,
-} from "../../src/js/features/dashboard/dashboard.js";
+test("selecting WFA changes active type without sending a request", async () => {
+  const component = dashboard();
+  let genericCalls = 0;
+  let wfaCalls = 0;
+  component.fetchDashboardFahpAnalysis = async () => {
+    genericCalls += 1;
+  };
+  component.fetchWfaFahpAnalysis = async () => {
+    wfaCalls += 1;
+  };
+  await component.selectFahpType("wfa");
+  assert.equal(component.fahpFilterState.type, "wfa");
+  assert.equal(genericCalls, 0);
+  assert.equal(wfaCalls, 0);
+});
+
+test("invalid WFA context blocks transport", async () => {
+  const component = dashboard();
+  let calls = 0;
+  component.fetchWfaFahpAnalysis = async () => {
+    calls += 1;
+  };
+  await component.selectFahpType("wfa");
+  assert.equal(await component.runWfaFahpAnalysis(), false);
+  assert.equal(calls, 0);
+  assert.match(
+    component.wfaFahpContext.validationError,
+    /latitude|longitude|date/i,
+  );
+});
+
+test("valid WFA context calls dedicated transport and stores WFA slice", async () => {
+  const component = dashboard();
+  component.applyCockpitSurfaceState = () => {};
+  const seen = [];
+  component.fetchWfaFahpAnalysis = async (params) => {
+    seen.push(params);
+    return {
+      success: true,
+      data: {
+        candidates: [],
+        methodology: {
+          criteria_weights: {
+            location_type: 0.4,
+            distance_factor: 0.3,
+            facility_score: 0.3,
+            consistency_ratio: 0.06,
+          },
+        },
+      },
+    };
+  };
+  component.wfaFahpContext = {
+    latitude: "-6.2",
+    longitude: "106.8",
+    scheduleDate: "2026-08-14",
+    radiusMeters: "",
+    validationError: null,
+  };
+  assert.equal(await component.runWfaFahpAnalysis(), true);
+  assert.deepEqual(seen, [
+    { lat: -6.2, lon: 106.8, schedule_date: "2026-08-14" },
+  ]);
+  assert.equal(component.rawApiData.wfaFahp.data.type, "wfa");
+});
+
+import { createDashboardPageState } from "../../src/js/features/dashboard/dashboard.js";
 
 test("loadDashboard keeps a rejected geofence fetch local while other slices still update", async () => {
   const page = createDashboardPageState({

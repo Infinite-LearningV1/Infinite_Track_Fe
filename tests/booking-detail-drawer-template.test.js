@@ -146,3 +146,28 @@ test("booking drawer overlays the shared header like user and attendance drawers
   assert.match(drawer, /class="fixed inset-0 z-99999"/);
   assert.doesNotMatch(drawer, /z-99998/);
 });
+
+
+test("booking drawer renders the selected normalized applicant avatar", () => {
+  const drawer = fs.readFileSync(
+    "src/partials/modal/booking-detail-drawer.html",
+    "utf8",
+  );
+  assert.match(
+    drawer,
+    /x-if="drawerState\.selectedBooking\.employee_avatar\.photoUrl"/,
+  );
+  assert.match(
+    drawer,
+    /:src="drawerState\.selectedBooking\.employee_avatar\.photoUrl"/,
+  );
+  assert.match(
+    drawer,
+    /@error="drawerState\.selectedBooking\.employee_avatar\.photoUrl = null"/,
+  );
+  assert.match(
+    drawer,
+    /x-text="drawerState\.selectedBooking\.employee_avatar\.initials"/,
+  );
+  assert.doesNotMatch(drawer, /getUserById|\/users\//);
+});

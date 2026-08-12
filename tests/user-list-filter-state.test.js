@@ -26,7 +26,7 @@ test("row mapping source: createdAt/formattedCreatedAt are removed (no created_a
 });
 
 test("row mapping source: photo falls back to null, never invented defaults", () => {
-  assert.match(listSource, /photo:\s*user\.photo\s*\|\|\s*null/);
+  assert.match(listSource, /const photo = user\.photo \?\? null;/);
 });
 
 test("entriesPerPage defaults to 10", () => {

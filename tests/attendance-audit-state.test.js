@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { attendanceLogAlpineData } from "../src/js/features/attendance/attendanceLog.js";
+import { createUserAvatarPresentation } from "../src/js/utils/userAvatarPresentation.js";
 
 const attendancePage = (data = [], pagination = {}) => ({
   data,
@@ -391,6 +392,12 @@ test("invalid and loading sort guards leave pending search, state, history, and 
       nipNim: "2026088",
       email: "drawer@example.test",
       role: "Manager",
+      photo: null,
+      photoUpdatedAt: null,
+      avatar: createUserAvatarPresentation({
+        fullName: "Drawer Owner",
+        photo: null,
+      }),
     },
     attendanceDate: "2026-08-02",
     timeIn: "09:15",

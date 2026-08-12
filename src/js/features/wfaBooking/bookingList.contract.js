@@ -1,3 +1,5 @@
+import { createUserAvatarPresentation } from "../../utils/userAvatarPresentation.js";
+
 function firstPresent(...values) {
   return values.find((value) => value !== undefined && value !== null);
 }
@@ -49,6 +51,13 @@ function extractBookingCollection(response = {}) {
 }
 
 function normalizeBooking(booking = {}) {
+  const employeeName = booking.user_full_name ?? booking.employee_name ?? "";
+  const employeePhoto = booking.user_photo ?? null;
+  const employeePhotoUpdatedAt = booking.user_photo_updated_at ?? null;
+  const employeeAvatar = createUserAvatarPresentation({
+    fullName: employeeName,
+    photo: employeePhoto,
+  });
   const radiusSnapshot = resolveBookingRadius(booking);
   const requestReason = normalizeBookingReason(
     booking.request_reason ?? booking.requestReason,
@@ -64,7 +73,10 @@ function normalizeBooking(booking = {}) {
 
   return {
     id: booking.booking_id ?? booking.id ?? null,
-    employee_name: booking.user_full_name ?? booking.employee_name ?? "",
+    employee_name: employeeName,
+    employee_photo: employeePhoto,
+    employee_photo_updated_at: employeePhotoUpdatedAt,
+    employee_avatar: employeeAvatar,
     employee_id: booking.user_nip_nim ?? booking.employee_id ?? "",
     employee_email: booking.user_email ?? booking.employee_email ?? "",
     employee_position:

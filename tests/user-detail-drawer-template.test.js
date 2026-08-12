@@ -82,19 +82,29 @@ test("the drawer never claims live or current employee location", () => {
   assert.doesNotMatch(drawer, /current location/i);
 });
 
-test("the profile header renders a photo avatar when selectedUserLocation.photo is present, gated by x-if", () => {
-  assert.match(drawer, /<template\s+x-if="selectedUserLocation\.photo">/);
+test("the profile header renders a photo avatar when selectedUserLocation.avatar.photoUrl is present, gated by x-if", () => {
   assert.match(
     drawer,
-    /<img[^>]*:src="getUserPhotoUrl\(selectedUserLocation\.photo\)"[^>]*>/,
+    /<template\s+x-if="selectedUserLocation\.avatar\.photoUrl">/,
   );
-  assert.match(drawer, /@error="selectedUserLocation\.photo = null"/);
+  assert.match(
+    drawer,
+    /<img[^>]*:src="selectedUserLocation\.avatar\.photoUrl"[^>]*>/,
+  );
+  assert.match(
+    drawer,
+    /@error="selectedUserLocation\.avatar\.photoUrl = null"/,
+  );
+  assert.doesNotMatch(drawer, /@error="selectedUserLocation\.photo = null"/);
 });
 
-test("the profile header falls back to the initials circle when selectedUserLocation.photo is absent, gated by x-if", () => {
-  assert.match(drawer, /<template\s+x-if="!selectedUserLocation\.photo">/);
-  assert.match(drawer, /:class="selectedUserLocation\.avatarColor"/);
-  assert.match(drawer, /x-text="selectedUserLocation\.initials"/);
+test("the profile header falls back to the initials circle when avatar photo is absent, gated by x-if", () => {
+  assert.match(
+    drawer,
+    /<template\s+x-if="!selectedUserLocation\.avatar\.photoUrl">/,
+  );
+  assert.match(drawer, /:class="selectedUserLocation\.avatar\.avatarColor"/);
+  assert.match(drawer, /x-text="selectedUserLocation\.avatar\.initials"/);
 });
 
 test("the profile header shows a role badge pill bound to roleBadgeClass", () => {

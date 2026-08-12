@@ -1,3 +1,5 @@
+import { createUserAvatarPresentation } from "../../utils/userAvatarPresentation.js";
+
 /**
  * Normalize the intentionally slim Attendance list projection.
  * Detail-only evidence remains owned by GET /attendance/:id.
@@ -25,6 +27,7 @@ export function normalizeAttendanceListRow(row = {}) {
   const mode = row.mode ?? {};
   const status = row.status ?? {};
   const location = row.location ?? {};
+  const photo = user.photo ?? null;
 
   return {
     idAttendance: row.id_attendance ?? null,
@@ -32,6 +35,12 @@ export function normalizeAttendanceListRow(row = {}) {
     fullName: user.full_name ?? "",
     nipNim: user.nip_nim ?? "",
     roleName: user.role ?? "",
+    photo,
+    photoUpdatedAt: user.photo_updated_at ?? null,
+    avatar: createUserAvatarPresentation({
+      fullName: user.full_name ?? "",
+      photo,
+    }),
     attendanceDate: row.attendance_date ?? "",
     timeIn: row.time_in ?? "",
     timeOut: row.time_out ?? "",

@@ -2,6 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+const attendanceStateSource = readFileSync(
+  new URL("../src/js/features/attendance/attendanceLog.js", import.meta.url),
+  "utf8",
+);
+
 const table = readFileSync(
   new URL("../src/partials/table/table-attendance.html", import.meta.url),
   "utf8",
@@ -132,4 +137,23 @@ test("retains loading, error retry, empty, pagination, and narrow overflow contr
 test("attendance table fills the shared Management User shell on wide screens", () => {
   assert.match(table, /<table class="min-w-full">/);
   assert.doesNotMatch(table, /min-w-\[1040px\]/);
+});
+
+test("renders attendance avatars photo-first with truthful local fallback", () => {
+  assert.match(table, /x-if="log\.avatar\.photoUrl"/);
+  assert.match(table, /:src="log\.avatar\.photoUrl"/);
+  assert.match(table, /loading="lazy"/);
+  assert.match(table, /@error="log\.avatar\.photoUrl = null"/);
+  assert.match(table, /x-if="!log\.avatar\.photoUrl"/);
+  assert.match(table, /:class="log\.avatar\.avatarColor"/);
+  assert.match(table, /x-text="log\.avatar\.initials"/);
+  assert.doesNotMatch(table, /@error="[^"]*log\.photo\s*=\s*null/);
+  assert.doesNotMatch(table, /getInitials\(log\.fullName\)/);
+  assert.doesNotMatch(table, /getAvatarColor\(log\.fullName\)/);
+});
+
+test("attendance state no longer exposes direct avatar helper presentation", () => {
+  assert.doesNotMatch(attendanceStateSource, /utils\/avatarUtils\.js/);
+  assert.doesNotMatch(attendanceStateSource, /\bgetInitials,?\s*$/m);
+  assert.doesNotMatch(attendanceStateSource, /\bgetAvatarColor,?\s*$/m);
 });

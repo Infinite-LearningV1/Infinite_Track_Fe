@@ -81,3 +81,30 @@ test("attendance page composes one drawer map and removes the old modal path", (
   assert.doesNotMatch(page, /map-detail-modal\.html/);
   assert.doesNotMatch(page, /mapDetailContainer/);
 });
+
+test("attendance drawer renders selected employee avatar without mutating raw photo evidence", () => {
+  assert.match(
+    drawer,
+    /x-if="selectedAttendanceDetail\.employee\.avatar\.photoUrl"/,
+  );
+  assert.match(
+    drawer,
+    /:src="selectedAttendanceDetail\.employee\.avatar\.photoUrl"/,
+  );
+  assert.match(
+    drawer,
+    /@error="selectedAttendanceDetail\.employee\.avatar\.photoUrl = null"/,
+  );
+  assert.match(
+    drawer,
+    /x-text="selectedAttendanceDetail\.employee\.avatar\.initials"/,
+  );
+  assert.match(
+    drawer,
+    /:class="selectedAttendanceDetail\.employee\.avatar\.avatarColor"/,
+  );
+  assert.doesNotMatch(
+    drawer,
+    /@error="[^"]*selectedAttendanceDetail\.employee\.photo\s*=\s*null/,
+  );
+});

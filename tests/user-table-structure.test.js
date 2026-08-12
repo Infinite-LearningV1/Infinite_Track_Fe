@@ -181,14 +181,21 @@ test("the Akses badge binds roleBadgeClass(user.role) while keeping the role tex
   assert.match(table, /x-text="user\.role \|\| '-'"/);
 });
 
-test("Pengguna cell renders a photo avatar when user.photo is present, gated by x-if", () => {
-  assert.match(table, /<template\s+x-if="user\.photo">/);
-  assert.match(table, /<img[^>]*:src="getUserPhotoUrl\(user\.photo\)"[^>]*>/);
-  assert.match(table, /@error="user\.photo = null"/);
+test("Pengguna cell renders a photo avatar when user.avatar.photoUrl is present, gated by x-if", () => {
+  assert.match(table, /<template\s+x-if="user\.avatar\.photoUrl">/);
+  assert.match(table, /<img[^>]*:src="user\.avatar\.photoUrl"[^>]*>/);
+  assert.match(table, /@error="user\.avatar\.photoUrl = null"/);
+  assert.doesNotMatch(table, /@error="user\.photo = null"/);
 });
 
-test("Pengguna cell falls back to the initials circle when user.photo is absent, gated by x-if", () => {
-  assert.match(table, /<template\s+x-if="!user\.photo">/);
-  assert.match(table, /:class="user\.avatarColor"/);
-  assert.match(table, /x-text="user\.initials"/);
+test("Pengguna cell falls back to the initials circle when avatar photo is absent, gated by x-if", () => {
+  assert.match(table, /<template\s+x-if="!user\.avatar\.photoUrl">/);
+  assert.match(table, /:class="user\.avatar\.avatarColor"/);
+  assert.match(table, /x-text="user\.avatar\.initials"/);
+});
+
+test("delete confirmation uses the selected user's photo-first avatar contract", () => {
+  assert.match(table, /userToDelete\.avatar\.photoUrl/);
+  assert.match(table, /userToDelete\.avatar\.initials/);
+  assert.match(table, /userToDelete\.avatar\.avatarColor/);
 });

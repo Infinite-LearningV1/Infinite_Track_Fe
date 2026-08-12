@@ -13,6 +13,8 @@ const backendRow = {
   user_email: "andi@example.com",
   user_position_name: "Backend Engineer",
   user_role_name: "Employee",
+  user_photo: "https://cdn.example.com/users/42/profile.jpg",
+  user_photo_updated_at: "2026-08-11T03:00:00.000Z",
   schedule_date: "2026-08-12",
   created_at: "2026-08-10T02:00:00.000Z",
   status: "pending",
@@ -39,6 +41,25 @@ test("normalizes canonical INF-274 nested fields and preserves zero", () => {
   });
   assert.equal(normalized.processedBy, null);
   assert.equal(normalized.suitability_score, 0);
+  assert.equal(normalized.employee_photo, backendRow.user_photo);
+  assert.equal(
+    normalized.employee_photo_updated_at,
+    backendRow.user_photo_updated_at,
+  );
+  assert.equal(normalized.employee_avatar.photoUrl, backendRow.user_photo);
+});
+
+test("normalizes missing booking applicant photo to initials fallback", () => {
+  const normalized = normalizeBooking({
+    ...backendRow,
+    user_photo: null,
+    user_photo_updated_at: null,
+  });
+
+  assert.equal(normalized.employee_photo, null);
+  assert.equal(normalized.employee_photo_updated_at, null);
+  assert.equal(normalized.employee_avatar.photoUrl, null);
+  assert.equal(normalized.employee_avatar.initials, "AS");
 });
 
 test("normalizes rejection note and processed_by actor with canonical precedence", () => {

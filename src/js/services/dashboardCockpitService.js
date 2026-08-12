@@ -96,6 +96,7 @@ import { buildHistoricalAnalyticsViewModel } from "./dashboard/historicalAnalyti
 import { buildGeofenceEvidenceViewModel } from "./dashboard/geofenceEvidenceSlice.js";
 import { buildLiveMapViewModel } from "./dashboard/liveMapSlice.js";
 import { buildFahpDashboardRecapViewModel } from "./dashboard/fahpRecapSlice.js";
+import { buildWfaFahpViewModel } from "./dashboard/wfaFahpSlice.js";
 
 const MAP_VIEW_SOURCE_KEY = "dashboard-analytics.map_context";
 const MAP_VIEW_SOURCE_NOTE =
@@ -469,21 +470,46 @@ function firstPresentValue(...values) {
 }
 
 function normalizeWorkMode(mode) {
-  const normalizedMode = String(mode || "").trim().toUpperCase();
+  const normalizedMode = String(mode || "")
+    .trim()
+    .toUpperCase();
 
-  return ["WFO", "WFH", "WFA"].includes(normalizedMode) ? normalizedMode : "WFO";
+  return ["WFO", "WFH", "WFA"].includes(normalizedMode)
+    ? normalizedMode
+    : "WFO";
 }
 
 function getAttendanceModeColor(mode) {
-  return ATTENDANCE_MODE_COLORS[normalizeWorkMode(mode)] || ATTENDANCE_MODE_COLORS.WFO;
+  return (
+    ATTENDANCE_MODE_COLORS[normalizeWorkMode(mode)] ||
+    ATTENDANCE_MODE_COLORS.WFO
+  );
 }
 
 function createLiveMapModeSummary(locations = []) {
   const summary = {
     total: locations.length,
-    WFO: { key: "WFO", label: "WFO", description: "Work From Office", value: 0, color: ATTENDANCE_MODE_COLORS.WFO },
-    WFH: { key: "WFH", label: "WFH", description: "Work From Home", value: 0, color: ATTENDANCE_MODE_COLORS.WFH },
-    WFA: { key: "WFA", label: "WFA", description: "Work From Anywhere", value: 0, color: ATTENDANCE_MODE_COLORS.WFA },
+    WFO: {
+      key: "WFO",
+      label: "WFO",
+      description: "Work From Office",
+      value: 0,
+      color: ATTENDANCE_MODE_COLORS.WFO,
+    },
+    WFH: {
+      key: "WFH",
+      label: "WFH",
+      description: "Work From Home",
+      value: 0,
+      color: ATTENDANCE_MODE_COLORS.WFH,
+    },
+    WFA: {
+      key: "WFA",
+      label: "WFA",
+      description: "Work From Anywhere",
+      value: 0,
+      color: ATTENDANCE_MODE_COLORS.WFA,
+    },
   };
 
   locations.forEach((location) => {
@@ -494,7 +520,9 @@ function createLiveMapModeSummary(locations = []) {
     total: summary.total,
     modes: [summary.WFO, summary.WFH, summary.WFA].map((mode) => ({
       ...mode,
-      percentage: summary.total ? Math.round((mode.value / summary.total) * 100) : 0,
+      percentage: summary.total
+        ? Math.round((mode.value / summary.total) * 100)
+        : 0,
     })),
   };
 }
@@ -567,7 +595,9 @@ function createMapLocation(point, index, metadata = {}) {
     point?.fullName,
   );
   const statusModeCandidate =
-    typeof point?.status === "string" ? point.status.trim().toUpperCase() : null;
+    typeof point?.status === "string"
+      ? point.status.trim().toUpperCase()
+      : null;
   const inferredStatusMode =
     statusModeCandidate === "WFO" ||
     statusModeCandidate === "WFH" ||
@@ -1227,7 +1257,10 @@ function createHistoricalTrendRange({
       viewBoxHeight: 220,
     },
     xAxisLabels: series[0]?.points?.map((point) => point.label) ?? [],
-    yAxisLabels: Array.isArray(yAxisLabels) && yAxisLabels.length ? yAxisLabels : scale.yAxisLabels,
+    yAxisLabels:
+      Array.isArray(yAxisLabels) && yAxisLabels.length
+        ? yAxisLabels
+        : scale.yAxisLabels,
   };
 }
 
@@ -1615,19 +1648,30 @@ function buildFuzzyAhpPanel() {
 
 function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
   if (fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined") {
-    return null;
+    return { value: null, error: null };
   }
 
   if (typeof fuzzyAhpResponse !== "object" || Array.isArray(fuzzyAhpResponse)) {
-    return false;
+    return { value: false, error: null };
   }
-
-  const viewModel = buildFahpDashboardRecapViewModel(fuzzyAhpResponse);
-
-  return {
-    ...viewModel,
-    source: FUZZY_AHP_SOURCE_KEY,
-  };
+  try {
+    const data = fuzzyAhpResponse?.data;
+    const isWfa =
+      data &&
+      typeof data === "object" &&
+      ("candidates" in data ||
+        "methodology" in data ||
+        "searchCriteria" in data);
+    const viewModel = isWfa
+      ? buildWfaFahpViewModel(fuzzyAhpResponse)
+      : buildFahpDashboardRecapViewModel(fuzzyAhpResponse);
+    return {
+      value: { ...viewModel, source: FUZZY_AHP_SOURCE_KEY },
+      error: null,
+    };
+  } catch (error) {
+    return { value: null, error };
+  }
 }
 
 function buildTodayLocationsHeroPanel(
@@ -1728,7 +1772,10 @@ function buildFuzzyAhpDecisionPayload(fuzzyAhp) {
     consistencyStatus:
       fuzzyAhp.consistency?.summaryLabel ||
       (fuzzyAhp.consistency?.isConsistent ? "Consistent" : "Needs Review"),
-    isConsistent: Boolean(fuzzyAhp.consistency?.isConsistent),
+    isConsistent:
+      typeof fuzzyAhp.consistency?.isConsistent === "boolean"
+        ? fuzzyAhp.consistency.isConsistent
+        : null,
     updatedAtLabel: buildFuzzyAhpUpdatedAtLabel(fuzzyAhp),
     criteriaWeights: fuzzyAhp.criteriaWeights.map((criterion) => ({
       label: criterion.display_label || criterion.label || criterion.key,
@@ -1757,14 +1804,18 @@ function createFuzzyAhpFallbackData(activeType = "discipline") {
   };
 }
 
-function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
+function buildExplicitFuzzyAhpPanel(
+  fuzzyAhp = null,
+  fuzzyAhpError = null,
+  activeType = "discipline",
+) {
   if (fuzzyAhpError) {
     return createPanel({
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.ERROR,
       message: `${getAnalyticsErrorMessage(fuzzyAhpError)} Fuzzy AHP output remains unavailable until the explicit backend feed succeeds.`,
       note: "Web FE will not fabricate criteria, weights, or ranking from summary or analytics sources.",
-      data: createFuzzyAhpFallbackData(),
+      data: createFuzzyAhpFallbackData(activeType),
     });
   }
 
@@ -1775,7 +1826,7 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP waits for the explicit analysis.fuzzy-ahp dashboard backend feed.",
       note: "No dummy criteria, weights, rankings, or preview decisions are used as runtime Fuzzy AHP truth.",
-      data: createFuzzyAhpFallbackData(),
+      data: createFuzzyAhpFallbackData(activeType),
     });
   }
 
@@ -1786,7 +1837,7 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
       message:
         "Fuzzy AHP backend payload is invalid; expected an explicit object response.",
       note: "Web FE will not coerce non-object Fuzzy AHP payloads into decision support output.",
-      data: createFuzzyAhpFallbackData(),
+      data: createFuzzyAhpFallbackData(activeType),
     });
   }
 
@@ -1832,7 +1883,10 @@ function buildExplicitFuzzyAhpPanel(fuzzyAhp = null, fuzzyAhpError = null) {
     });
   }
 
-  if (!Array.isArray(fuzzyAhp.criteriaWeights) || fuzzyAhp.criteriaWeights.length === 0) {
+  if (
+    !Array.isArray(fuzzyAhp.criteriaWeights) ||
+    fuzzyAhp.criteriaWeights.length === 0
+  ) {
     return createPanel({
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
@@ -2031,9 +2085,12 @@ export function createDashboardCockpitStateFromSources({
   fuzzyAhpError = null,
   geofenceEvidenceResponse = null,
   geofenceEvidenceError = null,
+  fuzzyAhpActiveType = "discipline",
 } = {}) {
   const analytics = normalizeCockpitAnalyticsResponse(analyticsResponse);
-  const fuzzyAhp = normalizeFuzzyAhpResponse(fuzzyAhpResponse);
+  const fuzzyAhpNormalization = normalizeFuzzyAhpResponse(fuzzyAhpResponse);
+  const fuzzyAhp = fuzzyAhpNormalization.value;
+  const effectiveFuzzyAhpError = fuzzyAhpError || fuzzyAhpNormalization.error;
 
   const hero =
     todayLocations !== null || todayLocationsError || !analyticsError
@@ -2048,7 +2105,11 @@ export function createDashboardCockpitStateFromSources({
       buildModeMixPanel(analytics, analyticsError),
     ],
     bottomPanels: [
-      buildExplicitFuzzyAhpPanel(fuzzyAhp, fuzzyAhpError),
+      buildExplicitFuzzyAhpPanel(
+        fuzzyAhp,
+        effectiveFuzzyAhpError,
+        fuzzyAhpActiveType,
+      ),
       buildGeofenceEvidencePanel(
         geofenceEvidenceResponse,
         geofenceEvidenceError,
@@ -2067,6 +2128,7 @@ export async function loadDashboardCockpitState({
   fuzzyAhpError = null,
   geofenceEvidenceResponse = null,
   geofenceEvidenceError = null,
+  fuzzyAhpActiveType = "discipline",
 } = {}) {
   return createDashboardCockpitStateFromSources({
     reportResponse,
@@ -2078,16 +2140,26 @@ export async function loadDashboardCockpitState({
     fuzzyAhpError,
     geofenceEvidenceResponse,
     geofenceEvidenceError,
+    fuzzyAhpActiveType,
   });
 }
 
-export function createDashboardCockpitLoadingState() {
+export function createDashboardCockpitLoadingState(
+  fuzzyAhpActiveType = "discipline",
+) {
   const hero = createLoadingPanel(HERO_PANEL_DEFINITION);
   const middlePanels = MIDDLE_PANEL_DEFINITIONS.map((panel) =>
     createLoadingPanel(panel),
   );
   const bottomPanels = BOTTOM_PANEL_DEFINITIONS.map((panel) =>
-    createLoadingPanel(panel),
+    panel.key === "fuzzyAhp"
+      ? createPanel({
+          ...panel,
+          state: DASHBOARD_PANEL_STATES.LOADING,
+          message: "Loading panel data.",
+          data: createFuzzyAhpFallbackData(fuzzyAhpActiveType),
+        })
+      : createLoadingPanel(panel),
   );
 
   return composeCockpit({
@@ -2118,13 +2190,23 @@ export function createDashboardCockpitState(response = {}) {
   });
 }
 
-export function createDashboardCockpitErrorState(message) {
+export function createDashboardCockpitErrorState(
+  message,
+  fuzzyAhpActiveType = "discipline",
+) {
   const hero = createErrorPanel(HERO_PANEL_DEFINITION, message);
   const middlePanels = MIDDLE_PANEL_DEFINITIONS.map((panel) =>
     createErrorPanel(panel, message),
   );
   const bottomPanels = BOTTOM_PANEL_DEFINITIONS.map((panel) =>
-    createErrorPanel(panel, message),
+    panel.key === "fuzzyAhp"
+      ? createPanel({
+          ...panel,
+          state: DASHBOARD_PANEL_STATES.ERROR,
+          message,
+          data: createFuzzyAhpFallbackData(fuzzyAhpActiveType),
+        })
+      : createErrorPanel(panel, message),
   );
 
   return composeCockpit({

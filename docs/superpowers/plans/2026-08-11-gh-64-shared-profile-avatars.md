@@ -66,7 +66,7 @@
 
 - Consumes: `getInitials(fullName)`, `getAvatarColor(fullName)`, `getUserPhotoUrl(photo, null)`.
 - Produces: `createUserAvatarPresentation({ fullName, photo }) -> { photoUrl, initials, avatarColor }`.
-- [ ] **Step 1: Write the failing utility contract tests**
+- [x] **Step 1: Write the failing utility contract tests**
 
 ```js
 import test from "node:test";
@@ -101,7 +101,7 @@ test("missing employee photo resolves to null instead of owner.jpg", () => {
 In the first test, import `getAvatarColor` and compare against `getAvatarColor("Ayu Lestari")`; do not hard-code Tailwind palette internals.
 Add cases for `"uploads/users/7/profile/a.jpg"`, empty string, and `"/src/images/user/default-avatar.jpg"`; the last two must produce `photoUrl: null`.
 
-- [ ] **Step 2: Run the utility test and verify RED**
+- [x] **Step 2: Run the utility test and verify RED**
 
 Run:
 
@@ -111,7 +111,7 @@ node --test tests/user-avatar-presentation.test.js
 
 Expected: FAIL because `src/js/utils/userAvatarPresentation.js` does not exist yet.
 
-- [ ] **Step 3: Implement the minimal pure utility**
+- [x] **Step 3: Implement the minimal pure utility**
 
 ```js
 import { getInitials, getAvatarColor } from "./avatarUtils.js";
@@ -132,7 +132,7 @@ export function createUserAvatarPresentation({
 
 Do not change the default parameter inside `getUserPhotoUrl()`; other global consumers may depend on its existing default.
 
-- [ ] **Step 4: Run utility tests and verify GREEN**
+- [x] **Step 4: Run utility tests and verify GREEN**
 
 ```powershell
 node --test tests/user-avatar-presentation.test.js
@@ -140,7 +140,7 @@ node --test tests/user-avatar-presentation.test.js
 
 Expected: all utility cases pass.
 
-- [ ] **Step 5: Commit Task 1 locally**
+- [x] **Step 5: Commit Task 1 locally**
 
 ```powershell
 git add src/js/utils/userAvatarPresentation.js tests/user-avatar-presentation.test.js
@@ -169,7 +169,7 @@ Do not push.
 - Consumes: `createUserAvatarPresentation({ fullName, photo })` from Task 1.
 - Produces directory rows with `photo`, `photoUpdatedAt`, `avatar`; drawer state with the same raw/presentation separation.
 
-- [ ] **Step 1: Extend User tests first**
+- [x] **Step 1: Extend User tests first**
 
 In `tests/user-directory-server-state.test.js`, make a directory fixture contain:
 
@@ -212,7 +212,7 @@ Also assert `createEmptyWfhLocation().photo === null` and `createEmptyWfhLocatio
 
 Update the two template suites to require `user.avatar.photoUrl` / `selectedUserLocation.avatar.photoUrl`, `avatar.initials`, and `avatar.avatarColor`. Add negative assertions rejecting `@error="user.photo = null"` and `@error="selectedUserLocation.photo = null"`. For delete confirmation, require photo-first/fallback branches bound to `userToDelete.avatar`.
 
-- [ ] **Step 2: Run focused User tests and verify RED**
+- [x] **Step 2: Run focused User tests and verify RED**
 
 ```powershell
 node --test tests/user-directory-server-state.test.js tests/user-detail-drawer-lifecycle.test.js tests/user-table-structure.test.js tests/user-detail-drawer-template.test.js
@@ -220,7 +220,7 @@ node --test tests/user-directory-server-state.test.js tests/user-detail-drawer-l
 
 Expected: FAIL because current User models/templates still expose/mutate the legacy photo/initials fields.
 
-- [ ] **Step 3: Normalize User directory and detail state through the shared utility**
+- [x] **Step 3: Normalize User directory and detail state through the shared utility**
 
 In `userListSimple.js`, replace the direct initials/color derivation inside `mapDirectoryUser()` with:
 
@@ -253,7 +253,7 @@ return {
 };
 ```
 
-- [ ] **Step 4: Update all three Management User surfaces**
+- [x] **Step 4: Update all three Management User surfaces**
 
 Use this local markup contract for table and drawer (with the surface-specific object name):
 
@@ -276,7 +276,7 @@ Use this local markup contract for table and drawer (with the surface-specific o
 
 Use `selectedUserLocation.avatar` in the drawer and `userToDelete.avatar` in the delete confirmation. The delete confirmation image may use `h-12 w-12`; drawer stays `h-16 w-16`. Preserve adjacent name/email/role text and all destructive-confirmation semantics.
 
-- [ ] **Step 5: Run focused User tests and verify GREEN**
+- [x] **Step 5: Run focused User tests and verify GREEN**
 
 ```powershell
 node --test tests/user-directory-server-state.test.js tests/user-detail-drawer-lifecycle.test.js tests/user-table-structure.test.js tests/user-detail-drawer-template.test.js
@@ -284,7 +284,7 @@ node --test tests/user-directory-server-state.test.js tests/user-detail-drawer-l
 
 Expected: all pass, including the existing single detail-request contract.
 
-- [ ] **Step 6: Commit Task 2 locally**
+- [x] **Step 6: Commit Task 2 locally**
 
 ```powershell
 git add src/js/features/userManagement/userListSimple.js src/js/features/userManagement/userDetailDrawerLifecycle.js src/partials/table/table-user.html src/partials/modal/user-detail-drawer.html tests/user-directory-server-state.test.js tests/user-detail-drawer-lifecycle.test.js tests/user-table-structure.test.js tests/user-detail-drawer-template.test.js
@@ -312,7 +312,7 @@ Do not push.
 
 - Consumes: Backend list/detail `user.photo`, `user.photo_updated_at`; Task 1 presentation utility.
 - Produces: list row `photo`, `photoUpdatedAt`, `avatar`; detail `employee.photo`, `employee.photoUpdatedAt`, `employee.avatar`.
-- [ ] **Step 1: Extend Attendance list/detail tests first**
+- [x] **Step 1: Extend Attendance list/detail tests first**
 
 Add to the canonical list fixture:
 
@@ -340,7 +340,7 @@ selectedAttendanceDetail.employee.avatar.photoUrl
 
 and `@error` must mutate only the corresponding `.avatar.photoUrl`.
 
-- [ ] **Step 2: Run focused Attendance tests and verify RED**
+- [x] **Step 2: Run focused Attendance tests and verify RED**
 
 ```powershell
 node --test tests/attendance-list-row.test.js tests/attendance-detail-drawer-lifecycle.test.js tests/attendance-audit-table.test.js tests/attendance-detail-drawer-template.test.js
@@ -348,7 +348,7 @@ node --test tests/attendance-list-row.test.js tests/attendance-detail-drawer-lif
 
 Expected: FAIL because photo fields and avatar presentation are not mapped/rendered yet.
 
-- [ ] **Step 3: Implement Attendance normalization**
+- [x] **Step 3: Implement Attendance normalization**
 
 In `normalizeAttendanceListRow()`:
 
@@ -378,7 +378,7 @@ avatar: createUserAvatarPresentation({
 
 Import `createUserAvatarPresentation` in both normalization modules. Do not move map/location/status semantics into the avatar utility.
 
-- [ ] **Step 4: Render Attendance table and drawer**
+- [x] **Step 4: Render Attendance table and drawer**
 
 Replace the initials-only table circle with photo-first/fallback branches bound to `log.avatar`. Keep table image `loading="lazy"`, `alt=""`, `object-cover`, and `h-10 w-10`.
 
@@ -408,7 +408,7 @@ Inside the existing `Pegawai` drawer section, add an identity row before the exi
 
 Retain existing NIP/NIM, role, email, attendance, and location evidence; this is not a drawer redesign.
 
-- [ ] **Step 5: Run focused Attendance tests and verify GREEN**
+- [x] **Step 5: Run focused Attendance tests and verify GREEN**
 
 ```powershell
 node --test tests/attendance-list-row.test.js tests/attendance-detail-drawer-lifecycle.test.js tests/attendance-audit-table.test.js tests/attendance-detail-drawer-template.test.js tests/attendance-list-state.test.js tests/attendance-delete-recovery.test.js
@@ -416,7 +416,7 @@ node --test tests/attendance-list-row.test.js tests/attendance-detail-drawer-lif
 
 Expected: all focused Attendance suites pass.
 
-- [ ] **Step 6: Commit Task 3 locally**
+- [x] **Step 6: Commit Task 3 locally**
 
 ```powershell
 git add src/js/features/attendance/attendanceListRow.js src/js/features/attendance/attendanceDetailDrawerLifecycle.js src/partials/table/table-attendance.html src/partials/modal/attendance-detail-drawer.html tests/attendance-list-row.test.js tests/attendance-detail-drawer-lifecycle.test.js tests/attendance-audit-table.test.js tests/attendance-detail-drawer-template.test.js
@@ -441,7 +441,7 @@ Do not push.
 - Consumes: Backend canonical `user_photo`, `user_photo_updated_at`; Task 1 presentation utility.
 - Produces: `employee_photo`, `employee_photo_updated_at`, `employee_avatar` on every normalized Booking.
 
-- [ ] **Step 1: Extend Booking normalization/template tests first**
+- [x] **Step 1: Extend Booking normalization/template tests first**
 
 Add to the canonical Backend fixture:
 
@@ -468,7 +468,7 @@ Update `booking-management-table.test.js` to require photo-first/fallback markup
 
 Update `booking-detail-drawer-template.test.js` to require the `Pemohon` section to consume `selectedBooking.employee_avatar`, not any User API lookup or global photo helper.
 
-- [ ] **Step 2: Run focused Booking tests and verify RED**
+- [x] **Step 2: Run focused Booking tests and verify RED**
 
 ```powershell
 node --test tests/booking-management-normalization.test.js tests/booking-management-table.test.js tests/booking-detail-drawer-template.test.js
@@ -476,7 +476,7 @@ node --test tests/booking-management-normalization.test.js tests/booking-managem
 
 Expected: FAIL because Booking currently has no applicant photo presentation fields.
 
-- [ ] **Step 3: Implement Booking normalization**
+- [x] **Step 3: Implement Booking normalization**
 
 At the start of `normalizeBooking()` derive the canonical applicant identity once:
 
@@ -501,7 +501,7 @@ employee_avatar: employeeAvatar,
 
 Keep the remaining schedule/status/location/reason/suitability/processor mappings exactly as they are. Do not add processor avatar fields.
 
-- [ ] **Step 4: Render Booking table and drawer**
+- [x] **Step 4: Render Booking table and drawer**
       In `table-booking.html`, replace the initials-only applicant circle with photo-first/fallback branches bound to `booking.employee_avatar`; table image is lazy, circular, and `object-cover`.
 
 In the existing `Pemohon` drawer section, render avatar + applicant name using `selectedBooking.employee_avatar` before the existing identity `<dl>`. On error:
@@ -512,7 +512,7 @@ In the existing `Pemohon` drawer section, render avatar + applicant name using `
 
 Do not fetch User detail. Keep approval/rejection, map, suitability, status, and processor evidence unchanged.
 
-- [ ] **Step 5: Run focused Booking tests and regression suites**
+- [x] **Step 5: Run focused Booking tests and regression suites**
 
 ```powershell
 node --test tests/booking-management-normalization.test.js tests/booking-management-table.test.js tests/booking-detail-drawer-template.test.js tests/booking-detail-drawer-lifecycle.test.js tests/booking-management-list-state.test.js tests/booking-management-decision-state.test.js tests/booking-management-delete.test.js tests/booking-management-directory-query.test.js
@@ -520,7 +520,7 @@ node --test tests/booking-management-normalization.test.js tests/booking-managem
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit Task 4 locally**
+- [x] **Step 6: Commit Task 4 locally**
 
 ```powershell
 git add src/js/features/wfaBooking/bookingList.contract.js src/partials/table/table-booking.html src/partials/modal/booking-detail-drawer.html tests/booking-management-normalization.test.js tests/booking-management-table.test.js tests/booking-detail-drawer-template.test.js
@@ -543,7 +543,7 @@ Do not push.
 - Consumes: all normalized avatar contracts from Tasks 1-4.
 - Produces: completion evidence; no new feature API.
 
-- [ ] **Step 1: Run the focused cross-feature avatar gate**
+- [x] **Step 1: Run the focused cross-feature avatar gate**
 
 ```powershell
 node --test tests/user-avatar-presentation.test.js tests/user-directory-server-state.test.js tests/user-detail-drawer-lifecycle.test.js tests/user-table-structure.test.js tests/user-detail-drawer-template.test.js tests/attendance-list-row.test.js tests/attendance-detail-drawer-lifecycle.test.js tests/attendance-audit-table.test.js tests/attendance-detail-drawer-template.test.js tests/booking-management-normalization.test.js tests/booking-management-table.test.js tests/booking-detail-drawer-template.test.js
@@ -551,7 +551,7 @@ node --test tests/user-avatar-presentation.test.js tests/user-directory-server-s
 
 Expected: 0 failures.
 
-- [ ] **Step 2: Run neighboring business regression suites**
+- [x] **Step 2: Run neighboring business regression suites**
 
 ```powershell
 node --test tests/attendance-list-state.test.js tests/attendance-delete-recovery.test.js tests/attendance-directory-query.test.js tests/booking-detail-drawer-lifecycle.test.js tests/booking-management-list-state.test.js tests/booking-management-decision-state.test.js tests/booking-management-delete.test.js tests/booking-management-directory-query.test.js tests/user-list-filter-state.test.js tests/user-directory-query.test.js
@@ -559,7 +559,7 @@ node --test tests/attendance-list-state.test.js tests/attendance-delete-recovery
 
 Expected: 0 failures; avatar work must not change pagination/filter/delete/decision/map behavior.
 
-- [ ] **Step 3: Remove stale direct avatar helpers only where they became unused**
+- [x] **Step 3: Remove stale direct avatar helpers only where they became unused**
 
 After template changes, search the target modules/templates for direct avatar presentation calls:
 
@@ -577,7 +577,7 @@ Select-String -Path src/partials/table/table-user.html,src/partials/modal/user-d
 
 Expected: only `.avatar.photoUrl = null` or `.employee_avatar.photoUrl = null` error handlers; no raw `.photo = null`.
 
-- [ ] **Step 4: Format/check every changed file**
+- [x] **Step 4: Format/check every changed file**
 
 Run Prettier write only on the changed files, then check them:
 
@@ -593,7 +593,7 @@ npx prettier --check src/js/utils/userAvatarPresentation.js src/js/features/user
 
 Expected: all named files pass formatting.
 
-- [ ] **Step 5: Run production build**
+- [x] **Step 5: Run production build**
 
 ```powershell
 npm run build
@@ -601,7 +601,7 @@ npm run build
 
 Expected: exit code 0.
 
-- [ ] **Step 6: Run full repository test suite and compare with baseline**
+- [x] **Step 6: Run full repository test suite and compare with baseline**
 
 ```powershell
 node --test
@@ -617,7 +617,7 @@ Record the fresh totals. Baseline before this feature is:
 
 Acceptance: no new failure in User/Attendance/Booking/shared-avatar scope. If the same unrelated 21 failures remain, report them as pre-existing baseline; do not claim the repository-wide suite is green. If counts/names differ, inspect the delta before proceeding.
 
-- [ ] **Step 7: Audit bounded diff and whitespace**
+- [x] **Step 7: Audit bounded diff and whitespace**
 
 ```powershell
 git diff --check 9bdfaf6...HEAD
@@ -629,7 +629,7 @@ git log --oneline 9bdfaf6..HEAD
 
 Expected production diff is limited to the shared utility, approved User/Attendance/Booking normalizers/templates, focused tests, spec, and plan. There must be no service/API additions, package/lock changes, global header/Profile/Form User changes, or unrelated redesign.
 
-- [ ] **Step 8: Runtime verification only when Backend #139 fields are available**
+- [x] **Step 8: Runtime verification only when Backend #139 fields are available**
 
 With an authenticated Management runtime backed by Backend #139, verify:
 
@@ -645,8 +645,23 @@ Booking drawer: same normalized applicant avatar, no extra User request
 
 Use browser Network tools to confirm no new per-row User/photo request. If a compatible authenticated runtime is unavailable, record runtime avatar acceptance as `Needs Verification`; do not create credentials or invent evidence.
 
-- [ ] **Step 9: Commit verification-only corrections if any**
+- [x] **Step 9: Commit verification-only corrections if any**
 
 If verification required code/test corrections, rerun the affected focused tests, formatting check, build, and full suite before committing. Otherwise do not create a meaningless verification commit.
+
+## Execution Evidence - 2026-08-12
+
+- Base: `develop@9bdfaf6`.
+- Attendance/Booking TDD RED gate: 50 tests / 38 pass / 12 expected failures before production adoption.
+- Attendance + Booking focused regression after implementation: 100/100 passed.
+- Cross-feature avatar gate: 159/159 passed.
+- Neighboring business regression gate: 77/77 passed.
+- Verification-correction regression gate: 69/69 passed.
+- Scoped searches found no direct avatar-helper presentation, raw-photo null mutation, or per-row User/photo request in Management Attendance/Booking.
+- Prettier check: passed for all changed implementation/test/plan files.
+- Production build: `npm run build` exited 0.
+- Full repository suite: 758 tests / 737 pass / 21 fail. The failure count matches the documented pre-feature baseline; no User/Attendance/Booking/shared-avatar test failed.
+- The adjacent `wfa-page-shell` failure was reproduced independently on `develop@9bdfaf6` (8/9 pass with the same rejection-template assertion), confirming it is pre-existing.
+- Runtime avatar acceptance: **Needs Verification**. No authenticated compatible runtime evidence or credentials were invented.
 
 ---

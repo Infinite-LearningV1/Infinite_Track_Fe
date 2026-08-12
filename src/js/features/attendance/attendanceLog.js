@@ -13,7 +13,6 @@ import {
   formatTime,
   formatDate,
 } from "../../utils/dateTimeFormatter.js";
-import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import {
   firstFiniteMapNumber,
   hasFiniteCoordinates,
@@ -741,8 +740,6 @@ export function attendanceLogAlpineData(overrides = {}) {
         longitude: firstFiniteMapNumber(log.location?.longitude, log.longitude),
       });
     },
-    getInitials,
-    getAvatarColor,
     formatDateTime,
     formatTime,
     formatDate,

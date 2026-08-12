@@ -90,7 +90,6 @@ test("booking queue exposes complete dark-mode table and pagination tokens", () 
   assert.match(table, /dark:bg-red-900\/50/);
 });
 
-
 test("booking applicant avatar is photo-first with initials fallback", () => {
   const table = fs.readFileSync(
     "src/partials/table/table-booking.html",
@@ -105,4 +104,14 @@ test("booking applicant avatar is photo-first with initials fallback", () => {
   assert.match(table, /x-text="booking\.employee_avatar\.initials"/);
   assert.doesNotMatch(table, /getInitials\(booking\.employee_name\)/);
   assert.doesNotMatch(table, /getAvatarColor\(booking\.employee_name\)/);
+});
+
+test("booking state no longer exposes direct avatar helper presentation", () => {
+  const stateSource = fs.readFileSync(
+    "src/js/features/wfaBooking/bookingList.js",
+    "utf8",
+  );
+  assert.doesNotMatch(stateSource, /utils\/avatarUtils\.js/);
+  assert.doesNotMatch(stateSource, /\bgetInitials\(fullName\)/);
+  assert.doesNotMatch(stateSource, /\bgetAvatarColor\(fullName\)/);
 });

@@ -82,7 +82,6 @@ test("attendance page composes one drawer map and removes the old modal path", (
   assert.doesNotMatch(page, /mapDetailContainer/);
 });
 
-
 test("attendance drawer renders selected employee avatar without mutating raw photo evidence", () => {
   assert.match(
     drawer,

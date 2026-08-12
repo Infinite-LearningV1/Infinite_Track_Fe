@@ -106,7 +106,6 @@ test("ignores obsolete flat fields and list coordinates in favor of the nested l
   );
 });
 
-
 test("normalizes a missing attendance photo to truthful initials fallback", () => {
   const normalized = normalizeAttendanceListRow(
     liveListRow({
@@ -121,7 +120,10 @@ test("normalizes a missing attendance photo to truthful initials fallback", () =
   assert.equal(normalized.photo, null);
   assert.equal(normalized.photoUpdatedAt, null);
   assert.equal(normalized.avatar.photoUrl, null);
-  assert.equal(normalized.avatar.initials, getInitials("Muhammad Rizki Ramdani"));
+  assert.equal(
+    normalized.avatar.initials,
+    getInitials("Muhammad Rizki Ramdani"),
+  );
 });
 
 [

@@ -158,22 +158,20 @@ test("normalizes only the live detail envelope data", () => {
   assert.equal(detail.location.description, "");
 });
 
-
 test("attendance detail keeps backend photo evidence separate from avatar presentation", () => {
   const detail = normalizeAttendanceDetail(fullDetail());
 
-  assert.equal(detail.employee.photo, "https://cdn.example.com/users/45/profile.jpg");
   assert.equal(
-    detail.employee.photoUpdatedAt,
-    "2026-08-11T03:00:00.000Z",
+    detail.employee.photo,
+    "https://cdn.example.com/users/45/profile.jpg",
   );
+  assert.equal(detail.employee.photoUpdatedAt, "2026-08-11T03:00:00.000Z");
   assert.equal(
     detail.employee.avatar.photoUrl,
     "https://cdn.example.com/users/45/profile.jpg",
   );
   assert.equal(createEmptyAttendanceDetail().employee.avatar.photoUrl, null);
 });
-
 
 test("normalization rejects junk coordinates and never invents detail fields", () => {
   const detail = normalizeAttendanceDetail({

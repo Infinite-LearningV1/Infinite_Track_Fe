@@ -22,7 +22,6 @@ import {
   validateBookingManagementDateRange,
 } from "./bookingManagementDirectoryQuery.js";
 import { formatDateTime, formatDate } from "../../utils/dateTimeFormatter.js";
-import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
 import { createFocusTrap } from "../../utils/focusTrap.js";
 import { escapeHtml } from "../../utils/escapeHtml.js";
 import { createBookingDetailDrawerLifecycle } from "./bookingDetailDrawerLifecycle.js";
@@ -754,21 +753,6 @@ export function bookingListAlpineData(overrides = {}) {
       return formatDate(isoString);
     },
 
-    /**
-     * Get user initials menggunakan utility function
-     * @param {string} fullName - Full name
-     * @returns {string} - User initials
-     */
-    getInitials(fullName) {
-      return getInitials(fullName);
-    } /**
-     * Get avatar color menggunakan utility function
-     * @param {string} fullName - Full name
-     * @returns {string} - CSS classes for avatar
-     */,
-    getAvatarColor(fullName) {
-      return getAvatarColor(fullName);
-    },
     /**
      * Get suitability score color using utility function
      * @param {number} score - Suitability score

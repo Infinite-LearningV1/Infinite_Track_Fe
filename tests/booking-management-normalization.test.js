@@ -49,7 +49,6 @@ test("normalizes canonical INF-274 nested fields and preserves zero", () => {
   assert.equal(normalized.employee_avatar.photoUrl, backendRow.user_photo);
 });
 
-
 test("normalizes missing booking applicant photo to initials fallback", () => {
   const normalized = normalizeBooking({
     ...backendRow,
@@ -62,7 +61,6 @@ test("normalizes missing booking applicant photo to initials fallback", () => {
   assert.equal(normalized.employee_avatar.photoUrl, null);
   assert.equal(normalized.employee_avatar.initials, "AS");
 });
-
 
 test("normalizes rejection note and processed_by actor with canonical precedence", () => {
   const normalized = normalizeBooking({

@@ -147,7 +147,6 @@ test("booking drawer overlays the shared header like user and attendance drawers
   assert.doesNotMatch(drawer, /z-99998/);
 });
 
-
 test("booking drawer renders the selected normalized applicant avatar", () => {
   const drawer = fs.readFileSync(
     "src/partials/modal/booking-detail-drawer.html",

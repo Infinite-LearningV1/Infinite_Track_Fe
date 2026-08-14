@@ -1,3 +1,5 @@
+> **Superseded 2026-08-15:** See `docs/superpowers/plans/2026-08-15-gh-66-gh-67-wfa-date-range-dashboard-analysis.md`.
+
 # GH-66 + GH-67 WFA Management Recap Revision Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

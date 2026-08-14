@@ -1,3 +1,5 @@
+> **Superseded 2026-08-15:** See `docs/superpowers/specs/2026-08-15-gh-66-gh-67-wfa-date-range-dashboard-analysis-design.md`.
+
 # GH-66 + GH-67 WFA Management Recap Revision Design
 
 ## Status

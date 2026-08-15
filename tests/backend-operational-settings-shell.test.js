@@ -46,3 +46,14 @@ test("operational settings is wired as a main navigation item and Admin/Manageme
     "Expected role-based access map to protect /management-backend-settings.html for Admin and Management",
   );
 });
+
+test("sidebar omits the unused Others demo navigation group", () => {
+  const sidebar = fs.readFileSync(SIDEBAR_PATH, "utf8");
+
+  assert.doesNotMatch(sidebar, /Others Group/i);
+  assert.doesNotMatch(sidebar, />\s*others\s*</i);
+  assert.doesNotMatch(sidebar, />\s*UI Elements\s*</i);
+  assert.doesNotMatch(sidebar, />\s*Calender\s*</i);
+  assert.doesNotMatch(sidebar, />\s*Pages\s*</i);
+  assert.doesNotMatch(sidebar, />\s*Authentication\s*</i);
+});

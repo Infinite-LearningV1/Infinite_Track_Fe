@@ -50,8 +50,8 @@
     <div
       class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
     >
-      WFA Analysis · <span x-text="viewState.requestedWindow.from"></span> –
-      <span x-text="viewState.requestedWindow.to"></span>
+      WFA Analysis · <span x-text="viewState.requestedWindow?.from || ''"></span> –
+      <span x-text="viewState.requestedWindow?.to || ''"></span>
     </div>
   </template>
 

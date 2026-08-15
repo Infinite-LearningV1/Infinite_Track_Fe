@@ -17,6 +17,8 @@ test("FAHP partial owns stable three-option navigation and separate status", () 
 
 test("FAHP partial exposes date-range WFA academic analysis", () => {
   assert.match(partial, /WFA Analysis/);
+  assert.match(partial, /viewState\.requestedWindow\?\.from/);
+  assert.match(partial, /viewState\.requestedWindow\?\.to/);
   assert.match(partial, /Criteria Weights/);
   assert.match(partial, /Evidence/);
   assert.match(partial, /approvedBookingCount/);

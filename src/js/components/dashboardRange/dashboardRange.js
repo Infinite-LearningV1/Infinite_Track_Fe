@@ -8,6 +8,7 @@ export const DASHBOARD_RANGE_PERIODS = {
 const ALLOWED_PERIODS = new Set(Object.values(DASHBOARD_RANGE_PERIODS));
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const BUSINESS_TIME_ZONE = "Asia/Jakarta";
 
 export function createDefaultDashboardRange() {
   return {
@@ -103,6 +104,47 @@ export function buildDashboardRangeRequestParams({ period, from, to }) {
   };
 }
 
+export function resolveDashboardRangeDateWindow(
+  rangeState,
+  { today = null, now = new Date(), timeZone = BUSINESS_TIME_ZONE } = {},
+) {
+  const normalizedRange = {
+    ...createDefaultDashboardRange(),
+    ...(rangeState || {}),
+  };
+  const validation = validateDashboardRange(normalizedRange);
+
+  if (!validation.isValid) {
+    throw new Error(validation.message || "Invalid dashboard date range");
+  }
+
+  const businessToday = today || formatDateInTimeZone(now, timeZone);
+  if (!isValidDateFormat(businessToday)) {
+    throw new Error("Invalid today date");
+  }
+
+  switch (normalizedRange.period) {
+    case DASHBOARD_RANGE_PERIODS.TODAY:
+      return { from: businessToday, to: businessToday };
+    case DASHBOARD_RANGE_PERIODS.CURRENT_WEEK: {
+      const end = parseDate(businessToday);
+      const start = new Date(end.getTime() - 6 * MS_PER_DAY);
+      return { from: formatDate(start), to: businessToday };
+    }
+    case DASHBOARD_RANGE_PERIODS.CURRENT_MONTH: {
+      const end = parseDate(businessToday);
+      const start = new Date(
+        Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1),
+      );
+      return { from: formatDate(start), to: businessToday };
+    }
+    case DASHBOARD_RANGE_PERIODS.CUSTOM:
+      return { from: normalizedRange.from, to: normalizedRange.to };
+    default:
+      throw new Error("Invalid dashboard range period");
+  }
+}
+
 function isValidDateFormat(value) {
   if (!DATE_REGEX.test(value)) {
     return false;
@@ -127,4 +169,23 @@ function parseDate(value) {
   }
 
   return date;
+}
+
+function formatDateInTimeZone(date, timeZone) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    throw new Error("Invalid current date");
+  }
+
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatDate(date) {
+  return date.toISOString().slice(0, 10);
 }

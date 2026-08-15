@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildDashboardRangeRequestParams,
   createDefaultDashboardRange,
+  resolveDashboardRangeDateWindow,
   validateDashboardRange,
 } from "../src/js/components/dashboardRange/dashboardRange.js";
 
@@ -80,9 +81,7 @@ test("validateDashboardRange rejects reversed custom range", () => {
 test("buildDashboardRangeRequestParams returns only period for today", () => {
   assert.deepEqual(
     buildDashboardRangeRequestParams({ period: "today", from: null, to: null }),
-    {
-      period: "today",
-    },
+    { period: "daily" },
   );
 });
 
@@ -98,5 +97,47 @@ test("buildDashboardRangeRequestParams returns period with from/to for custom", 
       from: "2026-05-01",
       to: "2026-05-30",
     },
+  );
+});
+
+test("resolveDashboardRangeDateWindow resolves explicit WFA windows", () => {
+  assert.deepEqual(
+    resolveDashboardRangeDateWindow(
+      { period: "today", from: null, to: null },
+      { today: "2026-08-15" },
+    ),
+    { from: "2026-08-15", to: "2026-08-15" },
+  );
+  assert.deepEqual(
+    resolveDashboardRangeDateWindow(
+      { period: "current_week", from: null, to: null },
+      { today: "2026-08-15" },
+    ),
+    { from: "2026-08-09", to: "2026-08-15" },
+  );
+  assert.deepEqual(
+    resolveDashboardRangeDateWindow(
+      { period: "current_month", from: null, to: null },
+      { today: "2026-08-15" },
+    ),
+    { from: "2026-08-01", to: "2026-08-15" },
+  );
+  assert.deepEqual(
+    resolveDashboardRangeDateWindow(
+      { period: "custom", from: "2026-08-03", to: "2026-08-09" },
+      { today: "2026-08-15" },
+    ),
+    { from: "2026-08-03", to: "2026-08-09" },
+  );
+});
+
+
+test("resolveDashboardRangeDateWindow derives business today in Asia/Jakarta", () => {
+  assert.deepEqual(
+    resolveDashboardRangeDateWindow(
+      { period: "today", from: null, to: null },
+      { now: new Date("2026-07-31T17:30:00.000Z") },
+    ),
+    { from: "2026-08-01", to: "2026-08-01" },
   );
 });

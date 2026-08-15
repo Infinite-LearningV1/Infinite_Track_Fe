@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import {
   buildDashboardAnalyticsRangeDisplayValue,
   createDashboardAnalyticsHeaderState,
+  createDashboardAnalyticsPresetOptions,
+  resolveDashboardAnalyticsDateWindow,
   resolveDashboardAnalyticsSelectedLabel,
 } from "./dashboardAnalyticsHeader.js";
 
@@ -38,4 +40,23 @@ test("header state keeps the custom dashboard analytics range label in sync with
 
   assert.equal(headerState.selectedLabel, "1 Jun 2026 - 20 Jun 2026");
   assert.equal(headerState.pickerInputValue, "1 Jun 2026 - 20 Jun 2026");
+});
+
+
+test("7-day preset label and visible window use rolling seven calendar dates", () => {
+  const rangeState = { period: "current_week", from: null, to: null };
+  const now = new Date("2026-08-15T05:00:00.000Z");
+
+  assert.equal(
+    createDashboardAnalyticsPresetOptions().find((option) => option.value === "current_week")?.label,
+    "7 Hari",
+  );
+  assert.deepEqual(resolveDashboardAnalyticsDateWindow(rangeState, now), {
+    from: "2026-08-09",
+    to: "2026-08-15",
+  });
+  assert.equal(
+    buildDashboardAnalyticsRangeDisplayValue(rangeState, now),
+    "9 Agu 2026 - 15 Agu 2026",
+  );
 });

@@ -69,15 +69,32 @@ test("today preset maps dashboard analytics and geofence requests to backend dai
   };
   component.fetchGeofenceEvidence = async (params) => {
     geofenceCalls.push(params);
-    return { data: { status: "empty", raw_counts: { total_events: 0, enter_events: 0, exit_events: 0, unique_users: 0 } } };
+    return {
+      data: {
+        status: "empty",
+        raw_counts: {
+          total_events: 0,
+          enter_events: 0,
+          exit_events: 0,
+          unique_users: 0,
+        },
+      },
+    };
   };
   component.fetchTodayLocations = async () => ({ data: [] });
-  component.fetchFuzzyAhpAnalysis = async () => ({
+  component.fetchDashboardFahpAnalysis = async () => ({
     data: {
       type: "discipline",
       type_label: "Discipline",
       status: "ready",
-      criteria_weights: [{ key: "attendance", label: "Attendance", display_label: "Attendance", value: 0.45 }],
+      criteria_weights: [
+        {
+          key: "attendance",
+          label: "Attendance",
+          display_label: "Attendance",
+          value: 0.45,
+        },
+      ],
     },
   });
 
@@ -124,15 +141,32 @@ test("current week preset maps dashboard analytics and geofence requests to back
   };
   component.fetchGeofenceEvidence = async (params) => {
     geofenceCalls.push(params);
-    return { data: { status: "empty", raw_counts: { total_events: 0, enter_events: 0, exit_events: 0, unique_users: 0 } } };
+    return {
+      data: {
+        status: "empty",
+        raw_counts: {
+          total_events: 0,
+          enter_events: 0,
+          exit_events: 0,
+          unique_users: 0,
+        },
+      },
+    };
   };
   component.fetchTodayLocations = async () => ({ data: [] });
-  component.fetchFuzzyAhpAnalysis = async () => ({
+  component.fetchDashboardFahpAnalysis = async () => ({
     data: {
       type: "discipline",
       type_label: "Discipline",
       status: "ready",
-      criteria_weights: [{ key: "attendance", label: "Attendance", display_label: "Attendance", value: 0.45 }],
+      criteria_weights: [
+        {
+          key: "attendance",
+          label: "Attendance",
+          display_label: "Attendance",
+          value: 0.45,
+        },
+      ],
     },
   });
 
@@ -195,7 +229,7 @@ test("initial load fetches report, analytics, geofence, today locations, and Fuz
   component.fetchTodayLocations = createDeferredFetch("todayLocations", {
     data: [],
   });
-  component.fetchFuzzyAhpAnalysis = createDeferredFetch("fuzzyAhp", {
+  component.fetchDashboardFahpAnalysis = createDeferredFetch("fuzzyAhp", {
     data: {
       type: "discipline",
       type_label: "Discipline",
@@ -302,13 +336,21 @@ test("report range change syncs dashboard analytics to the selected custom windo
     };
   };
   component.fetchGeofenceEvidence = async () => ({
-    data: { status: "empty", raw_counts: { total_events: 0, enter_events: 0, exit_events: 0, unique_users: 0 } },
+    data: {
+      status: "empty",
+      raw_counts: {
+        total_events: 0,
+        enter_events: 0,
+        exit_events: 0,
+        unique_users: 0,
+      },
+    },
   });
   component.fetchTodayLocations = async () => {
     todayLocationCalls += 1;
     return { data: [] };
   };
-  component.fetchFuzzyAhpAnalysis = async () => {
+  component.fetchDashboardFahpAnalysis = async () => {
     fuzzyAhpCalls += 1;
     return {
       data: {
@@ -398,7 +440,7 @@ test("fuzzy ahp detail refreshes on demand using the final type contract", async
       },
     },
   });
-  component.fetchFuzzyAhpAnalysis = async (params) => {
+  component.fetchDashboardFahpAnalysis = async (params) => {
     fuzzyAhpCalls += 1;
     seenParams = params;
     return {
@@ -436,7 +478,8 @@ test("fuzzy ahp detail refreshes on demand using the final type contract", async
 
   component.pageState = {
     refreshFahpRecap: async (requestParams) => {
-      component.fuzzyAhpResponse = await component.fetchFuzzyAhpAnalysis(requestParams);
+      component.fuzzyAhpResponse =
+        await component.fetchDashboardFahpAnalysis(requestParams);
       component.rawApiData = {
         ...(component.rawApiData || {}),
         fahpRecap: {
@@ -457,7 +500,10 @@ test("fuzzy ahp detail refreshes on demand using the final type contract", async
   assert.equal(fuzzyAhp.state, "ready");
   assert.equal(fuzzyAhp.data.activeDecisionKey, "discipline");
   assert.equal(fuzzyAhp.data.decisions[0].rankings[0].label, "Tepat Waktu");
-  assert.equal(Object.prototype.hasOwnProperty.call(component.rawApiData, "fuzzyAhp"), false);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(component.rawApiData, "fuzzyAhp"),
+    false,
+  );
   assert.deepEqual(component.rawApiData.fahpRecap.request, {
     type: "discipline",
   });

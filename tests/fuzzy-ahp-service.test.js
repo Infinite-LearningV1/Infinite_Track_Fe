@@ -1,84 +1,71 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-
 import { API_CONFIG } from "../src/js/config/env.js";
 import {
   FuzzyAhpService,
-  getFuzzyAhpAnalysis,
+  getDashboardFahpAnalysis,
+  getWfaFahpAnalysis,
 } from "../src/js/services/fuzzyAhpService.js";
 
-test("FuzzyAhpService#getFuzzyAhpAnalysis requests dashboard recap endpoint with independent filter params", async () => {
-  const seenConfigs = [];
+test("dashboard transport keeps Discipline on generic endpoint", async () => {
+  const seen = [];
   const service = new FuzzyAhpService(async (config) => {
-    seenConfigs.push(config);
-    return { data: { rankings: [{ key: "discipline", score: 0.91 }] } };
+    seen.push(config);
+    return {
+      data: { success: true, data: { type: "discipline", status: "ready" } },
+    };
   });
-
-  const response = await service.getFuzzyAhpAnalysis({
-    category: "discipline",
-    analysis_type: null,
-  });
-
-  assert.deepEqual(seenConfigs, [
+  await service.getDashboardFahpAnalysis({ type: "discipline" });
+  assert.deepEqual(seen, [
     {
       method: "get",
-      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/dashboard-recap`,
-      params: {
-        category: "discipline",
-        analysis_type: null,
-      },
+      url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/dashboard`,
+      params: { type: "discipline" },
     },
   ]);
-  assert.deepEqual(response, {
-    rankings: [{ key: "discipline", score: 0.91 }],
+});
+test("dashboard transport sends explicit WFA date range", async () => {
+  const seen = [];
+  const service = new FuzzyAhpService(async (config) => {
+    seen.push(config);
+    return { data: { success: true, data: { type: "wfa", status: "empty" } } };
+  });
+  await service.getDashboardFahpAnalysis({
+    type: "wfa",
+    from: "2026-08-01",
+    to: "2026-08-15",
+  });
+  assert.deepEqual(seen[0].params, {
+    type: "wfa",
+    from: "2026-08-01",
+    to: "2026-08-15",
   });
 });
-
-test("FuzzyAhpService#getFuzzyAhpAnalysis rejects invalid category", async () => {
+test("dashboard WFA transport requires explicit date range", async () => {
   const service = new FuzzyAhpService(async () => ({ data: {} }));
-
   await assert.rejects(
-    service.getFuzzyAhpAnalysis({ category: "invalid-type" }),
-    /invalid category/i,
+    service.getDashboardFahpAnalysis({ type: "wfa" }),
+    /requires from and to/i,
   );
 });
-
-test("FuzzyAhpService#getFuzzyAhpAnalysis rejects invalid analysis_type", async () => {
-  const service = new FuzzyAhpService(async () => ({ data: {} }));
-
-  await assert.rejects(
-    service.getFuzzyAhpAnalysis({ category: "wfa", analysis_type: "daily" }),
-    /invalid analysis_type/i,
-  );
-});
-
-test("FuzzyAhpService#getFuzzyAhpAnalysis propagates request errors", async () => {
-  const requestError = new Error("fuzzy ahp request failed");
-  const service = new FuzzyAhpService(async () => {
-    throw requestError;
+test("WFA transport uses dedicated endpoint", async () => {
+  const seen = [];
+  const service = new FuzzyAhpService(async (config) => {
+    seen.push(config);
+    return { data: { success: true, data: { candidates: [] } } };
   });
-
-  await assert.rejects(
-    service.getFuzzyAhpAnalysis({
-      category: "smart_ac",
-      analysis_type: "summary",
-    }),
-    (error) => {
-      assert.equal(error, requestError);
-      return true;
-    },
-  );
+  await service.getWfaFahpAnalysis({
+    lat: -6.2,
+    lon: 106.816666,
+    schedule_date: "2026-08-14",
+  });
+  assert.deepEqual(seen[0], {
+    method: "get",
+    url: `${API_CONFIG.BASE_URL}/analysis/fuzzy-ahp/wfa`,
+    params: { lat: -6.2, lon: 106.816666, schedule_date: "2026-08-14" },
+  });
 });
-
-test("FuzzyAhpService#getFuzzyAhpAnalysis rejects legacy type semantics without category", async () => {
-  const service = new FuzzyAhpService(async () => ({ data: {} }));
-
-  await assert.rejects(
-    service.getFuzzyAhpAnalysis({ type: "discipline" }),
-    /invalid category/i,
-  );
-});
-
-test("getFuzzyAhpAnalysis convenience export exists", () => {
-  assert.equal(typeof getFuzzyAhpAnalysis, "function");
+test("explicit service exports exist", () => {
+  assert.equal(typeof getDashboardFahpAnalysis, "function");
+  assert.equal(typeof getWfaFahpAnalysis, "function");
 });

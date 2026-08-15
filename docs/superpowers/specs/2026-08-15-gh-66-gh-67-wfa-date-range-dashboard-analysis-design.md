@@ -2,7 +2,7 @@
 
 ## Status
 
-**Approved product/architecture direction, written revision for review â€” 2026-08-15.**
+**Approved and synchronized with Web FE GH-66/GH-67 plus Backend #142 â€” 2026-08-15.**
 
 This document supersedes the WFA-specific semantics in:
 
@@ -12,7 +12,13 @@ This document supersedes the WFA-specific semantics in:
 
 The GH-66 navigation decision remains unchanged: the Fuzzy AHP Decision Center has exactly three navigation options: `Discipline | WFA | Smart AC`. Runtime status is not a fourth tab.
 
-Backend tracking authority for this revision is GitHub issue `Infinite-LearningV1/Infinit_Track_BE#142`.
+Tracking authority for this revision:
+
+- Web FE GH-66 â€” `[Web FE] Fix FAHP dashboard error-state tabs so status does not render like a fourth tab`;
+- Web FE GH-67 â€” `[Web FE] Adopt date-range WFA FAHP on existing dashboard analysis contract`;
+- Backend `Infinite-LearningV1/Infinit_Track_BE#142` â€” `[Backend] Reuse dashboard FAHP endpoint for date-range WFA analysis`.
+
+GH-67 explicitly supersedes its earlier manual `lat/lon/schedule_date/radius` Management Dashboard contract. The live WFA endpoint remains valid only for genuine live recommendation consumers.
 
 ## Why This Revision Exists
 
@@ -528,6 +534,20 @@ The older generic `/api/analysis/fuzzy-ahp?type=wfa` path may remain retired wit
 
 No WFA change may regress their current route behavior or response semantics.
 
+## Web FE GH-67 Contract Synchronization
+
+The updated GH-67 issue is the Web FE implementation authority for this design. The following are issue-level locked behaviors, not optional presentation suggestions:
+
+- Management WFA calls `getDashboardFahpAnalysis({ type: "wfa", from, to })`;
+- Management WFA does not call `getWfaFahpAnalysis(...)`;
+- `Today | 7 Days | Current Month | Custom` are UI presets only and resolve to explicit `from/to`;
+- changing the Dashboard range while WFA is active invalidates stale WFA output and refetches with the new concrete range;
+- manual latitude, longitude, schedule date, radius, and `Run WFA Analysis` controls are removed from the Management Dashboard;
+- `ready`, `empty`, `needs_data`, and transport/contract error remain distinct presentation states;
+- wrong-type payloads, especially Smart AC user ranking semantics, fail closed instead of rendering under WFA.
+
+The issue does not authorize client-side FAHP calculation, score reconstruction, booking aggregation, physical-location grouping, or methodology inference.
+
 ## Web FE Request Ownership
 
 Management WFA removes all manual live-analysis context:
@@ -717,7 +737,7 @@ TDD must prove:
 - Active type is the only presentation contract selector.
 - No stale cross-type decision is visible during loading/error.
 
-### GH-67 + Backend #142
+### GH-67 `[Web FE] Adopt date-range WFA FAHP on existing dashboard analysis contract` + Backend #142
 
 - No new `/wfa/recap` endpoint exists.
 - WFA Management analysis reuses `/api/analysis/fuzzy-ahp/dashboard`.

@@ -12,7 +12,7 @@
 
 - Source spec: `docs/superpowers/specs/2026-08-15-gh-66-gh-67-wfa-date-range-dashboard-analysis-design.md`.
 - Backend tracking issue: `Infinite-LearningV1/Infinit_Track_BE#142`.
-- Web FE tracking: GH-66 navigation/status isolation and GH-67 WFA contract adoption.
+- Web FE tracking: GH-66 navigation/status isolation and GH-67 `[Web FE] Adopt date-range WFA FAHP on existing dashboard analysis contract`.
 - Do **not** add `/api/analysis/fuzzy-ahp/wfa/recap`.
 - Reuse `GET /api/analysis/fuzzy-ahp/dashboard?type=wfa&from=YYYY-MM-DD&to=YYYY-MM-DD`.
 - Keep `GET /api/analysis/fuzzy-ahp/wfa?lat&lon&schedule_date[&radius_meters]` as live recommendation only.
@@ -41,6 +41,31 @@
 Current Backend `Booking` stores `suitability_score`, `suitability_label`, and `radius_snapshot` but not `location_type_score`, `distance_factor_score`, or `facility_score`. The live recommendation pipeline computes the three criteria before producing `final_score`.
 
 Therefore the old 2026-08-13 recap plan is invalid for the new academic claim. Averaging final scores may be a historical recap, but it cannot be labeled as freshly reproducible date-range FAHP criteria analysis. This plan first fixes evidence persistence, then builds date-range analysis from compatible snapshots.
+
+## Web FE GH-67 Synchronization Checkpoint
+
+This plan implements the rewritten GH-67 issue, not the original explicit-context issue body. The following old acceptance paths are retired:
+
+```text
+Dashboard WFA -> /analysis/fuzzy-ahp/wfa?lat&lon&schedule_date
+manual latitude/longitude input
+manual schedule date input
+manual radius input
+Run WFA Analysis button
+```
+
+The replacement path is canonical:
+
+```text
+Dashboard range preset/state
+-> deterministic explicit {from,to}
+-> getDashboardFahpAnalysis({ type: 'wfa', from, to })
+-> /analysis/fuzzy-ahp/dashboard
+-> strict WFA date-range normalizer
+-> methodology + location ranking + evidence UI
+```
+
+GH-67 completion requires range changes while WFA is active to refetch the analysis, and wrong-type/Smart AC payloads must fail closed. No task may retain the old manual-input behavior merely to preserve provisional tests.
 
 ## File Responsibility Map
 
@@ -819,7 +844,7 @@ Set dashboard types to:
 new Set(["discipline", "wfa", "smart_ac"]);
 ```
 
-For WFA, require non-empty `from/to` and send them. Keep `getWfaFahpAnalysis` available only if another live recommendation consumer still needs it; Dashboard orchestration must stop using it.
+For WFA, require non-empty `from/to` and send them. Preserve `getWfaFahpAnalysis` only as a live-analysis service API for genuine non-Dashboard consumers; after Task 7, the Management Dashboard must have zero imports/calls to it.
 
 - [ ] **Step 6: Run GREEN and commit**
 
@@ -971,7 +996,7 @@ assert.deepEqual(fetchDashboardFahpAnalysis.mock.calls.at(-1)[0], {
 
 Use injected/fixed Dashboard range state in the test.
 
-Assert changing Dashboard range while WFA active triggers a new WFA Dashboard request using the new explicit boundaries.
+Assert changing Dashboard range while WFA active first invalidates the old WFA decision, then triggers a new WFA Dashboard request using the new explicit boundaries. The previous ranking must not remain visible while that request is pending.
 
 - [ ] **Step 2: Replace template expectations and verify RED**
 
@@ -1150,5 +1175,7 @@ Do not call the implementation complete until all of these are true:
 - Academic weights + CR + ranking are Backend-authored and rendered.
 - Live WFA route and Discipline/Smart AC regressions are green.
 - Web FE manual WFA context is removed from Management Dashboard.
+- Web FE GH-67 uses only Dashboard `type=wfa&from&to` transport for Management WFA and refetches on active range changes.
+- Wrong-type/Smart AC payloads cannot render under active WFA.
 - Focused tests, lint/build, diff checks, and runtime evidence are recorded.
 - No push/PR has occurred unless explicitly authorized.

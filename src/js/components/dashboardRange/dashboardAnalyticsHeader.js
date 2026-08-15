@@ -1,6 +1,7 @@
 import {
   createDefaultDashboardRange,
   DASHBOARD_RANGE_PERIODS,
+  resolveDashboardRangeDateWindow,
   validateDashboardRange,
 } from "./dashboardRange.js";
 
@@ -15,7 +16,7 @@ const DISPLAY_DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
 export function createDashboardAnalyticsPresetOptions() {
   return [
     { value: DASHBOARD_RANGE_PERIODS.TODAY, label: "Hari ini" },
-    { value: DASHBOARD_RANGE_PERIODS.CURRENT_WEEK, label: "Minggu ini" },
+    { value: DASHBOARD_RANGE_PERIODS.CURRENT_WEEK, label: "7 Hari" },
     { value: DASHBOARD_RANGE_PERIODS.CURRENT_MONTH, label: "Bulan ini" },
   ];
 }
@@ -107,8 +108,6 @@ export function resolveDashboardAnalyticsDateWindow(
   rangeState,
   now = new Date(),
 ) {
-  const today = createStartOfDay(now);
-
   if (rangeState.period === DASHBOARD_RANGE_PERIODS.CUSTOM) {
     return {
       from: rangeState.from,
@@ -116,35 +115,14 @@ export function resolveDashboardAnalyticsDateWindow(
     };
   }
 
-  if (rangeState.period === DASHBOARD_RANGE_PERIODS.CURRENT_MONTH) {
+  try {
+    return resolveDashboardRangeDateWindow(rangeState, { now });
+  } catch {
     return {
-      from: toIsoDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-      to: toIsoDate(today),
+      from: null,
+      to: null,
     };
   }
-
-  if (rangeState.period === DASHBOARD_RANGE_PERIODS.TODAY) {
-    return {
-      from: toIsoDate(today),
-      to: toIsoDate(today),
-    };
-  }
-
-  if (rangeState.period === DASHBOARD_RANGE_PERIODS.CURRENT_WEEK) {
-    const from = new Date(today);
-    const dayOffset = (from.getDay() + 6) % 7;
-    from.setDate(from.getDate() - dayOffset);
-
-    return {
-      from: toIsoDate(from),
-      to: toIsoDate(today),
-    };
-  }
-
-  return {
-    from: null,
-    to: null,
-  };
 }
 
 export function resolveDashboardAnalyticsSelectedLabel(
@@ -301,10 +279,6 @@ function toIsoDate(date) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
-}
-
-function createStartOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function scheduleRetry(callback) {

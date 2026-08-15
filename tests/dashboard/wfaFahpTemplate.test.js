@@ -19,6 +19,8 @@ test("FAHP partial exposes date-range WFA academic analysis", () => {
   assert.match(partial, /WFA Analysis/);
   assert.match(partial, /Criteria Weights/);
   assert.match(partial, /Evidence/);
+  assert.match(partial, /approvedBookingCount/);
+  assert.match(partial, /analyzableBookingCount/);
   assert.doesNotMatch(
     partial,
     /runWfaFahpAnalysis|wfaFahpContext|Latitude|Longitude|Schedule date|Radius meters|Run WFA Analysis/,

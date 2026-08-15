@@ -1811,6 +1811,15 @@ function createFuzzyAhpFallbackData(activeType = "discipline") {
   };
 }
 
+function buildFuzzyAhpLoadingPanel(activeType = "discipline") {
+  return createPanel({
+    ...getBottomPanelDefinition("fuzzyAhp"),
+    state: DASHBOARD_PANEL_STATES.LOADING,
+    message: "Loading Fuzzy AHP analysis.",
+    data: createFuzzyAhpFallbackData(activeType),
+  });
+}
+
 function buildExplicitFuzzyAhpPanel(
   fuzzyAhp = null,
   fuzzyAhpError = null,
@@ -1867,7 +1876,9 @@ function buildExplicitFuzzyAhpPanel(
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
       message:
-        "Fuzzy AHP backend payload reports needs_data for this dashboard scope.",
+        fuzzyAhp.type === "wfa"
+          ? "Approved WFA bookings exist in the selected date range, but reproducible FAHP criterion evidence is insufficient."
+          : "Fuzzy AHP backend payload reports needs_data for this dashboard scope.",
       note: "Decision support output is shown only from the explicit backend Fuzzy AHP feed.",
       data: {
         ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
@@ -1881,7 +1892,9 @@ function buildExplicitFuzzyAhpPanel(
       ...getBottomPanelDefinition("fuzzyAhp"),
       state: DASHBOARD_PANEL_STATES.EMPTY,
       message:
-        "Fuzzy AHP backend feed returned no recap output for this dashboard scope.",
+        fuzzyAhp.type === "wfa"
+          ? "No eligible Approved WFA evidence exists in the selected date range."
+          : "Fuzzy AHP backend feed returned no recap output for this dashboard scope.",
       note: "Web FE will not substitute dummy Fuzzy AHP decisions for empty backend output.",
       data: {
         ...createFuzzyAhpFallbackData(fuzzyAhp.type || "discipline"),
@@ -2093,6 +2106,7 @@ export function createDashboardCockpitStateFromSources({
   geofenceEvidenceResponse = null,
   geofenceEvidenceError = null,
   fuzzyAhpActiveType = "discipline",
+  fuzzyAhpLoading = false,
 } = {}) {
   const analytics = normalizeCockpitAnalyticsResponse(analyticsResponse);
   const fuzzyAhpNormalization = normalizeFuzzyAhpResponse(
@@ -2115,11 +2129,13 @@ export function createDashboardCockpitStateFromSources({
       buildModeMixPanel(analytics, analyticsError),
     ],
     bottomPanels: [
-      buildExplicitFuzzyAhpPanel(
-        fuzzyAhp,
-        effectiveFuzzyAhpError,
-        fuzzyAhpActiveType,
-      ),
+      fuzzyAhpLoading
+        ? buildFuzzyAhpLoadingPanel(fuzzyAhpActiveType)
+        : buildExplicitFuzzyAhpPanel(
+            fuzzyAhp,
+            effectiveFuzzyAhpError,
+            fuzzyAhpActiveType,
+          ),
       buildGeofenceEvidencePanel(
         geofenceEvidenceResponse,
         geofenceEvidenceError,

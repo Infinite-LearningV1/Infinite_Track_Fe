@@ -63,8 +63,9 @@ test("dashboard stats partial renders the analytics header, KPI shell, and expor
   assert.match(statsPartial, /getCockpitKpiDisplayValue\(card\)/);
   assert.match(statsPartial, /getCockpitKpiSupportText\(card\)/);
   assert.match(exportReportModal, /Export Attendance Report/);
-  assert.match(exportReportModal, /PDF Report/);
-  assert.match(exportReportModal, /Excel Workbook/);
+  assert.match(exportReportModal, /x-text="card\.title"/);
+  assert.match(exportReportModal, /card\.value === 'pdf'/);
+  assert.match(exportReportModal, /card\.value === 'excel'/);
   assert.match(exportReportModal, /@click="selectExportFormat\(card\.value\)"/);
 
   assert.match(analyticsHeaderPartial, /Dashboard Analytics/);
@@ -443,12 +444,9 @@ test("dashboard cockpit grid renders map-only hero, preview trend, and backend-d
     /class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white\/\[0\.03\]"/,
   );
   assert.match(cockpitGrid, /x-if="!usesCustomReadyLayout"/);
-  assert.match(dashboardCockpitService, /PREVIEW_GEOFENCE_EVIDENCE/);
+  assert.doesNotMatch(dashboardCockpitService, /PREVIEW_GEOFENCE_EVIDENCE/);
+  assert.match(dashboardCockpitService, /buildGeofenceEvidenceViewModel/);
   assert.match(dashboardCockpitService, /Geofence Operational Context/);
-  assert.match(dashboardCockpitService, /enter_events: 24/);
-  assert.match(dashboardCockpitService, /exit_events: 21/);
-  assert.match(dashboardCockpitService, /total_events: 45/);
-  assert.match(dashboardCockpitService, /unique_users: 12/);
   assert.match(geofenceEvidencePartial, /x-text="viewState\.title"/);
   assert.match(
     geofenceEvidencePartial,
@@ -524,9 +522,9 @@ test("dashboard cockpit grid renders map-only hero, preview trend, and backend-d
   );
   assert.match(fuzzyAhpPartial, /dark:bg-white\/\[0\.03\]/);
   assert.match(fuzzyAhpPartial, /dark:bg-gray-900/);
-  assert.match(fuzzyAhpPartial, /<ul class="flex flex-col/);
-  assert.match(fuzzyAhpPartial, /<li class="flex items-center gap-2/);
-  assert.match(fuzzyAhpPartial, /class="min-w-0 flex-1 truncate/);
+  assert.match(fuzzyAhpPartial, /<ul[\s\S]*class="mt-3 flex flex-col/);
+  assert.match(fuzzyAhpPartial, /<li[\s\S]*class="flex items-center gap-2/);
+  assert.match(fuzzyAhpPartial, /class="min-w-0 flex-1"/);
   assert.match(fuzzyAhpPartial, /last:border-b-0/);
   assert.match(fuzzyAhpPartial, /dark:text-gray-400/);
   assert.match(fuzzyAhpPartial, /text-success-600 dark:text-success-500/);

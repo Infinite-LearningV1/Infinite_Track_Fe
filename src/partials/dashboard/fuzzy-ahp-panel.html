@@ -194,6 +194,11 @@
                     class="block truncate text-[11px] text-gray-500 dark:text-gray-400"
                     x-text="ranking.secondaryLabel"
                   ></span>
+                  <span
+                    x-show="viewState.kind === 'wfa_date_range_analysis'"
+                    class="block text-[10px] text-gray-400 dark:text-gray-500"
+                    x-text="`${ranking.approvedBookingCount ?? 0} approved · ${ranking.analyzableBookingCount ?? 0} analyzable`"
+                  ></span>
                 </div>
                 <span
                   class="shrink-0 text-right text-xs font-semibold text-gray-700 dark:text-gray-200"

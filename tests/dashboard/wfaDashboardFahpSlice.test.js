@@ -120,3 +120,16 @@ test("rejects missing window and invalid evidence counts", () => {
     /evidence/i,
   );
 });
+
+
+test("rejects a WFA response whose requested window does not match the request", () => {
+  assert.throws(
+    () =>
+      createWfaDashboardFahpSliceState(response(), {
+        type: "wfa",
+        from: "2026-08-02",
+        to: "2026-08-15",
+      }),
+    /requested_window.*request/i,
+  );
+});

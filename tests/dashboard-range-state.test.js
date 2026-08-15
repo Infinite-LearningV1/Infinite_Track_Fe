@@ -130,3 +130,14 @@ test("resolveDashboardRangeDateWindow resolves explicit WFA windows", () => {
     { from: "2026-08-03", to: "2026-08-09" },
   );
 });
+
+
+test("resolveDashboardRangeDateWindow derives business today in Asia/Jakarta", () => {
+  assert.deepEqual(
+    resolveDashboardRangeDateWindow(
+      { period: "today", from: null, to: null },
+      { now: new Date("2026-07-31T17:30:00.000Z") },
+    ),
+    { from: "2026-08-01", to: "2026-08-01" },
+  );
+});

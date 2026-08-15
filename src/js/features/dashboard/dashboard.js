@@ -1001,6 +1001,7 @@ export function dashboard() {
       fuzzyAhpError = this.fuzzyAhpError,
       geofenceEvidenceResponse = this.geofenceEvidenceResponse,
       geofenceEvidenceError = this.geofenceEvidenceError,
+      fuzzyAhpLoading = false,
     } = {}) {
       this.cockpit = createDashboardCockpitStateFromSources({
         reportResponse,
@@ -1013,6 +1014,7 @@ export function dashboard() {
         geofenceEvidenceResponse,
         geofenceEvidenceError,
         fuzzyAhpActiveType: this.fahpFilterState.type,
+        fuzzyAhpLoading,
       });
     },
 
@@ -1836,11 +1838,13 @@ export function dashboard() {
         ...requestParams,
       };
 
+      this.fuzzyAhpResponse = null;
       this.fuzzyAhpError = null;
       await this.applyCockpitSurfaceState({
         reportResponse: currentReportResponse,
         fuzzyAhpResponse: null,
         fuzzyAhpError: null,
+        fuzzyAhpLoading: true,
       });
 
       const fahpSlice = this.pageState

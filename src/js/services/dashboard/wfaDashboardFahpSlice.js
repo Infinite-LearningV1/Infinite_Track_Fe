@@ -143,6 +143,13 @@ function normalizeResponse(response) {
 export function createWfaDashboardFahpSliceState(response, request = null) {
   const { data, criteriaWeights, rankingPreview, evidence } =
     normalizeResponse(response);
+  if (
+    request?.type === "wfa" &&
+    (request.from !== data.requested_window.from ||
+      request.to !== data.requested_window.to)
+  ) {
+    throw new Error("WFA dashboard requested_window does not match request");
+  }
   return {
     kind: "wfa_date_range_analysis",
     type: "wfa",

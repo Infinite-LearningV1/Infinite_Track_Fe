@@ -103,3 +103,20 @@ test("loading and error preserve three options and active type", () => {
     assert.equal(panel.data.typeOptions.length, 3);
   }
 });
+
+
+test("WFA empty and needs-data states explain date-range evidence truthfully", () => {
+  for (const [status, expected] of [
+    ["empty", /No eligible Approved WFA evidence exists in the selected date range/i],
+    ["needs_data", /Approved WFA bookings exist in the selected date range.*reproducible FAHP criterion evidence is insufficient/i],
+  ]) {
+    const response = structuredClone(rankedResponse);
+    response.data.status = status;
+    response.data.ranking_preview.items = [];
+    const panel = createDashboardCockpitStateFromSources({
+      fuzzyAhpResponse: response,
+      fuzzyAhpActiveType: "wfa",
+    }).bottomPanels.find((item) => item.key === "fuzzyAhp");
+    assert.match(panel.message, expected);
+  }
+});

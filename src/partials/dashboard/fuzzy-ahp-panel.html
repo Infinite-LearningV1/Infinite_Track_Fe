@@ -5,12 +5,26 @@
   <div
     class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
   >
-    <div class="min-w-0 space-y-1">
+    <div data-fahp-heading-row class="flex min-w-0 items-center gap-2">
       <h4
         class="text-xl leading-tight font-semibold tracking-[-0.025em] text-gray-900 dark:text-white"
       >
         Fuzzy AHP Decision Center
       </h4>
+      <div data-fahp-status class="flex shrink-0 items-center">
+        <span
+          class="rounded-full px-2.5 py-1 text-xs font-medium"
+          :class="{
+          'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': panel.state === 'loading',
+          'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': panel.state === 'ready',
+          'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': panel.state === 'empty',
+          'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': panel.state === 'needsData',
+          'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300': panel.state === 'backendRequired',
+          'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': panel.state === 'error'
+        }"
+          x-text="panel.stateLabel"
+        ></span>
+      </div>
     </div>
 
     <nav
@@ -29,21 +43,6 @@
         ></button>
       </template>
     </nav>
-  </div>
-
-  <div data-fahp-status class="mt-3 flex items-center gap-2">
-    <span
-      class="rounded-full px-2.5 py-1 text-xs font-medium"
-      :class="{
-      'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300': panel.state === 'loading',
-      'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300': panel.state === 'ready',
-      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300': panel.state === 'empty',
-      'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300': panel.state === 'needsData',
-      'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300': panel.state === 'backendRequired',
-      'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300': panel.state === 'error'
-    }"
-      x-text="panel.stateLabel"
-    ></span>
   </div>
 
   <template x-if="fahpFilterState.type === 'wfa' && viewState.requestedWindow">
@@ -214,35 +213,6 @@
           </ul>
         </section>
       </div>
-    </div>
-  </template>
-
-  <template
-    x-if="panel.state === 'ready' && viewState.kind === 'wfa_date_range_analysis'"
-  >
-    <div
-      class="mt-4 grid gap-3 text-xs text-gray-600 sm:grid-cols-2 dark:text-gray-300"
-    >
-      <section
-        class="rounded-xl border border-gray-200 px-3 py-3 dark:border-gray-800"
-      >
-        <p class="font-semibold text-gray-800 dark:text-white/90">Evidence</p>
-        <p
-          class="mt-1"
-          x-text="`${viewState.evidence?.analyzable_booking_count ?? 0} of ${viewState.evidence?.approved_booking_count ?? 0} Approved bookings have reproducible FAHP evidence.`"
-        ></p>
-      </section>
-      <section
-        class="rounded-xl border border-gray-200 px-3 py-3 dark:border-gray-800"
-      >
-        <p class="font-semibold text-gray-800 dark:text-white/90">
-          Methodology
-        </p>
-        <p
-          class="mt-1"
-          x-text="`${viewState.methodology?.version || '—'} · ${viewState.methodology?.weightingMethod || '—'}`"
-        ></p>
-      </section>
     </div>
   </template>
 

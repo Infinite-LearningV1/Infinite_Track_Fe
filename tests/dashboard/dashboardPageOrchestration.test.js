@@ -2,70 +2,120 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { dashboard } from "../../src/js/features/dashboard/dashboard.js";
 
-test("selecting WFA changes active type without sending a request", async () => {
+test("selecting WFA resolves range and uses dashboard transport", async () => {
   const component = dashboard();
-  let genericCalls = 0;
-  let wfaCalls = 0;
-  component.fetchDashboardFahpAnalysis = async () => {
-    genericCalls += 1;
+  component.dashboardRangeState = {
+    period: "custom",
+    from: "2026-08-01",
+    to: "2026-08-15",
   };
-  component.fetchWfaFahpAnalysis = async () => {
-    wfaCalls += 1;
-  };
-  await component.selectFahpType("wfa");
-  assert.equal(component.fahpFilterState.type, "wfa");
-  assert.equal(genericCalls, 0);
-  assert.equal(wfaCalls, 0);
-});
-
-test("invalid WFA context blocks transport", async () => {
-  const component = dashboard();
-  let calls = 0;
-  component.fetchWfaFahpAnalysis = async () => {
-    calls += 1;
-  };
-  await component.selectFahpType("wfa");
-  assert.equal(await component.runWfaFahpAnalysis(), false);
-  assert.equal(calls, 0);
-  assert.match(
-    component.wfaFahpContext.validationError,
-    /latitude|longitude|date/i,
-  );
-});
-
-test("valid WFA context calls dedicated transport and stores WFA slice", async () => {
-  const component = dashboard();
-  component.applyCockpitSurfaceState = () => {};
-  const seen = [];
-  component.fetchWfaFahpAnalysis = async (params) => {
-    seen.push(params);
+  component.dashboardRange = "custom";
+  const calls = [];
+  component.fetchDashboardFahpAnalysis = async (params) => {
+    calls.push(params);
     return {
       success: true,
       data: {
-        candidates: [],
+        type: "wfa",
+        status: "empty",
+        requested_window: { from: params.from, to: params.to },
+        criteria_weights: [
+          { key: "location_type", value: 0.4 },
+          { key: "distance_factor", value: 0.3 },
+          { key: "facility_score", value: 0.3 },
+        ],
+        consistency: { CR: 0.06, threshold: 0.1, is_consistent: true },
         methodology: {
-          criteria_weights: {
-            location_type: 0.4,
-            distance_factor: 0.3,
-            facility_score: 0.3,
-            consistency_ratio: 0.06,
-          },
+          version: "wfa_fahp_v1",
+          weighting_method: "backend-authored",
+        },
+        ranking_preview: { top_n: 5, items: [] },
+        evidence: {
+          approved_booking_count: 0,
+          analyzable_booking_count: 0,
+          excluded_missing_snapshot_count: 0,
+          excluded_incompatible_snapshot_count: 0,
+          unique_location_count: 0,
+          ranked_location_count: 0,
         },
       },
     };
   };
-  component.wfaFahpContext = {
-    latitude: "-6.2",
-    longitude: "106.8",
-    scheduleDate: "2026-08-14",
-    radiusMeters: "",
-    validationError: null,
+  component.applyCockpitSurfaceState = () => {};
+  await component.selectFahpType("wfa");
+  assert.equal(component.fahpFilterState.type, "wfa");
+  assert.deepEqual(calls.at(-1), {
+    type: "wfa",
+    from: "2026-08-01",
+    to: "2026-08-15",
+  });
+});
+
+test("WFA range change invalidates stale result before refetch", async () => {
+  const component = dashboard();
+  component.fahpFilterState = { type: "wfa" };
+  component.dashboardRange = "custom";
+  component.dashboardRangeState = {
+    period: "custom",
+    from: "2026-08-01",
+    to: "2026-08-15",
   };
-  assert.equal(await component.runWfaFahpAnalysis(), true);
-  assert.deepEqual(seen, [
-    { lat: -6.2, lon: 106.8, schedule_date: "2026-08-14" },
-  ]);
-  assert.equal(component.rawApiData.wfaFahp.data.type, "wfa");
+  component.fuzzyAhpResponse = { stale: true };
+  component.applyCockpitSurfaceState = () => {};
+  component.showNotification = () => {};
+  component.fetchSummaryReport = async () => ({
+    summary: { total_ontime: 0, total_late: 0, total_alpha: 0 },
+    report: { data: [], pagination: {} },
+  });
+  component.fetchDashboardAnalytics = async () => ({ analytics: {} });
+  component.fetchGeofenceEvidence = async () => ({ data: {} });
+  component.fetchTodayLocations = async () => ({ data: [] });
+  const calls = [];
+  component.fetchDashboardFahpAnalysis = async (params) => {
+    calls.push(params);
+    return {
+      success: true,
+      data: {
+        type: "wfa",
+        status: "empty",
+        requested_window: params,
+        criteria_weights: [
+          { key: "location_type", value: 0.4 },
+          { key: "distance_factor", value: 0.3 },
+          { key: "facility_score", value: 0.3 },
+        ],
+        consistency: { CR: 0.06, threshold: 0.1, is_consistent: true },
+        methodology: {
+          version: "wfa_fahp_v1",
+          weighting_method: "backend-authored",
+        },
+        ranking_preview: { top_n: 5, items: [] },
+        evidence: {
+          approved_booking_count: 0,
+          analyzable_booking_count: 0,
+          excluded_missing_snapshot_count: 0,
+          excluded_incompatible_snapshot_count: 0,
+          unique_location_count: 0,
+          ranked_location_count: 0,
+        },
+      },
+    };
+  };
+  component.dashboardRangeState = {
+    period: "custom",
+    from: "2026-08-03",
+    to: "2026-08-09",
+  };
+  await component.onDashboardRangeChange();
+  assert.deepEqual(calls.at(-1), {
+    type: "wfa",
+    from: "2026-08-03",
+    to: "2026-08-09",
+  });
+  assert.equal(
+    component.fuzzyAhpResponse.data.requested_window.from,
+    "2026-08-03",
+  );
 });
 
 import { createDashboardPageState } from "../../src/js/features/dashboard/dashboard.js";

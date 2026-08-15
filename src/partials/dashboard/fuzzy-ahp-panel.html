@@ -46,59 +46,13 @@
     ></span>
   </div>
 
-  <template x-if="fahpFilterState.type === 'wfa'">
-    <form
-      class="mt-4 grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 md:grid-cols-2 xl:grid-cols-4 dark:border-gray-800 dark:bg-gray-900"
-      @submit.prevent="runWfaFahpAnalysis()"
+  <template x-if="fahpFilterState.type === 'wfa' && viewState.requestedWindow">
+    <div
+      class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
     >
-      <label class="text-xs font-medium text-gray-600 dark:text-gray-300"
-        >Latitude<input
-          type="number"
-          step="any"
-          x-model="wfaFahpContext.latitude"
-          @input="invalidateWfaFahpResult()"
-          class="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-950"
-      /></label>
-      <label class="text-xs font-medium text-gray-600 dark:text-gray-300"
-        >Longitude<input
-          type="number"
-          step="any"
-          x-model="wfaFahpContext.longitude"
-          @input="invalidateWfaFahpResult()"
-          class="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-950"
-      /></label>
-      <label class="text-xs font-medium text-gray-600 dark:text-gray-300"
-        >Schedule date<input
-          type="date"
-          x-model="wfaFahpContext.scheduleDate"
-          @input="invalidateWfaFahpResult()"
-          class="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-950"
-      /></label>
-      <label class="text-xs font-medium text-gray-600 dark:text-gray-300"
-        >Radius meters (optional)<input
-          type="number"
-          min="1"
-          step="1"
-          x-model="wfaFahpContext.radiusMeters"
-          @input="invalidateWfaFahpResult()"
-          class="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-950"
-      /></label>
-      <div
-        class="flex flex-wrap items-center justify-between gap-3 md:col-span-2 xl:col-span-4"
-      >
-        <p
-          x-show="wfaFahpContext.validationError"
-          class="text-error-600 dark:text-error-400 text-xs"
-          x-text="wfaFahpContext.validationError"
-        ></p>
-        <button
-          type="submit"
-          class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white"
-        >
-          Run WFA Analysis
-        </button>
-      </div>
-    </form>
+      WFA Analysis · <span x-text="viewState.requestedWindow.from"></span> –
+      <span x-text="viewState.requestedWindow.to"></span>
+    </div>
   </template>
 
   <template x-if="panel.state === 'ready' && viewState.activeDecision">
@@ -245,11 +199,45 @@
                   class="shrink-0 text-right text-xs font-semibold text-gray-700 dark:text-gray-200"
                   x-text="ranking.scoreLabel"
                 ></span>
+                <span
+                  x-show="viewState.kind === 'wfa_date_range_analysis' && ranking.criteriaSummary"
+                  class="hidden text-[10px] text-gray-400 sm:block"
+                  x-text="ranking.criteriaSummary ? `Tipe ${ranking.criteriaSummary.location_type_score} · Jarak ${ranking.criteriaSummary.distance_factor_score} · Fasilitas ${ranking.criteriaSummary.facility_score}` : ''"
+                ></span>
               </li>
             </template>
           </ul>
         </section>
       </div>
+    </div>
+  </template>
+
+  <template
+    x-if="panel.state === 'ready' && viewState.kind === 'wfa_date_range_analysis'"
+  >
+    <div
+      class="mt-4 grid gap-3 text-xs text-gray-600 sm:grid-cols-2 dark:text-gray-300"
+    >
+      <section
+        class="rounded-xl border border-gray-200 px-3 py-3 dark:border-gray-800"
+      >
+        <p class="font-semibold text-gray-800 dark:text-white/90">Evidence</p>
+        <p
+          class="mt-1"
+          x-text="`${viewState.evidence?.analyzable_booking_count ?? 0} of ${viewState.evidence?.approved_booking_count ?? 0} Approved bookings have reproducible FAHP evidence.`"
+        ></p>
+      </section>
+      <section
+        class="rounded-xl border border-gray-200 px-3 py-3 dark:border-gray-800"
+      >
+        <p class="font-semibold text-gray-800 dark:text-white/90">
+          Methodology
+        </p>
+        <p
+          class="mt-1"
+          x-text="`${viewState.methodology?.version || '—'} · ${viewState.methodology?.weightingMethod || '—'}`"
+        ></p>
+      </section>
     </div>
   </template>
 

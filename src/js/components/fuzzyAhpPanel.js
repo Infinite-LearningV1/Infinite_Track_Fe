@@ -58,6 +58,9 @@ function createRankingRows(rankings = []) {
       secondaryLabel: ranking.label || null,
       score: Number.isFinite(score) ? score : 0,
       scoreLabel: formatDecimal(score, 3),
+      criteriaSummary: ranking.criteriaSummary || null,
+      approvedBookingCount: ranking.approvedBookingCount,
+      analyzableBookingCount: ranking.analyzableBookingCount,
     };
   });
 }
@@ -117,5 +120,9 @@ export function createFuzzyAhpViewState(panel, activeDecisionKey = null) {
     rankingRows: createRankingRows(activeDecision?.rankings),
     updatedAtLabel:
       activeDecision?.updatedAtLabel || "Menunggu pembaruan backend Fuzzy AHP",
+    kind: activeDecision?.kind || null,
+    requestedWindow: activeDecision?.requestedWindow || null,
+    methodology: activeDecision?.methodology || null,
+    evidence: activeDecision?.evidence || null,
   };
 }

@@ -24,11 +24,28 @@ test("dashboard transport keeps Discipline on generic endpoint", async () => {
     },
   ]);
 });
-test("generic dashboard transport rejects WFA", async () => {
+test("dashboard transport sends explicit WFA date range", async () => {
+  const seen = [];
+  const service = new FuzzyAhpService(async (config) => {
+    seen.push(config);
+    return { data: { success: true, data: { type: "wfa", status: "empty" } } };
+  });
+  await service.getDashboardFahpAnalysis({
+    type: "wfa",
+    from: "2026-08-01",
+    to: "2026-08-15",
+  });
+  assert.deepEqual(seen[0].params, {
+    type: "wfa",
+    from: "2026-08-01",
+    to: "2026-08-15",
+  });
+});
+test("dashboard WFA transport requires explicit date range", async () => {
   const service = new FuzzyAhpService(async () => ({ data: {} }));
   await assert.rejects(
     service.getDashboardFahpAnalysis({ type: "wfa" }),
-    /dedicated WFA/i,
+    /requires from and to/i,
   );
 });
 test("WFA transport uses dedicated endpoint", async () => {

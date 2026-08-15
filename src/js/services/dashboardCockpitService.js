@@ -96,7 +96,7 @@ import { buildHistoricalAnalyticsViewModel } from "./dashboard/historicalAnalyti
 import { buildGeofenceEvidenceViewModel } from "./dashboard/geofenceEvidenceSlice.js";
 import { buildLiveMapViewModel } from "./dashboard/liveMapSlice.js";
 import { buildFahpDashboardRecapViewModel } from "./dashboard/fahpRecapSlice.js";
-import { buildWfaFahpViewModel } from "./dashboard/wfaFahpSlice.js";
+import { buildWfaDashboardFahpViewModel } from "./dashboard/wfaDashboardFahpSlice.js";
 
 const MAP_VIEW_SOURCE_KEY = "dashboard-analytics.map_context";
 const MAP_VIEW_SOURCE_NOTE =
@@ -1646,7 +1646,10 @@ function buildFuzzyAhpPanel() {
   return buildExplicitFuzzyAhpPanel(null);
 }
 
-function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
+function normalizeFuzzyAhpResponse(
+  fuzzyAhpResponse = null,
+  activeType = "discipline",
+) {
   if (fuzzyAhpResponse === null || typeof fuzzyAhpResponse === "undefined") {
     return { value: null, error: null };
   }
@@ -1655,16 +1658,10 @@ function normalizeFuzzyAhpResponse(fuzzyAhpResponse = null) {
     return { value: false, error: null };
   }
   try {
-    const data = fuzzyAhpResponse?.data;
-    const isWfa =
-      data &&
-      typeof data === "object" &&
-      ("candidates" in data ||
-        "methodology" in data ||
-        "searchCriteria" in data);
-    const viewModel = isWfa
-      ? buildWfaFahpViewModel(fuzzyAhpResponse)
-      : buildFahpDashboardRecapViewModel(fuzzyAhpResponse);
+    const viewModel =
+      activeType === "wfa"
+        ? buildWfaDashboardFahpViewModel(fuzzyAhpResponse)
+        : buildFahpDashboardRecapViewModel(fuzzyAhpResponse);
     return {
       value: { ...viewModel, source: FUZZY_AHP_SOURCE_KEY },
       error: null,
@@ -1762,6 +1759,7 @@ function buildFuzzyAhpUpdatedAtLabel(fuzzyAhp) {
 
 function buildFuzzyAhpDecisionPayload(fuzzyAhp) {
   return {
+    kind: fuzzyAhp.kind || null,
     key: fuzzyAhp.type || "discipline",
     title: fuzzyAhp.typeLabel || fuzzyAhp.type || "Fuzzy AHP",
     summary:
@@ -1791,9 +1789,18 @@ function buildFuzzyAhpDecisionPayload(fuzzyAhp) {
           name: item.name || "",
           label: item.label || null,
           score: item.score,
+          locationKey: item.location_key || item.id || null,
+          locationLabel: item.location_label || item.name || null,
+          criteriaSummary: item.criteria_summary || null,
+          approvedBookingCount: item.approved_booking_count ?? null,
+          analyzableBookingCount: item.analyzable_booking_count ?? null,
         }))
       : [],
     distribution: fuzzyAhp.distribution || null,
+    requestedWindow: fuzzyAhp.requestedWindow || null,
+    methodology: fuzzyAhp.methodology || null,
+    evidence: fuzzyAhp.evidence || null,
+    rankingPreview: fuzzyAhp.rankingPreview || null,
   };
 }
 
@@ -2088,7 +2095,10 @@ export function createDashboardCockpitStateFromSources({
   fuzzyAhpActiveType = "discipline",
 } = {}) {
   const analytics = normalizeCockpitAnalyticsResponse(analyticsResponse);
-  const fuzzyAhpNormalization = normalizeFuzzyAhpResponse(fuzzyAhpResponse);
+  const fuzzyAhpNormalization = normalizeFuzzyAhpResponse(
+    fuzzyAhpResponse,
+    fuzzyAhpActiveType,
+  );
   const fuzzyAhp = fuzzyAhpNormalization.value;
   const effectiveFuzzyAhpError = fuzzyAhpError || fuzzyAhpNormalization.error;
 

@@ -103,6 +103,46 @@ export function buildDashboardRangeRequestParams({ period, from, to }) {
   };
 }
 
+export function resolveDashboardRangeDateWindow(
+  rangeState,
+  { today = new Date().toISOString().slice(0, 10) } = {},
+) {
+  const normalizedRange = {
+    ...createDefaultDashboardRange(),
+    ...(rangeState || {}),
+  };
+  const validation = validateDashboardRange(normalizedRange);
+
+  if (!validation.isValid) {
+    throw new Error(validation.message || "Invalid dashboard date range");
+  }
+
+  if (!isValidDateFormat(today)) {
+    throw new Error("Invalid today date");
+  }
+
+  switch (normalizedRange.period) {
+    case DASHBOARD_RANGE_PERIODS.TODAY:
+      return { from: today, to: today };
+    case DASHBOARD_RANGE_PERIODS.CURRENT_WEEK: {
+      const end = parseDate(today);
+      const start = new Date(end.getTime() - 6 * MS_PER_DAY);
+      return { from: formatDate(start), to: today };
+    }
+    case DASHBOARD_RANGE_PERIODS.CURRENT_MONTH: {
+      const end = parseDate(today);
+      const start = new Date(
+        Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1),
+      );
+      return { from: formatDate(start), to: today };
+    }
+    case DASHBOARD_RANGE_PERIODS.CUSTOM:
+      return { from: normalizedRange.from, to: normalizedRange.to };
+    default:
+      throw new Error("Invalid dashboard range period");
+  }
+}
+
 function isValidDateFormat(value) {
   if (!DATE_REGEX.test(value)) {
     return false;
@@ -127,4 +167,8 @@ function parseDate(value) {
   }
 
   return date;
+}
+
+function formatDate(date) {
+  return date.toISOString().slice(0, 10);
 }

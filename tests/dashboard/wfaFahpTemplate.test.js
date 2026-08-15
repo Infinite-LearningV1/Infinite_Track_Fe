@@ -15,21 +15,15 @@ test("FAHP partial owns stable three-option navigation and separate status", () 
   assert.doesNotMatch(partial, /activeFahpTab/);
 });
 
-test("FAHP partial exposes explicit WFA context", () => {
-  assert.match(partial, /@submit\.prevent="runWfaFahpAnalysis\(\)"/);
-  for (const field of [
-    "latitude",
-    "longitude",
-    "scheduleDate",
-    "radiusMeters",
-  ]) {
-    assert.match(partial, new RegExp(`x-model="wfaFahpContext\\.${field}"`));
-    assert.equal(
-      (partial.match(/@input="invalidateWfaFahpResult\(\)"/g) || []).length,
-      4,
-    );
-  }
-  assert.match(partial, /x-text="wfaFahpContext\.validationError"/);
+test("FAHP partial exposes date-range WFA academic analysis", () => {
+  assert.match(partial, /WFA Analysis/);
+  assert.match(partial, /Criteria Weights/);
+  assert.match(partial, /Evidence/);
+  assert.doesNotMatch(
+    partial,
+    /runWfaFahpAnalysis|wfaFahpContext|Latitude|Longitude|Schedule date|Radius meters|Run WFA Analysis/,
+  );
+  assert.match(partial, /wfa_date_range_analysis/);
   assert.doesNotMatch(partial, /dashboardMap|cockpit\.hero|todayLocations/);
   assert.match(grid, /get isFuzzyAhpPanel\(\)/);
   assert.match(grid, /x-if="isFuzzyAhpPanel"/);

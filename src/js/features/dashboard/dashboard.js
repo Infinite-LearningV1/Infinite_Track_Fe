@@ -1,10 +1,7 @@
 import { getSummaryReport } from "../../services/reportService.js";
 import { getDashboardAnalytics } from "../../services/dashboardAnalyticsService.js";
 import { getTodayLocations } from "../../services/todayLocationsService.js";
-import {
-  getDashboardFahpAnalysis,
-  getWfaFahpAnalysis,
-} from "../../services/fuzzyAhpService.js";
+import { getDashboardFahpAnalysis } from "../../services/fuzzyAhpService.js";
 import { getGeofenceEvidence } from "../../services/geofenceEvidenceService.js";
 import {
   buildDashboardSectionOrder,
@@ -20,6 +17,7 @@ import { createLiveMapSliceState } from "../../services/dashboard/liveMapSlice.j
 import {
   buildDashboardRangeRequestParams,
   createDefaultDashboardRange,
+  resolveDashboardRangeDateWindow,
   validateDashboardRange,
 } from "../../components/dashboardRange/dashboardRange.js";
 import {
@@ -49,12 +47,7 @@ import {
   buildFahpRequestParams,
   createDefaultFahpFilterState,
 } from "./fahpFilterState.js";
-import { createWfaFahpSliceState } from "../../services/dashboard/wfaFahpSlice.js";
-import {
-  buildWfaFahpRequestParams,
-  createDefaultWfaFahpContext,
-  validateWfaFahpContext,
-} from "./wfaFahpContext.js";
+import { createWfaDashboardFahpSliceState } from "../../services/dashboard/wfaDashboardFahpSlice.js";
 import {
   generatePDFReport,
   generateExcelReport,
@@ -118,7 +111,6 @@ export function createDashboardPageState({
 export function dashboard() {
   const defaultDashboardRange = createDefaultDashboardRange();
   const defaultFahpFilterState = createDefaultFahpFilterState();
-  const defaultWfaFahpContext = createDefaultWfaFahpContext();
 
   return {
     // State management
@@ -134,7 +126,6 @@ export function dashboard() {
     trendRange: "monthly",
     activeTrendHoverIndex: null,
     fahpFilterState: { ...defaultFahpFilterState },
-    wfaFahpContext: { ...defaultWfaFahpContext },
 
     // Pagination state
     pagination: createEmptyDashboardPagination(5),
@@ -181,7 +172,6 @@ export function dashboard() {
     fetchTodayLocations: getTodayLocations,
     fetchDashboardFahpAnalysis: getDashboardFahpAnalysis,
     fetchFuzzyAhpAnalysis: getDashboardFahpAnalysis,
-    fetchWfaFahpAnalysis: getWfaFahpAnalysis,
     fetchGeofenceEvidence: getGeofenceEvidence,
 
     // Export state
@@ -368,6 +358,15 @@ export function dashboard() {
         },
         fetchFahpRecap: async (params = this.fahpFilterState) => {
           const requestParams = buildFahpRequestParams(params);
+          const transportParams =
+            requestParams.type === "wfa"
+              ? {
+                  type: "wfa",
+                  ...resolveDashboardRangeDateWindow(
+                    this.syncDashboardRangeState(),
+                  ),
+                }
+              : requestParams;
           const nextFilterState = {
             ...createDefaultFahpFilterState(),
             ...requestParams,
@@ -376,14 +375,21 @@ export function dashboard() {
             this.fetchDashboardFahpAnalysis !== getDashboardFahpAnalysis
               ? this.fetchDashboardFahpAnalysis
               : this.fetchFuzzyAhpAnalysis;
-          const response = await transport(requestParams);
+          const response = await transport(transportParams);
 
           this.fahpFilterState = nextFilterState;
           this.fuzzyAhpResponse = response;
           this.fuzzyAhpError = null;
           this.rawApiData = {
             ...(this.rawApiData || {}),
-            fahpRecap: createFahpRecapSliceState(response, requestParams),
+            fahpRecap:
+              requestParams.type === "wfa"
+                ? (this.rawApiData?.fahpRecap ?? null)
+                : createFahpRecapSliceState(response, requestParams),
+            wfaFahp:
+              requestParams.type === "wfa"
+                ? createWfaDashboardFahpSliceState(response, transportParams)
+                : (this.rawApiData?.wfaFahp ?? null),
           };
 
           return this.buildFahpSliceState(response);
@@ -1428,16 +1434,24 @@ export function dashboard() {
      */
     async fetchFahpForDashboardRefresh() {
       const { type } = buildFahpRequestParams(this.fahpFilterState);
-      if (type === "wfa")
-        return { response: this.fuzzyAhpResponse, error: this.fuzzyAhpError };
       try {
         const transport =
           this.fetchDashboardFahpAnalysis !== getDashboardFahpAnalysis
             ? this.fetchDashboardFahpAnalysis
             : this.fetchFuzzyAhpAnalysis;
+        const requestParams =
+          type === "wfa"
+            ? {
+                type: "wfa",
+                ...resolveDashboardRangeDateWindow(
+                  this.syncDashboardRangeState(),
+                ),
+              }
+            : { type };
         return {
-          response: await transport({ type }),
+          response: await transport(requestParams),
           error: null,
+          request: requestParams,
         };
       } catch (error) {
         return { response: null, error };
@@ -1447,69 +1461,7 @@ export function dashboard() {
     async selectFahpType(type) {
       const next = buildFahpRequestParams({ type });
       this.fahpFilterState = next;
-      if (next.type === "wfa") {
-        this.fuzzyAhpResponse = null;
-        this.fuzzyAhpError = null;
-        this.wfaFahpContext = { ...this.wfaFahpContext, validationError: null };
-        await this.applyCockpitSurfaceState({
-          fuzzyAhpResponse: null,
-          fuzzyAhpError: null,
-        });
-        return true;
-      }
       return this.loadFuzzyAhpDetail(next);
-    },
-
-    async invalidateWfaFahpResult() {
-      if (this.fahpFilterState.type !== "wfa") return false;
-      this.fuzzyAhpResponse = null;
-      this.fuzzyAhpError = null;
-      this.rawApiData = { ...(this.rawApiData || {}), wfaFahp: null };
-      await this.applyCockpitSurfaceState({
-        fuzzyAhpResponse: null,
-        fuzzyAhpError: null,
-      });
-      return true;
-    },
-
-    async runWfaFahpAnalysis() {
-      this.fahpFilterState = { type: "wfa" };
-      const validation = validateWfaFahpContext(this.wfaFahpContext);
-      if (!validation.isValid) {
-        this.wfaFahpContext = {
-          ...this.wfaFahpContext,
-          validationError: validation.message,
-        };
-        await this.applyCockpitSurfaceState({
-          fuzzyAhpResponse: null,
-          fuzzyAhpError: null,
-        });
-        return false;
-      }
-      const requestParams = buildWfaFahpRequestParams(this.wfaFahpContext);
-      this.wfaFahpContext = { ...this.wfaFahpContext, validationError: null };
-      try {
-        const response = await this.fetchWfaFahpAnalysis(requestParams);
-        this.fuzzyAhpResponse = response;
-        this.fuzzyAhpError = null;
-        this.rawApiData = {
-          ...(this.rawApiData || {}),
-          wfaFahp: createWfaFahpSliceState(response, requestParams),
-        };
-        await this.applyCockpitSurfaceState({
-          fuzzyAhpResponse: response,
-          fuzzyAhpError: null,
-        });
-        return true;
-      } catch (error) {
-        this.fuzzyAhpResponse = null;
-        this.fuzzyAhpError = error;
-        await this.applyCockpitSurfaceState({
-          fuzzyAhpResponse: null,
-          fuzzyAhpError: error,
-        });
-        return false;
-      }
     },
 
     async loadSummaryData({ includeTodayLocations = true } = {}) {
@@ -1871,7 +1823,6 @@ export function dashboard() {
     },
 
     async loadFuzzyAhpDetail(params = this.fahpFilterState) {
-      if (params?.type === "wfa") return this.selectFahpType("wfa");
       const currentReportResponse = this.rawApiData
         ? {
             summary: this.rawApiData.summary,
@@ -1892,7 +1843,34 @@ export function dashboard() {
         fuzzyAhpError: null,
       });
 
-      const fahpSlice = await this.pageState?.refreshFahpRecap(requestParams);
+      const fahpSlice = this.pageState
+        ? await this.pageState.refreshFahpRecap(requestParams)
+        : await (async () => {
+            try {
+              const transportParams =
+                requestParams.type === "wfa"
+                  ? {
+                      type: "wfa",
+                      ...resolveDashboardRangeDateWindow(
+                        this.syncDashboardRangeState(),
+                      ),
+                    }
+                  : requestParams;
+              const response =
+                await this.fetchDashboardFahpAnalysis(transportParams);
+              this.fuzzyAhpResponse = response;
+              this.fuzzyAhpError = null;
+              return {
+                status: "ready",
+                response,
+              };
+            } catch (error) {
+              return {
+                status: "error",
+                error: error?.message || "fahp recap unavailable",
+              };
+            }
+          })();
 
       await this.applyCockpitSurfaceState({
         reportResponse: currentReportResponse,

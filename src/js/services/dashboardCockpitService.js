@@ -1696,6 +1696,16 @@ function buildTodayLocationsHeroPanel(
 
   const liveMap = buildLiveMapViewModel(todayLocations);
 
+  if (!Array.isArray(liveMap.locations)) {
+    return createPanel({
+      ...LIVE_MAP_PANEL_DEFINITION,
+      state: DASHBOARD_PANEL_STATES.NEEDS_DATA,
+      message:
+        "Today locations backend payload is invalid; Live Map requires an explicit attendance row array.",
+      note: "Web FE will not coerce non-array today-locations payloads into live markers.",
+    });
+  }
+
   const locations = ensureUniqueMapLocationKeys(
     liveMap.locations
       .map((point, index) =>

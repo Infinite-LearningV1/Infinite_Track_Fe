@@ -1,169 +1,318 @@
-# InfiniteTrack - Free Tailwind Admin Dashboard Template
+# Infinite Track — Web Frontend
 
-InfiniteTrack is a high-quality, open-source, and **free Tailwind CSS admin template** that is perfect for creating data-rich backends,
-powerful web applications and dashboard-admin projects.
+Web frontend resmi **Infinite Track** untuk kebutuhan operasional Infinite Learning, termasuk authentication/session, dashboard management, pengguna, attendance, booking/WFA, reporting/export, profile, dan operational settings.
 
-![InfiniteTrack Dashboard Preview](./banner.png)
+Repository ini adalah aplikasi produk. Artefak task/agent, evidence historis, dan planning sementara tidak menjadi source of truth repository.
 
-## Overview
+## Repository Contract
 
-InfiniteTrack provides essential UI components and layouts for building feature-rich, data-driven admin dashboards and control panels. It's built using:
+- Repository: `Infinite-LearningV1/Infinite_Track_Fe`
+- Integration branch: `develop`
+- Production/release branch: `master`
+- Runtime: static multi-page frontend hasil build Webpack
+- Backend/business authority tetap berada di backend API
 
-- HTML
+Planning dan status pekerjaan dikelola di Linear. GitHub PR digunakan sebagai implementation/review evidence. PR merged tidak otomatis berarti acceptance/runtime verification sudah selesai.
+
+## Product Scope
+
+Web FE bertanggung jawab untuk:
+
+- sign-in, session consumer, logout, dan protected-route UX;
+- management dashboard dan backend-driven analytics presentation;
+- management pengguna;
+- management attendance;
+- management booking / WFA;
+- reporting dan PDF/Excel export;
+- profile dan operational settings;
+- loading, empty, error, denied, dan recovery presentation.
+
+Frontend **tidak** menjadi source of truth untuk authentication validity, authorization decision, attendance result, WFA/FAHP calculation, server-side filtering/pagination, atau data bisnis lain yang dimiliki backend.
+
+## Tech Stack
+
+- HTML multi-page application
+- JavaScript
 - Alpine.js
 - Tailwind CSS
-- and Webpack (for bundling)
+- Webpack 5
+- Axios
+- Leaflet
+- Chart.js / ApexCharts
+- jsPDF / XLSX
 
-### Quick Links
+Minimum runtime untuk development/build: **Node.js 20+**.
 
-- [✨ Visit Website](https://infinitetrack.com)
-- [📄 Documentation](https://infinitetrack.com/docs)
-- [⬇️ Download](https://infinitetrack.com/download)
-- [🖌️ Figma Design File (Community Edition)](https://www.figma.com/community/file/1463141366275764364)
-- [⚡ Get PRO Version](https://infinitetrack.com/pricing)
-
-### Demos
-
-- [Free Version](https://free-demo.infinitetrack.com/)
-- [Pro Version](https://demo.infinitetrack.com)
-
-### Other Versions
-
-- [Next.js Version](https://github.com/InfiniteTrack/free-nextjs-admin-dashboard)
-- [React.js Version](https://github.com/InfiniteTrack/free-react-tailwind-admin-dashboard)
-- [Vue.js Version](https://github.com/InfiniteTrack/vue-tailwind-admin-dashboard)
-
-## Installation
-
-### Prerequisites
-
-To get started with InfiniteTrack, ensure you have the following prerequisites installed and set up:
-
-- Node.js 20.x or later
-
-### Cloning the Repository
-
-Clone the repository using the following command:
+## Quick Start
 
 ```bash
-git clone https://github.com/InfiniteTrack/infinitetrack-free-tailwind-dashboard-template.git
+git clone https://github.com/Infinite-LearningV1/Infinite_Track_Fe.git
+cd Infinite_Track_Fe
+git checkout develop
+npm ci
 ```
 
-> Windows Users: place the repository near the root of your drive if you face issues while cloning.
+Untuk local development, buat `.env` dari template:
 
-1. Install dependencies:
+```bash
+cp .env.example .env
+```
 
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+Default local contract:
 
-2. Start the development server:
-   ```bash
-   npm run start
-   # or
-   yarn start
-   ```
+```env
+API_BASE_URL=/api
+API_AUTH_ENDPOINT=/auth
+API_VERSION=v1
+APP_NAME=Infinite Track
+APP_ENVIRONMENT=development
+DEFAULT_LANGUAGE=id
+TIMEZONE=Asia/Jakarta
+DEBUG_MODE=true
+LOG_LEVEL=info
+```
+
+Start development server:
+
+```bash
+npm run start
+```
+
+Local Webpack dev server mem-proxy request `/api` ke backend lokal `http://localhost:3005` berdasarkan current `webpack.config.js`.
+
+## Environment Contract
+
+Template environment yang tracked:
+
+- `.env.example` — local development contract;
+- `.env.production.example` — production build-time contract.
+
+Semua nilai frontend environment harus dianggap **public**, karena nilainya dibake ke browser bundle. Jangan menaruh password, private token, API secret, atau credential sensitif di frontend env.
+Production contract saat ini:
+
+```env
+API_BASE_URL=https://api.infinite-track.tech/api
+API_AUTH_ENDPOINT=/auth
+API_VERSION=v1
+APP_NAME=Infinite Track
+APP_ENVIRONMENT=production
+DEFAULT_LANGUAGE=id
+TIMEZONE=Asia/Jakarta
+DEBUG_MODE=false
+LOG_LEVEL=error
+```
+
+`npm run build` hanya menetapkan `NODE_ENV=production`. File `.env.production.example` adalah **template contract** dan tidak otomatis dimuat sebagai runtime configuration. Nilai production harus tersedia pada build environment yang benar sebelum Webpack membentuk bundle.
+
+## Commands
+
+```bash
+npm run start
+npm run build
+npm run build:dev
+npm test
+npm run test:auth-runtime
+npm run lint
+npm run sort
+```
+
+- `npm run start` — Webpack development server.
+- `npm run build` — production build ke `build/`.
+- `npm run build:dev` — development build tanpa dev server.
+- `npm test` - full Node regression suite di seluruh domain `tests/`.
+- `npm run test:auth-runtime` — focused auth/session runtime regression suite.
+- `npm run lint` — Prettier check untuk `src`, `tests`, dan `docs`; ini bukan full static-analysis linter.
+- `npm run sort` — menulis ulang format Prettier pada `src`.
+
+## Project Structure
+
+```text
+Infinite_Track_Fe/
+├── .github/              # GitHub Actions / repository automation
+├── docs/
+│   └── adr/              # durable architecture decisions
+├── src/
+│   ├── js/
+│   │   ├── components/
+│   │   ├── config/
+│   │   ├── features/
+│   │   ├── services/
+│   │   ├── stores/
+│   │   └── utils/
+│   ├── partials/
+│   ├── images/
+│   └── *.html
+├── tests/                # Node-based regression tests
+├── .env.example
+├── .env.production.example
+├── Dockerfile
+├── Dockerfile.dev
+├── compose.yaml
+├── webpack.config.js
+└── package.json
+```
+
+Generated/local directories seperti `build/`, `node_modules/`, `.claude/`, `.superpowers/`, IDE metadata, dan local dev-server logs tidak menjadi bagian repository source.
+
+## Frontend Architecture
+
+General flow:
+
+```text
+HTML / Alpine page
+        ↓
+feature/component state
+        ↓
+service layer
+        ↓
+backend API
+```
+
+Repository rules yang perlu dipertahankan:
+
+- page/component merender state dan mengirim action;
+- API access dilakukan melalui service layer, bukan tersebar langsung di template;
+- backend error tidak boleh diam-diam diganti dummy/mock success;
+- loading, empty, denied, error, dan unavailable state harus berbeda secara eksplisit;
+- cached browser state hanya hint; session/auth authority tetap diverifikasi terhadap backend;
+- dashboard/WFA/FAHP score, weight, consistency ratio, ranking, dan server-driven data tidak dihitung atau difabrikasi di frontend.
+
+Architecture decisions yang masih relevan disimpan di [`docs/adr/`](docs/adr/).
 
 ## Branch Workflow
 
-This repository uses a branch-promotion workflow:
+```text
+feature/* ─┐
+fix/*     ─┼─> develop ──> master
+chore/*   ─┘
+```
 
-- Start every new feature from a dedicated `feature/*` branch, and use `fix/*` branches for bugfix or urgent work.
-- Merge feature and fix work into `develop` only through PR review.
-- Treat `develop` as the integration branch where reviewed changes are held before release.
-- Treat `master` as the final clean branch that is updated only when `develop` is ready to deploy.
+- Buat bounded branch dari `develop`.
+- Feature/fix/chore masuk ke `develop` melalui PR review.
+- `develop` adalah integration branch.
+- `master` adalah production/release source branch.
+- Branch merged/historical harus dibersihkan setelah tidak lagi diperlukan.
 
-Other historical or auxiliary branches may still exist in the repository, but the primary workflow is `feature/*` / `fix/*` -> `develop` -> `master`.
+## CI and Verification
 
-In short:
-- `feature/*` / `fix/*` -> `develop` via PR review
-- `develop` -> `master` via controlled release promotion
+GitHub Actions menjalankan build gate pada PR/push ke `develop` dan `master` dengan Node.js 20:
 
-## Components
+```text
+npm ci
+npm run test:auth-runtime
+npm run build
+```
 
-InfiniteTrack is a pre-designed starting point for building a web-based dashboard using HTML, Alpine.js and Tailwind CSS. The template includes:
+Sebelum PR merge, perubahan code harus lolos full Node regression suite dan production build. `npm run test:auth-runtime` tetap tersedia sebagai focused auth/session check untuk iterasi cepat.
 
-- Sophisticated and accessible sidebar
-- Data visualization components
-- Prebuilt profile management and 404 page
-- Tables and Charts(Line and Bar)
-- Authentication forms and input elements
-- Alerts, Dropdowns, Modals, Buttons and more
-- Can't forget Dark Mode 🕶️
+```bash
+npm test
+npm run build
+```
 
-## Feature Comparison
+Untuk UI behavior, sertakan runtime/browser verification bila acceptance criteria membutuhkannya. Jangan menyatakan repository globally green jika ada baseline failure pada suite lain yang belum diperbaiki.
 
-### Free Version
+## Production Deployment
 
-- 1 Unique Dashboard
-- 30+ dashboard components
-- 50+ UI elements
-- Basic Figma design files
-- Community support
+Frontend production diperlakukan sebagai **static site**. Build output berada di `build/` dan production/release source branch adalah `master`.
 
-### Pro Version
+Current production contract yang harus diverifikasi kembali sebelum deploy:
 
-- 5 Unique Dashboards: Analytics, Ecommerce, Marketing, CRM, Stocks (more coming soon)
-- 400+ dashboard components and UI elements
-- Complete Figma design file
-- Email support
+- Frontend origin: `https://infinite-track.tech`
+- Backend API base: `https://api.infinite-track.tech/api`
+- Build command: `npm ci && npm run build`
+- Output directory: `build/`
 
-To learn more about pro version features and pricing, visit our [pricing page](https://infinitetrack.com/pricing).
+Recommended deployment flow:
 
-## Update Logs
+1. pastikan perubahan sudah terintegrasi dan diverifikasi di `develop`;
+2. promote snapshot yang disetujui ke `master`;
+3. inject production env pada build environment;
+4. jalankan clean install dan production build;
+5. deploy/publish isi `build/` sebagai static site;
+6. jalankan post-deploy smoke sebelum release dianggap sehat.
 
-### Version 2.0.1 - [February 27, 2025]
+### CORS / Auth Transport
 
-#### Update Overview
+Web FE menggunakan credentialed browser requests untuk auth/session. Backend production harus mengizinkan frontend origin final secara eksplisit.
 
-- Upgraded to Tailwind CSS v4 for better performance and efficiency.
-- Updated class usage to match the latest syntax and features.
-- Replaced deprecated class and optimized styles.
+Minimum production expectations:
 
-#### Next Steps
+```text
+Access-Control-Allow-Origin: https://infinite-track.tech
+Access-Control-Allow-Credentials: true
+Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+Allowed headers: Content-Type, X-Client-Type
+```
 
-- Run npm install or yarn install to update dependencies.
-- Check for any style changes or compatibility issues.
-- Refer to the Tailwind CSS v4 [Migration Guide](https://tailwindcss.com/docs/upgrade-guide) on this release. if needed.
-- This update keeps the project up to date with the latest Tailwind improvements. 🚀
+Jangan menggunakan wildcard origin (`*`) bersama credentialed session. Jika login/bootstrap gagal dengan browser-level `Failed to fetch`, preflight error, atau CORS error, periksa origin, API prefix, credentials, methods, dan allowed headers sebelum menganggap endpoint backend tidak tersedia.
 
-### Version 2.0.0 - [February 2025]
+### Post-Deploy Smoke
 
-Major update with comprehensive redesign and new features.
+Minimum smoke setelah release:
 
-#### Major Improvements
+- production domain membuka artifact yang benar;
+- sign-in page render tanpa blocking console error;
+- valid account dapat login dan invalid login ditolak dengan benar;
+- protected route tetap protected setelah logout/session invalid;
+- dashboard memuat backend-driven data atau explicit empty/error state;
+- request API memakai host dan `/api` prefix yang benar;
+- primary management navigation dapat dibuka;
+- PDF/Excel export yang in-scope dapat diproduksi;
+- browser Network tidak menunjukkan unexpected CORS/preflight failure;
+- Chrome/Edge dan minimal satu responsive/mobile viewport tidak memiliki blocking layout/runtime issue.
 
-- Complete UI redesign of all pages and components
-- Enhanced user interface with new elements
-- Improved responsiveness and accessibility
-- New features: collapsible sidebar, chat, and calendar
-- Updated data visualization components
+Simpan runtime evidence di release/PR/issue/platform log, bukan sebagai snapshot evidence permanen di repository source.
 
-#### New Features
+### Rollback
 
-- Redesigned dashboards (Ecommerce, Analytics, Marketing, CRM)
-- Enhanced navigation with improved header and breadcrumbs
-- Advanced table components with sorting and filtering
-- New UI components (Avatar, Alert, Ribbon)
-- Full-featured calendar with drag-and-drop
+Rollback dipertimbangkan bila release frontend terbaru menyebabkan kondisi P1 seperti domain/artifact salah, signin rusak, protected-route regression, dashboard utama tidak dapat digunakan, export critical rusak, API base/CORS salah, atau blocking browser runtime error.
 
-#### Breaking Changes
+Operational rollback:
 
-- Updated sidebar component API
-- New charting library implementation
-- Revised authentication system
-- **Deprecations:** SimpleTable component and legacy icon set
+1. freeze deploy/promotion baru;
+2. identifikasi last-known-good commit/deployment;
+3. rollback/re-publish deployment static sebelumnya atau promote release commit yang sehat;
+4. kembalikan build-time env bila regression berasal dari config;
+5. jalankan minimum post-rollback smoke: domain, signin, protected API target, dashboard, console/network;
+6. catat incident timestamp, release/deployment ID, rollback target, verifier, dan hasil smoke pada operational system/issue.
 
-#### Previous Versions
+Jika akar masalah adalah backend outage, DNS/SSL eksternal, atau incident lain yang tidak dipicu frontend release, rollback frontend belum tentu menyelesaikan masalah.
 
-For detailed changelogs of previous versions (1.0.0 - 1.3.0), visit our [documentation](https://infinitetrack.com/docs/update-logs/).
+## Security
+
+- Jangan commit `.env` atau credential production.
+- Jangan menyimpan secret pada frontend build-time variables.
+- Jangan log token/session credential atau sensitive user payload.
+- Client-side RBAC hanya presentation/access UX; backend tetap authority untuk authorization.
+- Jangan mengubah API contract atau business result berdasarkan asumsi frontend.
+
+## Documentation Policy
+
+Repository hanya menyimpan dokumentasi yang durable dan berguna untuk maintainer produk.
+
+- `README.md` — canonical onboarding, env, verification, deployment, dan handoff entrypoint.
+- `docs/adr/` — architecture decisions dan responsibility boundaries.
+
+Task reports, AI/agent instructions, temporary implementation plans, runtime evidence snapshots, issue reconciliation exports, dan personal tooling files harus disimpan di tool/issue/PR/workspace yang sesuai, bukan sebagai product repository source.
+
+## Maintainer Handoff Checklist
+
+Sebelum repository diserahkan atau release dipromosikan:
+
+- clone/install berhasil dengan Node.js 20+ dan `npm ci`;
+- `.env.example` dan `.env.production.example` sesuai runtime contract;
+- `npm test` berhasil;
+- `npm run test:auth-runtime` berhasil;
+- `npm run build` berhasil;
+- source branch release dan build environment teridentifikasi;
+- critical auth/dashboard/navigation/export smoke telah diverifikasi bila dibutuhkan;
+- active issue dan known verification gap tetap tercatat di Linear/PR, bukan disembunyikan di docs lokal;
+- branch/worktree historis sudah dibersihkan;
+- tidak ada secret, local logs, IDE metadata, atau AI tooling artifact yang ikut ter-track.
+
+Jika dokumentasi dan behavior berbeda, prioritaskan current code/runtime evidence, backend contract, dan ADR aktif; kemudian perbarui README/ADR agar kembali sinkron.
 
 ## License
 
-The community edition of InfiniteTrack is released under the MIT License.
-
-## Support
-
-If you find this project helpful, please consider giving it a star on GitHub. Your support helps us continue developing and maintaining this template.
+Repository menggunakan MIT License. Lihat [`LICENSE`](LICENSE).

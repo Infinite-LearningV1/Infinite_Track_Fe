@@ -5,7 +5,7 @@ export function buildLiveMapViewModel(response) {
     return {
       locations: Array.isArray(sliceViewModel.locations)
         ? sliceViewModel.locations
-        : [],
+        : false,
       authority:
         sliceViewModel.authority ||
         response?.authority ||
@@ -22,14 +22,14 @@ export function buildLiveMapViewModel(response) {
         ? payload.data
         : Array.isArray(response)
           ? response
-          : [];
+          : response === null || typeof response === "undefined"
+            ? []
+            : false;
 
   return {
     locations,
     authority:
-      payload?.authority ||
-      response?.authority ||
-      "attendance.today-locations",
+      payload?.authority || response?.authority || "attendance.today-locations",
     finalAttendanceAuthority:
       payload?.final_attendance_authority ||
       response?.final_attendance_authority ||

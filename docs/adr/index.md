@@ -13,11 +13,11 @@ This folder records lightweight Architecture Decision Records (ADRs) for the Inf
 - If a decision is replaced later, the old ADR stays in place and its status becomes `Superseded`.
 - Repo runtime reality remains the strongest source for active behavior; ADRs do not overrule observable runtime facts.
 
-## Governance Relationship
+## Documentation Relationship
 
-- ADRs capture architecture decisions and responsibility boundaries.
-- `CLAUDE.md` captures operational repo governance and expected task behavior for this Web FE repo.
-- When operational guidance and architecture context are both needed, use `CLAUDE.md` together with the relevant ADR instead of duplicating policy text in both places.
+- `README.md` is the canonical onboarding, environment, verification, deployment, and handoff entrypoint.
+- ADRs capture durable architecture decisions and responsibility boundaries.
+- Current code/runtime evidence remains stronger than stale documentation; update README/ADR when implementation truth changes.
 
 ## ADR Inventory
 
@@ -30,3 +30,5 @@ This folder records lightweight Architecture Decision Records (ADRs) for the Inf
 | ADR-005 | Service and API integration consistency boundary   | Proposed | Service layer expectations and page/service boundary               | [ADR-005](ADR-005-service-and-api-integration-consistency-boundary.md)  | 2026-05-18   |
 | ADR-006 | Env, build, and deploy runtime truth               | Proposed | Runtime assumptions, env truth, deployment evidence                | [ADR-006](ADR-006-env-build-and-deploy-runtime-truth.md)                | 2026-04-08   |
 | ADR-007 | Web FE auth consumer model                         | Proposed | Auth consumer contract, refresh-session behavior, redirect notices | [ADR-007](ADR-007-web-fe-auth-consumer-model.md)                        | 2026-05-30   |
+| ADR-008 | Summary search and period contract adoption        | Proposed | Summary report endpoint, search key, and period contract           | [ADR-008](ADR-008-summary-search-period-contract-adoption.md)           | 2026-05-30   |
+| ADR-009 | Dashboard cockpit contract adoption                | Proposed | Owner-driven dashboard endpoint and authority boundaries           | [ADR-009](ADR-009-dashboard-cockpit-contract-adoption.md)               | 2026-08-16   |

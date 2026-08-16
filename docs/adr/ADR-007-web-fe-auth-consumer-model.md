@@ -66,7 +66,7 @@ This keeps Web FE behavior aligned with backend session truth while still allowi
 ## Evidence / References
 
 - `src/js/features/signinHandler.js` — dashboard-class roles ignore stale `/profile.html` post-login redirects and evaluate dashboard denial against the fresh login user.
-- `docs/auth-runtime-evidence/RUN_2026-06-21.md` — fresh browser-runtime evidence shows Admin and Management clean logins land on `/index.html`, while stale `redirectAfterLogin=/profile.html?from=stale-login` is cleared and cannot hijack dashboard-class post-login routing.
+- `tests/auth-redirect-after-login.test.js` � regression coverage proves dashboard-class roles ignore stale profile redirects and use fresh login/RBAC state.
 - `src/js/services/authService.js` — login, refresh, `/auth/me`, logout, and forced reauth behavior.
 - `src/js/services/authSessionRuntime.js` — auth failure classification, single-flight refresh, redirect notices, and cross-tab sync helpers.
 - `src/js/services/authRequest.js` — protected request wrapper using credentialed requests and auth recovery.
@@ -76,7 +76,7 @@ This keeps Web FE behavior aligned with backend session truth while still allowi
 - `tests/auth-redirect-notice.test.js` — forced reauth notice coverage.
 - `tests/auth-redirect-after-login.test.js` — redirect preservation and cross-origin rejection coverage.
 - `tests/auth-cross-tab-sync.test.js` — cross-tab auth clear sync coverage.
-- `docs/auth-runtime-evidence/RUN_2026-05-30.md` — current verification evidence and remaining gaps.
+- `tests/auth-session-runtime.test.js` � focused auth/session consumer regression coverage used by the repository CI build gate.
 
 ## Open Verification Points
 

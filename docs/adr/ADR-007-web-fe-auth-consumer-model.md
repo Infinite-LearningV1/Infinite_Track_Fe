@@ -66,17 +66,17 @@ This keeps Web FE behavior aligned with backend session truth while still allowi
 ## Evidence / References
 
 - `src/js/features/signinHandler.js` — dashboard-class roles ignore stale `/profile.html` post-login redirects and evaluate dashboard denial against the fresh login user.
-- `tests/auth-redirect-after-login.test.js` � regression coverage proves dashboard-class roles ignore stale profile redirects and use fresh login/RBAC state.
+- `tests/auth/auth-redirect-after-login.test.js` � regression coverage proves dashboard-class roles ignore stale profile redirects and use fresh login/RBAC state.
 - `src/js/services/authService.js` — login, refresh, `/auth/me`, logout, and forced reauth behavior.
 - `src/js/services/authSessionRuntime.js` — auth failure classification, single-flight refresh, redirect notices, and cross-tab sync helpers.
 - `src/js/services/authRequest.js` — protected request wrapper using credentialed requests and auth recovery.
 - `src/js/features/signinHandler.js` — same-origin redirect handling and auth redirect notice display.
-- `tests/auth-session-runtime-codes.test.js` — INF-145 code classification coverage.
-- `tests/auth-x-client-type-header.test.js` — required `X-Client-Type: web` coverage.
-- `tests/auth-redirect-notice.test.js` — forced reauth notice coverage.
-- `tests/auth-redirect-after-login.test.js` — redirect preservation and cross-origin rejection coverage.
-- `tests/auth-cross-tab-sync.test.js` — cross-tab auth clear sync coverage.
-- `tests/auth-session-runtime.test.js` � focused auth/session consumer regression coverage used by the repository CI build gate.
+- `tests/auth/auth-session-runtime-codes.test.js` — INF-145 code classification coverage.
+- `tests/auth/auth-x-client-type-header.test.js` — required `X-Client-Type: web` coverage.
+- `tests/auth/auth-redirect-notice.test.js` — forced reauth notice coverage.
+- `tests/auth/auth-redirect-after-login.test.js` — redirect preservation and cross-origin rejection coverage.
+- `tests/auth/auth-cross-tab-sync.test.js` — cross-tab auth clear sync coverage.
+- `tests/auth/auth-session-runtime.test.js` � focused auth/session consumer regression coverage used by the repository CI build gate.
 
 ## Open Verification Points
 

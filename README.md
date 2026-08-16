@@ -110,6 +110,7 @@ LOG_LEVEL=error
 npm run start
 npm run build
 npm run build:dev
+npm test
 npm run test:auth-runtime
 npm run lint
 npm run sort
@@ -118,6 +119,7 @@ npm run sort
 - `npm run start` — Webpack development server.
 - `npm run build` — production build ke `build/`.
 - `npm run build:dev` — development build tanpa dev server.
+- `npm test` - full Node regression suite di seluruh domain `tests/`.
 - `npm run test:auth-runtime` — focused auth/session runtime regression suite.
 - `npm run lint` — Prettier check untuk `src`, `tests`, dan `docs`; ini bukan full static-analysis linter.
 - `npm run sort` — menulis ulang format Prettier pada `src`.
@@ -201,10 +203,10 @@ npm run test:auth-runtime
 npm run build
 ```
 
-Sebelum PR merge, minimum verification mengikuti scope perubahan. Untuk perubahan umum jalankan production build; untuk auth/session jalankan focused auth runtime suite.
+Sebelum PR merge, perubahan code harus lolos full Node regression suite dan production build. `npm run test:auth-runtime` tetap tersedia sebagai focused auth/session check untuk iterasi cepat.
 
 ```bash
-npm run test:auth-runtime
+npm test
 npm run build
 ```
 
@@ -300,6 +302,7 @@ Sebelum repository diserahkan atau release dipromosikan:
 
 - clone/install berhasil dengan Node.js 20+ dan `npm ci`;
 - `.env.example` dan `.env.production.example` sesuai runtime contract;
+- `npm test` berhasil;
 - `npm run test:auth-runtime` berhasil;
 - `npm run build` berhasil;
 - source branch release dan build environment teridentifikasi;

@@ -25,3 +25,9 @@ memory-bank
 .remember/
 .claude-dev-server.log
 .superpowers/
+
+# IDE
+.idea/
+
+# Local dev-server logs
+webpack-*.log

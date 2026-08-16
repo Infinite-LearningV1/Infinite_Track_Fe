@@ -70,6 +70,7 @@ test("application startup boundary prevents Alpine.start when dashboard access i
   );
 
   let alpineStartCount = 0;
+  let preloaderHideCount = 0;
   const context = {
     document: { body: { dataset: {} } },
     window: { location: { pathname: "/index.html" } },
@@ -81,6 +82,9 @@ test("application startup boundary prevents Alpine.start when dashboard access i
     async bootAuthentication() {
       context.document.body.dataset.accessBoundary = "denied";
       return "authenticated";
+    },
+    hideGlobalPreloader() {
+      preloaderHideCount += 1;
     },
   };
 
@@ -96,6 +100,11 @@ test("application startup boundary prevents Alpine.start when dashboard access i
     alpineStartCount,
     0,
     "Expected denied dashboard startup boundary to stop before Alpine.start()",
+  );
+  assert.equal(
+    preloaderHideCount,
+    1,
+    "Expected denied dashboard startup boundary to hide the global preloader",
   );
 });
 

@@ -29,10 +29,14 @@ test("booking page includes the rejection modal and success event handler", asyn
   assert.match(html, /wfa-booking-rejection:succeeded/);
 });
 
-test("booking table and map detail open rejection instead of mutating directly", async () => {
+test("booking queue opens detail while decision surfaces own rejection actions", async () => {
   const table = await source("src/partials/table/table-booking.html");
+  const drawer = await source("src/partials/modal/booking-detail-drawer.html");
   const mapModal = await source("src/partials/modal/booking-map-modal.html");
-  assert.match(table, /openRejectBooking\(booking\)/);
+
+  assert.match(table, /openBookingDetail\(booking\)/);
+  assert.doesNotMatch(table, /openRejectBooking\(booking\)/);
+  assert.match(drawer, /openRejectBooking\(drawerState\.selectedBooking\)/);
   assert.match(mapModal, /openRejectBooking\(selectedBookingLocation\)/);
   assert.doesNotMatch(mapModal, /rejectBooking\(/);
 });

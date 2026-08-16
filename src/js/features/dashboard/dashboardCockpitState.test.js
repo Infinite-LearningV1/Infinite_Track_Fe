@@ -547,9 +547,9 @@ test("dashboard loadSummaryData keeps report rows when analytics fails but today
   component.fetchTodayLocations = async () => ({
     data: [],
   });
-  component.fetchFuzzyAhpAnalysis = async () => ({
-    data: {},
-  });
+  component.fetchFuzzyAhpAnalysis = async () => {
+    throw new Error("fahp unavailable");
+  };
 
   console.log = () => {};
   console.warn = (...args) => {

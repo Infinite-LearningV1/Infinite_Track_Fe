@@ -4,9 +4,9 @@ import { buildDashboardSectionOrder } from '../../src/js/services/dashboardCockp
 
 test('dashboard section ownership order returns the approved owner-based section order', () => {
   assert.deepEqual(buildDashboardSectionOrder(), [
+    'liveOperationsMap',
     'historicalOverview',
-    'geofenceEvidence',
     'fahpRecap',
-    'liveOperationsMap'
+    'geofenceEvidence'
   ]);
 });

@@ -58,7 +58,7 @@ test("DashboardAnalyticsService#getDashboardAnalytics rejects invalid period", a
   const service = new DashboardAnalyticsService(async () => ({ data: {} }));
 
   await assert.rejects(
-    service.getDashboardAnalytics({ period: "weekly" }),
+    service.getDashboardAnalytics({ period: "yearly" }),
     /invalid period/i,
   );
 });

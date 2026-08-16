@@ -63,15 +63,13 @@ test("liveMapSlice preserves valid empty payloads while marking malformed payloa
   const validEmpty = buildLiveMapViewModel({ data: [] });
   const malformed = buildLiveMapViewModel({ data: {} });
 
-  assert.deepEqual(validEmpty, {
-    locations: [],
-    authority: "attendance.today-locations",
-  });
+  assert.deepEqual(validEmpty.locations, []);
+  assert.equal(validEmpty.authority, "attendance.today-locations");
   assert.equal(malformed.locations, false);
   assert.equal(malformed.authority, "attendance.today-locations");
 });
 
-test("cockpit hero shows preview live-map markers for malformed today-locations payloads", () => {
+test("cockpit hero keeps malformed today-locations conservative without preview markers", () => {
   const validEmptyCockpit = createDashboardCockpitStateFromSources({
     analyticsResponse: { data: {} },
     todayLocations: createLiveMapSliceState({ data: [] }),
@@ -82,17 +80,7 @@ test("cockpit hero shows preview live-map markers for malformed today-locations 
   });
 
   assert.equal(validEmptyCockpit.hero.state, "empty");
-  assert.equal(malformedCockpit.hero.state, "ready");
-  assert.equal(malformedCockpit.hero.data.isPreview, true);
-  assert.equal(malformedCockpit.hero.data.locations.length, 10);
-  assert.equal(malformedCockpit.hero.data.modeSummary.total, 10);
-  assert.deepEqual(
-    malformedCockpit.hero.data.modeSummary.modes.map((mode) => [mode.key, mode.value]),
-    [
-      ["WFO", 5],
-      ["WFH", 1],
-      ["WFA", 4],
-    ],
-  );
-  assert.match(malformedCockpit.hero.message, /preview attendance locations/i);
+  assert.equal(malformedCockpit.hero.state, "needsData");
+  assert.match(malformedCockpit.hero.message, /payload is invalid/i);
+  assert.equal(malformedCockpit.hero.data, null);
 });

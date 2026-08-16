@@ -1352,7 +1352,7 @@ test("cockpit fuzzy ahp filters malformed criteria weights without adapting lega
   assert.equal(fuzzyAhp.data.decisions[0].criteriaWeights[0].weight, 0.62);
 });
 
-test("cockpit fuzzy ahp does not normalize missing status into empty output", () => {
+test("cockpit fuzzy ahp surfaces malformed strict recap as an error", () => {
   const cockpit = createDashboardCockpitStateFromSources({
     fuzzyAhpResponse: {
       data: {
@@ -1373,8 +1373,8 @@ test("cockpit fuzzy ahp does not normalize missing status into empty output", ()
     (panel) => panel.key === "fuzzyAhp",
   );
 
-  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.NEEDS_DATA);
-  assert.match(fuzzyAhp.message, /status must be present/i);
+  assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.ERROR);
+  assert.match(fuzzyAhp.message, /invalid fahp dashboard recap contract/i);
 });
 
 test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", () => {

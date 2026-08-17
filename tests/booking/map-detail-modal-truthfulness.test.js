@@ -10,6 +10,26 @@ import {
   hasFiniteCoordinates,
 } from "../../src/js/utils/mapLocationTruth.js";
 
+const installNavigatorStub = () => {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "navigator",
+  );
+
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: { userAgent: "node.js", platform: "", maxTouchPoints: 0 },
+  });
+
+  return () => {
+    if (originalDescriptor) {
+      Object.defineProperty(globalThis, "navigator", originalDescriptor);
+    } else {
+      delete globalThis.navigator;
+    }
+  };
+};
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const indexSource = readFileSync(join(root, "src", "js", "index.js"), "utf8");
 const modalSource = readFileSync(
@@ -110,6 +130,7 @@ test("MapDetailModal resolves and passes its own container element to Leaflet", 
   const originalDocument = globalThis.document;
   const originalSetTimeout = globalThis.setTimeout;
   const originalClearTimeout = globalThis.clearTimeout;
+  const restoreNavigator = installNavigatorStub();
   const container = { id: "attendanceDetailMapContainer" };
   const mapCalls = [];
   const timers = [];
@@ -193,6 +214,7 @@ test("MapDetailModal resolves and passes its own container element to Leaflet", 
     globalThis.document = originalDocument;
     globalThis.setTimeout = originalSetTimeout;
     globalThis.clearTimeout = originalClearTimeout;
+    restoreNavigator();
   }
 });
 
@@ -200,6 +222,7 @@ test("MapDetailModal timer cancellation is isolated per instance", async () => {
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
   const originalClearTimeout = globalThis.clearTimeout;
+  const restoreNavigator = installNavigatorStub();
   globalThis.window = { screen: {}, devicePixelRatio: 1 };
   globalThis.document = {
     documentElement: { style: {} },
@@ -230,6 +253,7 @@ test("MapDetailModal timer cancellation is isolated per instance", async () => {
     globalThis.window = originalWindow;
     globalThis.document = originalDocument;
     globalThis.clearTimeout = originalClearTimeout;
+    restoreNavigator();
   }
 });
 

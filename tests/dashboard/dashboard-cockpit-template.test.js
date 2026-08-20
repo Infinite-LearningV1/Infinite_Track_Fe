@@ -139,7 +139,7 @@ test("export report modal partial matches redesigned contract-aware layout", () 
   );
   assert.match(
     exportReportModal,
-    /Export is generated from validated attendance records for the selected period\./,
+    /Export is generated from validated attendance records for the selected\s+period\./,
   );
   assert.match(
     exportReportModal,

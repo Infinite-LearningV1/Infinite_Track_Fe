@@ -42,7 +42,9 @@ function checkAuthentication() {
   }
 
   if (authStore?.sessionState === "verification_failed") {
-    console.log("Auth verification failed at startup, keeping protected UI in restricted mode");
+    console.log(
+      "Auth verification failed at startup, keeping protected UI in restricted mode",
+    );
   }
 
   updateAlpineAuthStore();
@@ -128,7 +130,9 @@ function requirePermission(permission, callback, onDenied = null) {
     if (onDenied) {
       onDenied();
     } else {
-      alert("Sesi belum bisa diverifikasi. Coba lagi saat koneksi atau server sudah stabil.");
+      alert(
+        "Sesi belum bisa diverifikasi. Coba lagi saat koneksi atau server sudah stabil.",
+      );
     }
     return;
   }
@@ -177,4 +181,3 @@ export default AuthGuard;
 if (typeof window !== "undefined") {
   window.AuthGuard = AuthGuard;
 }
-

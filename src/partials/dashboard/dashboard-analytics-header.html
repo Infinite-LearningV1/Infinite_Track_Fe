@@ -5,11 +5,10 @@
     Dashboard Analytics
   </h3>
 
-  <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
-    <div
-      class="relative"
-      @click.outside="closeDashboardRangeDropdown()"
-    >
+  <div
+    class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end"
+  >
+    <div class="relative" @click.outside="closeDashboardRangeDropdown()">
       <button
         type="button"
         @click="toggleDashboardRangeDropdown()"

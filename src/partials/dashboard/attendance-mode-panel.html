@@ -19,16 +19,26 @@
   <div class="px-6 py-6">
     <div class="mb-5">
       <h4
-        class="text-xl font-semibold leading-tight tracking-[-0.025em] text-gray-900 dark:text-white"
+        class="text-xl leading-tight font-semibold tracking-[-0.025em] text-gray-900 dark:text-white"
         x-text="viewState.title || 'Attendance Mode'"
       ></h4>
     </div>
     <div class="pt-2">
       <div class="flex justify-center">
-        <div id="chartSixteen" class="chartDarkStyle w-full max-w-[400px]" style="min-height: 329px">
-          <div class="flex min-h-[329px] w-full flex-col items-center justify-between">
+        <div
+          id="chartSixteen"
+          class="chartDarkStyle w-full max-w-[400px]"
+          style="min-height: 329px"
+        >
+          <div
+            class="flex min-h-[329px] w-full flex-col items-center justify-between"
+          >
             <div class="relative flex w-full justify-center">
-              <svg viewBox="0 0 400 264" class="h-auto w-full max-w-[320px] overflow-visible" aria-hidden="true">
+              <svg
+                viewBox="0 0 400 264"
+                class="h-auto w-full max-w-[320px] overflow-visible"
+                aria-hidden="true"
+              >
                 <g
                   class="cursor-pointer transition-opacity duration-150"
                   :class="activeSegmentKey ? 'opacity-60' : 'opacity-100'"
@@ -46,7 +56,7 @@
                   x="200"
                   y="126"
                   text-anchor="middle"
-                  class="text-[11px] font-semibold uppercase tracking-[0.2em]"
+                  class="text-[11px] font-semibold tracking-[0.2em] uppercase"
                   :class="darkMode ? 'fill-white' : 'fill-gray-800'"
                   x-text="activeSegment.label"
                 ></text>
@@ -61,8 +71,13 @@
               </svg>
             </div>
 
-            <div class="mt-4 flex w-full flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm text-gray-700 dark:text-gray-300">
-              <template x-for="item in viewState.legendItems" :key="`${item.key}-legend`">
+            <div
+              class="mt-4 flex w-full flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm text-gray-700 dark:text-gray-300"
+            >
+              <template
+                x-for="item in viewState.legendItems"
+                :key="`${item.key}-legend`"
+              >
                 <button
                   type="button"
                   class="inline-flex items-center gap-2 rounded-full px-2 py-1 transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800"

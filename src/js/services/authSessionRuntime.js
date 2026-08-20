@@ -55,8 +55,13 @@ export function readAuthRedirectNotice(
     return null;
   }
 
-  const storedNotice = sessionStorageRef.getItem(AUTH_REDIRECT_NOTICE_STORAGE_KEY);
-  const parsedNotice = parseJson(storedNotice, AUTH_REDIRECT_NOTICE_STORAGE_KEY);
+  const storedNotice = sessionStorageRef.getItem(
+    AUTH_REDIRECT_NOTICE_STORAGE_KEY,
+  );
+  const parsedNotice = parseJson(
+    storedNotice,
+    AUTH_REDIRECT_NOTICE_STORAGE_KEY,
+  );
 
   if (parsedNotice && typeof parsedNotice === "object") {
     return parsedNotice;
@@ -116,20 +121,32 @@ export function buildForcedReauthRedirectNotice(reason) {
 export function classifyAuthFailure(error) {
   if (error?.request && !error?.response) {
     const isOffline = globalThis.navigator?.onLine === false;
-    return { kind: "transport", reason: isOffline ? "offline" : "network_error" };
+    return {
+      kind: "transport",
+      reason: isOffline ? "offline" : "network_error",
+    };
   }
 
   const status = error?.response?.status ?? error?.status;
   const data = error?.response?.data ?? error?.data ?? {};
-  const code = String(data?.code ?? data?.error ?? data?.reason ?? "").toUpperCase();
+  const code = String(
+    data?.code ?? data?.error ?? data?.reason ?? "",
+  ).toUpperCase();
   const message = String(data?.message ?? error?.message ?? "");
   const refreshInvalidMessage =
     /(?:refresh[\s-]?token|session).*(?:expired|invalid|revoked)|(?:expired|invalid|revoked).*(?:refresh[\s-]?token|session)/i.test(
       message,
     );
-  const inactiveMessage = /(?:inactive|inactivity|full\s+re-?auth|required.*re-?auth)/i.test(message);
-  const sessionMissingMessage = /(?:tidak ada sesi aktif|no active session|unauthenticated|not authenticated|belum login)/i.test(message);
-  const invalidTokenMessage = /(?:invalid|revoked|malformed|bad|missing|no)[\s-]*(?:bearer\s+)?(?:token|credential)|(?:token|credential)[\s-]*(?:invalid|revoked|malformed|missing|required|provided)/i.test(message);
+  const inactiveMessage =
+    /(?:inactive|inactivity|full\s+re-?auth|required.*re-?auth)/i.test(message);
+  const sessionMissingMessage =
+    /(?:tidak ada sesi aktif|no active session|unauthenticated|not authenticated|belum login)/i.test(
+      message,
+    );
+  const invalidTokenMessage =
+    /(?:invalid|revoked|malformed|bad|missing|no)[\s-]*(?:bearer\s+)?(?:token|credential)|(?:token|credential)[\s-]*(?:invalid|revoked|malformed|missing|required|provided)/i.test(
+      message,
+    );
   const accessTokenExpiredMessage =
     /(?:access[\s-]?token.*expired|expired.*access[\s-]?token)/i.test(message);
   const semanticAuthDenial = data?.success === false;
@@ -153,7 +170,10 @@ export function classifyAuthFailure(error) {
       inactiveMessage ||
       sessionMissingMessage)
   ) {
-    const isInactive = code.includes("INACTIVE") || code.includes("INACTIVITY") || inactiveMessage;
+    const isInactive =
+      code.includes("INACTIVE") ||
+      code.includes("INACTIVITY") ||
+      inactiveMessage;
 
     return {
       kind: "non_refreshable",
@@ -238,7 +258,10 @@ export function createAuthSessionSyncController({
           channel = new windowRef.BroadcastChannel(AUTH_SESSION_SYNC_CHANNEL);
           channel.addEventListener?.("message", handleMessage);
         } catch (error) {
-          console.warn("Auth session BroadcastChannel unavailable:", error.message);
+          console.warn(
+            "Auth session BroadcastChannel unavailable:",
+            error.message,
+          );
           channel = undefined;
         }
       }
@@ -265,7 +288,12 @@ export function createProtectedRequestExecutor({
   const refresh = createSingleFlightRefresh(executeRefresh);
 
   return async function runProtectedRequest(executeRequest) {
-    return executeWithRecovery({ executeRequest, classifyFailure, onForcedReauth, refresh });
+    return executeWithRecovery({
+      executeRequest,
+      classifyFailure,
+      onForcedReauth,
+      refresh,
+    });
   };
 }
 
@@ -298,7 +326,9 @@ async function executeWithRecovery({
 
       if (refreshFailure.kind === "non_refreshable") {
         await onForcedReauth(refreshError, {
-          redirectNotice: buildForcedReauthRedirectNotice(refreshFailure.reason),
+          redirectNotice: buildForcedReauthRedirectNotice(
+            refreshFailure.reason,
+          ),
         });
       }
 
@@ -321,14 +351,22 @@ async function executeWithRecovery({
   }
 }
 
-export function readStoredSessionSnapshot(localStorageRef = globalThis.localStorage) {
+export function readStoredSessionSnapshot(
+  localStorageRef = globalThis.localStorage,
+) {
   if (!localStorageRef) {
     return null;
   }
 
-  const canonicalUser = parseJson(localStorageRef.getItem("userData"), "userData");
+  const canonicalUser = parseJson(
+    localStorageRef.getItem("userData"),
+    "userData",
+  );
   const legacyUser = parseJson(localStorageRef.getItem("user"), "user");
-  const currentUserData = parseJson(localStorageRef.getItem("currentUserData"), "currentUserData");
+  const currentUserData = parseJson(
+    localStorageRef.getItem("currentUserData"),
+    "currentUserData",
+  );
   const user = canonicalUser ?? legacyUser ?? currentUserData;
 
   const canonicalToken = localStorageRef.getItem("authToken");
@@ -412,10 +450,18 @@ export function createBootstrapSessionResolver({
           const refreshFailure = classifyFailure(refreshError);
 
           if (refreshFailure.kind === "non_refreshable") {
-            return { state: "non_refreshable", user: null, error: refreshError };
+            return {
+              state: "non_refreshable",
+              user: null,
+              error: refreshError,
+            };
           }
 
-          return { state: "verification_failed", user: null, error: refreshError };
+          return {
+            state: "verification_failed",
+            user: null,
+            error: refreshError,
+          };
         }
       }
 

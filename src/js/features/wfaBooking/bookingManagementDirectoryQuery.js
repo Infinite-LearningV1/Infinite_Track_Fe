@@ -13,7 +13,14 @@ export const DEFAULT_BOOKING_MANAGEMENT_QUERY = Object.freeze({
   appliedFilters: Object.freeze({ status: "", dateFrom: "", dateTo: "" }),
 });
 
-const MANAGED_QUERY_KEYS = ["page", "limit", "search", "status", "date_from", "date_to"];
+const MANAGED_QUERY_KEYS = [
+  "page",
+  "limit",
+  "search",
+  "status",
+  "date_from",
+  "date_to",
+];
 
 function positiveInteger(value) {
   if (!/^\d+$/.test(value || "")) return null;
@@ -83,10 +90,23 @@ export function serializeBookingManagementDirectoryQuery(
   for (const key of MANAGED_QUERY_KEYS) result.delete(key);
   const filters = state.appliedFilters || {};
   const values = [
-    ["page", state.page !== DEFAULT_BOOKING_MANAGEMENT_QUERY.page ? state.page : null],
-    ["limit", state.limit !== DEFAULT_BOOKING_MANAGEMENT_QUERY.limit ? state.limit : null],
+    [
+      "page",
+      state.page !== DEFAULT_BOOKING_MANAGEMENT_QUERY.page ? state.page : null,
+    ],
+    [
+      "limit",
+      state.limit !== DEFAULT_BOOKING_MANAGEMENT_QUERY.limit
+        ? state.limit
+        : null,
+    ],
     ["search", (state.search || "").trim() || null],
-    ["status", BOOKING_MANAGEMENT_STATUSES.includes(filters.status) ? filters.status : null],
+    [
+      "status",
+      BOOKING_MANAGEMENT_STATUSES.includes(filters.status)
+        ? filters.status
+        : null,
+    ],
     ["date_from", filters.dateFrom || null],
     ["date_to", filters.dateTo || null],
   ];

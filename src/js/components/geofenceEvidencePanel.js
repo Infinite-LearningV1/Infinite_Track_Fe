@@ -27,8 +27,12 @@ export function createGeofenceEvidenceViewState(panel) {
     title: panel?.title || "Geofence Operational Context",
     subtitle: panel?.subtitle || "ENTER / EXIT + attendance evidence",
     isPreview: Boolean(data.isPreview),
-    statusLabel: data.status === "ready" ? "Active" : panel?.stateLabel || "Active",
-    statusTone: data.status === "ready" || panel?.state === "ready" ? "active" : "neutral",
+    statusLabel:
+      data.status === "ready" ? "Active" : panel?.stateLabel || "Active",
+    statusTone:
+      data.status === "ready" || panel?.state === "ready"
+        ? "active"
+        : "neutral",
     summaryLead: String(uniqueUsers),
     summaryText: `users generated ${totalEvents} geofence events in this range`,
     sourceLabel: data.source || "analysis.geofence-evidence",
@@ -62,12 +66,14 @@ export function createGeofenceEvidenceViewState(panel) {
       {
         key: "enter-support",
         label: "ENTER events support check-in reminder monitoring",
-        iconPath: "M12 3v4m0 10v4M5.64 5.64l2.83 2.83m7.06 7.06 2.83 2.83M3 12h4m10 0h4M5.64 18.36l2.83-2.83m7.06-7.06 2.83-2.83",
+        iconPath:
+          "M12 3v4m0 10v4M5.64 5.64l2.83 2.83m7.06 7.06 2.83 2.83M3 12h4m10 0h4M5.64 18.36l2.83-2.83m7.06-7.06 2.83-2.83",
       },
       {
         key: "exit-support",
         label: "EXIT events support active-session exit warning monitoring",
-        iconPath: "M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z",
+        iconPath:
+          "M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z",
       },
       {
         key: "truth-boundary",

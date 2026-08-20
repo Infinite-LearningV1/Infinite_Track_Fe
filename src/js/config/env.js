@@ -66,7 +66,8 @@ export const APP_CONFIG = {
 
 // Authentication Configuration
 export const AUTH_CONFIG = {
-  SESSION_TIMEOUT: parseInt(readEnv("SESSION_TIMEOUT", "3600000"), 10) || 3600000, // 1 hour in ms
+  SESSION_TIMEOUT:
+    parseInt(readEnv("SESSION_TIMEOUT", "3600000"), 10) || 3600000, // 1 hour in ms
   REMEMBER_ME_DAYS: parseInt(readEnv("REMEMBER_ME_DAYS", "7"), 10) || 7,
   CLIENT_TYPE_HEADER: "X-Client-Type",
   CLIENT_TYPE: "web",

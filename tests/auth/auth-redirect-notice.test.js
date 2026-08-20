@@ -82,7 +82,10 @@ test("forced reauth for invalid refresh persists a 6s invalid-session notice", a
   const notice = await captureForcedReauthNotice("AUTH_REFRESH_TOKEN_INVALID");
 
   assert.equal(notice.type, "warning");
-  assert.equal(notice.message, "Sesi Anda tidak lagi valid. Silakan login lagi.");
+  assert.equal(
+    notice.message,
+    "Sesi Anda tidak lagi valid. Silakan login lagi.",
+  );
   assert.equal(notice.timeoutMs, 6000);
   assert.equal(notice.reason, "refresh_invalid");
 });

@@ -47,7 +47,10 @@ function createFakeDocument({
 test("SigninHandler.shouldAutoInitSigninHandler returns false outside signin form context", () => {
   const dashboardDocument = createFakeDocument();
 
-  assert.equal(SigninHandler.shouldAutoInitSigninHandler(dashboardDocument), false);
+  assert.equal(
+    SigninHandler.shouldAutoInitSigninHandler(dashboardDocument),
+    false,
+  );
 });
 
 test("SigninHandler.shouldAutoInitSigninHandler returns true for signin form context", () => {

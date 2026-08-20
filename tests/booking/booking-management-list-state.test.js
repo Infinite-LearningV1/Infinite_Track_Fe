@@ -6,7 +6,11 @@ import { bookingListAlpineData } from "../../src/js/features/wfaBooking/bookingL
 function fakeBrowser(search = "") {
   const calls = [];
   const listeners = new Map();
-  const location = { pathname: "/management-booking.html", search, hash: "#queue" };
+  const location = {
+    pathname: "/management-booking.html",
+    search,
+    hash: "#queue",
+  };
   const write = (mode, url) => {
     calls.push([mode, url]);
     const parsed = new URL(url, "https://example.test");
@@ -17,11 +21,19 @@ function fakeBrowser(search = "") {
   return {
     location,
     history: {
-      pushState(_state, _title, url) { write("push", url); },
-      replaceState(_state, _title, url) { write("replace", url); },
+      pushState(_state, _title, url) {
+        write("push", url);
+      },
+      replaceState(_state, _title, url) {
+        write("replace", url);
+      },
     },
-    addEventListener(type, listener) { listeners.set(type, listener); },
-    removeEventListener(type) { listeners.delete(type); },
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    removeEventListener(type) {
+      listeners.delete(type);
+    },
     calls,
     listeners,
   };
@@ -162,18 +174,25 @@ test("booking pagination writes canonical page state to browser history", async 
 
   await state.changePage(2);
 
-  assert.deepEqual(browser.calls, [["push", "/management-booking.html?debug=1&page=2#queue"]]);
+  assert.deepEqual(browser.calls, [
+    ["push", "/management-booking.html?debug=1&page=2#queue"],
+  ]);
   assert.deepEqual(requests, [{ page: 2, limit: 10 }]);
 });
 
 test("booking init hydrates URL and popstate restores query without writing history", async () => {
-  const browser = fakeBrowser("?debug=1&page=2&limit=25&search=ayu&status=pending&date_from=2026-07-01&date_to=2026-07-31");
+  const browser = fakeBrowser(
+    "?debug=1&page=2&limit=25&search=ayu&status=pending&date_from=2026-07-01&date_to=2026-07-31",
+  );
   const requests = [];
   const state = bookingListAlpineData({
     browser,
     getBookings: async (params) => {
       requests.push(params);
-      return page(params.page, { current_page: params.page, records_per_page: params.limit });
+      return page(params.page, {
+        current_page: params.page,
+        records_per_page: params.limit,
+      });
     },
   });
 
@@ -194,5 +213,9 @@ test("booking init hydrates URL and popstate restores query without writing hist
 
   assert.equal(browser.calls.length, historyCount);
   assert.deepEqual(requests[1], { page: 1, limit: 10 });
-  assert.deepEqual(state.appliedQuery.appliedFilters, { status: "", dateFrom: "", dateTo: "" });
+  assert.deepEqual(state.appliedQuery.appliedFilters, {
+    status: "",
+    dateFrom: "",
+    dateTo: "",
+  });
 });

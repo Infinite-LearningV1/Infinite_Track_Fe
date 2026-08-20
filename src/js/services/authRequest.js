@@ -18,13 +18,20 @@ const runProtectedRequest = createProtectedRequestExecutor({
 
 function omitAuthorizationHeader(headers = {}) {
   return Object.fromEntries(
-    Object.entries(headers).filter(([key]) => key.toLowerCase() !== "authorization"),
+    Object.entries(headers).filter(
+      ([key]) => key.toLowerCase() !== "authorization",
+    ),
   );
 }
 
-export function buildAuthRequestConfig(config = {}, resolveAuthHeaders = buildAuthRequestHeaders) {
+export function buildAuthRequestConfig(
+  config = {},
+  resolveAuthHeaders = buildAuthRequestHeaders,
+) {
   const callerHeaders = omitAuthorizationHeader(config?.headers || {});
-  const canonicalAuthHeaders = omitAuthorizationHeader(resolveAuthHeaders() || {});
+  const canonicalAuthHeaders = omitAuthorizationHeader(
+    resolveAuthHeaders() || {},
+  );
 
   return {
     ...config,

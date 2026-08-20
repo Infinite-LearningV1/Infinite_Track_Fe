@@ -1,6 +1,8 @@
 export function buildHistoricalAnalyticsViewModel(response) {
   const data =
-    response?.data && typeof response.data === "object" && !Array.isArray(response.data)
+    response?.data &&
+    typeof response.data === "object" &&
+    !Array.isArray(response.data)
       ? response.data
       : {};
 

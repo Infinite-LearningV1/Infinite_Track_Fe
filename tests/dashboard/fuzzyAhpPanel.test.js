@@ -15,10 +15,9 @@ test("Fuzzy AHP ranking rows use backend name as the main label and preserve the
           consistencyThreshold: 0.1,
           consistencyStatus: "Konsistensi dapat diterima",
           isConsistent: true,
-          updatedAtLabel: "Backend generated at 2026-07-01T21:43:55+07:00 (Asia/Jakarta)",
-          criteriaWeights: [
-            { label: "Disiplin Kehadiran", weight: 1 },
-          ],
+          updatedAtLabel:
+            "Backend generated at 2026-07-01T21:43:55+07:00 (Asia/Jakarta)",
+          criteriaWeights: [{ label: "Disiplin Kehadiran", weight: 1 }],
           rankings: [
             {
               rank: 1,

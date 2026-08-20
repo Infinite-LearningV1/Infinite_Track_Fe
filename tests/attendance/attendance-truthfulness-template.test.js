@@ -23,7 +23,9 @@ test("search copy names only current backend search fields", () => {
 });
 
 test("attendance list state does not expose local sorting APIs", () => {
-  const source = readSource("../../src/js/features/attendance/attendanceLog.js");
+  const source = readSource(
+    "../../src/js/features/attendance/attendanceLog.js",
+  );
 
   assert.doesNotMatch(source, /changeSort/);
   assert.doesNotMatch(source, /getSortIcon/);

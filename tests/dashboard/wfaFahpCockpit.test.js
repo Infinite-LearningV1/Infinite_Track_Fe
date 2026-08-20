@@ -104,11 +104,16 @@ test("loading and error preserve three options and active type", () => {
   }
 });
 
-
 test("WFA empty and needs-data states explain date-range evidence truthfully", () => {
   for (const [status, expected] of [
-    ["empty", /No eligible Approved WFA evidence exists in the selected date range/i],
-    ["needs_data", /Approved WFA bookings exist in the selected date range.*reproducible FAHP criterion evidence is insufficient/i],
+    [
+      "empty",
+      /No eligible Approved WFA evidence exists in the selected date range/i,
+    ],
+    [
+      "needs_data",
+      /Approved WFA bookings exist in the selected date range.*reproducible FAHP criterion evidence is insufficient/i,
+    ],
   ]) {
     const response = structuredClone(rankedResponse);
     response.data.status = status;

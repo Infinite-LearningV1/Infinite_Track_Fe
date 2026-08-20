@@ -37,6 +37,14 @@ cp .env.example .env
 npm run start
 ```
 
+### Local runtime boundary
+
+Web FE runs directly on Webpack Dev Server at `http://localhost:3000`.
+The backend is started independently from the backend repository and must listen on `http://localhost:3005` for the default local integration path.
+Webpack proxies browser requests under `/api/*` to that backend target, so local browser code keeps `API_BASE_URL=/api`.
+
+Web FE does not require Nginx, Docker Compose, or a Web FE-owned backend container for canonical local development.
+
 ## Environment
 
 | Variable            | Development      | Production                            |
@@ -143,6 +151,8 @@ flowchart LR
 | Output directory | `build/`                              |
 | Frontend         | `https://infinite-track.tech`         |
 | API base         | `https://api.infinite-track.tech/api` |
+| Hosting model    | DigitalOcean App Platform Static Site |
+| Backend ingress  | Backend-owned Nginx at `api.infinite-track.tech` |
 
 ```text
 develop
@@ -153,6 +163,8 @@ production build
    ↓
 deploy build/
 ```
+
+The Web FE production artifact is static `build/` content. The Web FE repository does not own a production Nginx runtime. Browser API traffic goes directly to `https://api.infinite-track.tech/api`; backend ingress/TLS remains a backend responsibility.
 
 ## License
 

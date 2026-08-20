@@ -22,6 +22,9 @@ Proposed
 - Local Webpack development proxies `/api` requests to `http://localhost:3005` unless `WEBPACK_API_PROXY_TARGET` overrides that target.
 - The current production env template uses `https://api.infinite-track.tech/api` as the public backend API base.
 - `master` is the release/production source branch; `develop` is the integration branch.
+- Webpack Dev Server is the canonical Web FE development server; the repository does not require a Web FE-owned Nginx gateway.
+- Backend development runtime startup is owned by the backend repository; Web FE integrates through `WEBPACK_API_PROXY_TARGET` rather than owning a backend container.
+- Production Web FE is a static artifact and the public backend ingress belongs to the backend repository.
 
 ### Assumption
 
@@ -38,7 +41,9 @@ Proposed
 
 We will treat observable repository and deployed runtime behavior as the Web FE deployment truth.
 
-For local development, `/api` is the default frontend API base and the Webpack dev server provides the local proxy. For static production, the build must receive the explicit public API base required by the target environment; the current production template uses `https://api.infinite-track.tech/api`.
+For local development, Webpack Dev Server is the canonical Web FE runtime. `API_BASE_URL=/api` remains the browser-facing development base, and Webpack proxies `/api/*` to the independently started backend development runtime, defaulting to `http://localhost:3005` unless `WEBPACK_API_PROXY_TARGET` overrides it.
+
+Web FE owns no Nginx runtime and no backend container lifecycle. For static production, the build receives the explicit public API base required by the target environment; the canonical production contract is `https://api.infinite-track.tech/api`. Backend public ingress, TLS, CORS policy, and Express runtime remain backend responsibilities.
 
 Environment templates are contracts, not secrets and not automatic runtime configuration. Production values must be injected into the build environment before Webpack creates the static bundle.
 
@@ -70,11 +75,12 @@ Keeping local proxy behavior separate from production public-API configuration a
 ## Evidence / References
 
 - `package.json` — `npm run build` creates the production Webpack bundle.
-- `.github/workflows/build.yml` — Node.js 20 CI runs `npm ci`, focused auth runtime tests, and production build on `develop`/`master` PRs and pushes.
+- `.github/workflows/build.yml` — Node.js 20 CI runs `npm ci`, `npm test`, and `npm run build` on `develop`/`master` PRs and pushes.
 - `webpack.config.js` — Webpack injects frontend environment values, emits `build/`, and configures the local `/api` proxy.
 - `.env.example` — local development API/env contract.
 - `.env.production.example` — current static-production API/env contract.
 - `README.md` — canonical operational setup, verification, deployment, smoke, and rollback guidance.
+- `docs/superpowers/specs/2026-08-20-inf-277-web-fe-runtime-boundary-design.md` — approved INF-277 runtime ownership design.
 
 ## Open Verification Points
 

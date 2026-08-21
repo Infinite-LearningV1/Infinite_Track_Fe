@@ -78,3 +78,18 @@ test("one public env template owns only deployment-varying inputs", () => {
     false,
   );
 });
+
+test("CI is a Node 24 verification gate", () => {
+  assert.equal(
+    fs.existsSync(path.resolve(ROOT, ".github/workflows/build.yml")),
+    false,
+  );
+  const ci = read(".github/workflows/ci.yml");
+  assert.match(ci, /actions\/checkout@v7/);
+  assert.match(ci, /actions\/setup-node@v7/);
+  assert.match(ci, /node-version:\s*["']24\.x["']/);
+  assert.match(ci, /run:\s*npm run lint/);
+  assert.match(ci, /run:\s*npm test/);
+  assert.match(ci, /run:\s*npm run build/);
+  assert.match(ci, /contents:\s*read/);
+});

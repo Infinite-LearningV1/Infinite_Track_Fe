@@ -51,7 +51,7 @@ const devServer = {
     directory: path.join(__dirname, "build"),
   },
   host: process.env.WEBPACK_DEV_HOST || "127.0.0.1",
-  allowedHosts: "all",
+  allowedHosts: "auto",
   compress: true,
   port: 3000,
   hot: true,

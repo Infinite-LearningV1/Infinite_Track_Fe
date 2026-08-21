@@ -1177,7 +1177,9 @@ test("logout clears local auth state before backend logout resolves", async () =
     return { status: 200, data: { success: true } };
   };
   globalThis.localStorage = localStorageRef;
-  globalThis.document = { cookie: "stubRole=Employee; authToken=employee-token" };
+  globalThis.document = {
+    cookie: "stubRole=Employee; authToken=employee-token",
+  };
   globalThis.window = {
     localStorage: localStorageRef,
     sessionStorage: sessionStorageRef,

@@ -87,7 +87,10 @@ test("selecting WFA publishes loading state while the date-range request is pend
         { key: "facility_score", value: 0.3 },
       ],
       consistency: { CR: 0.06, threshold: 0.1, is_consistent: true },
-      methodology: { version: "wfa_fahp_v1", weighting_method: "backend-authored" },
+      methodology: {
+        version: "wfa_fahp_v1",
+        weighting_method: "backend-authored",
+      },
       ranking_preview: { top_n: 5, items: [] },
       evidence: {
         approved_booking_count: 0,

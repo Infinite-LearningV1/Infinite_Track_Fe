@@ -131,7 +131,6 @@ test("resolveDashboardRangeDateWindow resolves explicit WFA windows", () => {
   );
 });
 
-
 test("resolveDashboardRangeDateWindow derives business today in Asia/Jakarta", () => {
   assert.deepEqual(
     resolveDashboardRangeDateWindow(

@@ -789,7 +789,8 @@ span.flatpickr-weekday,
 }
 
 .dark .dashboard-live-map-shell .leaflet-tile {
-  filter: brightness(0.58) contrast(1.2) grayscale(0.35) hue-rotate(180deg) invert(1);
+  filter: brightness(0.58) contrast(1.2) grayscale(0.35) hue-rotate(180deg)
+    invert(1);
 }
 
 .dark .dashboard-live-map-shell .leaflet-container {
@@ -820,4 +821,3 @@ span.flatpickr-weekday,
   background: #ffffff;
   opacity: 0.92;
 }
-

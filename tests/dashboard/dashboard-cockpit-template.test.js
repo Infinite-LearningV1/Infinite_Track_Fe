@@ -139,7 +139,7 @@ test("export report modal partial matches redesigned contract-aware layout", () 
   );
   assert.match(
     exportReportModal,
-    /Export is generated from validated attendance records for the selected period\./,
+    /Export is generated from validated attendance records for the selected\s+period\./,
   );
   assert.match(
     exportReportModal,
@@ -300,19 +300,19 @@ test("dashboard cockpit grid renders map-only hero, preview trend, and backend-d
   assert.match(historicalTrendPartial, /historicalTrendAlphaGradient/);
   assert.match(
     historicalTrendPartial,
-    /stop-opacity="0\.45" stop-color="rgba\(70,95,255,0\.45\)" offset="0"/,
+    /stop-opacity="0\.45"\s+stop-color="rgba\(70,95,255,0\.45\)"\s+offset="0"/,
   );
   assert.match(
     historicalTrendPartial,
-    /stop-opacity="0\.45" stop-color="rgba\(156,185,255,0\.45\)" offset="0"/,
+    /stop-opacity="0\.45"\s+stop-color="rgba\(156,185,255,0\.45\)"\s+offset="0"/,
   );
   assert.match(
     historicalTrendPartial,
-    /stop-opacity="0\.45" stop-color="rgba\(239,68,68,0\.45\)" offset="0"/,
+    /stop-opacity="0\.45"\s+stop-color="rgba\(239,68,68,0\.45\)"\s+offset="0"/,
   );
   assert.match(
     historicalTrendPartial,
-    /stop-opacity="0" stop-color="rgba\(255,255,255,0\)" offset="1"/,
+    /stop-opacity="0"\s+stop-color="rgba\(255,255,255,0\)"\s+offset="1"/,
   );
   assert.match(
     historicalTrendPartial,
@@ -329,7 +329,7 @@ test("dashboard cockpit grid renders map-only hero, preview trend, and backend-d
   );
   assert.match(
     historicalTrendPartial,
-    /text-xl font-semibold leading-tight tracking-\[-0\.025em\]/,
+    /text-xl leading-tight font-semibold tracking-\[-0\.025em\]/,
   );
   assert.match(
     historicalTrendPartial,
@@ -372,14 +372,17 @@ test("dashboard cockpit grid renders map-only hero, preview trend, and backend-d
   );
   assert.match(
     attendanceModePartial,
-    /text-xl font-semibold leading-tight tracking-\[-0\.025em\]/,
+    /text-xl leading-tight font-semibold tracking-\[-0\.025em\]/,
   );
   assert.match(
     attendanceModePartial,
     /x-text="viewState\.title \|\| 'Attendance Mode'"/,
   );
   assert.match(attendanceModePartial, /darkMode \? '#1d2939' : '#ffffff'/);
-  assert.match(attendanceModePartial, /text-\[11px\] font-semibold uppercase/);
+  assert.match(
+    attendanceModePartial,
+    /text-\[11px\][^\"]*font-semibold[^\"]*uppercase/,
+  );
   assert.match(
     attendanceModePartial,
     /darkMode \? 'fill-white' : 'fill-gray-800'/,

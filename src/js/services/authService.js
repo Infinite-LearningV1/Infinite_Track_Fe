@@ -20,7 +20,8 @@ import {
 
 // Konfigurasi axios default
 axios.defaults.withCredentials = true; // Mengizinkan pengiriman cookie
-axios.defaults.headers.common[AUTH_CONFIG.CLIENT_TYPE_HEADER] = AUTH_CONFIG.CLIENT_TYPE;
+axios.defaults.headers.common[AUTH_CONFIG.CLIENT_TYPE_HEADER] =
+  AUTH_CONFIG.CLIENT_TYPE;
 
 /**
  * Login pengguna
@@ -245,7 +246,10 @@ async function forceReauthenticate(options = {}) {
     : "Data sesi di browser gagal dibersihkan.";
 
   if (!storageCleared) {
-    envLog("warn", "Auth storage cleanup failed during forced reauthentication");
+    envLog(
+      "warn",
+      "Auth storage cleanup failed during forced reauthentication",
+    );
   }
 
   if (redirectNotice) {

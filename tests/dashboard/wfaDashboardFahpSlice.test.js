@@ -121,7 +121,6 @@ test("rejects missing window and invalid evidence counts", () => {
   );
 });
 
-
 test("rejects a WFA response whose requested window does not match the request", () => {
   assert.throws(
     () =>

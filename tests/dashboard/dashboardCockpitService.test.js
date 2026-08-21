@@ -66,7 +66,9 @@ test("geofence evidence view model preserves dedicated operational context", () 
     },
   });
 
-  const panel = cockpit.bottomPanels.find((entry) => entry.key === "geofenceEvidence");
+  const panel = cockpit.bottomPanels.find(
+    (entry) => entry.key === "geofenceEvidence",
+  );
   assert.equal(panel.state, DASHBOARD_PANEL_STATES.READY);
   assert.match(panel.note, /backend truth only/i);
 });
@@ -639,7 +641,10 @@ test("cockpit state derives only explicit analytics-backed metrics", () => {
     { key: "smart_ac", title: "Smart AC" },
   ]);
   assert.equal(fuzzyAhp.data.activeType, "discipline");
-  assert.match(fuzzyAhp.message, /explicit analysis\.fuzzy-ahp dashboard backend feed/i);
+  assert.match(
+    fuzzyAhp.message,
+    /explicit analysis\.fuzzy-ahp dashboard backend feed/i,
+  );
   assert.match(
     fuzzyAhp.note,
     /no dummy criteria, weights, rankings, or preview decisions/i,
@@ -1394,7 +1399,10 @@ test("cockpit fuzzy ahp stays truthful when fuzzy ahp payload is incomplete", ()
 
   assert.equal(fuzzyAhp.state, DASHBOARD_PANEL_STATES.NEEDS_DATA);
   assert.equal(fuzzyAhp.data.type, "discipline");
-  assert.match(fuzzyAhp.message, /criteria_weights must include explicit final dashboard weights/i);
+  assert.match(
+    fuzzyAhp.message,
+    /criteria_weights must include explicit final dashboard weights/i,
+  );
 });
 
 test("cockpit error state isolates every panel as error", () => {

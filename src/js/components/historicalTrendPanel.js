@@ -45,7 +45,8 @@ function createEmptyRange() {
 
 function getSelectedTrendRange(panel, selectedKey) {
   const ranges = Array.isArray(panel?.data?.ranges) ? panel.data.ranges : [];
-  const fallbackKey = panel?.data?.defaultRangeKey || ranges[0]?.key || "monthly";
+  const fallbackKey =
+    panel?.data?.defaultRangeKey || ranges[0]?.key || "monthly";
   const resolvedKey = selectedKey || fallbackKey;
 
   return (
@@ -208,7 +209,11 @@ function createTooltipItem(item, plotArea, axisFrame) {
   };
 }
 
-function createActiveHoverPoint(selectedRange, activeHoverIndex, axisFrame = APEX_AXIS_FRAME) {
+function createActiveHoverPoint(
+  selectedRange,
+  activeHoverIndex,
+  axisFrame = APEX_AXIS_FRAME,
+) {
   const hoverPoints = Array.isArray(selectedRange?.hoverPoints)
     ? selectedRange.hoverPoints
     : [];
@@ -232,7 +237,9 @@ function createActiveHoverPoint(selectedRange, activeHoverIndex, axisFrame = APE
     y: renderedPoint.y,
     label: selectedRange?.xAxisLabels?.[activeHoverIndex] || "",
     items: Array.isArray(hoverPoint.items)
-      ? hoverPoint.items.map((item) => createTooltipItem(item, plotArea, axisFrame))
+      ? hoverPoint.items.map((item) =>
+          createTooltipItem(item, plotArea, axisFrame),
+        )
       : [],
   };
 }
@@ -273,7 +280,11 @@ function createCrosshairStyle(activeHoverPoint, axisFrame = APEX_AXIS_FRAME) {
   return `left:${activeHoverPoint.x}px;top:${frameY}px;height:${frameHeight}px;transform:translateX(-50%);`;
 }
 
-export function createHistoricalTrendViewState(panel, selectedKey, activeHoverIndex = null) {
+export function createHistoricalTrendViewState(
+  panel,
+  selectedKey,
+  activeHoverIndex = null,
+) {
   const ranges = Array.isArray(panel?.data?.ranges) ? panel.data.ranges : [];
   const selectedRange = getSelectedTrendRange(panel, selectedKey);
   const axisFrame = selectedRange.axisFrame || APEX_AXIS_FRAME;
@@ -282,7 +293,10 @@ export function createHistoricalTrendViewState(panel, selectedKey, activeHoverIn
     activeHoverIndex,
     axisFrame,
   );
-  const seriesTransform = createSeriesTransform(selectedRange.plotArea, axisFrame);
+  const seriesTransform = createSeriesTransform(
+    selectedRange.plotArea,
+    axisFrame,
+  );
 
   return {
     title: panel?.title || "",

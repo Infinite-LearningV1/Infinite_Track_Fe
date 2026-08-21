@@ -7,7 +7,11 @@ import { AUTH_CONFIG, envLog } from "../config/env.js";
 
 const LEGACY_USER_KEYS = ["user", "currentUserData"];
 const LEGACY_TOKEN_KEYS = ["auth_token"];
-const SESSION_STORAGE_KEYS = ["redirectAfterLogin", "sessionVerificationState", "authRedirectNotice"];
+const SESSION_STORAGE_KEYS = [
+  "redirectAfterLogin",
+  "sessionVerificationState",
+  "authRedirectNotice",
+];
 const USER_IDENTITY_KEYS = [
   "id",
   "email",
@@ -46,7 +50,9 @@ function parseStoredJson(value, key = "auth storage") {
 }
 
 function getAuthPayloadData(payload) {
-  return payload?.data && typeof payload.data === "object" ? payload.data : payload;
+  return payload?.data && typeof payload.data === "object"
+    ? payload.data
+    : payload;
 }
 
 function extractAuthUser(payload) {
@@ -97,7 +103,10 @@ function extractAuthToken(payload) {
 function saveUserToStorage(userData) {
   try {
     if (!looksLikeUserRecord(userData)) {
-      envLog("error", "saveUserToStorage: userData harus berupa user record yang valid");
+      envLog(
+        "error",
+        "saveUserToStorage: userData harus berupa user record yang valid",
+      );
       return false;
     }
 
@@ -170,7 +179,9 @@ function saveAuthPayload(payload) {
 
 function getAuthTokenFromStorage() {
   try {
-    const canonicalToken = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.AUTH_TOKEN);
+    const canonicalToken = localStorage.getItem(
+      AUTH_CONFIG.STORAGE_KEYS.AUTH_TOKEN,
+    );
     if (canonicalToken) {
       return canonicalToken;
     }
@@ -183,7 +194,9 @@ function getAuthTokenFromStorage() {
     }
 
     const userData = getUserFromStorage();
-    return userData?.accessToken || userData?.access_token || userData?.token || null;
+    return (
+      userData?.accessToken || userData?.access_token || userData?.token || null
+    );
   } catch (error) {
     envLog("error", "Error reading auth token from localStorage:", error);
     return null;
@@ -219,7 +232,10 @@ function clearAuthStorage(options = {}) {
 
     if (includeSessionStorage && sessionStorageRef) {
       SESSION_STORAGE_KEYS.forEach((key) => {
-        if (key === AUTH_CONFIG.STORAGE_KEYS.REDIRECT_AFTER_LOGIN && preserveRedirectAfterLogin) {
+        if (
+          key === AUTH_CONFIG.STORAGE_KEYS.REDIRECT_AFTER_LOGIN &&
+          preserveRedirectAfterLogin
+        ) {
           return;
         }
 

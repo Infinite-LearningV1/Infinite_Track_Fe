@@ -167,7 +167,9 @@ function initAuthStore() {
         }
 
         await forceReauthenticate({
-          redirectNotice: this.buildSessionExpiredRedirectNotice(resolution.error),
+          redirectNotice: this.buildSessionExpiredRedirectNotice(
+            resolution.error,
+          ),
         });
       } catch (error) {
         console.error("Error refreshing user:", error);

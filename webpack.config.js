@@ -95,18 +95,7 @@ module.exports = {
         use: [
           MiniCssExtractPlugin.loader,
           "css-loader",
-          {
-            loader: "postcss-loader",
-            options: {
-              postcssOptions: {
-                plugins: [
-                  require("autoprefixer")({
-                    overrideBrowserslist: ["last 2 versions"],
-                  }),
-                ],
-              },
-            },
-          },
+          "postcss-loader",
         ],
       },
       {

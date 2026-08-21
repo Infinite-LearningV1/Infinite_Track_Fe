@@ -23,3 +23,17 @@ test("formatting is repository-level and editor agnostic", () => {
     false,
   );
 });
+
+test("browser and PostCSS configuration each have one owner", () => {
+  const pkg = JSON.parse(read("package.json"));
+  const webpack = read("webpack.config.js");
+  const postcss = read("postcss.config.js");
+
+  assert.deepEqual(pkg.browserslist, ["> 1%", "not dead"]);
+  assert.equal(fs.existsSync(path.resolve(ROOT, ".browserslistrc")), false);
+  assert.doesNotMatch(
+    webpack,
+    /overrideBrowserslist|postcssOptions|require\("autoprefixer"\)/,
+  );
+  assert.match(postcss, /["']@tailwindcss\/postcss["']/);
+});

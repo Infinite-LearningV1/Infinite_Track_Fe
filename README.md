@@ -12,7 +12,9 @@ Repository ini berisi **Web Frontend Infinite Track** yang digunakan sebagai das
 | Integration branch | `develop`                               |
 | Production branch  | `master`                                |
 | Runtime            | Static multi-page frontend              |
-| Node.js            | `20+`                                   |
+| Node.js            | `24+`                                   |
+
+This repository requires Node.js 24+.
 
 ## Tech Stack
 
@@ -47,9 +49,9 @@ Web FE does not require Nginx, Docker Compose, or a Web FE-owned backend contain
 
 ## Environment
 
-`.env.example` is the single public-safe template. It contains only values that vary by deployment or local development: `API_BASE_URL`, `APP_ENVIRONMENT`, `DEBUG_MODE`, `LOG_LEVEL`, and the `WEBPACK_*` inputs consumed by Webpack Dev Server. Authentication paths, session durations, app identity, and locale defaults are code-level constants.
+`.env.example` is the single public-safe template. It contains the seven retained public build/dev inputs: `API_BASE_URL`, `APP_ENVIRONMENT`, `DEBUG_MODE`, `LOG_LEVEL`, `WEBPACK_DEV_HOST`, `WEBPACK_OPEN`, and `WEBPACK_API_PROXY_TARGET`. Authentication paths, session durations, app identity, and locale defaults are code-level constants.
 
-For a static production build, inject the target public values into the build environment; do not commit a production env file. The current production API base is `https://api.infinite-track.tech/api`.
+For a static production build, the deployment platform supplies the public values: `API_BASE_URL=https://api.infinite-track.tech/api`, `APP_ENVIRONMENT=production`, `DEBUG_MODE=false`, and `LOG_LEVEL=error`. Do not commit a production env file.
 
 ## Commands
 
@@ -57,6 +59,7 @@ For a static production build, inject the target public values into the build en
 | --------------- | --------------------------------------------- |
 | `npm ci`        | Install dependencies from `package-lock.json` |
 | `npm run start` | Start development server                      |
+| `npm run lint`  | Check repository formatting                   |
 | `npm test`      | Run full regression test suite                |
 | `npm run build` | Create production build                       |
 
@@ -64,7 +67,9 @@ For a static production build, inject the target public values into the build en
 
 ```text
 Infinite_Track_Fe/
-├── .github/              # GitHub Actions
+├── .github/
+│   └── workflows/
+│       └── ci.yml        # CI verification workflow
 ├── docs/
 │   └── adr/              # Architecture Decision Records
 ├── src/
@@ -79,8 +84,11 @@ Infinite_Track_Fe/
 │   ├── images/
 │   └── *.html
 ├── tests/                # Regression tests by domain
-├── .env.example
-├── webpack.config.js
+├── .env.example          # Single public build/dev input template
+├── .gitattributes        # LF working-tree policy
+├── .prettierrc           # Repository formatting policy
+├── postcss.config.js     # PostCSS configuration owner
+├── webpack.config.js     # Webpack build and local dev-server config
 └── package.json
 ```
 
@@ -123,12 +131,15 @@ chore/*   ─┘
 flowchart LR
     A["Pull Request / Push"]
     B["npm ci"]
-    C["npm test"]
-    D["npm run build"]
-    E["Ready for Review"]
+    C["npm run lint"]
+    D["npm test"]
+    E["npm run build"]
+    F["Ready for Review"]
 
-    A --> B --> C --> D --> E
+    A --> B --> C --> D --> E --> F
 ```
+
+The repository verification workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Deployment
 

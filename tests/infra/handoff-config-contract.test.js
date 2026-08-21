@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -105,4 +106,20 @@ test("package and lockfile require the same Node version", () => {
   const lock = JSON.parse(read("package-lock.json"));
 
   assert.equal(lock.packages[""].engines.node, pkg.engines.node);
+});
+
+test("handoff docs reference only durable current configuration", () => {
+  const readme = read("README.md");
+  const adr = read("docs/adr/ADR-006-env-build-and-deploy-runtime-truth.md");
+  const tracked = execFileSync("git", ["ls-files", "docs/superpowers"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  }).trim();
+
+  assert.match(readme, /Node\.js\s+24\+/);
+  assert.match(readme, /\.github\/workflows\/ci\.yml/);
+  assert.match(readme, /npm run lint/);
+  assert.doesNotMatch(readme, /\.env\.production\.example|workflows\/build\.yml/);
+  assert.doesNotMatch(adr, /\.env\.production\.example|workflows\/build\.yml|docs\/superpowers/);
+  assert.equal(tracked, "");
 });

@@ -14,8 +14,12 @@
   "keywords": [],
   "author": "Infinite Learning",
   "license": "MIT",
+  "browserslist": [
+    "> 1%",
+    "not dead"
+  ],
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "devDependencies": {
     "@babel/core": "^7.24.9",

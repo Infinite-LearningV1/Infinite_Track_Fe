@@ -20,7 +20,7 @@ Proposed
 - Frontend environment values are injected into the browser bundle at build time through Webpack `DefinePlugin`.
 - `API_BASE_URL` falls back to `/api` when no explicit build-time value is provided.
 - Local Webpack development proxies `/api` requests to `http://localhost:3005` unless `WEBPACK_API_PROXY_TARGET` overrides that target.
-- The current production env template uses `https://api.infinite-track.tech/api` as the public backend API base.
+- The current production API base is `https://api.infinite-track.tech/api` and is injected into the build environment.
 - `master` is the release/production source branch; `develop` is the integration branch.
 - Webpack Dev Server is the canonical Web FE development server; the repository does not require a Web FE-owned Nginx gateway.
 - Backend development runtime startup is owned by the backend repository; Web FE integrates through `WEBPACK_API_PROXY_TARGET` rather than owning a backend container.
@@ -45,7 +45,7 @@ For local development, Webpack Dev Server is the canonical Web FE runtime. `API_
 
 Web FE owns no Nginx runtime and no backend container lifecycle. For static production, the build receives the explicit public API base required by the target environment; the canonical production contract is `https://api.infinite-track.tech/api`. Backend public ingress, TLS, CORS policy, and Express runtime remain backend responsibilities.
 
-Environment templates are contracts, not secrets and not automatic runtime configuration. Production values must be injected into the build environment before Webpack creates the static bundle.
+`.env.example` is the one public-safe environment template. It contains the retained public build/dev inputs: `API_BASE_URL`, `APP_ENVIRONMENT`, `DEBUG_MODE`, `LOG_LEVEL`, `WEBPACK_DEV_HOST`, `WEBPACK_OPEN`, and `WEBPACK_API_PROXY_TARGET`. Authentication paths, session durations, app identity, and locale defaults are code-level constants. The deployment platform supplies production build variables before Webpack creates the static bundle; the production values and the single tracked local/public-safe onboarding template are documented here and in the README.
 
 Release confidence requires both build evidence and runtime smoke evidence for the affected critical flows. A successful static build alone is not proof that authentication, CORS, backend availability, dashboard data, or export behavior are healthy in production.
 
@@ -74,13 +74,10 @@ Keeping local proxy behavior separate from production public-API configuration a
 
 ## Evidence / References
 
-- `package.json` — `npm run build` creates the production Webpack bundle.
-- `.github/workflows/build.yml` — Node.js 20 CI runs `npm ci`, `npm test`, and `npm run build` on `develop`/`master` PRs and pushes.
+- `.github/workflows/ci.yml` — Node.js 24 CI runs `npm ci`, `npm run lint`, `npm test`, and `npm run build` on `develop`/`master` PRs and pushes.
+- `.env.example` — single tracked local/public-safe onboarding template for the public build/dev inputs.
 - `webpack.config.js` — Webpack injects frontend environment values, emits `build/`, and configures the local `/api` proxy.
-- `.env.example` — local development API/env contract.
-- `.env.production.example` — current static-production API/env contract.
-- `README.md` — canonical operational setup, verification, deployment, smoke, and rollback guidance.
-- `docs/superpowers/specs/2026-08-20-inf-277-web-fe-runtime-boundary-design.md` — approved INF-277 runtime ownership design.
+- `README.md` — canonical operational setup, public production values, verification, and deployment guidance.
 
 ## Open Verification Points
 

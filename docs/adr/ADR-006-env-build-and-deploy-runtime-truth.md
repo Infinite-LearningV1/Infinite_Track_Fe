@@ -77,7 +77,7 @@ Keeping local proxy behavior separate from production public-API configuration a
 - `.github/workflows/ci.yml` — Node.js 24 CI runs `npm ci`, `npm run lint`, `npm test`, and `npm run build` on `develop`/`master` PRs and pushes.
 - `.env.example` — single tracked local/public-safe onboarding template for the public build/dev inputs.
 - `webpack.config.js` — Webpack injects frontend environment values, emits `build/`, and configures the local `/api` proxy.
-- `README.md` — canonical operational setup, public production values, verification, deployment, smoke, and rollback guidance.
+- `README.md` — canonical operational setup, public production values, verification, and deployment guidance.
 
 ## Open Verification Points
 

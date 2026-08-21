@@ -119,7 +119,13 @@ test("handoff docs reference only durable current configuration", () => {
   assert.match(readme, /Node\.js\s+24\+/);
   assert.match(readme, /\.github\/workflows\/ci\.yml/);
   assert.match(readme, /npm run lint/);
-  assert.doesNotMatch(readme, /\.env\.production\.example|workflows\/build\.yml/);
-  assert.doesNotMatch(adr, /\.env\.production\.example|workflows\/build\.yml|docs\/superpowers/);
+  assert.doesNotMatch(
+    readme,
+    /\.env\.production\.example|workflows\/build\.yml/,
+  );
+  assert.doesNotMatch(
+    adr,
+    /\.env\.production\.example|workflows\/build\.yml|docs\/superpowers/,
+  );
   assert.equal(tracked, "");
 });

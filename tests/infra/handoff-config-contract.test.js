@@ -47,7 +47,7 @@ test("one public env template owns only deployment-varying inputs", () => {
   const webpack = read("webpack.config.js");
   const exampleKeys = example
     .split(/\r?\n/)
-    .flatMap((line) => line.match(/^([A-Z_]+)=/)?.slice(1) || []);
+    .flatMap((line) => line.match(/^([A-Z_][A-Z0-9_]*)=/)?.slice(1) || []);
   const definePlugin = webpack.match(
     /new webpack\.DefinePlugin\(\{([\s\S]*?)\n\s*\}\),/,
   );
@@ -64,7 +64,7 @@ test("one public env template owns only deployment-varying inputs", () => {
 
   assert.ok(definePlugin);
   const browserDefinitions = [
-    ...definePlugin[1].matchAll(/^\s*"process\.env\.([A-Z_]+)":/gm),
+    ...definePlugin[1].matchAll(/^\s*"process\.env\.([A-Z_][A-Z0-9_]*)":/gm),
   ].map((match) => match[1]);
 
   assert.deepEqual(browserDefinitions, [

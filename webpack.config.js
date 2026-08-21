@@ -126,35 +126,8 @@ module.exports = {
       "process.env.API_BASE_URL": JSON.stringify(
         process.env.API_BASE_URL || "/api",
       ),
-      "process.env.API_AUTH_ENDPOINT": JSON.stringify(
-        process.env.API_AUTH_ENDPOINT || "/auth",
-      ),
-      "process.env.API_VERSION": JSON.stringify(
-        process.env.API_VERSION || "v1",
-      ),
-      "process.env.APP_NAME": JSON.stringify(
-        process.env.APP_NAME || "Infinite Track",
-      ),
-      "process.env.APP_VERSION": JSON.stringify(
-        process.env.APP_VERSION || "2.0.1",
-      ),
       "process.env.APP_ENVIRONMENT": JSON.stringify(
         process.env.APP_ENVIRONMENT || "development",
-      ),
-      "process.env.SESSION_TIMEOUT": JSON.stringify(
-        process.env.SESSION_TIMEOUT || "3600000",
-      ),
-      "process.env.REMEMBER_ME_DAYS": JSON.stringify(
-        process.env.REMEMBER_ME_DAYS || "7",
-      ),
-      "process.env.AUTH_CLIENT_TYPE": JSON.stringify(
-        process.env.AUTH_CLIENT_TYPE || "web",
-      ),
-      "process.env.DEFAULT_LANGUAGE": JSON.stringify(
-        process.env.DEFAULT_LANGUAGE || "id",
-      ),
-      "process.env.TIMEZONE": JSON.stringify(
-        process.env.TIMEZONE || "Asia/Jakarta",
       ),
       "process.env.DEBUG_MODE": JSON.stringify(
         process.env.DEBUG_MODE || "false",

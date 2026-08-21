@@ -47,20 +47,9 @@ Web FE does not require Nginx, Docker Compose, or a Web FE-owned backend contain
 
 ## Environment
 
-| Variable            | Development      | Production                            |
-| ------------------- | ---------------- | ------------------------------------- |
-| `API_BASE_URL`      | `/api`           | `https://api.infinite-track.tech/api` |
-| `API_AUTH_ENDPOINT` | `/auth`          | `/auth`                               |
-| `API_VERSION`       | `v1`             | `v1`                                  |
-| `APP_NAME`          | `Infinite Track` | `Infinite Track`                      |
-| `APP_VERSION`       | `2.0.1`          | `2.0.1`                               |
-| `APP_ENVIRONMENT`   | `development`    | `production`                          |
-| `SESSION_TIMEOUT`   | `3600000`        | `3600000`                             |
-| `REMEMBER_ME_DAYS`  | `7`              | `7`                                   |
-| `DEFAULT_LANGUAGE`  | `id`             | `id`                                  |
-| `TIMEZONE`          | `Asia/Jakarta`   | `Asia/Jakarta`                        |
-| `DEBUG_MODE`        | `true`           | `false`                               |
-| `LOG_LEVEL`         | `info`           | `error`                               |
+`.env.example` is the single public-safe template. It contains only values that vary by deployment or local development: `API_BASE_URL`, `APP_ENVIRONMENT`, `DEBUG_MODE`, `LOG_LEVEL`, and the `WEBPACK_*` inputs consumed by Webpack Dev Server. Authentication paths, session durations, app identity, and locale defaults are code-level constants.
+
+For a static production build, inject the target public values into the build environment; do not commit a production env file. The current production API base is `https://api.infinite-track.tech/api`.
 
 ## Commands
 
@@ -91,7 +80,6 @@ Infinite_Track_Fe/
 │   └── *.html
 ├── tests/                # Regression tests by domain
 ├── .env.example
-├── .env.production.example
 ├── webpack.config.js
 └── package.json
 ```

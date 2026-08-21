@@ -37,3 +37,7 @@ test("browser and PostCSS configuration each have one owner", () => {
   );
   assert.match(postcss, /["']@tailwindcss\/postcss["']/);
 });
+
+test("editor metadata does not advertise unsupported aliases", () => {
+  assert.equal(fs.existsSync(path.resolve(ROOT, "jsconfig.json")), false);
+});

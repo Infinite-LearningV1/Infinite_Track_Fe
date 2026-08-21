@@ -88,8 +88,21 @@ test("CI is a Node 24 verification gate", () => {
   assert.match(ci, /actions\/checkout@v7/);
   assert.match(ci, /actions\/setup-node@v7/);
   assert.match(ci, /node-version:\s*["']24\.x["']/);
-  assert.match(ci, /run:\s*npm run lint/);
-  assert.match(ci, /run:\s*npm test/);
-  assert.match(ci, /run:\s*npm run build/);
+  const runCommands = [...ci.matchAll(/^\s*run:\s*(.+)$/gm)].map((match) =>
+    match[1].trim(),
+  );
+  assert.deepEqual(runCommands, [
+    "npm ci",
+    "npm run lint",
+    "npm test",
+    "npm run build",
+  ]);
   assert.match(ci, /contents:\s*read/);
+});
+
+test("package and lockfile require the same Node version", () => {
+  const pkg = JSON.parse(read("package.json"));
+  const lock = JSON.parse(read("package-lock.json"));
+
+  assert.equal(lock.packages[""].engines.node, pkg.engines.node);
 });

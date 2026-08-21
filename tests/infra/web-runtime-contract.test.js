@@ -33,11 +33,11 @@ test("Webpack Dev Server owns the local frontend runtime", () => {
 
 test("development and production API bases remain explicit", () => {
   assert.match(read(".env.example"), /^API_BASE_URL=\/api$/m);
-  assert.match(
-    read("README.md"),
-    /https:\/\/api\.infinite-track\.tech\/api/,
+  assert.match(read("README.md"), /https:\/\/api\.infinite-track\.tech\/api/);
+  assert.equal(
+    fs.existsSync(path.resolve(ROOT, ".env.production.example")),
+    false,
   );
-  assert.equal(fs.existsSync(path.resolve(ROOT, ".env.production.example")), false);
 });
 
 test("Web FE no longer owns Docker or Nginx runtime files", () => {

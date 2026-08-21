@@ -45,8 +45,14 @@ test("editor metadata does not advertise unsupported aliases", () => {
 test("one public env template owns only deployment-varying inputs", () => {
   const example = read(".env.example");
   const webpack = read("webpack.config.js");
+  const exampleKeys = example
+    .split(/\r?\n/)
+    .flatMap((line) => line.match(/^([A-Z_]+)=/)?.slice(1) || []);
+  const definePlugin = webpack.match(
+    /new webpack\.DefinePlugin\(\{([\s\S]*?)\n\s*\}\),/,
+  );
 
-  for (const key of [
+  assert.deepEqual(exampleKeys, [
     "API_BASE_URL",
     "APP_ENVIRONMENT",
     "DEBUG_MODE",
@@ -54,16 +60,21 @@ test("one public env template owns only deployment-varying inputs", () => {
     "WEBPACK_DEV_HOST",
     "WEBPACK_OPEN",
     "WEBPACK_API_PROXY_TARGET",
-  ]) {
-    assert.match(example, new RegExp(`^${key}=`, "m"));
-  }
+  ]);
 
-  assert.equal(fs.existsSync(path.resolve(ROOT, ".env.production.example")), false);
+  assert.ok(definePlugin);
+  const browserDefinitions = [
+    ...definePlugin[1].matchAll(/^\s*"process\.env\.([A-Z_]+)":/gm),
+  ].map((match) => match[1]);
 
-  for (const key of [
-    "API_AUTH_ENDPOINT", "API_VERSION", "APP_NAME", "APP_VERSION",
-    "SESSION_TIMEOUT", "REMEMBER_ME_DAYS", "AUTH_CLIENT_TYPE", "DEFAULT_LANGUAGE", "TIMEZONE",
-  ]) {
-    assert.doesNotMatch(webpack, new RegExp(`process\\.env\\.${key}`));
-  }
+  assert.deepEqual(browserDefinitions, [
+    "API_BASE_URL",
+    "APP_ENVIRONMENT",
+    "DEBUG_MODE",
+    "LOG_LEVEL",
+  ]);
+  assert.equal(
+    fs.existsSync(path.resolve(ROOT, ".env.production.example")),
+    false,
+  );
 });

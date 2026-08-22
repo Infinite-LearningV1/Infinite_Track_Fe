@@ -152,16 +152,19 @@ Release title        : Infinite Track Web vX.Y.Z
 Release ZIP          : infinite-track-web-vX.Y.Z.zip
 ```
 
-The first clean stable release is `v2.1.0`. Use `master` as the stable release
-source, not an unpromoted `develop` or feature branch. The release lifecycle is:
+The `v2.1.0` tag records the first release attempt, but that tag-only run failed
+before GitHub Release creation and is never rewritten. The first publishable
+recovery release is `v2.1.1`. Use `master` as the stable release source, not an
+unpromoted `develop` or feature branch. The release lifecycle is:
 
 ```text
 develop -> CI -> master -> versioned tag -> release.yml -> verified ZIP -> draft GitHub Release -> human review -> publish
 ```
 
 `.github/workflows/release.yml` validates the tag/package identity, confirms the
-tag commit is reachable from `master`, and runs `npm ci`, `npm run lint`,
-`npm test`, and `npm run build` with these public production inputs:
+tag commit is reachable from `master`, and runs `npm ci`, `npm run lint`, and
+`npm test` with repository test defaults. Only the production build step receives
+these public production inputs:
 
 ```text
 API_BASE_URL=https://api.infinite-track.tech/api
@@ -177,8 +180,8 @@ custom ZIP is the generated static runtime artifact. Verify a downloaded ZIP
 with:
 
 ```bash
-gh release download v2.1.0 --pattern "infinite-track-web-v2.1.0.zip"
-gh attestation verify infinite-track-web-v2.1.0.zip --repo Infinite-LearningV1/Infinite_Track_Fe
+gh release download v2.1.1 --pattern "infinite-track-web-v2.1.1.zip"
+gh attestation verify infinite-track-web-v2.1.1.zip --repo Infinite-LearningV1/Infinite_Track_Fe
 ```
 
 GitHub Release ZIP = official packaged distribution / handoff / recovery

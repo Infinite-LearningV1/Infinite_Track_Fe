@@ -55,13 +55,13 @@ For a static production build, the deployment platform supplies the public value
 
 ## Commands
 
-| Command         | Purpose                                       |
-| --------------- | --------------------------------------------- |
-| `npm ci`        | Install dependencies from `package-lock.json` |
-| `npm run start` | Start development server                      |
-| `npm run lint`  | Check repository formatting                   |
-| `npm test`      | Run full regression test suite                |
-| `npm run build` | Create production build                       |
+| Command         | Purpose                                                                     |
+| --------------- | --------------------------------------------------------------------------- |
+| `npm ci`        | Install dependencies from `package-lock.json`                               |
+| `npm run start` | Start development server                                                    |
+| `npm run lint`  | Check source, tests, docs, release scripts, and GitHub workflows formatting |
+| `npm test`      | Run full regression test suite                                              |
+| `npm run build` | Create production build                                                     |
 
 ## Project Structure
 
@@ -141,16 +141,62 @@ flowchart LR
 
 The repository verification workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
+## Releases
+
+Stable release identity uses one version convention:
+
+```text
+package.json version : X.Y.Z
+Git tag              : vX.Y.Z
+Release title        : Infinite Track Web vX.Y.Z
+Release ZIP          : infinite-track-web-vX.Y.Z.zip
+```
+
+The first clean stable release is `v2.1.0`. Use `master` as the stable release
+source, not an unpromoted `develop` or feature branch. The release lifecycle is:
+
+```text
+develop -> CI -> master -> versioned tag -> release.yml -> verified ZIP -> draft GitHub Release -> human review -> publish
+```
+
+`.github/workflows/release.yml` validates the tag/package identity, confirms the
+tag commit is reachable from `master`, and runs `npm ci`, `npm run lint`,
+`npm test`, and `npm run build` with these public production inputs:
+
+```text
+API_BASE_URL=https://api.infinite-track.tech/api
+APP_ENVIRONMENT=production
+DEBUG_MODE=false
+LOG_LEVEL=error
+```
+
+The workflow validates the generated static tree, creates
+`infinite-track-web-vX.Y.Z.zip` from inside `build/`, attests it, and stops at
+a draft GitHub Release. GitHub automatically supplies source archives; the
+custom ZIP is the generated static runtime artifact. Verify a downloaded ZIP
+with:
+
+```bash
+gh release download v2.1.0 --pattern "infinite-track-web-v2.1.0.zip"
+gh attestation verify infinite-track-web-v2.1.0.zip --repo Infinite-LearningV1/Infinite_Track_Fe
+```
+
+GitHub Release ZIP = official packaged distribution / handoff / recovery
+artifact. DigitalOcean remains source-built and production is currently rebuilt
+from repository source; do not claim byte-for-byte identity with the ZIP. For
+rollback or recovery, use a historical immutable release without rewriting a
+published version.
+
 ## Deployment
 
-| Item             | Value                                 |
-| ---------------- | ------------------------------------- |
-| Release branch   | `master`                              |
-| Build command    | `npm ci && npm run build`             |
-| Output directory | `build/`                              |
-| Frontend         | `https://infinite-track.tech`         |
-| API base         | `https://api.infinite-track.tech/api` |
-| Hosting model    | DigitalOcean App Platform Static Site |
+| Item             | Value                                            |
+| ---------------- | ------------------------------------------------ |
+| Release branch   | `master`                                         |
+| Build command    | `npm ci && npm run build`                        |
+| Output directory | `build/`                                         |
+| Frontend         | `https://infinite-track.tech`                    |
+| API base         | `https://api.infinite-track.tech/api`            |
+| Hosting model    | DigitalOcean App Platform Static Site            |
 | Backend ingress  | Backend-owned Nginx at `api.infinite-track.tech` |
 
 ```text

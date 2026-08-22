@@ -124,3 +124,35 @@ test("release governance is documented in the README and ADR index", () => {
     /ADR-010\s*\|\s*Release artifact and version governance\s*\|\s*Proposed\s*\|\s*Versioning, tag, ZIP, provenance, publication, immutability/,
   );
 });
+
+test("generated release notes use repository-owned categories and bot exclusions", () => {
+  const config = fs.readFileSync(
+    path.join(ROOT, ".github/release.yml"),
+    "utf8",
+  );
+
+  for (const label of ["duplicate", "invalid", "question", "wontfix"]) {
+    assert.match(config, new RegExp(`- ${label}`));
+  }
+
+  for (const author of [
+    "coderabbitai[bot]",
+    "copilot-pull-request-reviewer[bot]",
+    "dependabot[bot]",
+    "github-actions[bot]",
+  ]) {
+    assert.ok(config.includes(`- "${author}"`));
+  }
+
+  for (const [title, label] of [
+    ["✨ Enhancements", "enhancement"],
+    ["🐛 Fixes", "bug"],
+    ["📚 Documentation", "documentation"],
+  ]) {
+    assert.ok(config.includes(`title: "${title}"`));
+    assert.ok(config.includes(`- ${label}`));
+  }
+
+  assert.ok(config.includes('title: "🔧 Other Changes"'));
+  assert.ok(config.includes('- "*"'));
+});

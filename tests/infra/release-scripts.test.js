@@ -1,13 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { validateBuildArtifact } from "../../scripts/release/validate-build-artifact.mjs";
 import {
   deriveReleaseIdentity,
   parseStableTag,
 } from "../../scripts/release/validate-release.mjs";
+
+const ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
+const RELEASE_SCRIPT = path.join(ROOT, "scripts/release/validate-release.mjs");
 
 function withFixture(files, callback) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "inf-281-release-"));
@@ -49,6 +57,30 @@ test("rejects a tag and package version mismatch", () => {
     () => deriveReleaseIdentity("v2.1.0", "2.0.1"),
     /does not match/,
   );
+});
+
+test("CLI emits the release identity and GitHub output keys", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "inf-281-release-"));
+  const outputPath = path.join(root, "github-output");
+  try {
+    const output = execFileSync(process.execPath, [RELEASE_SCRIPT], {
+      cwd: ROOT,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        RELEASE_TAG: "v2.1.0",
+        GITHUB_OUTPUT: outputPath,
+      },
+    });
+
+    assert.match(output, /version=2\.1\.0/);
+    assert.equal(
+      fs.readFileSync(outputPath, "utf8"),
+      "version=2.1.0\nrelease_title=Infinite Track Web v2.1.0\nartifact_name=infinite-track-web-v2.1.0.zip\n",
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("accepts the required production files and emitted runtime images", () => {

@@ -52,6 +52,24 @@ test("release workflow is a tag-driven, draft-first production release gate", ()
   assert.match(workflow, /APP_ENVIRONMENT:\s*production/);
   assert.match(workflow, /DEBUG_MODE:\s*["']false["']/);
   assert.match(workflow, /LOG_LEVEL:\s*error/);
+
+  const jobSetup = workflow.slice(
+    workflow.indexOf("jobs:"),
+    workflow.indexOf("    steps:"),
+  );
+  assert.doesNotMatch(
+    jobSetup,
+    /API_BASE_URL|APP_ENVIRONMENT|DEBUG_MODE|LOG_LEVEL/,
+  );
+
+  const buildStep = workflow.slice(
+    workflow.indexOf("      - name: Build production frontend"),
+    workflow.indexOf("      - name: Validate generated artifact"),
+  );
+  assert.match(buildStep, /env:\s*[\s\S]*API_BASE_URL:/);
+  assert.match(buildStep, /APP_ENVIRONMENT:\s*production/);
+  assert.match(buildStep, /DEBUG_MODE:\s*["']false["']/);
+  assert.match(buildStep, /LOG_LEVEL:\s*error/);
   assert.match(workflow, /node scripts\/release\/validate-build-artifact\.mjs/);
   assert.match(workflow, /\(cd build && zip -r ["']?\.\.\/\$ARTIFACT_NAME/);
   assert.match(workflow, /unzip -Z1 ["']?\$ARTIFACT_NAME/);

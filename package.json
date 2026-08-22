@@ -1,6 +1,6 @@
 {
   "name": "infinite-track-web",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Web frontend for Infinite Track attendance and management operations.",
   "scripts": {
     "start": "webpack serve --config webpack.config.js",
@@ -9,7 +9,7 @@
     "test": "node --test",
     "test:auth-runtime": "node --test ./tests/auth/auth-session-runtime.test.js",
     "sort": "npx prettier --write src",
-    "lint": "npx prettier --check src tests docs"
+    "lint": "npx prettier --check src tests docs scripts .github"
   },
   "keywords": [],
   "author": "Infinite Learning",

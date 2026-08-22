@@ -14,14 +14,17 @@ Proposed
 
 ## Context
 
-The Web FE currently has package metadata but no proven Git tag or GitHub
-Release history. A repeatable release path needs one stable identity, one
-verified build input, and an auditable artifact without changing the current
-DigitalOcean deployment architecture.
+The Web FE now has a `v2.1.0` tag from the first release attempt, but that run
+failed during regression tests before ZIP, attestation, or GitHub Release
+creation. The tag is preserved as historical evidence and is never moved or
+reused. A repeatable release path still needs one stable identity, one verified
+build input, and an auditable artifact without changing the current DigitalOcean
+deployment architecture.
 
 The integration branch is `develop`, while `master` is the stable release
-source. The first clean stable version is `2.1.0`; `2.0.1` is package metadata,
-not retroactively asserted release history.
+source. `v2.1.0` remains a failed tag-only attempt; the first publishable recovery
+release is `v2.1.1`. The older `2.0.1` value was package metadata and is not
+retroactively asserted release history.
 
 ## Decision
 
@@ -47,9 +50,10 @@ Release title        : Infinite Track Web vX.Y.Z
 Release ZIP          : infinite-track-web-vX.Y.Z.zip
 ```
 
-The first intended clean release is `v2.1.0`, titled `Infinite Track Web
-v2.1.0`, with asset `infinite-track-web-v2.1.0.zip`. Only stable `vX.Y.Z` tags
-are accepted; prerelease channels are deferred.
+The first publishable recovery release is `v2.1.1`, titled `Infinite Track Web
+v2.1.1`, with asset `infinite-track-web-v2.1.1.zip`. The existing `v2.1.0` tag
+is retained as the failed first attempt and is not rewritten. Only stable
+`vX.Y.Z` tags are accepted; prerelease channels are deferred.
 
 ## Artifact contents
 
@@ -73,18 +77,20 @@ static runtime artifact rather than a duplicate source archive.
 
 ## Provenance and verification
 
-The release workflow runs:
+The release workflow runs dependency installation, lint, and regression tests
+with repository test defaults. Production environment values are scoped only to
+the production build step:
 
 ```text
-npm ci -> npm run lint -> npm test -> npm run build
+npm ci -> npm run lint -> npm test -> production env + npm run build
 ```
 
 It then validates the build tree, creates the versioned ZIP, and uses
 `actions/attest@v4`. An operator can verify a downloaded asset with:
 
 ```bash
-gh release download v2.1.0 --pattern "infinite-track-web-v2.1.0.zip"
-gh attestation verify infinite-track-web-v2.1.0.zip --repo Infinite-LearningV1/Infinite_Track_Fe
+gh release download v2.1.1 --pattern "infinite-track-web-v2.1.1.zip"
+gh attestation verify infinite-track-web-v2.1.1.zip --repo Infinite-LearningV1/Infinite_Track_Fe
 ```
 
 The release tag, package version, Release title, ZIP name, tag commit, and

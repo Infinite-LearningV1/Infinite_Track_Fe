@@ -16,6 +16,9 @@ const ROOT = path.resolve(
   "../..",
 );
 const RELEASE_SCRIPT = path.join(ROOT, "scripts/release/validate-release.mjs");
+const PACKAGE_VERSION = JSON.parse(
+  fs.readFileSync(path.join(ROOT, "package.json"), "utf8"),
+).version;
 
 function withFixture(files, callback) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "inf-281-release-"));
@@ -68,15 +71,18 @@ test("CLI emits the release identity and GitHub output keys", () => {
       encoding: "utf8",
       env: {
         ...process.env,
-        RELEASE_TAG: "v2.1.0",
+        RELEASE_TAG: `v${PACKAGE_VERSION}`,
         GITHUB_OUTPUT: outputPath,
       },
     });
 
-    assert.match(output, /version=2\.1\.0/);
+    assert.match(
+      output,
+      new RegExp(`version=${PACKAGE_VERSION.replaceAll(".", "\\.")}`),
+    );
     assert.equal(
       fs.readFileSync(outputPath, "utf8"),
-      "version=2.1.0\nrelease_title=Infinite Track Web v2.1.0\nartifact_name=infinite-track-web-v2.1.0.zip\n",
+      `version=${PACKAGE_VERSION}\nrelease_title=Infinite Track Web v${PACKAGE_VERSION}\nartifact_name=infinite-track-web-v${PACKAGE_VERSION}.zip\n`,
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

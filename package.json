@@ -1,6 +1,6 @@
 {
   "name": "infinite-track-web",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Web frontend for Infinite Track attendance and management operations.",
   "scripts": {
     "start": "webpack serve --config webpack.config.js",

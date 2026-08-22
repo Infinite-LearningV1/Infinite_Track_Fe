@@ -69,3 +69,40 @@ test("release workflow is a tag-driven, draft-first production release gate", ()
   assert.doesNotMatch(workflow, /--clobber/);
   assert.doesNotMatch(workflow, /--draft=false|--latest/);
 });
+
+test("release governance is documented in the README and ADR index", () => {
+  const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
+  const adrIndex = fs.readFileSync(
+    path.join(ROOT, "docs/adr/index.md"),
+    "utf8",
+  );
+  const adr = fs.readFileSync(
+    path.join(
+      ROOT,
+      "docs/adr/ADR-010-release-artifact-and-version-governance.md",
+    ),
+    "utf8",
+  );
+  const documentation = `${readme}\n${adr}`;
+
+  assert.match(documentation, /v2\.1\.0/);
+  assert.match(documentation, /vX\.Y\.Z/);
+  assert.match(documentation, /\.github\/workflows\/release\.yml/);
+  assert.match(documentation, /infinite-track-web-vX\.Y\.Z\.zip/);
+  assert.match(documentation, /master/);
+  assert.match(documentation, /stable release\s+source/i);
+  assert.match(
+    documentation,
+    /GitHub Release ZIP\s*=\s*(?:the )?official packaged distribution\s*\/\s*handoff\s*\/\s*recovery\s+artifact/i,
+  );
+  assert.match(documentation, /DigitalOcean[^\n]*source-built/i);
+  assert.match(documentation, /gh attestation verify/);
+  assert.match(
+    documentation,
+    /historical[\s\S]*release rollback[\s\S]*without\s+rewriting/i,
+  );
+  assert.match(
+    adrIndex,
+    /ADR-010\s*\|\s*Release artifact and version governance\s*\|\s*Proposed\s*\|\s*Versioning, tag, ZIP, provenance, publication, immutability/,
+  );
+});

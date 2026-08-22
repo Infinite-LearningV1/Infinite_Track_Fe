@@ -1,25 +1,25 @@
 {
-  "name": "infinitetrack-free",
-  "version": "2.0.1",
-  "description": "InfiniteTrack is a high-quality, open-source, and free Tailwind CSS admin template that is perfect for creating data-rich backends, powerful web applications and dashboard-admin projects.",
-  "main": "index.js",
+  "name": "infinite-track-web",
+  "version": "2.1.0",
+  "description": "Web frontend for Infinite Track attendance and management operations.",
   "scripts": {
     "start": "webpack serve --config webpack.config.js",
     "build": "cross-env NODE_ENV=production webpack --config webpack.config.js",
     "build:dev": "webpack --config webpack.config.js",
-    "test:auth-runtime": "node --test ./tests/auth-session-runtime.test.js",
+    "test": "node --test",
+    "test:auth-runtime": "node --test ./tests/auth/auth-session-runtime.test.js",
     "sort": "npx prettier --write src",
-    "lint": "npx prettier --check src tests docs"
+    "lint": "npx prettier --check src tests docs scripts .github"
   },
   "keywords": [],
-  "author": {
-    "name": "InfiniteTrack",
-    "email": "hello@infinitetrack.com",
-    "url": "https://infinitetrack.com"
-  },
-  "license": "ISC",
+  "author": "Infinite Learning",
+  "license": "MIT",
+  "browserslist": [
+    "> 1%",
+    "not dead"
+  ],
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "devDependencies": {
     "@babel/core": "^7.24.9",
@@ -36,6 +36,7 @@
     "html-loader": "^5.0.0",
     "html-webpack-plugin": "^5.6.0",
     "mini-css-extract-plugin": "^2.9.0",
+    "parse5": "7.3.0",
     "postcss": "^8.4.39",
     "postcss-loader": "^8.1.1",
     "postcss-preset-env": "^9.6.0",

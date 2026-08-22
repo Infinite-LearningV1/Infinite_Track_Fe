@@ -5,148 +5,272 @@
 
 import {
   getUsers,
-  updateUser,
+  getUserById,
   deleteUser,
+  getRoles,
+  getDivisions,
 } from "../../services/userService.js";
-import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
+import { createUserAvatarPresentation } from "../../utils/userAvatarPresentation.js";
+import { roleBadgeClass as roleBadgeClassUtil } from "../../utils/roleBadge.js";
+import { firstFiniteMapNumber } from "../../utils/mapLocationTruth.js";
+import {
+  parseUserDirectoryQuery,
+  serializeUserDirectoryQuery,
+  toUserDirectoryRequestParams,
+  USER_DIRECTORY_SORT_KEYS,
+} from "./userDirectoryQuery.js";
+function mapDirectoryUser(user) {
+  const fullName = user.full_name || user.fullName || "";
+  const photo = user.photo ?? null;
+  const photoUpdatedAt = user.photo_updated_at ?? null;
+  const avatar = createUserAvatarPresentation({ fullName, photo });
+  return {
+    ...user,
+    fullName,
+    role: user.role_name || user.role || null,
+    position: user.position_name || user.position || null,
+    nipNim: user.nip_nim || user.nipNim || null,
+    phoneNumber: user.phone || user.phoneNumber,
+    division: user.division_name || user.division || null,
+    photo,
+    photoUpdatedAt,
+    avatar,
+    latitude: firstFiniteMapNumber(user.location?.latitude),
+    longitude: firstFiniteMapNumber(user.location?.longitude),
+    radius: firstFiniteMapNumber(user.location?.radius),
+    description: user.location?.description || null,
+    categoryName: user.location?.category_name || null,
+    locationId: user.location?.location_id || null,
+    locationStatus: user.location_status || null,
+  };
+}
 
 /**
  * Data dan metode Alpine.js untuk komponen daftar pengguna
  * @returns {Object} - Objek yang berisi state dan metode Alpine.js
  */
-function userListAlpineData() {
+function userListAlpineData(overrides = {}) {
+  const services = {
+    getUsers: overrides.getUsers || getUsers,
+    getUserById: overrides.getUserById || getUserById,
+    getRoles: overrides.getRoles || getRoles,
+    getDivisions: overrides.getDivisions || getDivisions,
+    deleteUser: overrides.deleteUser || deleteUser,
+  };
+  const browser =
+    overrides.browser !== undefined
+      ? overrides.browser
+      : typeof window !== "undefined"
+        ? window
+        : null;
+  const schedule = overrides.setTimeout || globalThis.setTimeout;
+  const cancelSchedule = overrides.clearTimeout || globalThis.clearTimeout;
+
   return {
     // State management
     users: [],
+    pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
     isLoading: false,
     errorMessage: "",
-    entriesPerPage: 5,
+    entriesPerPage: 10,
     currentPage: 1,
-    searchQuery: "", // Modal states
+    searchQuery: "",
+    sortBy: "created_at",
+    sortOrder: "DESC",
+    latestRequestId: 0,
+    searchTimer: null,
+    popstateHandler: null,
+    latestDetailRequestId: 0,
+    detailLoadingUserId: null,
+    detailErrorMessage: "",
+
+    // Modal states
     isDeleteModalOpen: false,
     userToDelete: null,
     isDeleting: false,
     deleteConfirmText: "",
+
+    // Filter popover state (draft fields, edited before Apply)
+    isFilterOpen: false,
+    filterRole: "",
+    filterDivision: "",
+    filterWfhStatus: "",
+    // Applied filters use stable backend values; "" means no filter.
+    appliedFilters: {
+      role: "",
+      division: "",
+      locationStatus: "",
+    },
+    availableRoles: [],
+    availableDivisions: [],
+    roleOptionsLoading: true,
+    divisionOptionsLoading: true,
+    roleOptionsError: false,
+    divisionOptionsError: false,
 
     /**
      * Inisialisasi komponen
      */
     async init() {
       console.log("Initializing user list component...");
-      await this.fetchUsers();
-    } /**
-     * Computed: Filtered users berdasarkan search query
-     */,
-    get filteredUsers() {
-      if (!this.searchQuery || this.searchQuery.trim() === "") {
-        return this.users;
+      if (browser) {
+        this.applyUrlState({ fetch: false });
+        this.popstateHandler = async () => {
+          await this.applyUrlState();
+        };
+        browser.addEventListener("popstate", this.popstateHandler);
       }
+      await Promise.all([this.fetchUsers(), this.loadReferenceData()]);
+    },
 
-      const query = this.searchQuery.toLowerCase().trim();
-      return this.users.filter((user) => {
-        // Search dalam fullName dan nipNim
-        const fullName = (user.fullName || "").toLowerCase();
-        const nipNim = (user.nipNim || "").toLowerCase();
+    applyParsedQuery(parsed) {
+      this.currentPage = parsed.currentPage;
+      this.entriesPerPage = parsed.entriesPerPage;
+      this.searchQuery = parsed.searchQuery;
+      this.appliedFilters = { ...parsed.appliedFilters };
+      this.filterRole = parsed.appliedFilters.role;
+      this.filterDivision = parsed.appliedFilters.division;
+      this.filterWfhStatus = parsed.appliedFilters.locationStatus;
+      this.sortBy = parsed.sortBy;
+      this.sortOrder = parsed.sortOrder;
+    },
 
-        return fullName.includes(query) || nipNim.includes(query);
-      });
-    } /**
-     * Computed: Paginated users untuk ditampilkan
-     */,
-    get paginatedUsers() {
-      const start = (this.currentPage - 1) * this.entriesPerPage;
-      const end = start + this.entriesPerPage;
-      return this.filteredUsers.slice(start, end);
+    async applyUrlState({ fetch = true } = {}) {
+      if (!browser) return;
+      this.cancelPendingSearch();
+      this.applyParsedQuery(
+        parseUserDirectoryQuery(new URLSearchParams(browser.location.search)),
+      );
+      if (fetch) await this.fetchUsers();
+    },
+
+    syncUrl(mode) {
+      if (!browser || mode === "none") return;
+      const query = serializeUserDirectoryQuery(
+        this,
+        new URLSearchParams(browser.location.search),
+      ).toString();
+      const url = `${browser.location.pathname}${query ? `?${query}` : ""}${browser.location.hash || ""}`;
+      browser.history[`${mode}State`]({}, "", url);
+    },
+
+    destroy() {
+      this.cancelPendingSearch();
+      if (browser && this.popstateHandler) {
+        browser.removeEventListener("popstate", this.popstateHandler);
+      }
+    },
+
+    async loadReferenceData() {
+      this.roleOptionsLoading = true;
+      this.divisionOptionsLoading = true;
+      this.roleOptionsError = false;
+      this.divisionOptionsError = false;
+      const [rolesResult, divisionsResult] = await Promise.allSettled([
+        services.getRoles(),
+        services.getDivisions(),
+      ]);
+      this.availableRoles =
+        rolesResult.status === "fulfilled" ? rolesResult.value || [] : [];
+      this.availableDivisions =
+        divisionsResult.status === "fulfilled"
+          ? divisionsResult.value || []
+          : [];
+      this.roleOptionsError = rolesResult.status === "rejected";
+      this.divisionOptionsError = divisionsResult.status === "rejected";
+      this.roleOptionsLoading = false;
+      this.divisionOptionsLoading = false;
     },
 
     /**
-     * Computed: Total halaman berdasarkan data yang ada
+     * Computed: Total halaman berdasarkan pagination server
      */
     get totalPages() {
-      const totalData = this.filteredUsers.length;
-      if (totalData === 0) return 0;
-      return Math.ceil(totalData / this.entriesPerPage);
+      return this.pagination.totalPages;
     },
     /**
-     * Computed: Info showing entries dengan logika fleksibel
+     * Computed: Info showing entries berdasarkan pagination server
      */
     get showingInfo() {
-      const totalData = this.filteredUsers.length;
+      const { page, limit, total } = this.pagination;
 
-      if (totalData === 0) {
-        return "Showing 0 to 0 of 0 entries";
+      if (this.users.length === 0) {
+        return `Showing 0 to 0 of ${total} entries`;
       }
 
-      const start = (this.currentPage - 1) * this.entriesPerPage + 1;
-      const end = Math.min(this.currentPage * this.entriesPerPage, totalData);
+      const start = (page - 1) * limit + 1;
+      const end = Math.min(page * limit, total);
 
-      return `Showing ${start} to ${end} of ${totalData} entries`;
+      return `Showing ${start} to ${end} of ${total} entries`;
+    },
+    get emptyStateMessage() {
+      const hasActiveCriteria =
+        this.searchQuery.trim() ||
+        this.appliedFilters.role ||
+        this.appliedFilters.division ||
+        this.appliedFilters.locationStatus;
+
+      if (this.pagination.total > 0) {
+        return "Halaman ini tidak berisi data pengguna.";
+      }
+      if (hasActiveCriteria) {
+        return "Tidak ada pengguna yang cocok dengan pencarian atau filter aktif.";
+      }
+      return "Belum ada data pengguna.";
     },
 
     /**
      * Mengambil data pengguna dari API
      */
-    async fetchUsers() {
-      try {
-        this.isLoading = true;
-        this.errorMessage = "";
+    async fetchUsers({ historyMode = "none" } = {}) {
+      const requestId = ++this.latestRequestId;
+      this.isLoading = true;
+      this.errorMessage = "";
 
+      try {
         console.log("Fetching users from API...");
 
-        // Panggil API tanpa parameter
-        const users = await getUsers();
-        this.users = users || [];
+        const result = await services.getUsers(
+          toUserDirectoryRequestParams(this),
+        );
+        if (requestId !== this.latestRequestId) return false;
+
+        this.users = result.data.map(mapDirectoryUser);
+        this.pagination = result.pagination;
+        this.currentPage = result.pagination.page;
+        this.entriesPerPage = result.pagination.limit;
 
         console.log("Successfully fetched users:", this.users);
-        console.log("Raw API response:", users);
-        console.log("Sample user data:", users[0] || "No users found"); // Transform data untuk menambahkan computed properties dan normalisasi field names
-        this.users = this.users.map((user) => ({
-          ...user,
-          // Normalisasi field names untuk kompatibilitas dengan template
-          fullName: user.full_name || user.fullName,
-          role: user.role_name || user.role,
-          position: user.position_name || user.position,
-          nipNim: user.nip_nim || user.nipNim,
-          phoneNumber: user.phone || user.phoneNumber, // Location data mapping from nested location object
-          latitude: user.location?.latitude || null,
-          longitude: user.location?.longitude || null,
-          radius: user.location?.radius || null,
-          description: user.location?.description || null,
-          categoryName: user.location?.category_name || null,
-          locationId: user.location?.location_id || null,
-          // Computed properties
-          initials: getInitials(user.full_name || user.fullName),
-          avatarColor: getAvatarColor(user.full_name || user.fullName),
-        }));
-
-        console.log(
-          "Transformed user data:",
-          this.users[0] || "No users after transform",
-        );
-
-        // Reset current page jika melebihi total pages
-        if (this.currentPage > this.totalPages && this.totalPages > 0) {
-          this.currentPage = 1;
-        }
+        return true;
       } catch (error) {
+        if (requestId !== this.latestRequestId) return false;
         console.error("Error fetching users:", error);
         this.errorMessage = error.message;
-        this.users = [];
 
         // Tampilkan modal error
         this.showErrorModal(error.message);
+        return false;
       } finally {
-        this.isLoading = false;
+        if (requestId === this.latestRequestId) this.isLoading = false;
       }
     },
 
     /**
      * Navigasi ke halaman tertentu
      */
-    goToPage(page) {
-      if (page >= 1 && page <= this.totalPages) {
-        this.currentPage = page;
+    async goToPage(page) {
+      this.cancelPendingSearch();
+      if (
+        this.isLoading ||
+        page === this.currentPage ||
+        page < 1 ||
+        page > this.totalPages
+      ) {
+        return;
       }
+      this.currentPage = page;
+      this.syncUrl("push");
+      await this.fetchUsers();
     },
 
     /**
@@ -167,24 +291,84 @@ function userListAlpineData() {
     } /**
      * Handler untuk perubahan search query
      */,
+    cancelPendingSearch() {
+      if (this.searchTimer === null) return;
+      cancelSchedule(this.searchTimer);
+      this.searchTimer = null;
+    },
     onSearchChange() {
-      console.log("Search query changed:", this.searchQuery);
-      console.log(`Filtered results: ${this.filteredUsers.length} items`);
-
-      // Reset ke halaman pertama ketika search berubah
-      this.currentPage = 1;
+      this.cancelPendingSearch();
+      let timer = null;
+      timer = schedule(async () => {
+        if (this.searchTimer !== timer) return;
+        this.searchTimer = null;
+        this.currentPage = 1;
+        this.syncUrl("replace");
+        await this.fetchUsers();
+      }, 300);
+      this.searchTimer = timer;
     } /**
      * Handler untuk perubahan entries per page
      */,
-    onEntriesPerPageChange() {
-      console.log(`Entries per page changed to: ${this.entriesPerPage}`);
-      console.log(`Total data: ${this.filteredUsers.length}`);
-      console.log(
-        `New total pages will be: ${Math.ceil(this.filteredUsers.length / this.entriesPerPage)}`,
-      );
-
-      // Reset ke halaman pertama ketika entries per page berubah
+    async onEntriesPerPageChange() {
+      this.cancelPendingSearch();
+      this.entriesPerPage = Number(this.entriesPerPage);
       this.currentPage = 1;
+      this.syncUrl("push");
+      await this.fetchUsers();
+    } /**
+     * Menerapkan filter draft (Role/Divisi/Status Lokasi WFH) ke appliedFilters,
+     * menutup popover, dan mereset halaman ke 1.
+     */,
+    async applyFilters() {
+      this.cancelPendingSearch();
+      this.appliedFilters = {
+        role: this.filterRole,
+        division: this.filterDivision,
+        locationStatus: this.filterWfhStatus,
+      };
+      this.isFilterOpen = false;
+      this.currentPage = 1;
+      this.syncUrl("push");
+      await this.fetchUsers();
+    } /**
+     * Mengosongkan filter draft dan appliedFilters, mereset halaman ke 1.
+     * State popover (terbuka/tertutup) tidak diubah.
+     */,
+    async resetFilters() {
+      this.cancelPendingSearch();
+      this.filterRole = "";
+      this.filterDivision = "";
+      this.filterWfhStatus = "";
+      this.appliedFilters = {
+        role: "",
+        division: "",
+        locationStatus: "",
+      };
+      this.currentPage = 1;
+      this.syncUrl("push");
+      await this.fetchUsers();
+    },
+
+    async toggleSort(key) {
+      this.cancelPendingSearch();
+      if (this.isLoading || !USER_DIRECTORY_SORT_KEYS.includes(key)) return;
+      this.sortOrder =
+        this.sortBy === key && this.sortOrder === "ASC" ? "DESC" : "ASC";
+      this.sortBy = key;
+      this.currentPage = 1;
+      this.syncUrl("push");
+      await this.fetchUsers();
+    },
+
+    sortAriaValue(key) {
+      if (this.sortBy !== key) return "none";
+      return this.sortOrder === "ASC" ? "ascending" : "descending";
+    },
+
+    sortIndicator(key) {
+      if (this.sortBy !== key) return "↕";
+      return this.sortOrder === "ASC" ? "↑" : "↓";
     } /**
      * Mendapatkan array nomor halaman untuk pagination
      * Logic super fleksibel berdasarkan total data dan entries per page
@@ -227,9 +411,37 @@ function userListAlpineData() {
       }
 
       console.log(
-        `Pagination Info: Total Data=${this.filteredUsers.length}, Entries/Page=${this.entriesPerPage}, Total Pages=${totalPages}, Current Page=${this.currentPage}, Showing Pages=[${pages.join(",")}]`,
+        `Pagination Info: Total Data=${this.pagination.total}, Entries/Page=${this.entriesPerPage}, Total Pages=${totalPages}, Current Page=${this.currentPage}, Showing Pages=[${pages.join(",")}]`,
       );
       return pages;
+    },
+
+    isDetailLoadingFor(userId) {
+      return this.detailLoadingUserId === userId;
+    },
+
+    async openUserDetails(userId) {
+      const requestId = ++this.latestDetailRequestId;
+      this.detailLoadingUserId = userId;
+      this.detailErrorMessage = "";
+
+      try {
+        const user = await services.getUserById(userId);
+        if (requestId !== this.latestDetailRequestId) return false;
+        this.openUserDetailDrawer(user);
+        return true;
+      } catch (error) {
+        if (requestId !== this.latestDetailRequestId) return false;
+        console.error("Error fetching user detail:", error);
+        this.detailErrorMessage =
+          error.message || "Gagal mengambil detail pengguna.";
+        this.showErrorModal(this.detailErrorMessage);
+        return false;
+      } finally {
+        if (requestId === this.latestDetailRequestId) {
+          this.detailLoadingUserId = null;
+        }
+      }
     } /**
      * Menangani aksi view pengguna
      */,
@@ -239,50 +451,40 @@ function userListAlpineData() {
     },
 
     /**
-     * Wrapper methods for template usage
+     * Role badge color mapping for the Akses column.
+     *
+     * Delegates to the shared src/js/utils/roleBadge.js util so the table
+     * and the Detail Pengguna drawer render the same palette from one
+     * source. Colour is supplementary only — the badge always keeps
+     * `user.role` as its visible text (see the Akses cell binding), so this
+     * never becomes the sole carrier of status.
+     *
+     * @param {string|null|undefined} role
+     * @returns {string} full Tailwind class string (bg + text + dark variants)
      */
-    getInitials(fullName) {
-      return getInitials(fullName);
-    },
-    getAvatarColor(fullName) {
-      return getAvatarColor(fullName);
+    roleBadgeClass(role) {
+      return roleBadgeClassUtil(role);
     },
 
     /**
-     * Open map detail modal - using global modal function
+     * WFH readiness label for the table's Lokasi WFH column.
+     *
+     * Coordinates stay out of the table; the drawer owns location detail.
      */
-    openMapDetailModal(user) {
-      console.log("Opening map detail modal for user:", user);
+    wfhStatusFor(user) {
+      if (user.locationStatus === "configured") return "Tersedia";
+      if (user.locationStatus === "integrity_error") return "Perlu diperbaiki";
+      return "Status tidak diketahui";
+    },
 
-      // Prepare payload for global map modal
-      const locationPayload = {
-        fullName: user.fullName || user.full_name || "Unknown User",
-        email: user.email || "-",
-        position: user.position || user.position_name || "-",
-        phoneNumber: user.phoneNumber || user.phone || "-",
-        latitude: user.latitude || null,
-        longitude: user.longitude || null,
-        radius: user.radius || 100, // Default radius 100m
-        description: user.description || "Lokasi pengguna",
-        categoryName: user.categoryName || "",
-      };
-
-      console.log("Mapped location data:", locationPayload);
-
-      // Call global function to open map modal
-      if (typeof window.openMapDetailModal === "function") {
-        window.openMapDetailModal(locationPayload);
-      } else {
-        console.warn("openMapDetailModal function not found");
-        // Fallback: show coordinates in alert
-        if (locationPayload.latitude && locationPayload.longitude) {
-          alert(
-            `Koordinat: ${locationPayload.latitude}, ${locationPayload.longitude}`,
-          );
-        } else {
-          alert("Koordinat lokasi tidak tersedia");
-        }
+    wfhStatusClassFor(user) {
+      if (user.locationStatus === "configured") {
+        return "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400";
       }
+      if (user.locationStatus === "integrity_error") {
+        return "bg-error-50 text-error-700 dark:bg-error-500/15 dark:text-error-400";
+      }
+      return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
     } /**
      * Menangani aksi edit pengguna
      */,
@@ -343,24 +545,36 @@ function userListAlpineData() {
         this.userToDelete.fullName || this.userToDelete.full_name || "Pengguna";
 
       try {
-        await deleteUser(this.userToDelete.id);
-
-        // Hapus user dari array lokal
-        this.users = this.users.filter(
-          (user) => user.id !== this.userToDelete.id,
-        );
-
-        // Adjust current page jika diperlukan
-        const totalPages = this.totalPages;
-        if (this.currentPage > totalPages && totalPages > 0) {
-          this.currentPage = totalPages;
-        }
+        await services.deleteUser(this.userToDelete.id);
 
         // Tutup modal
         this.closeDeleteModal();
 
         // Refresh user list
-        await this.fetchUsers();
+        const refreshed = await this.fetchUsers();
+        if (!refreshed) return;
+
+        if (
+          this.currentPage > 1 &&
+          this.pagination.totalPages > 0 &&
+          this.currentPage > this.pagination.totalPages
+        ) {
+          const retainedPage = this.pagination.page;
+          this.currentPage = this.pagination.totalPages;
+          this.syncUrl("replace");
+          const recoveryRequestId = this.latestRequestId + 1;
+          const recovered = await this.fetchUsers();
+          if (!recovered) {
+            if (this.latestRequestId === recoveryRequestId) {
+              this.currentPage = retainedPage;
+              this.syncUrl("replace");
+            }
+            return;
+          }
+        } else if (this.pagination.totalPages === 0) {
+          this.currentPage = 1;
+          this.syncUrl("replace");
+        }
 
         // Tampilkan pesan sukses
         this.showSuccessModal(`Pengguna "${userFullName}" berhasil dihapus.`);

@@ -12,6 +12,10 @@ function isValidCriteriaWeight(entry) {
 export function buildFahpDashboardRecapViewModel(response) {
   const data = response?.data || {};
 
+  if (!data || typeof data !== "object" || !data.type || !data.status) {
+    throw new Error("Invalid FAHP dashboard recap contract");
+  }
+
   return {
     type: data.type || null,
     typeLabel: data.type_label || null,
@@ -24,7 +28,10 @@ export function buildFahpDashboardRecapViewModel(response) {
     consistency: {
       CR: data.consistency?.CR ?? null,
       threshold: data.consistency?.threshold ?? null,
-      isConsistent: Boolean(data.consistency?.is_consistent),
+      isConsistent:
+        typeof data.consistency?.is_consistent === "boolean"
+          ? data.consistency.is_consistent
+          : null,
       summaryLabel: data.consistency?.summary_label || null,
     },
     criteriaWeights: Array.isArray(data.criteria_weights)

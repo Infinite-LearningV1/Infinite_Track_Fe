@@ -1,10 +1,11 @@
 /**
- * Attendance Log Feature
- * Mengelola state dan logika untuk halaman log absensi
+ * Attendance audit list state.
+ * The Backend owns row order, pagination, filters, and totals.
  */
 
 import {
   getAttendanceLog,
+  getAttendanceById,
   deleteAttendance,
 } from "../../services/attendanceService.js";
 import {
@@ -12,334 +13,770 @@ import {
   formatTime,
   formatDate,
 } from "../../utils/dateTimeFormatter.js";
-import { getInitials, getAvatarColor } from "../../utils/avatarUtils.js";
+import {
+  firstFiniteMapNumber,
+  hasFiniteCoordinates,
+} from "../../utils/mapLocationTruth.js";
 import {
   getStatusBadgeClass,
   getStatusBadgeText,
   getInfoBadgeClass,
   getInfoBadgeText,
 } from "../../utils/badgeHelpers.js";
+import {
+  ATTENDANCE_PAGE_SIZES,
+  ATTENDANCE_SORT_KEYS,
+  DEFAULT_ATTENDANCE_QUERY,
+  parseAttendanceDirectoryQuery,
+  serializeAttendanceDirectoryQuery,
+  toAttendanceRequestParams,
+  validateAttendanceDateRange,
+} from "./attendanceDirectoryQuery.js";
+import {
+  getAttendanceCheckoutText,
+  normalizeAttendanceListRow,
+} from "./attendanceListRow.js";
+import {
+  formatAttendanceDateLabel,
+  formatAttendanceWorkDuration,
+  getAttendanceLocationText,
+} from "./attendancePresentation.js";
+import {
+  createAttendanceDetailDrawerLifecycle,
+  normalizeAttendanceDetail,
+} from "./attendanceDetailDrawerLifecycle.js";
+import { createFocusTrap } from "../../utils/focusTrap.js";
 
-/**
- * Alpine.js data untuk halaman attendance log
- * @returns {Object} - Alpine.js data object
- */
-export function attendanceLogAlpineData() {
+const emptyPagination = () => ({
+  current_page: 1,
+  total_pages: 1,
+  total_records: 0,
+  records_per_page: 10,
+  has_prev_page: false,
+  has_next_page: false,
+});
+
+const cloneDefaultQuery = () => ({
+  ...DEFAULT_ATTENDANCE_QUERY,
+  appliedFilters: { ...DEFAULT_ATTENDANCE_QUERY.appliedFilters },
+});
+
+const canonicalDeleteRecord = (record) => {
+  if (record && typeof record === "object" && !record.employee) return record;
+  if (!record || typeof record !== "object") {
+    return { idAttendance: record };
+  }
+
   return {
-    // State data
-    attendanceData: [],
+    idAttendance: record.idAttendance,
+    fullName: record.employee?.fullName,
+    attendanceDate: record.attendanceDate,
+    timeIn: record.timeIn,
+    timeOut: record.timeOut,
+  };
+};
+
+const escapeConfirmationHtml = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
+
+const deleteConfirmationMessage = (record) => {
+  const employee = record.fullName
+    ? escapeConfirmationHtml(record.fullName)
+    : "Pegawai tidak tersedia";
+  const date = record.attendanceDate
+    ? escapeConfirmationHtml(record.attendanceDate)
+    : "tanggal tidak tersedia";
+  const timeIn = record.timeIn
+    ? escapeConfirmationHtml(record.timeIn)
+    : "waktu masuk tidak tersedia";
+  const timeOut =
+    record.timeOut === null
+      ? "belum checkout"
+      : record.timeOut
+        ? escapeConfirmationHtml(record.timeOut)
+        : "waktu pulang tidak tersedia";
+  return `Hapus permanen data absensi ${employee} pada ${date}, ${timeIn} - ${timeOut}? Tindakan ini tidak dapat dibatalkan.`;
+};
+
+export function normalizeAttendanceListResponse(response = {}) {
+  const pagination = response.pagination ?? {};
+  return {
+    data: Array.isArray(response.data) ? response.data : [],
     pagination: {
-      current_page: 1,
-      total_pages: 1,
-      total_records: 0,
-      has_prev_page: false,
-      has_next_page: false,
-      per_page: 10,
+      current_page: pagination.current_page ?? 1,
+      total_pages: pagination.total_pages ?? 1,
+      total_records: pagination.total_records ?? 0,
+      records_per_page:
+        pagination.records_per_page ?? pagination.per_page ?? 10,
+      has_prev_page: pagination.has_prev_page ?? false,
+      has_next_page: pagination.has_next_page ?? false,
     },
-    filters: {
-      search: "",
-      sortBy: "time_in",
-      sortOrder: "DESC",
-      page: 1,
-      limit: 10,
+  };
+}
+
+export function buildAttendanceLocation(attendanceItem = {}) {
+  return {
+    fullName: attendanceItem.fullName ?? attendanceItem.full_name ?? "",
+    latitude: firstFiniteMapNumber(
+      attendanceItem.location?.latitude,
+      attendanceItem.latitude,
+    ),
+    longitude: firstFiniteMapNumber(
+      attendanceItem.location?.longitude,
+      attendanceItem.longitude,
+    ),
+    radius: firstFiniteMapNumber(
+      attendanceItem.location?.radius,
+      attendanceItem.radius,
+    ),
+    description:
+      attendanceItem.location?.description ??
+      attendanceItem.location_description ??
+      "",
+  };
+}
+
+export function attendanceLogAlpineData(overrides = {}) {
+  const services = {
+    getAttendanceLog: overrides.getAttendanceLog || getAttendanceLog,
+    getAttendanceById: overrides.getAttendanceById || getAttendanceById,
+    deleteAttendance: overrides.deleteAttendance || deleteAttendance,
+  };
+  const browser =
+    overrides.browser !== undefined
+      ? overrides.browser
+      : typeof window !== "undefined"
+        ? window
+        : null;
+  const schedule = overrides.setTimeout || globalThis.setTimeout;
+  const cancelSchedule = overrides.clearTimeout || globalThis.clearTimeout;
+  const focusTrapFactory = overrides.createFocusTrap || createFocusTrap;
+  const notify =
+    overrides.notify ||
+    ((payload) => globalThis.window?.showInlineAlert?.(payload));
+  const detailLifecycle = createAttendanceDetailDrawerLifecycle({
+    mapAdapter: overrides.mapAdapter || {
+      initialize(location) {
+        globalThis.window?.attendanceDetailMap?.initializeMap(location);
+      },
+      destroy() {
+        globalThis.window?.attendanceDetailMap?.destroyMap();
+      },
     },
-    isLoading: true,
-    errorMessage: "",
+  });
+  let attendanceDrawerFocusTrap = null;
+  let attendanceDrawerPresentationId = 0;
 
-    // Sort fields that are actively supported by current backend contract
-    supportedSortFields: ["id", "full_name", "time_in", "time_out", "status"],
-
-    // Search input proxy -> single request state (filters.search)
-    get searchTerm() {
-      return this.filters.search;
+  return {
+    rows: [],
+    pagination: emptyPagination(),
+    appliedQuery: cloneDefaultQuery(),
+    draftFilters: { ...DEFAULT_ATTENDANCE_QUERY.appliedFilters },
+    tableState: {
+      loading: false,
+      error: "",
+      hasSuccessfulPage: false,
     },
-    set searchTerm(value) {
-      this.filters.search = value;
-    },
-
-    // Modal states (legacy)
-    isDeleteModalOpen: false,
-    deleteConfirmMessage: "",
-    deleteTargetId: null,
-
-    // Debounce timer untuk search
+    latestListRequestId: 0,
     searchTimer: null,
+    popstateHandler: null,
+    isFilterOpen: false,
+    filterValidationMessage: "",
+    isAttendanceDetailDrawerOpen: false,
+    selectedAttendanceDetail: detailLifecycle.detail,
+    detailState: {
+      selectedId: null,
+      requestId: 0,
+      loading: false,
+      error: "",
+      unavailable: false,
+      detail: null,
+    },
 
-    /**
-     * Initialize component
-     */
+    isAttendanceDetailLoadingFor(attendanceId) {
+      return (
+        this.detailState.loading &&
+        this.detailState.selectedId !== null &&
+        this.detailState.selectedId !== undefined &&
+        String(this.detailState.selectedId) === String(attendanceId)
+      );
+    },
+
+    get searchQuery() {
+      return this.appliedQuery.search;
+    },
+    set searchQuery(value) {
+      this.appliedQuery.search = value ?? "";
+    },
+    get activeFilterCount() {
+      const filters = this.appliedQuery.appliedFilters;
+      return (
+        (filters.from || filters.to ? 1 : 0) +
+        (filters.mode ? 1 : 0) +
+        (filters.status ? 1 : 0) +
+        (filters.checkoutState ? 1 : 0)
+      );
+    },
+    get emptyStateMessage() {
+      if (this.appliedQuery.page > 1 && this.pagination.total_records > 0) {
+        return "Halaman ini tidak lagi memiliki data. Kembali ke halaman sebelumnya.";
+      }
+      const filters = this.appliedQuery.appliedFilters;
+      const hasCriteria =
+        Boolean(this.appliedQuery.search) ||
+        Boolean(
+          filters.from ||
+          filters.to ||
+          filters.mode ||
+          filters.status ||
+          filters.checkoutState,
+        );
+      return hasCriteria
+        ? "Tidak ada data absensi yang cocok dengan pencarian atau filter."
+        : "Belum ada data absensi.";
+    },
+
+    deleteState: { record: null, submitting: false, error: "" },
+    get deleteTargetId() {
+      return this.deleteState.record?.idAttendance ?? null;
+    },
+    set deleteTargetId(value) {
+      this.deleteState.record =
+        value === null || value === undefined
+          ? null
+          : {
+              ...(this.deleteState.record || {}),
+              idAttendance: value,
+            };
+    },
+    get isDeleting() {
+      return this.deleteState.submitting;
+    },
+    set isDeleting(value) {
+      this.deleteState.submitting = value === true;
+    },
+
     async init() {
+      if (browser) {
+        this.applyUrlState({ fetch: false });
+        const current = browser.location.search.replace(/^\?/, "");
+        const canonical = serializeAttendanceDirectoryQuery(
+          this.appliedQuery,
+          new URLSearchParams(browser.location.search),
+        ).toString();
+        if (canonical !== current) this.syncUrl("replace");
+        this.popstateHandler = async () => {
+          await this.applyUrlState();
+        };
+        browser.addEventListener("popstate", this.popstateHandler);
+      }
       await this.fetchAttendance();
     },
 
-    /**
-     * Fetch attendance data dari API
-     */
-    async fetchAttendance() {
-      try {
-        this.isLoading = true;
-        this.errorMessage = "";
+    applyParsedQuery(parsed) {
+      this.appliedQuery = {
+        ...parsed,
+        appliedFilters: { ...parsed.appliedFilters },
+      };
+      this.draftFilters = { ...parsed.appliedFilters };
+    },
 
-        const response = await getAttendanceLog(this.filters);
+    async applyUrlState({ fetch = true } = {}) {
+      if (!browser) return false;
+      this.cancelPendingSearch();
+      this.applyParsedQuery(
+        parseAttendanceDirectoryQuery(
+          new URLSearchParams(browser.location.search),
+        ),
+      );
+      if (fetch) return this.fetchAttendance();
+      return true;
+    },
 
-        // Update data dan pagination
-        this.attendanceData = response.data || [];
-        this.pagination = {
-          current_page: response.pagination?.current_page || 1,
-          total_pages: response.pagination?.total_pages || 1,
-          total_records: response.pagination?.total_records || 0,
-          has_prev_page: response.pagination?.has_prev_page || false,
-          has_next_page: response.pagination?.has_next_page || false,
-          per_page: response.pagination?.per_page || 10,
-        };
+    syncUrl(mode = "none") {
+      if (!browser || mode === "none") return;
+      const query = serializeAttendanceDirectoryQuery(
+        this.appliedQuery,
+        new URLSearchParams(browser.location.search),
+      ).toString();
+      const url = `${browser.location.pathname}${query ? `?${query}` : ""}${browser.location.hash || ""}`;
+      browser.history[`${mode}State`]({}, "", url);
+    },
 
-        if (response.pagination?.per_page) {
-          this.filters.limit = response.pagination.per_page;
+    destroy() {
+      this.cancelPendingSearch();
+      this.invalidateAttendanceDetailRequest();
+      attendanceDrawerPresentationId += 1;
+      detailLifecycle.close();
+      this.isAttendanceDetailDrawerOpen = false;
+      this.selectedAttendanceDetail = detailLifecycle.detail;
+      attendanceDrawerFocusTrap?.deactivate();
+      attendanceDrawerFocusTrap = null;
+      if (browser && this.popstateHandler) {
+        browser.removeEventListener("popstate", this.popstateHandler);
+        this.popstateHandler = null;
+      }
+    },
+
+    openAttendanceDrawerShell() {
+      attendanceDrawerPresentationId += 1;
+      const presentationId = attendanceDrawerPresentationId;
+      detailLifecycle.openShell();
+      this.isAttendanceDetailDrawerOpen = true;
+      this.selectedAttendanceDetail = detailLifecycle.detail;
+
+      const activateFocusTrap = () => {
+        if (
+          presentationId !== attendanceDrawerPresentationId ||
+          !this.isAttendanceDetailDrawerOpen ||
+          attendanceDrawerFocusTrap
+        ) {
+          return;
         }
-      } catch (error) {
-        this.errorMessage = error.message || "Gagal memuat data absensi";
-        console.error("Error fetching attendance:", error);
 
-        // Tampilkan modal error
-        if (typeof window.showAlertModal === "function") {
-          window.showAlertModal({
+        const panel = this.$refs?.attendanceDetailDrawerPanel;
+        if (!panel) return;
+
+        attendanceDrawerFocusTrap = focusTrapFactory(panel);
+        attendanceDrawerFocusTrap.activate();
+      };
+
+      return typeof this.$nextTick === "function"
+        ? this.$nextTick(activateFocusTrap)
+        : activateFocusTrap();
+    },
+
+    replaceAttendanceDrawerDetail(detail) {
+      const presentationId = attendanceDrawerPresentationId;
+      const replaceDetail = () => {
+        if (presentationId !== attendanceDrawerPresentationId) return false;
+        const replaced = detailLifecycle.replace(detail);
+        this.selectedAttendanceDetail = detailLifecycle.detail;
+        return replaced;
+      };
+
+      return typeof this.$nextTick === "function"
+        ? this.$nextTick(replaceDetail)
+        : replaceDetail();
+    },
+
+    invalidateAttendanceDetailRequest() {
+      const requestId = this.detailState.requestId + 1;
+      this.detailState = {
+        selectedId: null,
+        requestId,
+        loading: false,
+        error: "",
+        unavailable: false,
+        detail: null,
+      };
+    },
+
+    closeAttendanceDetail() {
+      this.invalidateAttendanceDetailRequest();
+      this.closeAttendanceDrawer({ preserveDetailRequestState: true });
+    },
+
+    closeAttendanceDrawer({ preserveDetailRequestState = false } = {}) {
+      if (!preserveDetailRequestState) {
+        this.invalidateAttendanceDetailRequest();
+      }
+      if (!this.isAttendanceDetailDrawerOpen) return;
+
+      attendanceDrawerPresentationId += 1;
+      detailLifecycle.close();
+      this.isAttendanceDetailDrawerOpen = false;
+      this.selectedAttendanceDetail = detailLifecycle.detail;
+      attendanceDrawerFocusTrap?.deactivate();
+      attendanceDrawerFocusTrap = null;
+    },
+
+    async openAttendanceDetail(attendanceId) {
+      const requestId = this.detailState.requestId + 1;
+      this.detailState = {
+        selectedId: attendanceId,
+        requestId,
+        loading: true,
+        error: "",
+        unavailable: false,
+        detail: null,
+      };
+      this.openAttendanceDrawerShell();
+
+      try {
+        const response = await services.getAttendanceById(attendanceId);
+        if (requestId !== this.detailState.requestId) return false;
+
+        const normalized = normalizeAttendanceDetail(response);
+        this.detailState.detail = normalized;
+        await this.replaceAttendanceDrawerDetail(response);
+        return true;
+      } catch (error) {
+        if (requestId !== this.detailState.requestId) return false;
+
+        this.detailState.detail = null;
+        if (error?.status === 404) {
+          this.detailState.error = "";
+          this.detailState.unavailable = true;
+          this.detailState.loading = false;
+          await this.fetchAttendance();
+        } else {
+          this.detailState.error =
+            error?.message || "Gagal memuat detail absensi";
+          this.detailState.unavailable = false;
+        }
+        return false;
+      } finally {
+        if (requestId === this.detailState.requestId) {
+          this.detailState.loading = false;
+        }
+      }
+    },
+
+    async retryAttendanceDetail() {
+      const attendanceId = this.detailState.selectedId;
+      if (attendanceId === null || attendanceId === undefined) return false;
+      return this.openAttendanceDetail(attendanceId);
+    },
+
+    handleAttendanceDrawerTab(event) {
+      attendanceDrawerFocusTrap?.handleKeydown(event);
+    },
+
+    async fetchAttendance() {
+      const requestId = ++this.latestListRequestId;
+      this.tableState.loading = true;
+      this.tableState.error = "";
+
+      try {
+        const response = await services.getAttendanceLog(
+          toAttendanceRequestParams(this.appliedQuery),
+        );
+        if (requestId !== this.latestListRequestId) return false;
+
+        const normalized = normalizeAttendanceListResponse(response);
+        this.rows = normalized.data.map(normalizeAttendanceListRow);
+        this.pagination = normalized.pagination;
+        this.appliedQuery.page = normalized.pagination.current_page;
+        this.appliedQuery.limit = normalized.pagination.records_per_page;
+        this.tableState.hasSuccessfulPage = true;
+        return true;
+      } catch (error) {
+        if (requestId !== this.latestListRequestId) return false;
+        this.tableState.error = error.message || "Gagal memuat data absensi";
+        console.error("Error fetching attendance:", error);
+        if (typeof globalThis.window?.showAlertModal === "function") {
+          globalThis.window.showAlertModal({
             type: "danger",
             title: "Gagal Memuat Data Absensi",
-            message: this.errorMessage,
+            message: this.tableState.error,
             buttonText: "OK",
           });
         }
+        return false;
       } finally {
-        this.isLoading = false;
+        if (requestId === this.latestListRequestId) {
+          this.tableState.loading = false;
+        }
       }
     },
 
-    /**
-     * Handle search input dengan debounce
-     */
+    async retryAttendanceList() {
+      return this.fetchAttendance();
+    },
+
+    cancelPendingSearch() {
+      if (this.searchTimer === null) return;
+      cancelSchedule(this.searchTimer);
+      this.searchTimer = null;
+    },
+
+    onSearchChange() {
+      this.cancelPendingSearch();
+      let timer = null;
+      timer = schedule(async () => {
+        if (this.searchTimer !== timer) return;
+        this.searchTimer = null;
+        this.appliedQuery.page = 1;
+        this.syncUrl("replace");
+        await this.fetchAttendance();
+      }, 300);
+      this.searchTimer = timer;
+    },
+
     handleSearchInput() {
-      // Clear timer sebelumnya
-      if (this.searchTimer) {
-        clearTimeout(this.searchTimer);
-      }
-
-      // Set timer baru untuk debounce 500ms
-      this.searchTimer = setTimeout(() => {
-        this.filters.page = 1; // Reset ke halaman pertama
-        this.fetchAttendance();
-      }, 500);
+      this.onSearchChange();
     },
 
-    /**
-     * Debounced search function untuk x-model
-     */
     debouncedSearch() {
-      this.handleSearchInput();
+      this.onSearchChange();
     },
 
-    /**
-     * Change sorting
-     * @param {string} newSortBy - Field untuk sorting
-     */
-    changeSort(newSortBy) {
-      if (!this.isSortFieldSupported(newSortBy)) {
-        return;
+    attendanceSortDirection(sortBy) {
+      if (this.appliedQuery.sortBy !== sortBy) return "none";
+      if (this.appliedQuery.sortOrder === "ASC") return "ascending";
+      if (this.appliedQuery.sortOrder === "DESC") return "descending";
+      return "none";
+    },
+
+    async toggleAttendanceSort(sortBy) {
+      if (!ATTENDANCE_SORT_KEYS.includes(sortBy) || this.tableState.loading) {
+        return false;
       }
 
-      // Jika field sama, toggle order
-      if (this.filters.sortBy === newSortBy) {
-        this.filters.sortOrder =
-          this.filters.sortOrder === "ASC" ? "DESC" : "ASC";
+      this.cancelPendingSearch();
+      if (this.appliedQuery.sortBy !== sortBy) {
+        this.appliedQuery.sortBy = sortBy;
+        this.appliedQuery.sortOrder = "ASC";
+      } else if (this.appliedQuery.sortOrder === "ASC") {
+        this.appliedQuery.sortOrder = "DESC";
       } else {
-        this.filters.sortBy = newSortBy;
-        this.filters.sortOrder = "DESC"; // Default ke DESC untuk field baru
+        this.appliedQuery.sortBy = "";
+        this.appliedQuery.sortOrder = "";
+      }
+      this.appliedQuery.page = 1;
+      this.syncUrl("push");
+      return this.fetchAttendance();
+    },
+
+    async changePage(newPage) {
+      this.cancelPendingSearch();
+      if (
+        this.tableState.loading ||
+        newPage === this.appliedQuery.page ||
+        newPage < 1 ||
+        newPage > this.pagination.total_pages
+      ) {
+        return false;
+      }
+      this.appliedQuery.page = newPage;
+      this.syncUrl("push");
+      return this.fetchAttendance();
+    },
+
+    async changeLimit(newLimit) {
+      this.cancelPendingSearch();
+      const parsed = Number(newLimit);
+      this.appliedQuery.limit = ATTENDANCE_PAGE_SIZES.includes(parsed)
+        ? parsed
+        : DEFAULT_ATTENDANCE_QUERY.limit;
+      this.appliedQuery.page = 1;
+      this.syncUrl("push");
+      return this.fetchAttendance();
+    },
+
+    openFilter() {
+      this.draftFilters = { ...this.appliedQuery.appliedFilters };
+      this.filterValidationMessage = "";
+      this.isFilterOpen = true;
+    },
+
+    closeFilter() {
+      if (!this.isFilterOpen) return;
+      this.isFilterOpen = false;
+      browser?.document
+        ?.getElementById("attendanceTableFilterTrigger")
+        ?.focus();
+    },
+
+    async applyFilters() {
+      const validation = validateAttendanceDateRange(this.draftFilters);
+      if (!validation.valid) {
+        this.filterValidationMessage = validation.message;
+        return false;
       }
 
-      this.filters.page = 1; // Reset ke halaman pertama
-      this.fetchAttendance();
+      this.cancelPendingSearch();
+      this.filterValidationMessage = "";
+      this.appliedQuery.appliedFilters = { ...this.draftFilters };
+      this.appliedQuery.page = 1;
+      this.syncUrl("push");
+      const result = await this.fetchAttendance();
+      this.closeFilter();
+      return result;
     },
 
-    /**
-     * Change page
-     * @param {number} newPage - Nomor halaman baru
-     */
-    changePage(newPage) {
-      if (newPage >= 1 && newPage <= this.pagination.total_pages) {
-        this.filters.page = newPage;
-        this.fetchAttendance();
-      }
+    async clearFilters() {
+      this.cancelPendingSearch();
+      this.filterValidationMessage = "";
+      this.draftFilters = { ...DEFAULT_ATTENDANCE_QUERY.appliedFilters };
+      this.appliedQuery.appliedFilters = { ...this.draftFilters };
+      this.appliedQuery.page = 1;
+      this.syncUrl("push");
+      const result = await this.fetchAttendance();
+      this.closeFilter();
+      return result;
     },
 
-    /**
-     * Change entries per page (server-driven)
-     * @param {number|string} newLimit - Jumlah data per halaman
-     */
-    changeLimit(newLimit) {
-      const parsedLimit = Number(newLimit);
-      this.filters.limit =
-        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
-      this.filters.page = 1;
-      this.fetchAttendance();
+    async resetFilters() {
+      return this.clearFilters();
     },
 
-    /**
-     * Confirm delete menggunakan alert modal (warning) + OK/Batal
-     * @param {string} attendanceId - ID absensi yang akan dihapus
-     */
-    confirmDelete(attendanceId) {
-      this.deleteTargetId = attendanceId;
-      if (typeof window.showAlertModal === "function") {
-        window.showAlertModal({
+    confirmDelete(attendanceRecord) {
+      if (this.deleteState.submitting) return false;
+
+      const record = canonicalDeleteRecord(attendanceRecord);
+      this.deleteState = { record, submitting: false, error: "" };
+      if (typeof globalThis.window?.showAlertModal === "function") {
+        globalThis.window.showAlertModal({
           type: "warning",
           title: "Konfirmasi Hapus Data",
-          message:
-            "Apakah Anda yakin ingin menghapus data absensi ini? Tindakan ini tidak dapat dibatalkan.",
+          message: deleteConfirmationMessage(record),
           buttonText: "Ya, Hapus",
           secondaryButtonText: "Batal",
           onOk: () => this.executeDelete(),
         });
       }
+      return true;
     },
 
-    /**
-     * Execute delete attendance (dipanggil via alert confirm OK)
-     */
     async executeDelete() {
-      if (!this.deleteTargetId) return;
+      const record = this.deleteState.record;
+      const attendanceId = record?.idAttendance;
+      if (
+        attendanceId === null ||
+        attendanceId === undefined ||
+        this.deleteState.submitting
+      ) {
+        return false;
+      }
 
+      this.deleteState.submitting = true;
+      this.deleteState.error = "";
       try {
-        await deleteAttendance(this.deleteTargetId);
+        await services.deleteAttendance(attendanceId);
 
-        // Reset target
-        this.deleteTargetId = null;
-
-        // Tampilkan alert inline sukses
-        if (typeof window.showInlineAlert === "function") {
-          window.showInlineAlert({
-            type: "success",
-            title: "Data Absensi Dihapus",
-            message: "Data absensi berhasil dihapus dari sistem.",
-          });
+        if (
+          this.detailState.selectedId !== null &&
+          this.detailState.selectedId !== undefined &&
+          String(this.detailState.selectedId) === String(attendanceId)
+        ) {
+          this.closeAttendanceDetail();
         }
 
-        // Refresh data
+        const totalRecords = Math.max(
+          0,
+          Number(this.pagination.total_records) || 0,
+        );
+        const pageSize = Math.max(
+          1,
+          Number(this.appliedQuery.limit) ||
+            Number(this.pagination.records_per_page) ||
+            DEFAULT_ATTENDANCE_QUERY.limit,
+        );
+        const lastValidPage = Math.max(
+          1,
+          Math.ceil(Math.max(0, totalRecords - 1) / pageSize),
+        );
+        if (this.appliedQuery.page > lastValidPage) {
+          this.appliedQuery.page = lastValidPage;
+          this.syncUrl("push");
+        }
+
+        this.deleteState.record = null;
+        notify({
+          type: "success",
+          title: "Data Absensi Dihapus",
+          message: "Data absensi berhasil dihapus dari sistem.",
+        });
         await this.fetchAttendance();
+        return true;
       } catch (error) {
-        console.error("Error deleting attendance:", error);
-
-        // Reset target
-        this.deleteTargetId = null;
-
-        // Tampilkan alert inline error
-        if (typeof window.showInlineAlert === "function") {
-          window.showInlineAlert({
-            type: "danger",
-            title: "Gagal Menghapus Data",
+        if (error?.status === 404) {
+          this.deleteState.record = null;
+          notify({
+            type: "warning",
+            title: "Data Absensi Tidak Tersedia",
             message:
-              error.message || "Terjadi kesalahan saat menghapus data absensi.",
+              "Data absensi ini sudah tidak tersedia. Daftar akan dimuat ulang.",
           });
+          await this.fetchAttendance();
+          return false;
         }
+
+        this.deleteState.error =
+          error?.message || "Terjadi kesalahan saat menghapus data absensi.";
+        notify({
+          type: "danger",
+          title: "Gagal Menghapus Data",
+          message: this.deleteState.error,
+        });
+        return false;
+      } finally {
+        this.deleteState.submitting = false;
       }
     },
 
-    /**
-     * View location detail
-     * @param {Object} attendanceItem - Data attendance item
-     */
     viewLocation(attendanceItem) {
-      // Siapkan payload untuk modal peta
-      const locationPayload = {
-        fullName: attendanceItem.full_name || "Unknown User",
-        email: attendanceItem.email || "-",
-        position: attendanceItem.role_name || "-",
-        phoneNumber: attendanceItem.phone_number || "-",
-        latitude: attendanceItem.location?.latitude || attendanceItem.latitude,
-        longitude:
-          attendanceItem.location?.longitude || attendanceItem.longitude,
-        radius: attendanceItem.location?.radius || attendanceItem.radius || 100, // Default radius 100m
-        description:
-          attendanceItem.location?.description ||
-          attendanceItem.location_description ||
-          "Lokasi absensi karyawan",
-      };
-
-      // Call global function untuk membuka modal peta
-      if (typeof window.openMapDetailModal === "function") {
-        window.openMapDetailModal(locationPayload);
-      } else {
-        console.warn("openMapDetailModal function not found");
-        // Fallback: tampilkan koordinat dalam alert
-        if (locationPayload.latitude && locationPayload.longitude) {
-          alert(
-            `Koordinat: ${locationPayload.latitude}, ${locationPayload.longitude}`,
-          );
-        }
-      }
+      if (!this.hasAttendanceCoordinates(attendanceItem)) return;
+      globalThis.window?.openMapDetailModal?.(
+        buildAttendanceLocation(attendanceItem),
+      );
     },
 
-    /**
-     * Format datetime menggunakan utility function
-     * @param {string} isoString - ISO date string
-     * @returns {string} - Formatted datetime
-     */
-    formatDateTime(isoString) {
-      return formatDateTime(isoString);
-    },
-
-    /**
-     * Get status badge class (using universal badge helper)
-     */
-    getStatusBadgeClass(status) {
-      return getStatusBadgeClass(status);
-    },
-
-    /**
-     * Get status badge text (using universal badge helper)
-     */
-    getStatusBadgeText(status) {
-      return getStatusBadgeText(status);
-    },
-
-    /**
-     * Get information badge class (using universal badge helper)
-     */
-    getInfoBadgeClass(info) {
-      return getInfoBadgeClass(info);
-    },
-
-    /**
-     * Get information badge text (using universal badge helper)
-     */
+    getStatusBadgeClass,
+    getStatusBadgeText,
+    getInfoBadgeClass,
+    getAttendanceCheckoutText,
+    formatAttendanceDateLabel,
+    formatAttendanceWorkDuration,
+    getAttendanceLocationText,
     getInfoBadgeText(info) {
-      return getInfoBadgeText(info);
+      return info ? getInfoBadgeText(info) : "-";
     },
-
-    /**
-     * Get sort icon
-     * @param {string} fieldName - Field name untuk sorting
-     * @returns {string} - Icon class atau empty string
-     */
-    getSortIcon(fieldName) {
-      if (!this.isSortFieldSupported(fieldName)) {
-        return "";
-      }
-
-      if (this.filters.sortBy !== fieldName) {
-        return ""; // Tidak ada icon jika field tidak sedang di-sort
-      }
-
-      return this.filters.sortOrder === "ASC" ? "↑" : "↓";
+    hasAttendanceCoordinates(log) {
+      return hasFiniteCoordinates({
+        latitude: firstFiniteMapNumber(log.location?.latitude, log.latitude),
+        longitude: firstFiniteMapNumber(log.location?.longitude, log.longitude),
+      });
     },
-
-    isSortFieldSupported(fieldName) {
-      return this.supportedSortFields.includes(fieldName);
-    },
-
-    // Avatar utility functions (imported from utils)
-    getInitials,
-    getAvatarColor, // Formatting functions for templates
     formatDateTime,
     formatTime,
     formatDate,
   };
+}
+
+/**
+ * Builds the Management Attendance root scope without evaluating accessors.
+ * Object spread calls getters while composing the Alpine expression, which
+ * disconnects aliases such as searchQuery from their canonical nested state.
+ */
+export function attendanceManagementPageData(
+  mapDetailState = {},
+  attendanceOverrides = {},
+) {
+  const shellState = {
+    page: "managementAttendance",
+    loaded: true,
+    darkMode: false,
+    stickyMenu: false,
+    sidebarToggle: false,
+    scrollTop: false,
+    isAlertModalOpen: false,
+    alertType: "success",
+    alertTitle: "",
+    alertMessage: "",
+    alertButtonText: "OK",
+  };
+  const result = {};
+
+  for (const source of [
+    shellState,
+    attendanceLogAlpineData(attendanceOverrides),
+    mapDetailState,
+  ]) {
+    Object.defineProperties(result, Object.getOwnPropertyDescriptors(source));
+  }
+
+  return result;
 }

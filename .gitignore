@@ -9,18 +9,33 @@ memory-bank
 .env.production
 .env.test
 
-# Claude Code / worktrees
+# Local AI / agent tooling
+CLAUDE.md
+AGENTS.md
 .claude/
-!.claude/
-.claude/*
-!.claude/skills/
-.claude/skills/*
-!.claude/skills/codex-trigger-matrix/
-!.claude/skills/codex-trigger-matrix/SKILL.md
-!.claude/skills/codex-review-summary/
-!.claude/skills/codex-review-summary/SKILL.md
-!.claude/skills/codex-pr-readiness/
-!.claude/skills/codex-pr-readiness/SKILL.md
+.superpowers/
 .worktrees/
 .remember/
 .claude-dev-server.log
+
+# Local engineering/process artifacts
+task-*-report.md
+PROJECT_STATUS.md
+ANALISIS-PROJECT.md
+docs/auth-runtime-evidence/
+docs/contract-sync/
+docs/dashboard-evidence/
+docs/evidence/
+docs/handoff/
+docs/linear-sync/
+docs/linear-templates/
+docs/mvp/
+docs/smoke-tests/
+docs/superpowers/
+docs/code-review-governance.md
+
+# IDE
+.idea/
+
+# Local dev-server logs
+webpack-*.log

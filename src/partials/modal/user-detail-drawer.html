@@ -1,0 +1,238 @@
+<!-- Detail Pengguna Drawer -->
+<div
+  x-show="isUserDetailDrawerOpen"
+  x-cloak
+  class="fixed inset-0 z-99999"
+  style="display: none"
+  @keydown.escape.window="closeUserDetailDrawer()"
+>
+  <!-- Backdrop -->
+  <div
+    class="fixed inset-0 bg-gray-400/50 backdrop-blur-[32px]"
+    aria-hidden="true"
+    @click="closeUserDetailDrawer()"
+  ></div>
+
+  <!-- Drawer Panel -->
+  <div
+    x-ref="userDetailDrawerPanel"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    aria-labelledby="userDetailDrawerTitle"
+    aria-describedby="userDetailDrawerDescription"
+    class="no-scrollbar fixed inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto bg-white shadow-xl dark:bg-gray-900"
+    x-transition:enter="transition ease-out duration-300 transform"
+    x-transition:enter-start="translate-x-full"
+    x-transition:enter-end="translate-x-0"
+    x-transition:leave="transition ease-in duration-200 transform"
+    x-transition:leave-start="translate-x-0"
+    x-transition:leave-end="translate-x-full"
+    @keydown.tab="handleDrawerTab($event)"
+  >
+    <!-- Drawer Header -->
+    <div
+      class="flex items-start justify-between border-b border-gray-200 p-6 dark:border-gray-700"
+    >
+      <div>
+        <h2
+          id="userDetailDrawerTitle"
+          class="text-theme-xl font-semibold text-gray-800 dark:text-white/90"
+        >
+          Detail Pengguna
+        </h2>
+        <p
+          id="userDetailDrawerDescription"
+          class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+        >
+          Informasi pengguna dan area WFH yang dikonfigurasi.
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label="Tutup detail pengguna"
+        class="focus:ring-brand-500 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus:ring-2 focus:outline-none dark:bg-white/[0.05] dark:text-gray-400 dark:hover:bg-white/[0.07]"
+        @click="closeUserDetailDrawer()"
+      >
+        <svg
+          class="h-5 w-5 fill-current"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M6.04289 16.5418C5.65237 16.9323 5.65237 17.5655 6.04289 17.956C6.43342 18.3465 7.06658 18.3465 7.45711 17.956L11.9987 13.4144L16.5408 17.9565C16.9313 18.347 17.5645 18.347 17.955 17.9565C18.3455 17.566 18.3455 16.9328 17.955 16.5423L13.4129 12.0002L17.955 7.45808C18.3455 7.06756 18.3455 6.43439 17.955 6.04387C17.5645 5.65335 16.9313 5.65335 16.5408 6.04387L11.9987 10.586L7.45711 6.04439C7.06658 5.65386 6.43342 5.65386 6.04289 6.04439C5.65237 6.43491 5.65237 7.06808 6.04289 7.4586L10.5845 12.0002L6.04289 16.5418Z"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Drawer Body -->
+    <div class="flex-1 space-y-6 p-6">
+      <!-- Profile header: avatar (photo if available, else initials) + name + email + role badge -->
+      <section
+        class="flex items-center gap-4 border-b border-gray-200 pb-6 dark:border-gray-800"
+      >
+        <template x-if="selectedUserLocation.avatar.photoUrl">
+          <img
+            :src="selectedUserLocation.avatar.photoUrl"
+            alt=""
+            class="h-16 w-16 rounded-full object-cover"
+            @error="selectedUserLocation.avatar.photoUrl = null"
+          />
+        </template>
+        <template x-if="!selectedUserLocation.avatar.photoUrl">
+          <div
+            class="flex h-16 w-16 items-center justify-center rounded-full text-lg font-medium"
+            :class="selectedUserLocation.avatar.avatarColor"
+          >
+            <span x-text="selectedUserLocation.avatar.initials"></span>
+          </div>
+        </template>
+        <div class="min-w-0">
+          <p
+            class="text-base font-semibold text-gray-900 dark:text-white"
+            x-text="selectedUserLocation.fullName || '-'"
+          ></p>
+          <p
+            class="text-sm text-gray-500 dark:text-gray-400"
+            x-text="selectedUserLocation.email || '-'"
+          ></p>
+          <span
+            class="text-theme-xs mt-1 inline-flex rounded-full px-2.5 py-0.5 font-medium"
+            :class="roleBadgeClass(selectedUserLocation.role)"
+            x-text="selectedUserLocation.role || '-'"
+          ></span>
+        </div>
+      </section>
+
+      <!-- Identitas -->
+      <section class="space-y-3">
+        <h3
+          class="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+        >
+          Identitas
+        </h3>
+        <div>
+          <span class="text-sm text-gray-500 dark:text-gray-400">NIP/NIM</span>
+          <p
+            class="text-base text-gray-900 dark:text-white"
+            x-text="selectedUserLocation.nipNim || '-'"
+          ></p>
+        </div>
+      </section>
+
+      <!-- Organisasi -->
+      <section class="space-y-3">
+        <h3
+          class="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+        >
+          Organisasi
+        </h3>
+        <div>
+          <span class="text-sm text-gray-500 dark:text-gray-400">Posisi</span>
+          <p
+            class="text-base text-gray-900 dark:text-white"
+            x-text="selectedUserLocation.position || '-'"
+          ></p>
+        </div>
+      </section>
+
+      <!-- Lokasi WFH -->
+      <section class="space-y-3">
+        <h3
+          class="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400"
+        >
+          Lokasi WFH
+        </h3>
+        <div>
+          <span class="text-sm text-gray-500 dark:text-gray-400">Status</span>
+          <p
+            class="text-base font-medium text-gray-900 dark:text-white"
+            x-text="wfhStatus"
+          ></p>
+        </div>
+
+        <!-- Configured location detail -->
+        <div
+          class="space-y-3"
+          x-show="Number.isFinite(selectedUserLocation.latitude) && Number.isFinite(selectedUserLocation.longitude)"
+        >
+          <div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              Latitude
+            </span>
+            <p
+              class="font-mono text-base text-gray-900 dark:text-white"
+              x-text="Number.isFinite(selectedUserLocation.latitude) ? selectedUserLocation.latitude : '-'"
+            ></p>
+          </div>
+          <div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              Longitude
+            </span>
+            <p
+              class="font-mono text-base text-gray-900 dark:text-white"
+              x-text="Number.isFinite(selectedUserLocation.longitude) ? selectedUserLocation.longitude : '-'"
+            ></p>
+          </div>
+          <div x-show="Number.isFinite(selectedUserLocation.radius)">
+            <span class="text-sm text-gray-500 dark:text-gray-400">Radius</span>
+            <p
+              class="text-base text-gray-900 dark:text-white"
+              x-text="Number.isFinite(selectedUserLocation.radius) ? selectedUserLocation.radius + ' m' : '-'"
+            ></p>
+          </div>
+          <div x-show="selectedUserLocation.description">
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              Deskripsi
+            </span>
+            <p
+              class="text-base text-gray-900 dark:text-white"
+              x-text="selectedUserLocation.description"
+            ></p>
+          </div>
+
+          <!-- Area WFH map preview -->
+          <div
+            class="h-64 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+          >
+            <div
+              id="mapDetailContainer"
+              class="h-full w-full bg-gray-100 dark:bg-gray-800"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <p
+          class="rounded-lg bg-gray-50 p-4 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+          x-show="!Number.isFinite(selectedUserLocation.latitude) || !Number.isFinite(selectedUserLocation.longitude)"
+        >
+          Lokasi WFH belum diatur.
+        </p>
+      </section>
+    </div>
+
+    <!-- Drawer Footer -->
+    <div
+      class="flex items-center justify-between gap-3 border-t border-gray-200 p-6 dark:border-gray-700"
+    >
+      <a
+        :href="`form-user.html?id=${selectedUserLocation.id}`"
+        class="bg-brand-500 hover:bg-brand-600 focus:ring-brand-500 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors focus:ring-2 focus:outline-none"
+      >
+        Edit Pengguna
+      </a>
+      <button
+        type="button"
+        class="focus:ring-brand-500 rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:outline-none dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+        @click="closeUserDetailDrawer()"
+      >
+        Tutup
+      </button>
+    </div>
+  </div>
+</div>

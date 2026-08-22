@@ -62,7 +62,8 @@ Client-side guards improve experience and reduce accidental misuse, but they can
 ## Evidence / References
 
 - `src/js/utils/roleBasedAccess.js` — dashboard deny for non-admin/non-management uses explicit modal flow and no silent redirect to `/profile.html`.
-- `docs/auth-runtime-evidence/RUN_2026-06-21.md` — fresh browser-runtime evidence shows authenticated Employee dashboard attempts stay on `/index.html`, mark `document.body.dataset.accessBoundary = "denied"`, and present the deny modal instead of silently redirecting to `/profile.html`.
+- `tests/auth/auth-redirect-after-login.test.js` � regression coverage keeps Employee/Internship dashboard-class login on the explicit deny boundary instead of treating stale profile redirects as authority.
+- `tests/auth/auth-bootstrap-order.test.js` � startup coverage preserves the explicit `accessBoundary = "denied"` state.
 - `src/js/utils/authGuard.js:27-53` — protected-page guard checks page type, respects `verification_failed`, and only uses session hint to decide whether signin redirect is needed.
 - `src/js/utils/authGuard.js:140-185` — permission checks and guarded callbacks require verified Alpine auth state instead of local storage truth.
 - `src/js/utils/roleBasedAccess.js:15-23` — role access derives from `getVerifiedUser()` only.

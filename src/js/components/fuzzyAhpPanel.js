@@ -23,7 +23,9 @@ function normalizeConsistencyStatusLabel(value, isConsistent) {
     return value;
   }
 
-  return isConsistent ? "Konsisten" : "Perlu Review";
+  if (isConsistent === true) return "Konsisten";
+  if (isConsistent === false) return "Perlu Review";
+  return "Tidak tersedia";
 }
 
 function createCriteriaRows(criteriaWeights = []) {
@@ -47,8 +49,7 @@ function createRankingRows(rankings = []) {
     const rank = Number.isFinite(Number(ranking.rank))
       ? Number(ranking.rank)
       : fallbackRank;
-    const primaryLabel =
-      ranking.name || `Alternative ${fallbackRank}`;
+    const primaryLabel = ranking.name || `Alternative ${fallbackRank}`;
 
     return {
       key: `${ranking.id || primaryLabel || "ranking"}-${index}`,
@@ -57,6 +58,9 @@ function createRankingRows(rankings = []) {
       secondaryLabel: ranking.label || null,
       score: Number.isFinite(score) ? score : 0,
       scoreLabel: formatDecimal(score, 3),
+      criteriaSummary: ranking.criteriaSummary || null,
+      approvedBookingCount: ranking.approvedBookingCount,
+      analyzableBookingCount: ranking.analyzableBookingCount,
     };
   });
 }
@@ -76,14 +80,25 @@ export function createFuzzyAhpViewState(panel, activeDecisionKey = null) {
   const fallbackKey = panel?.data?.activeDecisionKey || decisions[0]?.key || "";
   const selectedKey = activeDecisionKey || fallbackKey;
   const activeDecision = resolveActiveDecision(decisions, selectedKey);
-  const threshold = Number(activeDecision?.consistencyThreshold);
-  const consistencyRatio = Number(activeDecision?.consistencyRatio);
-  const isConsistent =
+  const threshold =
+    typeof activeDecision?.consistencyThreshold === "number"
+      ? activeDecision.consistencyThreshold
+      : Number.NaN;
+  const consistencyRatio =
+    typeof activeDecision?.consistencyRatio === "number"
+      ? activeDecision.consistencyRatio
+      : Number.NaN;
+  const explicitConsistency =
     typeof activeDecision?.isConsistent === "boolean"
       ? activeDecision.isConsistent
-      : Number.isFinite(consistencyRatio) && Number.isFinite(threshold)
-        ? consistencyRatio <= threshold
-        : false;
+      : null;
+  const derivedConsistency =
+    explicitConsistency === null &&
+    Number.isFinite(consistencyRatio) &&
+    Number.isFinite(threshold)
+      ? consistencyRatio <= threshold
+      : null;
+  const isConsistent = explicitConsistency ?? derivedConsistency;
 
   return {
     title: panel?.title || "Fuzzy AHP Decision Center",
@@ -103,6 +118,11 @@ export function createFuzzyAhpViewState(panel, activeDecisionKey = null) {
     isConsistent,
     criteriaRows: createCriteriaRows(activeDecision?.criteriaWeights),
     rankingRows: createRankingRows(activeDecision?.rankings),
-    updatedAtLabel: activeDecision?.updatedAtLabel || "Menunggu pembaruan backend Fuzzy AHP",
+    updatedAtLabel:
+      activeDecision?.updatedAtLabel || "Menunggu pembaruan backend Fuzzy AHP",
+    kind: activeDecision?.kind || null,
+    requestedWindow: activeDecision?.requestedWindow || null,
+    methodology: activeDecision?.methodology || null,
+    evidence: activeDecision?.evidence || null,
   };
 }

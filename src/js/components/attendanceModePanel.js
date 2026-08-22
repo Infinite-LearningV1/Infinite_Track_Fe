@@ -11,11 +11,28 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   };
 }
 
-function createDonutSlicePath(centerX, centerY, outerRadius, innerRadius, startAngle, endAngle) {
-  const outerStart = polarToCartesian(centerX, centerY, outerRadius, startAngle);
+function createDonutSlicePath(
+  centerX,
+  centerY,
+  outerRadius,
+  innerRadius,
+  startAngle,
+  endAngle,
+) {
+  const outerStart = polarToCartesian(
+    centerX,
+    centerY,
+    outerRadius,
+    startAngle,
+  );
   const outerEnd = polarToCartesian(centerX, centerY, outerRadius, endAngle);
   const innerEnd = polarToCartesian(centerX, centerY, innerRadius, endAngle);
-  const innerStart = polarToCartesian(centerX, centerY, innerRadius, startAngle);
+  const innerStart = polarToCartesian(
+    centerX,
+    centerY,
+    innerRadius,
+    startAngle,
+  );
   const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
 
   return [
@@ -81,7 +98,10 @@ function createChartSlicesMarkup(slices = []) {
 }
 
 function createCenterValue(panel, summaryRows = []) {
-  return String(panel?.data?.total ?? summaryRows.reduce((total, row) => total + row.value, 0));
+  return String(
+    panel?.data?.total ??
+      summaryRows.reduce((total, row) => total + row.value, 0),
+  );
 }
 
 function createTotalSummary(panel, summaryRows = []) {
@@ -122,7 +142,9 @@ export function createAttendanceModeViewState(panel) {
         };
       }
 
-      const activeSlice = chartSlices.find((slice) => slice.key === activeSegmentKey);
+      const activeSlice = chartSlices.find(
+        (slice) => slice.key === activeSegmentKey,
+      );
 
       return activeSlice
         ? {

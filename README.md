@@ -1,169 +1,216 @@
-# InfiniteTrack - Free Tailwind Admin Dashboard Template
+# Infinite Track — Web Frontend
 
-InfiniteTrack is a high-quality, open-source, and **free Tailwind CSS admin template** that is perfect for creating data-rich backends,
-powerful web applications and dashboard-admin projects.
+**Infinite Track** adalah sistem presensi digital yang dikembangkan untuk mendukung pengelolaan kehadiran pada pola kerja WFO, WFH, dan WFA di Infinite Learning.
 
-![InfiniteTrack Dashboard Preview](./banner.png)
+Repository ini berisi **Web Frontend Infinite Track** yang digunakan sebagai dashboard monitoring, pengelolaan, dan pelaporan data presensi.
 
-## Overview
+## Repository
 
-InfiniteTrack provides essential UI components and layouts for building feature-rich, data-driven admin dashboards and control panels. It's built using:
+| Item               | Value                                   |
+| ------------------ | --------------------------------------- |
+| Repository         | `Infinite-LearningV1/Infinite_Track_Fe` |
+| Integration branch | `develop`                               |
+| Production branch  | `master`                                |
+| Runtime            | Static multi-page frontend              |
+| Node.js            | `24+`                                   |
+
+This repository requires Node.js 24+.
+
+## Tech Stack
 
 - HTML
+- JavaScript
 - Alpine.js
 - Tailwind CSS
-- and Webpack (for bundling)
+- Webpack 5
+- Axios
+- Leaflet
+- Chart.js / ApexCharts
+- jsPDF / XLSX
 
-### Quick Links
-
-- [✨ Visit Website](https://infinitetrack.com)
-- [📄 Documentation](https://infinitetrack.com/docs)
-- [⬇️ Download](https://infinitetrack.com/download)
-- [🖌️ Figma Design File (Community Edition)](https://www.figma.com/community/file/1463141366275764364)
-- [⚡ Get PRO Version](https://infinitetrack.com/pricing)
-
-### Demos
-
-- [Free Version](https://free-demo.infinitetrack.com/)
-- [Pro Version](https://demo.infinitetrack.com)
-
-### Other Versions
-
-- [Next.js Version](https://github.com/InfiniteTrack/free-nextjs-admin-dashboard)
-- [React.js Version](https://github.com/InfiniteTrack/free-react-tailwind-admin-dashboard)
-- [Vue.js Version](https://github.com/InfiniteTrack/vue-tailwind-admin-dashboard)
-
-## Installation
-
-### Prerequisites
-
-To get started with InfiniteTrack, ensure you have the following prerequisites installed and set up:
-
-- Node.js 20.x or later
-
-### Cloning the Repository
-
-Clone the repository using the following command:
+## Getting Started
 
 ```bash
-git clone https://github.com/InfiniteTrack/infinitetrack-free-tailwind-dashboard-template.git
+git clone https://github.com/Infinite-LearningV1/Infinite_Track_Fe.git
+cd Infinite_Track_Fe
+git checkout develop
+npm ci
+cp .env.example .env
+npm run start
 ```
 
-> Windows Users: place the repository near the root of your drive if you face issues while cloning.
+### Local runtime boundary
 
-1. Install dependencies:
+Web FE runs directly on Webpack Dev Server at `http://localhost:3000`.
+The backend is started independently from the backend repository and must listen on `http://localhost:3005` for the default local integration path.
+Webpack proxies browser requests under `/api/*` to that backend target, so local browser code keeps `API_BASE_URL=/api`.
 
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+Web FE does not require Nginx, Docker Compose, or a Web FE-owned backend container for canonical local development.
 
-2. Start the development server:
-   ```bash
-   npm run start
-   # or
-   yarn start
-   ```
+## Environment
+
+`.env.example` is the single public-safe template. It contains the seven retained public build/dev inputs: `API_BASE_URL`, `APP_ENVIRONMENT`, `DEBUG_MODE`, `LOG_LEVEL`, `WEBPACK_DEV_HOST`, `WEBPACK_OPEN`, and `WEBPACK_API_PROXY_TARGET`. Authentication paths, session durations, app identity, and locale defaults are code-level constants.
+
+For a static production build, the deployment platform supplies the public values: `API_BASE_URL=https://api.infinite-track.tech/api`, `APP_ENVIRONMENT=production`, `DEBUG_MODE=false`, and `LOG_LEVEL=error`. Do not commit a production env file.
+
+## Commands
+
+| Command         | Purpose                                                                     |
+| --------------- | --------------------------------------------------------------------------- |
+| `npm ci`        | Install dependencies from `package-lock.json`                               |
+| `npm run start` | Start development server                                                    |
+| `npm run lint`  | Check source, tests, docs, release scripts, and GitHub workflows formatting |
+| `npm test`      | Run full regression test suite                                              |
+| `npm run build` | Create production build                                                     |
+
+## Project Structure
+
+```text
+Infinite_Track_Fe/
+├── .github/
+│   └── workflows/
+│       └── ci.yml        # CI verification workflow
+├── docs/
+│   └── adr/              # Architecture Decision Records
+├── src/
+│   ├── js/
+│   │   ├── components/
+│   │   ├── config/
+│   │   ├── features/
+│   │   ├── services/
+│   │   ├── stores/
+│   │   └── utils/
+│   ├── partials/
+│   ├── images/
+│   └── *.html
+├── tests/                # Regression tests by domain
+├── .env.example          # Single public build/dev input template
+├── .gitattributes        # LF working-tree policy
+├── .prettierrc           # Repository formatting policy
+├── postcss.config.js     # PostCSS configuration owner
+├── webpack.config.js     # Webpack build and local dev-server config
+└── package.json
+```
+
+## Frontend Architecture
+
+```mermaid
+flowchart LR
+    HTML["HTML Pages<br/>src/*.html + partials"]
+    BOOT["index.js<br/>Bootstrap / Composition"]
+    ALPINE["Alpine.js Runtime"]
+    FEATURE["Features"]
+    COMPONENT["Shared Components"]
+    STORE["Auth Store"]
+    SERVICE["Services"]
+    REQUEST["authRequest / Axios"]
+    API["Backend API"]
+
+    HTML --> BOOT
+    BOOT --> ALPINE
+    ALPINE --> FEATURE
+    ALPINE --> COMPONENT
+    ALPINE <--> STORE
+    FEATURE --> SERVICE
+    FEATURE --> COMPONENT
+    SERVICE --> REQUEST
+    REQUEST --> API
+```
 
 ## Branch Workflow
 
-This repository uses a branch-promotion workflow:
+```text
+feature/* ─┐
+fix/*     ─┼─> develop ──> master
+chore/*   ─┘
+```
 
-- Start every new feature from a dedicated `feature/*` branch, and use `fix/*` branches for bugfix or urgent work.
-- Merge feature and fix work into `develop` only through PR review.
-- Treat `develop` as the integration branch where reviewed changes are held before release.
-- Treat `master` as the final clean branch that is updated only when `develop` is ready to deploy.
+## CI & Verification
 
-Other historical or auxiliary branches may still exist in the repository, but the primary workflow is `feature/*` / `fix/*` -> `develop` -> `master`.
+```mermaid
+flowchart LR
+    A["Pull Request / Push"]
+    B["npm ci"]
+    C["npm run lint"]
+    D["npm test"]
+    E["npm run build"]
+    F["Ready for Review"]
 
-In short:
-- `feature/*` / `fix/*` -> `develop` via PR review
-- `develop` -> `master` via controlled release promotion
+    A --> B --> C --> D --> E --> F
+```
 
-## Components
+The repository verification workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-InfiniteTrack is a pre-designed starting point for building a web-based dashboard using HTML, Alpine.js and Tailwind CSS. The template includes:
+## Releases
 
-- Sophisticated and accessible sidebar
-- Data visualization components
-- Prebuilt profile management and 404 page
-- Tables and Charts(Line and Bar)
-- Authentication forms and input elements
-- Alerts, Dropdowns, Modals, Buttons and more
-- Can't forget Dark Mode 🕶️
+Stable release identity uses one version convention:
 
-## Feature Comparison
+```text
+package.json version : X.Y.Z
+Git tag              : vX.Y.Z
+Release title        : Infinite Track Web vX.Y.Z
+Release ZIP          : infinite-track-web-vX.Y.Z.zip
+```
 
-### Free Version
+The first clean stable release is `v2.1.0`. Use `master` as the stable release
+source, not an unpromoted `develop` or feature branch. The release lifecycle is:
 
-- 1 Unique Dashboard
-- 30+ dashboard components
-- 50+ UI elements
-- Basic Figma design files
-- Community support
+```text
+develop -> CI -> master -> versioned tag -> release.yml -> verified ZIP -> draft GitHub Release -> human review -> publish
+```
 
-### Pro Version
+`.github/workflows/release.yml` validates the tag/package identity, confirms the
+tag commit is reachable from `master`, and runs `npm ci`, `npm run lint`,
+`npm test`, and `npm run build` with these public production inputs:
 
-- 5 Unique Dashboards: Analytics, Ecommerce, Marketing, CRM, Stocks (more coming soon)
-- 400+ dashboard components and UI elements
-- Complete Figma design file
-- Email support
+```text
+API_BASE_URL=https://api.infinite-track.tech/api
+APP_ENVIRONMENT=production
+DEBUG_MODE=false
+LOG_LEVEL=error
+```
 
-To learn more about pro version features and pricing, visit our [pricing page](https://infinitetrack.com/pricing).
+The workflow validates the generated static tree, creates
+`infinite-track-web-vX.Y.Z.zip` from inside `build/`, attests it, and stops at
+a draft GitHub Release. GitHub automatically supplies source archives; the
+custom ZIP is the generated static runtime artifact. Verify a downloaded ZIP
+with:
 
-## Update Logs
+```bash
+gh release download v2.1.0 --pattern "infinite-track-web-v2.1.0.zip"
+gh attestation verify infinite-track-web-v2.1.0.zip --repo Infinite-LearningV1/Infinite_Track_Fe
+```
 
-### Version 2.0.1 - [February 27, 2025]
+GitHub Release ZIP = official packaged distribution / handoff / recovery
+artifact. DigitalOcean remains source-built and production is currently rebuilt
+from repository source; do not claim byte-for-byte identity with the ZIP. For
+rollback or recovery, use a historical immutable release without rewriting a
+published version.
 
-#### Update Overview
+## Deployment
 
-- Upgraded to Tailwind CSS v4 for better performance and efficiency.
-- Updated class usage to match the latest syntax and features.
-- Replaced deprecated class and optimized styles.
+| Item             | Value                                            |
+| ---------------- | ------------------------------------------------ |
+| Release branch   | `master`                                         |
+| Build command    | `npm ci && npm run build`                        |
+| Output directory | `build/`                                         |
+| Frontend         | `https://infinite-track.tech`                    |
+| API base         | `https://api.infinite-track.tech/api`            |
+| Hosting model    | DigitalOcean App Platform Static Site            |
+| Backend ingress  | Backend-owned Nginx at `api.infinite-track.tech` |
 
-#### Next Steps
+```text
+develop
+   ↓
+master
+   ↓
+production build
+   ↓
+deploy build/
+```
 
-- Run npm install or yarn install to update dependencies.
-- Check for any style changes or compatibility issues.
-- Refer to the Tailwind CSS v4 [Migration Guide](https://tailwindcss.com/docs/upgrade-guide) on this release. if needed.
-- This update keeps the project up to date with the latest Tailwind improvements. 🚀
-
-### Version 2.0.0 - [February 2025]
-
-Major update with comprehensive redesign and new features.
-
-#### Major Improvements
-
-- Complete UI redesign of all pages and components
-- Enhanced user interface with new elements
-- Improved responsiveness and accessibility
-- New features: collapsible sidebar, chat, and calendar
-- Updated data visualization components
-
-#### New Features
-
-- Redesigned dashboards (Ecommerce, Analytics, Marketing, CRM)
-- Enhanced navigation with improved header and breadcrumbs
-- Advanced table components with sorting and filtering
-- New UI components (Avatar, Alert, Ribbon)
-- Full-featured calendar with drag-and-drop
-
-#### Breaking Changes
-
-- Updated sidebar component API
-- New charting library implementation
-- Revised authentication system
-- **Deprecations:** SimpleTable component and legacy icon set
-
-#### Previous Versions
-
-For detailed changelogs of previous versions (1.0.0 - 1.3.0), visit our [documentation](https://infinitetrack.com/docs/update-logs/).
+The Web FE production artifact is static `build/` content. The Web FE repository does not own a production Nginx runtime. Browser API traffic goes directly to `https://api.infinite-track.tech/api`; backend ingress/TLS remains a backend responsibility.
 
 ## License
 
-The community edition of InfiniteTrack is released under the MIT License.
-
-## Support
-
-If you find this project helpful, please consider giving it a star on GitHub. Your support helps us continue developing and maintaining this template.
+Repository menggunakan MIT License. Lihat [`LICENSE`](LICENSE).

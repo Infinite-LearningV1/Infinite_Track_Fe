@@ -38,6 +38,7 @@ function createBackendOperationalSettingsFormFromResponse(settings = {}) {
       settings.lateCheckoutToleranceMin ?? "",
     ).trim(),
     defaultShiftEnd: normalizeTimeForInput(settings.defaultShiftEnd),
+    wfaRequestRadiusM: String(settings.wfaRequestRadiusM ?? "").trim(),
   };
 }
 
@@ -50,6 +51,7 @@ function normalizeBackendOperationalSettingsForm(form = {}) {
       form.lateCheckoutToleranceMin ?? "",
     ).trim(),
     defaultShiftEnd: String(form.defaultShiftEnd ?? "").trim(),
+    wfaRequestRadiusM: String(form.wfaRequestRadiusM ?? "").trim(),
   };
 }
 
@@ -68,6 +70,7 @@ function getFieldLabel(key) {
     autoCheckoutTBufferMin: "Waktu penyangga checkout otomatis",
     lateCheckoutToleranceMin: "Toleransi checkout terlambat",
     defaultShiftEnd: "Jam selesai shift default",
+    wfaRequestRadiusM: "Radius pengajuan WFA",
   };
 
   return labels[key] || key;
@@ -109,6 +112,7 @@ function toBackendOperationalSettingsPayload(form = {}) {
     autoCheckoutTBufferMin: Number(normalizedForm.autoCheckoutTBufferMin),
     lateCheckoutToleranceMin: Number(normalizedForm.lateCheckoutToleranceMin),
     defaultShiftEnd: normalizedForm.defaultShiftEnd,
+    wfaRequestRadiusM: Number(normalizedForm.wfaRequestRadiusM),
   };
 }
 
@@ -206,6 +210,10 @@ function backendOperationalSettingsAlpineData(
 
     async saveSettings() {
       this.saveError = "";
+
+      if (!this.hasLoadedCanonicalSettings || this.isLoading || this.isSaving) {
+        return;
+      }
 
       if (!this.validateForm()) {
         this.saveError =

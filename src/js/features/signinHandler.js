@@ -54,7 +54,7 @@ export function shouldAutoInitSigninHandler(documentRef = document) {
   const emailInput = documentRef?.getElementById?.("email");
   const passwordInput =
     documentRef?.getElementById?.("password") ||
-    documentRef?.querySelector?.('#password');
+    documentRef?.querySelector?.("#password");
   const submitButton = documentRef?.querySelector?.(
     'button[type="submit"], form button:last-of-type',
   );

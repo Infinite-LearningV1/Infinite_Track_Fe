@@ -16,11 +16,6 @@ jobs:
       id-token: write
       attestations: write
       artifact-metadata: write
-    env:
-      API_BASE_URL: https://api.infinite-track.tech/api
-      APP_ENVIRONMENT: production
-      DEBUG_MODE: "false"
-      LOG_LEVEL: error
 
     steps:
       - name: Checkout release tag
@@ -56,6 +51,11 @@ jobs:
         run: npm test
 
       - name: Build production frontend
+        env:
+          API_BASE_URL: https://api.infinite-track.tech/api
+          APP_ENVIRONMENT: production
+          DEBUG_MODE: "false"
+          LOG_LEVEL: error
         run: npm run build
 
       - name: Validate generated artifact

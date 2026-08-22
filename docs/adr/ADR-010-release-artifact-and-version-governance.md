@@ -99,7 +99,8 @@ attestation must all describe the same release identity.
 ## Draft-first publication
 
 The workflow creates a draft GitHub Release with generated notes as a starting
-point. A human release owner reviews the identity, ZIP, attestation, target
+point. [`.github/release.yml`](../../.github/release.yml) owns generated-note
+categories and bot-author exclusions; final release notes remain human-curated. A human release owner reviews the identity, ZIP, attestation, target
 `master` commit, verification evidence, and known issues before curating the
 notes and publishing it. Automated tag runs do not publish a stable Release.
 

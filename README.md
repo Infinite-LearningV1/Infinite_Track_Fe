@@ -175,7 +175,10 @@ LOG_LEVEL=error
 
 The workflow validates the generated static tree, creates
 `infinite-track-web-vX.Y.Z.zip` from inside `build/`, attests it, and stops at
-a draft GitHub Release. GitHub automatically supplies source archives; the
+a draft GitHub Release. Generated notes are categorized by
+[`.github/release.yml`](.github/release.yml), which uses the repository's existing
+`enhancement`, `bug`, and `documentation` labels, a catch-all category, and
+excludes automated bot authors from the generated changelog. GitHub automatically supplies source archives; the
 custom ZIP is the generated static runtime artifact. Verify a downloaded ZIP
 with:
 
